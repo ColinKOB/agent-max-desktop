@@ -295,38 +295,92 @@ class LocalMemoryManager {
   // ============================================
 
   /**
-   * Get all preferences
+   * Get preferences
    */
   getPreferences() {
-    return this._loadFile(this.preferencesFile, {
-      explicit: {},
-      implicit: {}
-    });
+    try {
+      let prefs = this._loadFile(this.preferencesFile, {
+        explicit: {},
+        implicit: {},
+        work: {},
+        system: {}
+      });
+      
+      // Defensive: ensure prefs is an object
+      if (!prefs || typeof prefs !== 'object' || Array.isArray(prefs)) {
+        console.warn('[Memory] Preferences not an object, creating new structure');
+        prefs = {
+          explicit: {},
+          implicit: {},
+          work: {},
+          system: {}
+        };
+      }
+      
+      // Ensure all expected types exist
+      if (!prefs.explicit || typeof prefs.explicit !== 'object') prefs.explicit = {};
+      if (!prefs.implicit || typeof prefs.implicit !== 'object') prefs.implicit = {};
+      if (!prefs.work || typeof prefs.work !== 'object') prefs.work = {};
+      if (!prefs.system || typeof prefs.system !== 'object') prefs.system = {};
+      
+      return prefs;
+    } catch (error) {
+      console.error('[Memory] Error in getPreferences:', error);
+      return {
+        explicit: {},
+        implicit: {},
+        work: {},
+        system: {}
+      };
+    }
   }
 
   /**
    * Set a preference
    */
   setPreference(key, value, type = 'explicit') {
-    const preferences = this.getPreferences();
-    
-    // Ensure the type object exists
-    if (!preferences[type]) {
-      preferences[type] = {};
+    try {
+      console.log(`[Memory] Setting preference: ${key} = ${value} (type: ${type})`);
+      
+      let preferences = this.getPreferences();
+      
+      // Defensive: ensure preferences is an object
+      if (!preferences || typeof preferences !== 'object') {
+        console.error('[Memory] Preferences is not an object, creating new');
+        preferences = {
+          explicit: {},
+          implicit: {},
+          work: {},
+          system: {}
+        };
+      }
+      
+      // Defensive: ensure the type object exists
+      if (!preferences[type] || typeof preferences[type] !== 'object') {
+        console.log(`[Memory] Creating missing type: ${type}`);
+        preferences[type] = {};
+      }
+      
+      // Set the preference
+      preferences[type][key] = {
+        value,
+        updated_at: new Date().toISOString()
+      };
+      
+      console.log(`[Memory] Preference set successfully:`, preferences[type][key]);
+      
+      this._saveFile(this.preferencesFile, preferences);
+      return preferences;
+    } catch (error) {
+      console.error('[Memory] Error in setPreference:', error);
+      throw error;
     }
-    
-    preferences[type][key] = {
-      value,
-      updated_at: new Date().toISOString()
-    };
-    this._saveFile(this.preferencesFile, preferences);
-    return preferences;
   }
 
   /**
    * Get preference by key
    */
-  getPreference(key) {
+  getPreference(key, type = 'explicit') {
     const preferences = this.getPreferences();
     return preferences.explicit[key]?.value || 
            preferences.implicit[key]?.value || 

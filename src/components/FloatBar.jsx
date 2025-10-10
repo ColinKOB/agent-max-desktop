@@ -36,6 +36,18 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     resizeWindow();
   }, [isOpen]);
 
+  // Test preferences system on mount (for debugging)
+  useEffect(() => {
+    const testPrefs = async () => {
+      if (window.electron?.memory?.testPreferences) {
+        console.log('[FloatBar] Running preferences test...');
+        const result = await window.electron.memory.testPreferences();
+        console.log('[FloatBar] Test result:', result);
+      }
+    };
+    testPrefs();
+  }, []);
+
   // Keyboard shortcut: Cmd+Alt+C (Mac) / Ctrl+Alt+C (Win/Linux)
   useEffect(() => {
     function onHotkey(e) {

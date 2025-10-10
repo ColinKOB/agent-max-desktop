@@ -48,5 +48,8 @@ contextBridge.exposeInMainWorld('electron', {
     // Stats
     getStats: () => ipcRenderer.invoke('memory:get-stats'),
     getLocation: () => ipcRenderer.invoke('memory:get-location'),
+    
+    // Testing
+    testPreferences: () => ipcRenderer.invoke('memory:test-preferences'),
   },
 });

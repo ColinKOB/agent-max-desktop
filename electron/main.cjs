@@ -282,3 +282,42 @@ ipcMain.handle('memory:get-stats', () => {
 ipcMain.handle('memory:get-location', () => {
   return ensureMemoryManager().getMemoryLocation();
 });
+
+// Test preferences (for debugging)
+ipcMain.handle('memory:test-preferences', async () => {
+  try {
+    const mm = ensureMemoryManager();
+    console.log('[Test] Testing preferences system...');
+    
+    // Test 1: Get current preferences
+    const before = mm.getPreferences();
+    console.log('[Test] Current preferences:', JSON.stringify(before, null, 2));
+    
+    // Test 2: Set a test preference
+    await mm.setPreference('test_key', 'test_value', 'work');
+    console.log('[Test] Set test preference');
+    
+    // Test 3: Verify it was saved
+    const after = mm.getPreferences();
+    console.log('[Test] Preferences after set:', JSON.stringify(after, null, 2));
+    
+    // Test 4: Get the specific preference
+    const retrieved = mm.getPreference('test_key');
+    console.log('[Test] Retrieved value:', retrieved);
+    
+    return {
+      success: true,
+      message: 'Preferences test completed',
+      before,
+      after,
+      retrieved
+    };
+  } catch (error) {
+    console.error('[Test] Preferences test failed:', error);
+    return {
+      success: false,
+      error: error.message,
+      stack: error.stack
+    };
+  }
+});
