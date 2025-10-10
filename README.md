@@ -1,20 +1,22 @@
 # Agent Max Desktop
 
-A beautiful Electron desktop application for **Agent Max Memory System V2**. This app provides a modern, intuitive interface for interacting with your Agent Max API.
+A beautiful Electron-based **floating bar assistant** for **Agent Max Memory System V2**. Always on top, minimal footprint, glassmorphism design.
 
 ![Agent Max Desktop](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![Electron](https://img.shields.io/badge/Electron-28.0-47848F.svg)
 ![React](https://img.shields.io/badge/React-18.2-61DAFB.svg)
 
+> **📌 Note:** This app uses a floating bar interface. For detailed technical documentation, see [FLOATBAR_README.md](FLOATBAR_README.md).
+
 ## 🎯 Features
 
-- **Dashboard** - Overview of your profile, stats, and pending tasks
-- **Conversation** - Chat interface with message history and task management
-- **Knowledge Base** - Manage facts with categories, search, and auto-extraction
-- **Semantic Search** - Find similar past goals with AI-powered similarity matching
-- **Preferences** - View and manage explicit and implicit preferences
-- **Settings** - Configure API connection, theme, and app preferences
-- **Dark Mode** - Full dark mode support with smooth transitions
+- **Floating Bar Interface** - Three modes: mini square (68x68), bar (320x68), card (360x520)
+- **Always On Top** - Stays above all windows for instant access
+- **Screenshot Capture** - Take screenshots and attach to messages
+- **Semantic Suggestions** - AI-powered similar past conversations
+- **Chat Interface** - Converse with Agent Max Memory System V2
+- **Glassmorphism UI** - Beautiful translucent blur effects
+- **Keyboard Shortcuts** - Cmd+Alt+C to toggle, Esc to minimize
 - **Real-time API** - Connects to your existing Agent Max API (localhost:8000)
 
 ## 📋 Prerequisites
@@ -73,37 +75,38 @@ This creates distributable packages in the `dist-electron/` directory:
 agent-max-desktop/
 ├── electron/
 │   ├── main.cjs              # Electron main process
-│   └── preload.cjs           # Preload script for IPC
+│   ├── preload.cjs           # Preload script for IPC
+│   └── memory-manager.cjs    # Local memory storage
 │
 ├── src/
-│   ├── components/           # Reusable React components
-│   │   ├── Sidebar.jsx
-│   │   ├── ProfileCard.jsx
-│   │   ├── ChatInterface.jsx
-│   │   └── FactsManager.jsx
-│   │
-│   ├── pages/                # Main application pages
-│   │   ├── Dashboard.jsx
-│   │   ├── Conversation.jsx
-│   │   ├── Knowledge.jsx
-│   │   ├── Search.jsx
-│   │   ├── Preferences.jsx
-│   │   └── Settings.jsx
+│   ├── components/
+│   │   ├── FloatBar.jsx      # Main floating bar UI
+│   │   ├── ErrorBoundary.jsx # Error handling
+│   │   └── ProfileCard.jsx   # Profile display
 │   │
 │   ├── services/
-│   │   └── api.js            # API client (connects to localhost:8000)
+│   │   ├── api.js            # API client
+│   │   └── memory.js         # Memory utilities
+│   │
+│   ├── config/
+│   │   ├── apiConfig.js      # API configuration manager
+│   │   └── api.js            # API URL resolution
 │   │
 │   ├── store/
 │   │   └── useStore.js       # Zustand state management
 │   │
 │   ├── styles/
-│   │   └── globals.css       # Global styles + Tailwind
+│   │   ├── globals.css       # Glassmorphism styles
+│   │   └── welcome.css       # Welcome screen styles
 │   │
 │   ├── utils/
 │   │   └── cn.js             # Utility functions
 │   │
 │   ├── App.jsx               # Main app component
 │   └── main.jsx              # React entry point
+│
+├── tests/
+│   └── features.test.js      # Automated tests
 │
 ├── index.html
 ├── package.json
@@ -150,81 +153,81 @@ If your API requires authentication:
 - **Notifications:** React Hot Toast
 - **Date Utilities:** date-fns
 
-## 📱 Pages Overview
+## 🎨 UI Modes
 
-### Dashboard
-- Profile card with greeting
-- Interaction statistics
-- Pending tasks list
-- Quick insights
+### Mini Square Mode (68×68px)
+- Compact "MAX" button in top-right corner
+- Always on top, translucent glassmorphism
+- Click to expand to bar mode
+- Draggable anywhere on screen
 
-### Conversation
-- Chat interface with message bubbles
-- Real-time message history
-- Task management sidebar
-- Clear conversation option
+### Bar Mode (320×68px)
+- Horizontal input bar
+- Quick message entry
+- Auto-expands to card on send
+- Minimize button to return to mini
 
-### Knowledge Base
-- View all stored facts
-- Filter by category (personal, technical, preferences, etc.)
-- Search within facts
-- Add/edit/delete facts
-- Auto-extract facts from text
+### Card Mode (360×520px)
+- Full chat interface with conversation history
+- Message input with screenshot button
+- Semantic suggestions for similar past queries
+- Reset conversation button
+- Draggable from header
+- Esc or minimize to collapse
 
-### Semantic Search
-- Search for similar past goals
-- Adjustable similarity threshold
-- View success/failure indicators
-- Semantic patterns visualization
-- Cache statistics
+## 🎯 Key Features
 
-### Preferences
-- View explicit preferences
-- View implicit preferences with confidence scores
-- Add/edit/delete preferences
-- Confidence visualization
+### Chat Interface
+- Send messages to Agent Max API
+- View conversation history
+- User/agent message bubbles
+- Thinking indicators during processing
 
-### Settings
-- Theme switcher (light/dark)
-- API configuration
-- Connection testing
-- Clear local cache
-- App information
+### Screenshot Capture
+- Click camera icon to capture screen
+- Blue indicator shows screenshot attached
+- Automatic send with message
+- Supports image analysis in API
+
+### Semantic Suggestions
+- Type 3+ characters to see suggestions
+- Shows similar past conversations
+- Similarity percentage displayed
+- Click suggestion to auto-fill
+- Debounced for performance (800ms)
+
+### Welcome Flow
+- First-run onboarding experience
+- 4-step setup: name, role, use case, work style
+- Saves preferences locally
+- Skipped on subsequent launches
+
+### Local Memory
+- Stores profile data locally
+- Preferences and settings persistence
+- No cloud sync required
+- Privacy-focused storage
 
 ## 🎯 API Endpoints Used
 
-The app uses the following Agent Max API endpoints:
+The floating bar connects to the following Agent Max API endpoints:
+
+**Core:**
+- `GET /health` - Health check and connection monitoring
+- `POST /api/v2/chat` - Send chat messages (with optional screenshot)
 
 **Profile:**
 - `GET /api/v2/profile` - Get user profile
 - `GET /api/v2/profile/greeting` - Get personalized greeting
-- `POST /api/v2/profile/name` - Set user name
-- `GET /api/v2/profile/insights` - Get insights
 
-**Facts:**
-- `GET /api/v2/facts` - Get all facts
-- `POST /api/v2/facts/extract` - Extract facts from text
-- `PUT /api/v2/facts/{category}/{key}` - Set a fact
-- `DELETE /api/v2/facts/{category}/{key}` - Delete a fact
+**Semantic Search:**
+- `POST /api/v2/semantic/similar` - Find similar past conversations
+- `POST /api/v2/semantic/embed` - Get text embeddings
 
-**Semantic:**
-- `POST /api/v2/semantic/similar` - Find similar goals
-- `GET /api/v2/semantic/patterns` - Get patterns
-- `GET /api/v2/semantic/cache/stats` - Cache stats
-
-**Conversation:**
-- `POST /api/v2/conversation/message` - Add message
-- `GET /api/v2/conversation/context` - Get context
-- `POST /api/v2/conversation/task` - Add/complete task
-- `GET /api/v2/conversation/tasks` - Get tasks
-
-**Preferences:**
-- `GET /api/v2/preferences` - Get all preferences
-- `PUT /api/v2/preferences/{key}` - Set preference
-- `DELETE /api/v2/preferences/{key}` - Delete preference
-
-**Health:**
-- `GET /health` - Health check
+**Optional (for future features):**
+- `GET /api/v1/chat/stream` - Server-sent events for streaming responses
+- `POST /api/v2/conversation/message` - Add message to history
+- `GET /api/v2/conversation/context` - Get conversation context
 
 ## 🐛 Troubleshooting
 

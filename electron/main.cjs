@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, screen, shell, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, shell, clipboard, desktopCapturer } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');

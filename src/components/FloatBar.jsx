@@ -107,8 +107,8 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       }
     };
 
-    // Check boundaries periodically (every 500ms to catch drags)
-    const interval = setInterval(checkBoundaries, 500);
+    // Check boundaries periodically (every 2 seconds to catch drags)
+    const interval = setInterval(checkBoundaries, 2000);
     
     // Also check immediately on state changes
     checkBoundaries();
