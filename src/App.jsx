@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import FloatBar from './components/FloatBar';
-import WelcomeScreen from './components/WelcomeScreen';
 import useStore from './store/useStore';
 import { healthAPI, profileAPI } from './services/api';
-import './styles/welcome.css';
 
 function App() {
   const { setApiConnected, setProfile, setGreeting } = useStore();
@@ -90,40 +88,11 @@ function App() {
       top_preferences: []
     });
     setGreeting(`Hi, ${userData.name}!`);
-    
-    // Switch window to FloatBar mode
-    if (window.electron?.switchToFloatbar) {
-      setTimeout(() => {
-        window.electron.switchToFloatbar();
-      }, 300); // Small delay for smooth transition
-    }
   };
-
-  // Show loading state while checking
-  if (isLoading || showWelcome === null) {
-    return (
-      <div style={{
-        width: '100vw',
-        height: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #1e1e28 0%, #2d2d3a 100%)',
-        color: '#ffffff',
-        fontSize: '1.25rem'
-      }}>
-        Loading...
-      </div>
-    );
-  }
 
   return (
     <>
-      {showWelcome ? (
-        <WelcomeScreen onComplete={handleWelcomeComplete} />
-      ) : (
-        <FloatBar />
-      )}
+      <FloatBar showWelcome={showWelcome} onWelcomeComplete={handleWelcomeComplete} isLoading={isLoading} />
       <Toaster
         position="bottom-right"
         toastOptions={{

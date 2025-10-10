@@ -10,16 +10,19 @@ let memoryManager;
 function createWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
   
-  // Start with welcome screen size (will be resized if needed)
-  const windowWidth = 800;
-  const windowHeight = 600;
+  // Initial size: compact pill mode
+  const windowWidth = 360;
+  const windowHeight = 80;
+  const margin = 16;
   
   mainWindow = new BrowserWindow({
     width: windowWidth,
     height: windowHeight,
-    center: true,
-    minWidth: 360,
-    minHeight: 80,
+    x: screenWidth - windowWidth - margin,
+    y: margin,
+    minWidth: windowWidth,
+    minHeight: windowHeight,
+    maxWidth: windowWidth,
     frame: false,
     transparent: true,
     alwaysOnTop: true,

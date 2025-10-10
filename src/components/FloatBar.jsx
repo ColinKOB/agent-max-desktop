@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2 } from 'lucide-react';
+import { Send, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2, Sparkles, ArrowRight } from 'lucide-react';
 import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
 
-export default function FloatBar() {
+export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) {
   const [isOpen, setIsOpen] = useState(false);
   const [thoughts, setThoughts] = useState([]);
   const [progress, setProgress] = useState(0);
@@ -11,6 +11,13 @@ export default function FloatBar() {
   const [message, setMessage] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  const [welcomeStep, setWelcomeStep] = useState(1);
+  const [welcomeData, setWelcomeData] = useState({
+    name: '',
+    role: '',
+    primaryUse: '',
+    workStyle: '',
+  });
   const inputRef = useRef(null);
   const thoughtsEndRef = useRef(null);
   const { profile } = useStore();
@@ -82,9 +89,22 @@ export default function FloatBar() {
   }, [isOpen]);
 
   const handleSendMessage = async () => {
-    if (!message.trim()) return;
+    const trimmedMessage = message.trim();
     
-    const userMessage = message;
+    // Validation
+    if (!trimmedMessage) return;
+    
+    if (trimmedMessage.length > 2000) {
+      toast.error('Message too long (max 2000 characters)');
+      return;
+    }
+    
+    if (trimmedMessage.length < 2) {
+      toast.error('Message too short (min 2 characters)');
+      return;
+    }
+    
+    const userMessage = trimmedMessage;
     
     // Add user message
     setThoughts((prev) => [...prev, { type: 'user', content: userMessage }]);
@@ -131,13 +151,14 @@ export default function FloatBar() {
       
     } catch (error) {
       console.error('Message send error:', error);
+      const errorMessage = error.message || 'Failed to send message';
       setThoughts((prev) => [...prev, { 
         type: 'agent', 
-        content: `❌ Error: ${error.message || 'Failed to send message'}` 
+        content: `❌ Error: ${errorMessage}` 
       }]);
       setIsThinking(false);
       setProgress(0);
-      toast.error('Failed to send message');
+      toast.error(errorMessage);
     }
   };
 
@@ -183,7 +204,62 @@ export default function FloatBar() {
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      if (showWelcome && welcomeStep === 1) {
+        handleWelcomeNext();
+      } else {
+        handleSendMessage();
+      }
+    }
+  };
+
+  const handleWelcomeNext = () => {
+    if (welcomeStep < 4) {
+      setWelcomeStep(welcomeStep + 1);
+    }
+  };
+
+  const handleWelcomeBack = () => {
+    if (welcomeStep > 1) {
+      setWelcomeStep(welcomeStep - 1);
+    }
+  };
+
+  const handleWelcomeComplete = async () => {
+    try {
+      if (window.electron?.memory) {
+        console.log('Saving onboarding data:', welcomeData);
+        await window.electron.memory.setName(welcomeData.name);
+        await window.electron.memory.setPreference('role', welcomeData.role, 'work');
+        await window.electron.memory.setPreference('primary_use', welcomeData.primaryUse, 'work');
+        await window.electron.memory.setPreference('work_style', welcomeData.workStyle, 'work');
+        await window.electron.memory.setPreference('onboarding_completed', 'true', 'system');
+        console.log('Onboarding data saved successfully');
+      } else {
+        console.error('window.electron.memory is not available');
+        toast.error('Memory system not available');
+        return;
+      }
+      
+      toast.success(`Welcome, ${welcomeData.name}`);
+      onWelcomeComplete(welcomeData);
+    } catch (error) {
+      console.error('Failed to save onboarding:', error);
+      toast.error(`Failed to save preferences: ${error.message}`);
+    }
+  };
+
+  const canProceedWelcome = () => {
+    switch (welcomeStep) {
+      case 1:
+        return welcomeData.name.trim().length > 0;
+      case 2:
+        return welcomeData.role.length > 0;
+      case 3:
+        return welcomeData.primaryUse.length > 0;
+      case 4:
+        return welcomeData.workStyle.length > 0;
+      default:
+        return false;
     }
   };
 
@@ -233,9 +309,134 @@ export default function FloatBar() {
           </div>
         </div>
 
-        {/* Thoughts stream */}
+        {/* Thoughts stream / Welcome screen */}
         <div className="amx-thoughts" role="status" aria-live="polite">
-          {thoughts.length === 0 ? (
+          {showWelcome ? (
+            <div className="amx-welcome">
+              <div className="amx-welcome-header">
+                <span className="amx-welcome-title">Welcome to Agent Max</span>
+              </div>
+              <div className="amx-welcome-subtitle">Let's set up your workspace</div>
+              
+              <div className="amx-welcome-steps">
+                {/* Step 1: Name */}
+                {welcomeStep === 1 && (
+                  <div className="amx-welcome-step">
+                    <label className="amx-welcome-label">What's your name?</label>
+                    <input
+                      type="text"
+                      className="amx-welcome-input"
+                      placeholder="Enter your name..."
+                      value={welcomeData.name}
+                      onChange={(e) => setWelcomeData({ ...welcomeData, name: e.target.value })}
+                      onKeyDown={handleKeyDown}
+                      autoFocus
+                    />
+                  </div>
+                )}
+
+                {/* Step 2: Role */}
+                {welcomeStep === 2 && (
+                  <div className="amx-welcome-step">
+                    <label className="amx-welcome-label">What's your role?</label>
+                    <div className="amx-welcome-options">
+                      {['Developer', 'Designer', 'Product Manager', 'Researcher', 'Writer', 'Other'].map((opt) => {
+                        const value = opt.toLowerCase().replace(' ', '_');
+                        return (
+                          <button
+                            key={value}
+                            className={`amx-welcome-option ${welcomeData.role === value ? 'active' : ''}`}
+                            onClick={() => setWelcomeData({ ...welcomeData, role: value })}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Primary Use */}
+                {welcomeStep === 3 && (
+                  <div className="amx-welcome-step">
+                    <label className="amx-welcome-label">What will you use Agent Max for?</label>
+                    <div className="amx-welcome-options">
+                      {['Code Development', 'Task Automation', 'Research & Analysis', 'Content Creation'].map((opt) => {
+                        const value = opt.toLowerCase().replace(/\s+&\s+/, '_').replace(/\s+/g, '_');
+                        return (
+                          <button
+                            key={value}
+                            className={`amx-welcome-option ${welcomeData.primaryUse === value ? 'active' : ''}`}
+                            onClick={() => setWelcomeData({ ...welcomeData, primaryUse: value })}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 4: Work Style */}
+                {welcomeStep === 4 && (
+                  <div className="amx-welcome-step">
+                    <label className="amx-welcome-label">Preferred response style</label>
+                    <div className="amx-welcome-options amx-welcome-options-stacked">
+                      {[
+                        { value: 'detailed', label: 'Detailed explanations with context' },
+                        { value: 'concise', label: 'Brief and to the point' },
+                        { value: 'interactive', label: 'Step-by-step guidance' },
+                        { value: 'autonomous', label: 'Execute tasks automatically' },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          className={`amx-welcome-option amx-welcome-option-stacked ${
+                            welcomeData.workStyle === opt.value ? 'active' : ''
+                          }`}
+                          onClick={() => setWelcomeData({ ...welcomeData, workStyle: opt.value })}
+                        >
+                          <span className="amx-welcome-option-label">{opt.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Welcome navigation */}
+              <div className="amx-welcome-nav">
+                {welcomeStep > 1 && (
+                  <button className="amx-welcome-btn secondary" onClick={handleWelcomeBack}>
+                    Back
+                  </button>
+                )}
+                {welcomeStep < 4 ? (
+                  <button
+                    className={`amx-welcome-btn primary ${!canProceedWelcome() ? 'disabled' : ''}`}
+                    onClick={handleWelcomeNext}
+                    disabled={!canProceedWelcome()}
+                  >
+                    Next <ArrowRight className="w-3 h-3 ml-1" />
+                  </button>
+                ) : (
+                  <button
+                    className={`amx-welcome-btn primary ${!canProceedWelcome() ? 'disabled' : ''}`}
+                    onClick={handleWelcomeComplete}
+                    disabled={!canProceedWelcome()}
+                  >
+                    Complete Setup <ArrowRight className="w-3 h-3 ml-1" />
+                  </button>
+                )}
+              </div>
+
+              {/* Progress dots */}
+              <div className="amx-welcome-progress">
+                {[1, 2, 3, 4].map((step) => (
+                  <div key={step} className={`amx-welcome-dot ${step <= welcomeStep ? 'active' : ''}`} />
+                ))}
+              </div>
+            </div>
+          ) : thoughts.length === 0 ? (
             <div className="amx-empty-state">
               <div className="amx-empty-icon">💬</div>
               <div className="amx-empty-text">Start a conversation...</div>
@@ -292,15 +493,32 @@ export default function FloatBar() {
         <div className="amx-compose">
           <input
             className="amx-input"
-            placeholder="Type a message… (Shift+Enter = newline)"
+            placeholder="Chat with Max"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
+            maxLength={2000}
+            disabled={isThinking}
           />
-          <button className="amx-send" onClick={handleSendMessage} title="Send (Enter)">
+          <button 
+            className="amx-send" 
+            onClick={handleSendMessage} 
+            title="Send (Enter)"
+            disabled={isThinking || !message.trim() || message.length > 2000}
+          >
             <Send className="w-4 h-4" />
           </button>
         </div>
+        {message.length > 1800 && (
+          <div style={{ 
+            fontSize: '11px', 
+            color: message.length > 2000 ? '#ff6b6b' : 'rgba(255,255,255,0.5)', 
+            textAlign: 'right',
+            padding: '4px 16px 0'
+          }}>
+            {message.length}/2000 characters
+          </div>
+        )}
       </div>
 
       {/* Confirmation modal */}
