@@ -157,7 +157,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       
       // Build user context
       setProgress(40);
-      const userContext = await memoryService.buildContext();
+      const userContext = await memoryService.buildContextForAPI();
       
       // Send to chat API with optional screenshot
       setProgress(60);
