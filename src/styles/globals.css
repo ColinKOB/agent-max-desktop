@@ -101,13 +101,9 @@
    FLOATBAR GLASSMORPHISM STYLES
    ============================================ */
 
-/* Root container - always positioned, with gradient backdrop */
+/* Root container - no positioning, let children define size */
 .amx-root {
-  position: fixed;
-  top: 0;
-  right: 0;
   pointer-events: auto;
-  z-index: 9999;
 }
 
 /* Animated gradient backdrop */
@@ -122,26 +118,37 @@
   pointer-events: none;
 }
 
-/* Mini square mode - fully collapsed 90x90 */
+/* Mini square mode - fully collapsed 68x68 (25% smaller) */
 .amx-mini {
-  width: 90px;
-  height: 90px;
+  width: 68px;
+  height: 68px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 20px;
-  background: rgba(24, 24, 28, 0.6);
+  border-radius: 16px;
+  background: rgba(24, 24, 28, 0.3);  /* More translucent */
   backdrop-filter: blur(20px) saturate(1.2);
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   cursor: pointer;
   transition: all 0.2s ease;
-  -webkit-app-region: drag;
+  /* Ensure no extra space */
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  /* Force exact dimensions */
+  min-width: 68px;
+  max-width: 68px;
+  min-height: 68px;
+  max-height: 68px;
+  /* Make entire square clickable */
+  pointer-events: all;
+  -webkit-app-region: no-drag;  /* Allow clicks, not just drag */
 }
 
 .amx-mini:hover {
-  background: rgba(24, 24, 28, 0.75);
+  background: rgba(24, 24, 28, 0.5);  /* More translucent on hover */
   border-color: rgba(122, 162, 255, 0.3);
   box-shadow: 0 12px 48px rgba(122, 162, 255, 0.2);
   transform: translateY(-2px);
@@ -157,14 +164,14 @@
 }
 
 .amx-mini-text {
-  font-size: 18px;
+  font-size: 18px;  /* Smaller for 68x68 square */
   font-weight: 700;
   background: linear-gradient(135deg, #7aa2ff 0%, #a8ffcf 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 }
 
 /* Pill mode (Inactive) - compact 360x80 bar */
@@ -423,7 +430,6 @@
   color: rgba(255, 200, 200, 0.95);
   font-size: 12px;
 }
-
 /* Thinking indicator */
 .amx-thinking-indicator {
   display: flex;
@@ -459,6 +465,57 @@
 
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+
+/* Semantic suggestions dropdown */
+.amx-suggestions {
+  margin: 8px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(122, 162, 255, 0.2);
+  border-radius: 12px;
+  padding: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.amx-suggestions-label {
+  font-size: 11px;
+  color: rgba(122, 162, 255, 0.8);
+  margin-bottom: 6px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.amx-suggestion-item {
+  padding: 8px 10px;
+  margin: 4px 0;
+  background: rgba(122, 162, 255, 0.08);
+  border: 1px solid rgba(122, 162, 255, 0.15);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.amx-suggestion-item:hover {
+  background: rgba(122, 162, 255, 0.15);
+  border-color: rgba(122, 162, 255, 0.3);
+  transform: translateX(2px);
+}
+
+.amx-suggestion-text {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 4px;
+}
+
+.amx-suggestion-meta {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* Progress bar */

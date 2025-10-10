@@ -12,9 +12,9 @@ let memoryManager;
 function createWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
   
-  // Initial size: compact pill mode
-  const windowWidth = 360;
-  const windowHeight = 80;
+  // Initial size: mini square mode (68x68)
+  const windowWidth = 68;
+  const windowHeight = 68;
   const margin = 16;
   
   mainWindow = new BrowserWindow({
@@ -22,13 +22,14 @@ function createWindow() {
     height: windowHeight,
     x: screenWidth - windowWidth - margin,
     y: margin,
-    minWidth: windowWidth,
-    minHeight: windowHeight,
-    maxWidth: windowWidth,
+    minWidth: 68,  // Allow shrinking to mini square
+    minHeight: 68,
+    maxWidth: 520,  // Allow expanding to full card
+    maxHeight: 520,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
-    resizable: false,
+    resizable: true,  // Must allow resizing for setSize to work
     skipTaskbar: false,
     webPreferences: {
       nodeIntegration: false,

@@ -27,6 +27,10 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   
   // Simple connection status check (can be enhanced later)
   const [isConnected, setIsConnected] = useState(true);
+  
+  // Semantic suggestions
+  const [similarGoals, setSimilarGoals] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Window resize handler with boundary checking
   useEffect(() => {
@@ -39,8 +43,8 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           // Pill mode (input bar)
           await window.electron.resizeWindow(360, 80);
         } else if (isMini) {
-          // Mini square mode
-          await window.electron.resizeWindow(90, 90);
+          // Mini square mode - 25% smaller
+          await window.electron.resizeWindow(68, 68);
         }
       }
     };
@@ -448,19 +452,51 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     thoughtsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [thoughts]);
 
+  // Fetch similar goals as user types (debounced)
+  useEffect(() => {
+    if (!message || message.trim().length < 3) {
+      setSimilarGoals([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const { semanticAPI } = await import('../services/api');
+        const response = await semanticAPI.findSimilar(message.trim(), 0.7, 3);
+        
+        if (response.data.similar_goals && response.data.similar_goals.length > 0) {
+          setSimilarGoals(response.data.similar_goals);
+          setShowSuggestions(true);
+        } else {
+          setSimilarGoals([]);
+          setShowSuggestions(false);
+        }
+      } catch (error) {
+        console.log('[Semantic] Could not fetch similar goals:', error.message);
+        setSimilarGoals([]);
+        setShowSuggestions(false);
+      }
+    }, 800); // Wait 800ms after user stops typing
+
+    return () => clearTimeout(timer);
+  }, [message]);
+
   // Mini square mode - fully collapsed
   if (isMini) {
     return (
       <div 
         className="amx-root amx-mini"
         onClick={() => {
+          // Go straight to full chat when clicking MAX
           setIsMini(false);
-          setIsPill(true);
+          setIsPill(false);
+          setIsOpen(true);
           setTimeout(() => inputRef.current?.focus(), 100);
         }}
       >
         <div className="amx-mini-content">
-          <span className="amx-mini-text">Max</span>
+          <span className="amx-mini-text">MAX</span>
         </div>
       </div>
     );
@@ -762,6 +798,31 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
             )}
           </button>
         </div>
+        
+        {/* Semantic suggestions */}
+        {showSuggestions && similarGoals.length > 0 && (
+          <div className="amx-suggestions">
+            <div className="amx-suggestions-label">💡 Similar past conversations:</div>
+            {similarGoals.map((goal, idx) => (
+              <div 
+                key={idx}
+                className="amx-suggestion-item"
+                onClick={() => {
+                  setMessage(goal.goal);
+                  setShowSuggestions(false);
+                  inputRef.current?.focus();
+                }}
+              >
+                <div className="amx-suggestion-text">{goal.goal}</div>
+                <div className="amx-suggestion-meta">
+                  {Math.round(goal.similarity * 100)}% similar
+                  {goal.success && ' ✓'}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        
         {screenshotData && (
           <div style={{ 
             fontSize: '11px', 
