@@ -1,10 +1,13 @@
 import axios from 'axios';
+import { API_URL } from '../config/api';
 
-// API Base URL - connects to the existing FastAPI server
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// API Base URL - dynamically configured for dev/prod
+const API_BASE_URL = API_URL;
 
 // Debug logging
-console.log('[API] Base URL:', API_BASE_URL);
+console.log('[API] Initializing with Base URL:', API_BASE_URL);
+console.log('[API] Environment:', import.meta.env.MODE);
+console.log('[API] Is Development:', import.meta.env.DEV);
 
 // Connection state management
 let connectionState = {
@@ -267,5 +270,8 @@ export const chatAPI = {
 export const healthAPI = {
   check: () => api.get('/health'),
 };
+
+// Export API URL for use in other modules
+export { API_BASE_URL };
 
 export default api;

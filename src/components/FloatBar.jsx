@@ -219,7 +219,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       
       setThoughts((prev) => [...prev, { 
         type: 'agent', 
-        content: `❌ ${userFriendlyMessage}` 
+        content: `${userFriendlyMessage}` 
       }]);
       setIsThinking(false);
       setProgress(0);

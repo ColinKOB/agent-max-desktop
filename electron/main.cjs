@@ -34,6 +34,10 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.cjs'),
+      // Disable web security for API requests (both local dev and remote prod)
+      webSecurity: false,
+      // Allow cross-origin requests (needed for remote API)
+      allowRunningInsecureContent: false,
     },
     backgroundColor: '#00000000',
     show: false,

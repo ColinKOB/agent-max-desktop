@@ -45,18 +45,34 @@ function App() {
 
   const checkApiConnection = async () => {
     try {
-      console.log('[Health] Checking API connection...');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      console.log('[Health] Checking API connection to:', apiUrl + '/health');
+      
+      // Try a simple fetch first to debug
+      try {
+        const fetchResponse = await fetch('http://localhost:8000/health');
+        const fetchData = await fetchResponse.json();
+        console.log('[Health] Fetch test successful:', fetchData);
+      } catch (fetchError) {
+        console.error('[Health] Fetch test failed:', fetchError);
+      }
+      
+      // Now try the axios request
       const response = await healthAPI.check();
-      console.log('[Health] API is healthy:', response.data);
+      console.log('[Health] Axios request successful:', response.data);
       setApiConnected(true);
       return true;
     } catch (error) {
-      console.error('[Health] API health check failed:', error.message);
-      console.error('[Health] Error details:', {
-        code: error.code,
-        status: error.response?.status,
+      console.error('[Health] API health check failed');
+      console.error('[Health] Error type:', error.constructor.name);
+      console.error('[Health] Error message:', error.message);
+      console.error('[Health] Error code:', error.code);
+      console.error('[Health] Error config:', {
         url: error.config?.url,
+        baseURL: error.config?.baseURL,
+        method: error.config?.method,
       });
+      console.error('[Health] Full error:', error);
       setApiConnected(false);
       return false;
     }
