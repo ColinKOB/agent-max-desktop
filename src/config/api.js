@@ -14,29 +14,37 @@
 // Default production API URL (update this to your deployed backend)
 const DEFAULT_PRODUCTION_API = 'https://api.agentmax.com'; // UPDATE THIS!
 
-// Get API URL from environment or use defaults
-export const getApiUrl = () => {
-  // Priority 1: Environment variable (set in .env or build time)
+// Determine API URL (evaluated at module load time)
+let API_URL_RESOLVED;
+
+try {
+  // Priority 1: Environment variable
   if (import.meta.env.VITE_API_URL) {
     console.log('[Config] Using API URL from environment:', import.meta.env.VITE_API_URL);
-    return import.meta.env.VITE_API_URL;
+    API_URL_RESOLVED = import.meta.env.VITE_API_URL;
   }
-  
-  // Priority 2: Check if we're in development
-  const isDev = import.meta.env.DEV || import.meta.env.MODE === 'development';
-  
-  if (isDev) {
-    console.log('[Config] Development mode - using localhost:8000');
-    return 'http://localhost:8000';
+  // Priority 2: Development mode
+  else if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
+    console.log('[Config] Development mode detected - using localhost:8000');
+    API_URL_RESOLVED = 'http://localhost:8000';
   }
-  
   // Priority 3: Production default
-  console.log('[Config] Production mode - using default API:', DEFAULT_PRODUCTION_API);
-  return DEFAULT_PRODUCTION_API;
-};
+  else {
+    console.log('[Config] Production mode - using default API:', DEFAULT_PRODUCTION_API);
+    API_URL_RESOLVED = DEFAULT_PRODUCTION_API;
+  }
+} catch (error) {
+  console.error('[Config] Error determining API URL:', error);
+  // Fallback to localhost if there's any error
+  API_URL_RESOLVED = 'http://localhost:8000';
+  console.warn('[Config] Falling back to localhost:8000');
+}
 
 // Export the API URL
-export const API_URL = getApiUrl();
+export const API_URL = API_URL_RESOLVED;
+
+// Helper function to get API URL (for debugging)
+export const getApiUrl = () => API_URL;
 
 // Export config object
 export default {

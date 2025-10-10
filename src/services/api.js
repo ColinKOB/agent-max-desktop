@@ -1,13 +1,25 @@
 import axios from 'axios';
 import { API_URL } from '../config/api';
 
+console.log('[API] Step 1: Module loading...');
+console.log('[API] Step 2: Config imported, API_URL:', API_URL);
+
 // API Base URL - dynamically configured for dev/prod
-const API_BASE_URL = API_URL;
+const API_BASE_URL = API_URL || 'http://localhost:8000';
 
 // Debug logging
-console.log('[API] Initializing with Base URL:', API_BASE_URL);
-console.log('[API] Environment:', import.meta.env.MODE);
-console.log('[API] Is Development:', import.meta.env.DEV);
+console.log('[API] Step 3: Final configuration:');
+console.log('[API]   - Base URL:', API_BASE_URL);
+console.log('[API]   - Environment:', import.meta.env.MODE);
+console.log('[API]   - Is Development:', import.meta.env.DEV);
+console.log('[API]   - VITE_API_URL from env:', import.meta.env.VITE_API_URL);
+
+// Safety check
+if (!API_BASE_URL) {
+  console.error('[API] ❌ NO BASE URL! This will cause connection errors!');
+} else {
+  console.log('[API] ✅ Base URL is set correctly');
+}
 
 // Connection state management
 let connectionState = {
