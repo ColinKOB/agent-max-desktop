@@ -255,14 +255,15 @@ export const preferencesAPI = {
 };
 
 // ============================================
-// CHAT API
+// CHAT API (Full Autonomous - Can Execute Commands)
 // ============================================
 export const chatAPI = {
   sendMessage: (message, userContext = null, image = null) => {
     const payload = {
-      message,
-      include_context: true,
+      goal: message,  // Autonomous API uses "goal" not "message"
       user_context: userContext,
+      max_steps: 10,
+      timeout: 300,  // 5 minutes max execution time
     };
     
     // Add image if provided (base64 encoded)
@@ -270,8 +271,9 @@ export const chatAPI = {
       payload.image = image;
     }
     
-    return api.post('/api/chat/message', payload, {
-      timeout: 90000, // 90 seconds for vision API
+    // Use AUTONOMOUS endpoint - has full capabilities!
+    return api.post('/api/v2/autonomous/execute', payload, {
+      timeout: 310000, // 310 seconds (slightly more than backend timeout)
     });
   },
 };

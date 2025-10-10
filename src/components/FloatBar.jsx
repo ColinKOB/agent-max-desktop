@@ -132,7 +132,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     
     const userMessage = trimmedMessage;
     
-    // Add user message
+    // Add user message to UI
     setThoughts((prev) => [...prev, { type: 'user', content: userMessage }]);
     setMessage('');
     setIsThinking(true);
@@ -148,6 +148,9 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         await memoryService.initialize();
       }
       
+      // 🔥 SAVE USER MESSAGE TO MEMORY (for conversation history)
+      await memoryService.addMessage('user', userMessage);
+      
       // Show thinking indicator
       setProgress(20);
       const thinkingMsg = screenshotData 
@@ -155,21 +158,35 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         : '🤔 Processing your request...';
       setThoughts((prev) => [...prev, { type: 'thought', content: thinkingMsg }]);
       
-      // Build user context
+      // Build user context (now includes recent messages!)
       setProgress(40);
       const userContext = await memoryService.buildContextForAPI();
       
-      // Send to chat API with optional screenshot
+      // Send to autonomous API with optional screenshot
       setProgress(60);
       const response = await chatAPI.sendMessage(userMessage, userContext, screenshotData);
       
       setProgress(100);
       
-      // Add AI response
+      // Autonomous endpoint returns: final_response, steps, status, execution_time
+      const aiResponse = response.data.final_response || response.data.response || 'No response';
+      
+      // 🔥 SAVE AI RESPONSE TO MEMORY (for conversation history)
+      await memoryService.addMessage('assistant', aiResponse);
+      
+      // Add AI response to UI
       setThoughts((prev) => [...prev, { 
         type: 'agent', 
-        content: response.data.response 
+        content: aiResponse
       }]);
+      
+      // Show execution time if available
+      if (response.data.execution_time) {
+        setThoughts((prev) => [...prev, { 
+          type: 'thought', 
+          content: `⏱️ Completed in ${response.data.execution_time.toFixed(1)}s` 
+        }]);
+      }
       
       // Clear screenshot after sending
       if (screenshotData) {
@@ -181,53 +198,56 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       setProgress(0);
       
     } catch (error) {
-      console.error('Message send error:', error);
-      
-      // Provide user-friendly error messages
-      let errorMessage = 'Failed to send message';
-      let userFriendlyMessage = 'Something went wrong. Please try again.';
-      
-      if (!error.response && error.code) {
-        // Network error with error code
-        errorMessage = `Network error: ${error.code}`;
-        userFriendlyMessage = `Cannot reach the server (${error.code}). Is the backend running on port 8000?`;
-      } else if (!error.response) {
-        // Network error without code
-        errorMessage = 'Network error';
-        userFriendlyMessage = 'Cannot reach the server. Check your connection and backend status.';
-      } else if (error.code === 'ECONNABORTED') {
-        // Timeout
-        errorMessage = 'Request timeout';
-        userFriendlyMessage = 'The request took too long. The server might be busy.';
-      } else if (error.response.status === 429) {
-        // Rate limit
-        errorMessage = 'Rate limit exceeded';
-        userFriendlyMessage = 'Too many requests. Please wait a moment.';
-      } else if (error.response.status >= 500) {
-        // Server error
-        errorMessage = 'Server error';
-        userFriendlyMessage = 'The server encountered an error. Please try again.';
-      } else if (error.response.status === 401 || error.response.status === 403) {
-        // Auth error
-        errorMessage = 'Authentication error';
-        userFriendlyMessage = 'Authentication failed. Please check your API key.';
-      } else if (error.response?.data?.detail) {
-        // API provided error message
-        errorMessage = error.response.data.detail;
-        userFriendlyMessage = error.response.data.detail;
-      }
-      
-      setThoughts((prev) => [...prev, { 
-        type: 'agent', 
-        content: `${userFriendlyMessage}` 
-      }]);
+      console.error('[FloatBar] Message send error:', error);
       setIsThinking(false);
       setProgress(0);
-      setScreenshotData(null); // Clear screenshot on error
-      toast.error(userFriendlyMessage);
+      
+      // Generate helpful error message based on error type
+      let errorMsg = 'Failed to send message';
+      let errorDetail = '';
+      
+      if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
+        errorMsg = '🔌 Cannot connect to backend';
+        errorDetail = 'The API server is not running. Please start it with:\ncd Agent_Max && ./start_api.sh';
+      } else if (error.response?.status === 404) {
+        errorMsg = '🔍 API endpoint not found';
+        errorDetail = 'The backend may be outdated. Check that you have the latest version.';
+      } else if (error.response?.status === 500) {
+        errorMsg = '💥 Backend error';
+        const detail = error.response?.data?.detail || error.response?.data?.final_response;
+        errorDetail = detail || 'Internal server error';
+      } else if (error.message?.includes('timeout') || error.code === 'ECONNABORTED') {
+        errorMsg = '⏱️ Request timed out';
+        errorDetail = 'The server is taking too long to respond. Try a simpler request.';
+      } else if (error.response?.status === 401 || error.response?.status === 403) {
+        errorMsg = '🔐 Authentication failed';
+        errorDetail = 'Check your API key in settings.';
+      } else if (error.response?.status === 429) {
+        errorMsg = '⚠️ Rate limit exceeded';
+        errorDetail = 'Too many requests. Please wait a moment and try again.';
+      } else {
+        errorDetail = error.message || 'Unknown error occurred';
+      }
+      
+      // Add error to thoughts
+      setThoughts((prev) => [...prev, { 
+        type: 'error', 
+        content: `${errorMsg}${errorDetail ? '\n' + errorDetail : ''}` 
+      }]);
+      
+      // Clear screenshot on error
+      setScreenshotData(null);
+      
+      // Show toast notification
+      toast.error(errorMsg, { 
+        duration: 5000,
+        style: {
+          background: '#ef4444',
+          color: '#fff',
+        }
+      });
     }
   };
-
   const handleResetConversation = () => {
     setThoughts([]);
     setProgress(0);
