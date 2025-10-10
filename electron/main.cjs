@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, screen, shell, desktopCapturer } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, shell, clipboard } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -209,6 +209,17 @@ ipcMain.handle('copy-to-clipboard', (event, text) => {
   const { clipboard } = require('electron');
   clipboard.writeText(text);
   return { success: true };
+});
+
+// Open URL in external browser
+ipcMain.handle('open-external', async (event, url) => {
+  try {
+    await shell.openExternal(url);
+    return { success: true };
+  } catch (error) {
+    console.error('[Electron] Failed to open external URL:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 // ============================================

@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Moon, Sun, Zap, Info, Trash2, Globe } from 'lucide-react';
 import useStore from '../store/useStore';
-import { healthAPI } from '../services/api';
+import { healthAPI, reconfigureAPI } from '../services/api';
+import apiConfigManager from '../config/apiConfig';
 import toast from 'react-hot-toast';
 
 export default function Settings() {
   const { theme, setTheme, apiConnected, setApiConnected } = useStore();
-  const [apiUrl, setApiUrl] = useState(localStorage.getItem('api_url') || 'http://localhost:8000');
-  const [apiKey, setApiKey] = useState(localStorage.getItem('api_key') || '');
+  const [apiUrl, setApiUrl] = useState(apiConfigManager.getBaseURL());
+  const [apiKey, setApiKey] = useState(apiConfigManager.getApiKey() || '');
   const [testing, setTesting] = useState(false);
   const [appVersion, setAppVersion] = useState('1.0.0');
 
@@ -16,12 +17,27 @@ export default function Settings() {
     if (window.electron?.getAppVersion) {
       window.electron.getAppVersion().then(setAppVersion);
     }
+    
+    // Load current config
+    const config = apiConfigManager.getConfig();
+    setApiUrl(config.baseURL);
+    setApiKey(config.apiKey || '');
   }, []);
 
-  const handleSaveApiSettings = () => {
-    localStorage.setItem('api_url', apiUrl);
-    localStorage.setItem('api_key', apiKey);
-    toast.success('API settings saved');
+  const handleSaveApiSettings = async () => {
+    try {
+      // Reconfigure the API with new settings
+      reconfigureAPI(apiUrl, apiKey || null);
+      toast.success('API settings saved');
+      
+      // Automatically test the new connection
+      setTimeout(() => {
+        handleTestConnection();
+      }, 500);
+    } catch (error) {
+      console.error('[Settings] Failed to save API settings:', error);
+      toast.error('Failed to save settings');
+    }
   };
 
   const handleTestConnection = async () => {

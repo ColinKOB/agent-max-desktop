@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import FloatBar from './components/FloatBar';
 import useStore from './store/useStore';
 import { healthAPI, profileAPI } from './services/api';
+import apiConfigManager from './config/apiConfig';
 
 function App() {
   const { setApiConnected, setProfile, setGreeting } = useStore();
@@ -45,21 +46,12 @@ function App() {
 
   const checkApiConnection = async () => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const apiUrl = apiConfigManager.getBaseURL();
       console.log('[Health] Checking API connection to:', apiUrl + '/health');
       
-      // Try a simple fetch first to debug
-      try {
-        const fetchResponse = await fetch('http://localhost:8000/health');
-        const fetchData = await fetchResponse.json();
-        console.log('[Health] Fetch test successful:', fetchData);
-      } catch (fetchError) {
-        console.error('[Health] Fetch test failed:', fetchError);
-      }
-      
-      // Now try the axios request
+      // Use axios request with current config
       const response = await healthAPI.check();
-      console.log('[Health] Axios request successful:', response.data);
+      console.log('[Health] Health check successful:', response.data);
       setApiConnected(true);
       return true;
     } catch (error) {
@@ -72,7 +64,6 @@ function App() {
         baseURL: error.config?.baseURL,
         method: error.config?.method,
       });
-      console.error('[Health] Full error:', error);
       setApiConnected(false);
       return false;
     }
@@ -102,10 +93,10 @@ function App() {
         setGreeting(greeting);
       } else {
         // Fallback: try API (for non-Electron environments)
-        const profileData = await profileAPI.get();
+        const { data: profileData } = await profileAPI.getProfile();
         setProfile(profileData);
         
-        const greetingData = await profileAPI.getGreeting();
+        const { data: greetingData } = await profileAPI.getGreeting();
         setGreeting(greetingData.greeting);
         
         setShowWelcome(false); // No welcome for web version

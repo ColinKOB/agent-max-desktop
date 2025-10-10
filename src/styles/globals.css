@@ -140,27 +140,26 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 16px;
-  background: rgba(24, 24, 28, 0.3);  /* More translucent */
+  border-radius: 0;  /* Fill container completely */
+  background: rgba(24, 24, 28, 0.6);  /* 60% opacity - darker */
   backdrop-filter: blur(20px) saturate(1.2);
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  cursor: pointer;
-  transition: all 0.2s ease;
+  cursor: move;
+  transition: background 0.2s ease;  /* Only transition background, not transform */
   padding: 0;
   margin: 0;
   overflow: hidden;
-  /* Make entire square clickable */
+  /* Make entire square draggable */
   pointer-events: all;
-  -webkit-app-region: no-drag;  /* Allow clicks, not just drag */
+  -webkit-app-region: drag;  /* Enable dragging */
 }
 
 .amx-mini:hover {
-  background: rgba(24, 24, 28, 0.5);  /* More translucent on hover */
+  background: rgba(24, 24, 28, 0.8);  /* 20% darker (60% + 20% = 80%) */
   border-color: rgba(122, 162, 255, 0.3);
-  box-shadow: 0 12px 48px rgba(122, 162, 255, 0.2);
-  transform: translateY(-2px);
+  /* No transform - stays in place */
 }
 
 .amx-mini-content {
@@ -169,7 +168,9 @@
   justify-content: center;
   width: 100%;
   height: 100%;
-  pointer-events: none;
+  pointer-events: auto;  /* Allow clicks on content */
+  cursor: pointer;  /* Show pointer cursor for clicks */
+  -webkit-app-region: no-drag;  /* Content is clickable, not draggable */
 }
 
 .amx-mini-text {
@@ -194,7 +195,7 @@
   align-items: center;
   gap: 8px;
   padding: 0 16px;
-  border-radius: 34px; /* Half of height for pill shape */
+  border-radius: 0;  /* Fill container completely */
   background: rgba(24, 24, 28, 0.4);
   backdrop-filter: blur(20px) saturate(1.2);
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
@@ -253,7 +254,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  border-radius: 18px;
+  border-radius: 0;  /* Fill container completely */
   background: rgba(24, 24, 28, 0.45);
   backdrop-filter: blur(18px) saturate(1.1);
   -webkit-backdrop-filter: blur(18px) saturate(1.1);

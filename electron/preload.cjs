@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('electron', {
   getBounds: () => ipcRenderer.invoke('get-bounds'),
   setBounds: (bounds) => ipcRenderer.invoke('set-bounds', bounds),
   
+  // Open URL in external browser
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  
   // Memory management functions
   memory: {
     // Profile

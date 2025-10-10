@@ -61,55 +61,60 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   }, [isOpen, isBar, isMini]);
 
   // Keep window on screen (boundary checking)
-  // DISABLED: This was interfering with window resizing by preserving old dimensions
-  // The boundary checking was calling setBounds with old width/height values
-  // which prevented the window from properly resizing to 68x68
-  
-  // TODO: Re-implement boundary checking that only adjusts x,y position
-  // and doesn't interfere with programmatic resizing
-  
-  // useEffect(() => {
-  //   const checkBoundaries = async () => {
-  //     if (window.electron?.getBounds && window.electron?.setBounds) {
-  //       const bounds = await window.electron.getBounds();
-  //       const screen = window.screen;
-  //       
-  //       let { x, y, width, height } = bounds;
-  //       let changed = false;
-  //
-  //       // Ensure window doesn't go off-screen
-  //       if (x + width > screen.availWidth) {
-  //         x = screen.availWidth - width;
-  //         changed = true;
-  //       }
-  //       if (y + height > screen.availHeight) {
-  //         y = screen.availHeight - height;
-  //         changed = true;
-  //       }
-  //       if (x < 0) {
-  //         x = 0;
-  //         changed = true;
-  //       }
-  //       if (y < 0) {
-  //         y = 0;
-  //         changed = true;
-  //       }
-  //
-  //       if (changed) {
-  //         await window.electron.setBounds({ x, y, width, height });
-  //       }
-  //     }
-  //   };
-  //
-  //   // Check boundaries on state changes
-  //   checkBoundaries();
-  //   
-  //   // Also check when window is moved (periodically)
-  //   const interval = setInterval(checkBoundaries, 1000);
-  //   return () => clearInterval(interval);
-  // }, [isOpen, isPill, isMini]);
+  // Only adjusts position, not size - runs periodically to catch manual drags
+  useEffect(() => {
+    const checkBoundaries = async () => {
+      if (window.electron?.getBounds && window.electron?.setBounds && window.electron?.getScreenSize) {
+        try {
+          const bounds = await window.electron.getBounds();
+          const screenSize = await window.electron.getScreenSize();
+          
+          let { x, y, width, height } = bounds;
+          let changed = false;
 
-  // Removed automatic preference test - onboarding now works correctly
+          // Ensure window doesn't go off-screen (with 10px margin)
+          const margin = 10;
+          
+          // Right edge
+          if (x + width > screenSize.width - margin) {
+            x = screenSize.width - width - margin;
+            changed = true;
+          }
+          // Bottom edge
+          if (y + height > screenSize.height - margin) {
+            y = screenSize.height - height - margin;
+            changed = true;
+          }
+          // Left edge
+          if (x < margin) {
+            x = margin;
+            changed = true;
+          }
+          // Top edge
+          if (y < margin) {
+            y = margin;
+            changed = true;
+          }
+
+          // Only update position if needed (preserve width/height)
+          if (changed) {
+            console.log('[FloatBar] Adjusting position to stay on screen:', { x, y });
+            await window.electron.setBounds({ x, y, width, height });
+          }
+        } catch (error) {
+          console.error('[FloatBar] Boundary check error:', error);
+        }
+      }
+    };
+
+    // Check boundaries periodically (every 500ms to catch drags)
+    const interval = setInterval(checkBoundaries, 500);
+    
+    // Also check immediately on state changes
+    checkBoundaries();
+    
+    return () => clearInterval(interval);
+  }, [isOpen, isBar, isMini]);
 
   // Keyboard shortcut: Cmd+Alt+C (Mac) / Ctrl+Alt+C (Win/Linux)
   useEffect(() => {
@@ -273,6 +278,35 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       // 🔥 SAVE AI RESPONSE TO MEMORY (for conversation history)
       await memoryService.addMessage('assistant', aiResponse);
       
+      // 🔥 EXTRACT AND SAVE FACTS if provided by backend
+      if (response.data.facts_extracted && Object.keys(response.data.facts_extracted).length > 0) {
+        const facts = response.data.facts_extracted;
+        console.log('[Memory] Facts extracted by backend:', facts);
+        
+        // Save each category of facts
+        let factCount = 0;
+        for (const [category, data] of Object.entries(facts)) {
+          if (data && typeof data === 'object') {
+            for (const [key, value] of Object.entries(data)) {
+              try {
+                await memoryService.setFact(category, key, value);
+                console.log(`[Memory] ✓ Saved fact: ${category}.${key} = ${JSON.stringify(value)}`);
+                factCount++;
+              } catch (error) {
+                console.error(`[Memory] ✗ Failed to save fact ${category}.${key}:`, error);
+              }
+            }
+          }
+        }
+        
+        if (factCount > 0) {
+          toast.success(`Learned ${factCount} new thing${factCount > 1 ? 's' : ''} about you!`, {
+            icon: '🧠',
+            duration: 3000
+          });
+        }
+      }
+      
       // Add AI response to UI
       setThoughts((prev) => [...prev, { 
         type: 'agent', 
@@ -426,6 +460,45 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     }
   };
 
+  // Convert URLs in text to clickable links
+  const renderMessageWithLinks = (text) => {
+    if (!text) return null;
+    
+    // URL regex pattern
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    
+    return parts.map((part, index) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a 
+            key={index}
+            href={part} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{
+              color: '#7aa2ff',
+              textDecoration: 'underline',
+              cursor: 'pointer',
+              wordBreak: 'break-all'
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              if (window.electron?.openExternal) {
+                window.electron.openExternal(part);
+              } else {
+                window.open(part, '_blank');
+              }
+            }}
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
   const handleWelcomeNext = () => {
     if (welcomeStep < 4) {
       setWelcomeStep(welcomeStep + 1);
@@ -515,18 +588,18 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   // Mini square mode - fully collapsed
   if (isMini) {
     return (
-      <div 
-        className="amx-root amx-mini"
-        onClick={() => {
-          // Open to horizontal bar mode
-          console.log('[FloatBar] Mini clicked: Opening to bar mode');
-          setIsMini(false);
-          setIsBar(true);
-          setIsOpen(false);
-          setTimeout(() => inputRef.current?.focus(), 100);
-        }}
-      >
-        <div className="amx-mini-content">
+      <div className="amx-root amx-mini">
+        <div 
+          className="amx-mini-content"
+          onClick={() => {
+            // Open to horizontal bar mode
+            console.log('[FloatBar] Mini clicked: Opening to bar mode');
+            setIsMini(false);
+            setIsBar(true);
+            setIsOpen(false);
+            setTimeout(() => inputRef.current?.focus(), 100);
+          }}
+        >
           <span className="amx-mini-text">MAX</span>
         </div>
       </div>
@@ -759,7 +832,9 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
                   {thought.type === 'thought' && <span className="amx-thought-label">Thinking</span>}
                   {thought.type === 'debug' && <span className="amx-debug-label">Debug Info</span>}
                   {thought.type === 'error' && <span className="amx-error-label">Error</span>}
-                  <div className="amx-message-content" style={{ whiteSpace: 'pre-wrap' }}>{thought.content}</div>
+                  <div className="amx-message-content" style={{ whiteSpace: 'pre-wrap' }}>
+                    {renderMessageWithLinks(thought.content)}
+                  </div>
                 </div>
               ))}
               {isThinking && (

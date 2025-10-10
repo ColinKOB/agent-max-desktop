@@ -3,7 +3,9 @@
 echo "🚀 Starting Agent Max Electron App..."
 echo ""
 
-cd "/Users/colinobrien/Desktop/Coding Projects/agent-max-desktop"
+# Change to script directory (works on any machine)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
 
 # Check if node_modules exists
 if [ ! -d "node_modules" ]; then

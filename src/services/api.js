@@ -1,25 +1,18 @@
 import axios from 'axios';
-import { API_URL } from '../config/api';
+import apiConfigManager from '../config/apiConfig';
 
-console.log('[API] Step 1: Module loading...');
-console.log('[API] Step 2: Config imported, API_URL:', API_URL);
+console.log('[API] Initializing with config manager...');
 
-// API Base URL - dynamically configured for dev/prod
-const API_BASE_URL = API_URL || 'http://localhost:8000';
+// Get initial configuration
+const initialConfig = apiConfigManager.getConfig();
+console.log('[API] Initial configuration:', {
+  baseURL: initialConfig.baseURL,
+  hasApiKey: !!initialConfig.apiKey,
+  environment: import.meta.env.MODE,
+});
 
-// Debug logging
-console.log('[API] Step 3: Final configuration:');
-console.log('[API]   - Base URL:', API_BASE_URL);
-console.log('[API]   - Environment:', import.meta.env.MODE);
-console.log('[API]   - Is Development:', import.meta.env.DEV);
-console.log('[API]   - VITE_API_URL from env:', import.meta.env.VITE_API_URL);
-
-// Safety check
-if (!API_BASE_URL) {
-  console.error('[API] ❌ NO BASE URL! This will cause connection errors!');
-} else {
-  console.log('[API] ✅ Base URL is set correctly');
-}
+// API Base URL - dynamically configured
+let API_BASE_URL = initialConfig.baseURL;
 
 // Connection state management
 let connectionState = {
@@ -70,7 +63,8 @@ const shouldRetry = (error) => {
 // Request interceptor with retry logic
 api.interceptors.request.use(
   (config) => {
-    const apiKey = localStorage.getItem('api_key');
+    // Get API key from config manager
+    const apiKey = apiConfigManager.getApiKey();
     if (apiKey) {
       config.headers['X-API-Key'] = apiKey;
     }
@@ -287,5 +281,29 @@ export const healthAPI = {
 
 // Export API URL for use in other modules
 export { API_BASE_URL };
+
+/**
+ * Reconfigure the axios instance with new base URL
+ * Called when user updates settings
+ */
+export const reconfigureAPI = (newBaseURL, newApiKey = null) => {
+  console.log('[API] Reconfiguring with new base URL:', newBaseURL);
+  
+  // Update config manager
+  apiConfigManager.updateConfig(newBaseURL, newApiKey);
+  
+  // Update axios instance
+  api.defaults.baseURL = newBaseURL;
+  API_BASE_URL = newBaseURL;
+  
+  console.log('[API] ✅ Reconfiguration complete');
+};
+
+// Listen for config changes from other sources
+apiConfigManager.onChange((config) => {
+  console.log('[API] Config changed externally, updating axios instance');
+  api.defaults.baseURL = config.baseURL;
+  API_BASE_URL = config.baseURL;
+});
 
 export default api;
