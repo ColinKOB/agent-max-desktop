@@ -1,10 +1,12 @@
-const { app, BrowserWindow, ipcMain, screen, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, shell, desktopCapturer } = require('electron');
 const path = require('path');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const LocalMemoryManager = require('./memory-manager.cjs');
 
 let mainWindow;
+let ffmpegProcess;
 let memoryManager;
 
 function createWindow() {
@@ -319,5 +321,40 @@ ipcMain.handle('memory:test-preferences', async () => {
       error: error.message,
       stack: error.stack
     };
+  }
+});
+
+// Take screenshot and return base64
+ipcMain.handle('take-screenshot', async () => {
+  try {
+    const sources = await desktopCapturer.getSources({ 
+      types: ['screen'], 
+      thumbnailSize: screen.getPrimaryDisplay().size 
+    });
+    
+    if (sources.length === 0) {
+      throw new Error('No screen sources available');
+    }
+    
+    // Get the primary screen
+    const primarySource = sources[0];
+    const screenshot = primarySource.thumbnail;
+    
+    // Convert to PNG buffer
+    const buffer = screenshot.toPNG();
+    
+    // Convert to base64 for API transmission
+    const base64 = buffer.toString('base64');
+    
+    console.log('[Screenshot] Captured and converted to base64 (' + Math.round(base64.length / 1024) + 'KB)');
+    
+    return {
+      base64,
+      mimeType: 'image/png',
+      size: base64.length
+    };
+  } catch (error) {
+    console.error('[Screenshot] Error:', error);
+    throw error;
   }
 });

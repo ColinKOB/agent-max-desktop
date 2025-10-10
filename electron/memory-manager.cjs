@@ -380,10 +380,19 @@ class LocalMemoryManager {
   /**
    * Get preference by key
    */
-  getPreference(key, type = 'explicit') {
+  getPreference(key, type = null) {
     const preferences = this.getPreferences();
-    return preferences.explicit[key]?.value || 
-           preferences.implicit[key]?.value || 
+    
+    // If type is specified, only check that type
+    if (type) {
+      return preferences[type]?.[key]?.value || null;
+    }
+    
+    // Otherwise check all types in order: explicit, work, system, implicit
+    return preferences.explicit?.[key]?.value || 
+           preferences.work?.[key]?.value ||
+           preferences.system?.[key]?.value ||
+           preferences.implicit?.[key]?.value || 
            null;
   }
 

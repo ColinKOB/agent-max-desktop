@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('electron', {
   getScreenSize: () => ipcRenderer.invoke('get-screen-size'),
   executeCommand: (command) => ipcRenderer.invoke('execute-command', { command }),
   copyToClipboard: (text) => ipcRenderer.invoke('copy-to-clipboard', text),
+  takeScreenshot: () => ipcRenderer.invoke('take-screenshot'),
   
   // Memory management functions
   memory: {

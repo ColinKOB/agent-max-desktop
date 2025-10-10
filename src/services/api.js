@@ -3,32 +3,119 @@ import axios from 'axios';
 // API Base URL - connects to the existing FastAPI server
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-// Create axios instance
+// Connection state management
+let connectionState = {
+  isConnected: true,
+  lastCheck: Date.now(),
+  listeners: new Set(),
+};
+
+export const addConnectionListener = (callback) => {
+  connectionState.listeners.add(callback);
+  return () => connectionState.listeners.delete(callback);
+};
+
+const notifyConnectionChange = (isConnected) => {
+  if (connectionState.isConnected !== isConnected) {
+    connectionState.isConnected = isConnected;
+    connectionState.lastCheck = Date.now();
+    connectionState.listeners.forEach(callback => callback(isConnected));
+  }
+};
+
+// Create axios instance with extended timeout
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 60000, // 60 seconds for AI responses
 });
 
-// Request interceptor
+// Retry configuration
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // Start with 1 second
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const shouldRetry = (error) => {
+  // Retry on network errors or 5xx server errors
+  return (
+    !error.response || 
+    error.code === 'ECONNABORTED' ||
+    error.code === 'ENOTFOUND' ||
+    error.code === 'ENETUNREACH' ||
+    (error.response && error.response.status >= 500)
+  );
+};
+
+// Request interceptor with retry logic
 api.interceptors.request.use(
   (config) => {
     const apiKey = localStorage.getItem('api_key');
     if (apiKey) {
       config.headers['X-API-Key'] = apiKey;
     }
+    
+    // Add retry metadata
+    config.metadata = { 
+      retryCount: 0,
+      startTime: Date.now() 
+    };
+    
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor
+// Response interceptor with retry and connection status
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    console.error('API Error:', error.response?.data || error.message);
+  (response) => {
+    // Success - mark as connected
+    notifyConnectionChange(true);
+    
+    // Log request timing for monitoring
+    const duration = Date.now() - response.config.metadata.startTime;
+    if (duration > 5000) {
+      console.warn(`Slow request: ${response.config.url} took ${duration}ms`);
+    }
+    
+    return response;
+  },
+  async (error) => {
+    const config = error.config;
+    
+    // Check if we should retry
+    if (config && shouldRetry(error) && config.metadata.retryCount < MAX_RETRIES) {
+      config.metadata.retryCount += 1;
+      
+      // Exponential backoff: 1s, 2s, 4s
+      const delay = RETRY_DELAY * Math.pow(2, config.metadata.retryCount - 1);
+      
+      console.log(`Retrying request (${config.metadata.retryCount}/${MAX_RETRIES}) after ${delay}ms...`);
+      
+      await sleep(delay);
+      
+      // Reset start time for retry
+      config.metadata.startTime = Date.now();
+      
+      return api(config);
+    }
+    
+    // Mark as disconnected if network error
+    if (!error.response) {
+      notifyConnectionChange(false);
+    }
+    
+    // Enhanced error logging
+    console.error('API Error:', {
+      url: config?.url,
+      method: config?.method,
+      status: error.response?.status,
+      message: error.message,
+      data: error.response?.data,
+    });
+    
     return Promise.reject(error);
   }
 );
@@ -139,6 +226,28 @@ export const preferencesAPI = {
   
   deletePreference: (key) =>
     api.delete(`/api/v2/preferences/${key}`),
+};
+
+// ============================================
+// CHAT API
+// ============================================
+export const chatAPI = {
+  sendMessage: (message, userContext = null, image = null) => {
+    const payload = {
+      message,
+      include_context: true,
+      user_context: userContext,
+    };
+    
+    // Add image if provided (base64 encoded)
+    if (image) {
+      payload.image = image;
+    }
+    
+    return api.post('/api/chat/message', payload, {
+      timeout: 90000, // 90 seconds for vision API
+    });
+  },
 };
 
 // ============================================

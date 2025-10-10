@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2, Sparkles, ArrowRight } from 'lucide-react';
+import { Camera, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2, Sparkles, ArrowRight } from 'lucide-react';
 import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
 
@@ -11,6 +11,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   const [message, setMessage] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  const [screenshotData, setScreenshotData] = useState(null); // Store base64 screenshot
   const [welcomeStep, setWelcomeStep] = useState(1);
   const [welcomeData, setWelcomeData] = useState({
     name: '',
@@ -36,17 +37,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     resizeWindow();
   }, [isOpen]);
 
-  // Test preferences system on mount (for debugging)
-  useEffect(() => {
-    const testPrefs = async () => {
-      if (window.electron?.memory?.testPreferences) {
-        console.log('[FloatBar] Running preferences test...');
-        const result = await window.electron.memory.testPreferences();
-        console.log('[FloatBar] Test result:', result);
-      }
-    };
-    testPrefs();
-  }, []);
+  // Removed automatic preference test - onboarding now works correctly
 
   // Keyboard shortcut: Cmd+Alt+C (Mac) / Ctrl+Alt+C (Win/Linux)
   useEffect(() => {
@@ -100,6 +91,27 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     */
   }, [isOpen]);
 
+  const handleScreenshot = async () => {
+    try {
+      if (window.electron?.takeScreenshot) {
+        const screenshot = await window.electron.takeScreenshot();
+        
+        if (screenshot && screenshot.base64) {
+          // Store base64 image data
+          setScreenshotData(screenshot.base64);
+          const sizeKB = Math.round(screenshot.size / 1024);
+          console.log(`[FloatBar] Screenshot attached (${sizeKB}KB)`);
+          toast.success(`Screenshot attached! 📸 (${sizeKB}KB)`);
+        }
+      } else {
+        toast.error('Screenshot feature not available');
+      }
+    } catch (error) {
+      console.error('[FloatBar] Screenshot error:', error);
+      toast.error('Failed to take screenshot');
+    }
+  };
+
   const handleSendMessage = async () => {
     const trimmedMessage = message.trim();
     
@@ -125,9 +137,9 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     setProgress(0);
     
     try {
-      // Import memory service
+      // Import services
       const memoryService = (await import('../services/memory')).default;
-      const api = (await import('../services/api')).default;
+      const { chatAPI } = await import('../services/api');
       
       // Initialize if needed
       if (!memoryService.initialized) {
@@ -136,26 +148,31 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       
       // Show thinking indicator
       setProgress(20);
-      setThoughts((prev) => [...prev, { type: 'thought', content: '🤔 Processing your request...' }]);
+      const thinkingMsg = screenshotData 
+        ? '🤔 Analyzing screenshot and your message...' 
+        : '🤔 Processing your request...';
+      setThoughts((prev) => [...prev, { type: 'thought', content: thinkingMsg }]);
       
-      // Send to autonomous AI
+      // Build user context
       setProgress(40);
-      const response = await memoryService.sendMessageWithContext(userMessage, api);
+      const userContext = await memoryService.buildContext();
+      
+      // Send to chat API with optional screenshot
+      setProgress(60);
+      const response = await chatAPI.sendMessage(userMessage, userContext, screenshotData);
       
       setProgress(100);
       
       // Add AI response
       setThoughts((prev) => [...prev, { 
         type: 'agent', 
-        content: response.response 
+        content: response.data.response 
       }]);
       
-      // Show execution time
-      if (response.execution_time) {
-        setThoughts((prev) => [...prev, { 
-          type: 'thought', 
-          content: `⏱️ Completed in ${response.execution_time.toFixed(2)}s` 
-        }]);
+      // Clear screenshot after sending
+      if (screenshotData) {
+        setScreenshotData(null);
+        console.log('[FloatBar] Screenshot sent and cleared');
       }
       
       setIsThinking(false);
@@ -163,13 +180,14 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       
     } catch (error) {
       console.error('Message send error:', error);
-      const errorMessage = error.message || 'Failed to send message';
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to send message';
       setThoughts((prev) => [...prev, { 
         type: 'agent', 
         content: `❌ Error: ${errorMessage}` 
       }]);
       setIsThinking(false);
       setProgress(0);
+      setScreenshotData(null); // Clear screenshot on error
       toast.error(errorMessage);
     }
   };
@@ -290,7 +308,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         <input
           ref={inputRef}
           className="amx-input"
-          placeholder="Ask Agent Max…"
+          placeholder="Ask Max"
           onFocus={() => setIsOpen(true)}
         />
       </div>
@@ -514,13 +532,39 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           />
           <button 
             className="amx-send" 
-            onClick={handleSendMessage} 
-            title="Send (Enter)"
-            disabled={isThinking || !message.trim() || message.length > 2000}
+            onClick={handleScreenshot} 
+            title="Take Screenshot"
+            disabled={isThinking}
+            style={{ position: 'relative' }}
           >
-            <Send className="w-4 h-4" />
+            <Camera className="w-4 h-4" />
+            {screenshotData && (
+              <span style={{
+                position: 'absolute',
+                top: '-4px',
+                right: '-4px',
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                background: '#7aa2ff',
+                border: '2px solid rgba(28, 28, 32, 0.95)',
+              }} />
+            )}
           </button>
         </div>
+        {screenshotData && (
+          <div style={{ 
+            fontSize: '11px', 
+            color: 'rgba(122, 162, 255, 0.8)', 
+            textAlign: 'left',
+            padding: '4px 16px 0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            📸 Screenshot attached
+          </div>
+        )}
         {message.length > 1800 && (
           <div style={{ 
             fontSize: '11px', 
