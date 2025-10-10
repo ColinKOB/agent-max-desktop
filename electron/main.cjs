@@ -10,19 +10,16 @@ let memoryManager;
 function createWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
   
-  // Initial size: compact pill mode
-  const windowWidth = 360;
-  const windowHeight = 80;
-  const margin = 16;
+  // Start with welcome screen size (will be resized if needed)
+  const windowWidth = 800;
+  const windowHeight = 600;
   
   mainWindow = new BrowserWindow({
     width: windowWidth,
     height: windowHeight,
-    x: screenWidth - windowWidth - margin,
-    y: margin,
-    minWidth: windowWidth,
-    minHeight: windowHeight,
-    maxWidth: windowWidth,
+    center: true,
+    minWidth: 360,
+    minHeight: 80,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -99,6 +96,21 @@ ipcMain.handle('get-app-path', () => {
 ipcMain.handle('resize-window', (event, { width, height }) => {
   if (mainWindow) {
     mainWindow.setSize(width, height);
+  }
+});
+
+// Switch to FloatBar mode (after welcome screen)
+ipcMain.handle('switch-to-floatbar', () => {
+  if (mainWindow) {
+    const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize;
+    const windowWidth = 360;
+    const windowHeight = 80;
+    const margin = 16;
+    
+    mainWindow.setSize(windowWidth, windowHeight);
+    mainWindow.setPosition(screenWidth - windowWidth - margin, margin);
+    mainWindow.setAlwaysOnTop(true, 'floating', 1);
+    mainWindow.setMaximumSize(windowWidth, 9999); // Allow vertical expansion
   }
 });
 

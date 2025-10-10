@@ -3,12 +3,62 @@
   "version": "1.0.0",
   "description": "Desktop application for Agent Max Memory System V2",
   "main": "electron/main.cjs",
+  "author": "Agent Max",
+  "homepage": "https://agentmax.app",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && NODE_ENV=development electron .\"",
     "electron:build": "npm run build && electron-builder",
+    "electron:build:mac": "npm run build && electron-builder --mac",
+    "electron:build:win": "npm run build && electron-builder --win",
+    "electron:build:linux": "npm run build && electron-builder --linux",
+    "postinstall": "electron-builder install-app-deps",
     "preview": "vite preview"
+  },
+  "build": {
+    "appId": "com.agentmax.desktop",
+    "productName": "Agent Max",
+    "copyright": "Copyright © 2025 Agent Max",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "resources/entitlements.mac.plist",
+      "entitlementsInherit": "resources/entitlements.mac.plist"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ],
+      "category": "Utility"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   },
   "dependencies": {
     "@tanstack/react-query": "^5.13.4",
