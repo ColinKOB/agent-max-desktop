@@ -187,10 +187,14 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       let errorMessage = 'Failed to send message';
       let userFriendlyMessage = 'Something went wrong. Please try again.';
       
-      if (!error.response) {
-        // Network error
+      if (!error.response && error.code) {
+        // Network error with error code
+        errorMessage = `Network error: ${error.code}`;
+        userFriendlyMessage = `Cannot reach the server (${error.code}). Is the backend running on port 8000?`;
+      } else if (!error.response) {
+        // Network error without code
         errorMessage = 'Network error';
-        userFriendlyMessage = 'Cannot reach the server. Check your connection.';
+        userFriendlyMessage = 'Cannot reach the server. Check your connection and backend status.';
       } else if (error.code === 'ECONNABORTED') {
         // Timeout
         errorMessage = 'Request timeout';

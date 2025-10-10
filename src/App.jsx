@@ -45,12 +45,19 @@ function App() {
 
   const checkApiConnection = async () => {
     try {
-      await healthAPI.check();
+      console.log('[Health] Checking API connection...');
+      const response = await healthAPI.check();
+      console.log('[Health] API is healthy:', response.data);
       setApiConnected(true);
       return true;
     } catch (error) {
+      console.error('[Health] API health check failed:', error.message);
+      console.error('[Health] Error details:', {
+        code: error.code,
+        status: error.response?.status,
+        url: error.config?.url,
+      });
       setApiConnected(false);
-      console.error('API health check failed:', error);
       return false;
     }
   };

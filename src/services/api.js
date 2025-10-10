@@ -3,6 +3,9 @@ import axios from 'axios';
 // API Base URL - connects to the existing FastAPI server
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+// Debug logging
+console.log('[API] Base URL:', API_BASE_URL);
+
 // Connection state management
 let connectionState = {
   isConnected: true,
@@ -85,6 +88,19 @@ api.interceptors.response.use(
   async (error) => {
     const config = error.config;
     
+    // Enhanced error logging FIRST
+    console.error('API Error Details:', {
+      url: config?.url,
+      method: config?.method,
+      baseURL: config?.baseURL,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      code: error.code,
+      message: error.message,
+      data: error.response?.data,
+      headers: error.response?.headers,
+    });
+    
     // Check if we should retry
     if (config && shouldRetry(error) && config.metadata.retryCount < MAX_RETRIES) {
       config.metadata.retryCount += 1;
@@ -92,7 +108,7 @@ api.interceptors.response.use(
       // Exponential backoff: 1s, 2s, 4s
       const delay = RETRY_DELAY * Math.pow(2, config.metadata.retryCount - 1);
       
-      console.log(`Retrying request (${config.metadata.retryCount}/${MAX_RETRIES}) after ${delay}ms...`);
+      console.log(`[Retry ${config.metadata.retryCount}/${MAX_RETRIES}] ${config.url} after ${delay}ms...`);
       
       await sleep(delay);
       
@@ -104,17 +120,12 @@ api.interceptors.response.use(
     
     // Mark as disconnected if network error
     if (!error.response) {
+      console.warn('[Connection] Marking as disconnected - no response from server');
       notifyConnectionChange(false);
+    } else {
+      // If we got a response, connection is working
+      notifyConnectionChange(true);
     }
-    
-    // Enhanced error logging
-    console.error('API Error:', {
-      url: config?.url,
-      method: config?.method,
-      status: error.response?.status,
-      message: error.message,
-      data: error.response?.data,
-    });
     
     return Promise.reject(error);
   }
