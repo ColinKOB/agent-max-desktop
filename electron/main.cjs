@@ -165,9 +165,17 @@ ipcMain.handle('copy-to-clipboard', (event, text) => {
 // MEMORY MANAGEMENT IPC HANDLERS
 // ============================================
 
+// Helper to ensure memory manager is initialized
+function ensureMemoryManager() {
+  if (!memoryManager) {
+    throw new Error('Memory manager not initialized. Please wait for app to be ready.');
+  }
+  return memoryManager;
+}
+
 // Get user profile
 ipcMain.handle('memory:get-profile', () => {
-  return memoryManager.getProfile();
+  return ensureMemoryManager().getProfile();
 });
 
 // Update user profile
