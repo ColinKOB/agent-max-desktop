@@ -313,30 +313,68 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         content: aiResponse
       }]);
       
-      // Show debug info
-      const debugInfo = [];
-      if (response.data.execution_time) {
-        debugInfo.push(`Completed in ${response.data.execution_time.toFixed(1)}s`);
-      }
+      // Show detailed execution steps
       if (response.data.steps && response.data.steps.length > 0) {
-        debugInfo.push(`Steps executed: ${response.data.steps.length}`);
         response.data.steps.forEach((step, idx) => {
-          if (step.action === 'execute_command') {
-            debugInfo.push(`  ${idx + 1}. Command: ${step.command}`);
+          // Show reasoning for each step
+          if (step.reasoning) {
+            setThoughts((prev) => [...prev, { 
+              type: 'thought', 
+              content: `Step ${idx + 1}: ${step.reasoning}`
+            }]);
+          }
+          
+          // Show command execution with FULL output
+          if (step.action === 'execute_command' && step.command) {
+            setThoughts((prev) => [...prev, { 
+              type: 'debug', 
+              content: `🔧 Executing: ${step.command}`
+            }]);
+            
+            // Show full command output (not truncated)
             if (step.output) {
-              debugInfo.push(`     Output: ${step.output.substring(0, 100)}${step.output.length > 100 ? '...' : ''}`);
+              setThoughts((prev) => [...prev, { 
+                type: 'debug', 
+                content: `📤 Output:\n${step.output}`
+              }]);
             }
+            
+            // Show exit code
+            if (step.exit_code !== undefined) {
+              const statusEmoji = step.exit_code === 0 ? '✅' : '❌';
+              setThoughts((prev) => [...prev, { 
+                type: step.exit_code === 0 ? 'debug' : 'error', 
+                content: `${statusEmoji} Exit code: ${step.exit_code}`
+              }]);
+            }
+          }
+          
+          // Show other action types
+          if (step.action !== 'execute_command' && step.action !== 'respond') {
+            setThoughts((prev) => [...prev, { 
+              type: 'debug', 
+              content: `🔄 Action: ${step.action}${step.result ? '\nResult: ' + step.result : ''}`
+            }]);
           }
         });
       }
+      
+      // Show execution summary
+      const summaryInfo = [];
+      if (response.data.execution_time) {
+        summaryInfo.push(`⏱️  Completed in ${response.data.execution_time.toFixed(1)}s`);
+      }
+      if (response.data.steps && response.data.steps.length > 0) {
+        summaryInfo.push(`📊 Total steps: ${response.data.steps.length}`);
+      }
       if (screenshotData) {
-        debugInfo.push('Screenshot was included in request');
+        summaryInfo.push('📸 Screenshot was analyzed');
       }
       
-      if (debugInfo.length > 0) {
+      if (summaryInfo.length > 0) {
         setThoughts((prev) => [...prev, { 
           type: 'debug', 
-          content: debugInfo.join('\n')
+          content: summaryInfo.join('\n')
         }]);
       }
       
