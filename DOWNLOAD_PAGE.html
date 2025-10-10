@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Agent Max</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            padding: 60px 40px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 42px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .tagline {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 40px;
+        }
+        
+        .download-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 18px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        
+        .download-btn.secondary {
+            background: #f3f4f6;
+            color: #333;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .download-btn.secondary:hover {
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        
+        .platform-icon {
+            margin-right: 8px;
+            font-size: 24px;
+        }
+        
+        .version {
+            margin-top: 30px;
+            color: #999;
+            font-size: 14px;
+        }
+        
+        .install-steps {
+            margin-top: 50px;
+            text-align: left;
+            background: #f9fafb;
+            padding: 30px;
+            border-radius: 10px;
+        }
+        
+        .install-steps h2 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .install-steps ol {
+            margin-left: 20px;
+        }
+        
+        .install-steps li {
+            margin-bottom: 12px;
+            color: #555;
+            line-height: 1.6;
+        }
+        
+        .features {
+            margin-top: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            text-align: left;
+        }
+        
+        .feature {
+            display: flex;
+            align-items: start;
+        }
+        
+        .feature-icon {
+            font-size: 24px;
+            margin-right: 12px;
+        }
+        
+        .feature-text {
+            flex: 1;
+        }
+        
+        .feature-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .feature-desc {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        @media (max-width: 600px) {
+            .features {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Agent Max</h1>
+        <p class="tagline">Your AI Desktop Assistant</p>
+        
+        <!-- Download Buttons -->
+        <div class="downloads">
+            <a href="https://github.com/YOUR_USERNAME/agent-max-desktop/releases/latest/download/Agent-Max-1.0.0.dmg" 
+               class="download-btn">
+                <span class="platform-icon">🍎</span>
+                Download for macOS
+            </a>
+            
+            <a href="https://github.com/YOUR_USERNAME/agent-max-desktop/releases/latest/download/Agent-Max-Setup-1.0.0.exe" 
+               class="download-btn secondary">
+                <span class="platform-icon">🪟</span>
+                Download for Windows
+            </a>
+        </div>
+        
+        <p class="version">Version 1.0.0 • Free • 150MB</p>
+        
+        <!-- Features -->
+        <div class="features">
+            <div class="feature">
+                <span class="feature-icon">💬</span>
+                <div class="feature-text">
+                    <div class="feature-title">Natural Conversation</div>
+                    <div class="feature-desc">Chat with AI that remembers context</div>
+                </div>
+            </div>
+            
+            <div class="feature">
+                <span class="feature-icon">⚡</span>
+                <div class="feature-text">
+                    <div class="feature-title">Autonomous Actions</div>
+                    <div class="feature-desc">Execute commands, browse web</div>
+                </div>
+            </div>
+            
+            <div class="feature">
+                <span class="feature-icon">📸</span>
+                <div class="feature-text">
+                    <div class="feature-title">Screenshot Analysis</div>
+                    <div class="feature-desc">Send screenshots for AI to analyze</div>
+                </div>
+            </div>
+            
+            <div class="feature">
+                <span class="feature-icon">🔒</span>
+                <div class="feature-text">
+                    <div class="feature-title">Privacy First</div>
+                    <div class="feature-desc">All data stored locally on your device</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Installation Instructions -->
+        <div class="install-steps">
+            <h2>📥 Installation (macOS)</h2>
+            <ol>
+                <li><strong>Download</strong> the .dmg file above</li>
+                <li><strong>Open</strong> the downloaded file</li>
+                <li><strong>Drag</strong> "Agent Max" to Applications folder</li>
+                <li><strong>Launch</strong> from Applications</li>
+                <li><strong>Start chatting!</strong> The floating bar appears ready to help</li>
+            </ol>
+            
+            <p style="margin-top: 20px; font-size: 13px; color: #777;">
+                <strong>Note:</strong> If you see "App from unidentified developer", right-click the app → Open → Open anyway
+            </p>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 30px; border-top: 1px solid #e5e7eb; color: #999; font-size: 14px;">
+            <p>Requires macOS 10.13+ or Windows 10+</p>
+            <p style="margin-top: 10px;">
+                <a href="https://github.com/YOUR_USERNAME/agent-max-desktop" style="color: #667eea;">View on GitHub</a> •
+                <a href="https://github.com/YOUR_USERNAME/agent-max-desktop/issues" style="color: #667eea;">Report Issue</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
