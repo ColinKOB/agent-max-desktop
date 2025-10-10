@@ -108,6 +108,21 @@ ipcMain.handle('resize-window', (event, { width, height }) => {
   }
 });
 
+// Get window bounds (for boundary checking)
+ipcMain.handle('get-bounds', () => {
+  if (mainWindow) {
+    return mainWindow.getBounds();
+  }
+  return { x: 0, y: 0, width: 0, height: 0 };
+});
+
+// Set window bounds (for boundary correction)
+ipcMain.handle('set-bounds', (event, bounds) => {
+  if (mainWindow) {
+    mainWindow.setBounds(bounds);
+  }
+});
+
 // Switch to FloatBar mode (after welcome screen)
 ipcMain.handle('switch-to-floatbar', () => {
   if (mainWindow) {

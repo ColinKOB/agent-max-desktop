@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('electron', {
   executeCommand: (command) => ipcRenderer.invoke('execute-command', { command }),
   copyToClipboard: (text) => ipcRenderer.invoke('copy-to-clipboard', text),
   takeScreenshot: () => ipcRenderer.invoke('take-screenshot'),
+  getBounds: () => ipcRenderer.invoke('get-bounds'),
+  setBounds: (bounds) => ipcRenderer.invoke('set-bounds', bounds),
   
   // Memory management functions
   memory: {

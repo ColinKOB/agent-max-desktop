@@ -4,7 +4,9 @@ import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
 
 export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false); // Card mode (full chat)
+  const [isMini, setIsMini] = useState(true); // Mini square mode
+  const [isPill, setIsPill] = useState(false); // Pill mode (input bar)
   const [thoughts, setThoughts] = useState([]);
   const [progress, setProgress] = useState(0);
   const [currentCommand, setCurrentCommand] = useState('');
@@ -26,19 +28,66 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   // Simple connection status check (can be enhanced later)
   const [isConnected, setIsConnected] = useState(true);
 
-  // Window resize handler
+  // Window resize handler with boundary checking
   useEffect(() => {
     const resizeWindow = async () => {
       if (window.electron?.resizeWindow) {
         if (isOpen) {
+          // Full card mode
           await window.electron.resizeWindow(360, 520);
-        } else {
+        } else if (isPill) {
+          // Pill mode (input bar)
           await window.electron.resizeWindow(360, 80);
+        } else if (isMini) {
+          // Mini square mode
+          await window.electron.resizeWindow(90, 90);
         }
       }
     };
     resizeWindow();
-  }, [isOpen]);
+  }, [isOpen, isPill, isMini]);
+
+  // Keep window on screen (boundary checking)
+  useEffect(() => {
+    const checkBoundaries = async () => {
+      if (window.electron?.getBounds && window.electron?.setBounds) {
+        const bounds = await window.electron.getBounds();
+        const screen = window.screen;
+        
+        let { x, y, width, height } = bounds;
+        let changed = false;
+
+        // Ensure window doesn't go off-screen
+        if (x + width > screen.availWidth) {
+          x = screen.availWidth - width;
+          changed = true;
+        }
+        if (y + height > screen.availHeight) {
+          y = screen.availHeight - height;
+          changed = true;
+        }
+        if (x < 0) {
+          x = 0;
+          changed = true;
+        }
+        if (y < 0) {
+          y = 0;
+          changed = true;
+        }
+
+        if (changed) {
+          await window.electron.setBounds({ x, y, width, height });
+        }
+      }
+    };
+
+    // Check boundaries on state changes
+    checkBoundaries();
+    
+    // Also check when window is moved (periodically)
+    const interval = setInterval(checkBoundaries, 1000);
+    return () => clearInterval(interval);
+  }, [isOpen, isPill, isMini]);
 
   // Removed automatic preference test - onboarding now works correctly
 
@@ -47,16 +96,30 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     function onHotkey(e) {
       if ((e.metaKey || e.ctrlKey) && e.altKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
-        setIsOpen((prev) => !prev);
+        // Toggle through states: mini -> pill -> card
+        if (isMini) {
+          setIsMini(false);
+          setIsPill(true);
+          setTimeout(() => inputRef.current?.focus(), 100);
+        } else if (isPill) {
+          setIsPill(false);
+          setIsOpen(true);
+        } else {
+          setIsOpen(false);
+          setIsPill(false);
+          setIsMini(true);
+        }
       }
-      // Escape to collapse
-      if (e.key === 'Escape' && isOpen) {
+      // Escape to collapse to mini
+      if (e.key === 'Escape') {
         setIsOpen(false);
+        setIsPill(false);
+        setIsMini(true);
       }
     }
     window.addEventListener('keydown', onHotkey);
     return () => window.removeEventListener('keydown', onHotkey);
-  }, [isOpen]);
+  }, [isOpen, isPill, isMini]);
 
   // SSE streaming (placeholder - connect to your backend)
   useEffect(() => {
@@ -385,8 +448,26 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     thoughtsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [thoughts]);
 
-  if (!isOpen) {
-    // Inactive: Pill mode
+  // Mini square mode - fully collapsed
+  if (isMini) {
+    return (
+      <div 
+        className="amx-root amx-mini"
+        onClick={() => {
+          setIsMini(false);
+          setIsPill(true);
+          setTimeout(() => inputRef.current?.focus(), 100);
+        }}
+      >
+        <div className="amx-mini-content">
+          <span className="amx-mini-text">Max</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Pill mode - input bar
+  if (isPill) {
     return (
       <div className="amx-root amx-pill">
         <div className="amx-drag-handle-pill">
@@ -395,9 +476,36 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         <input
           ref={inputRef}
           className="amx-input"
-          placeholder="Ask Max"
-          onFocus={() => setIsOpen(true)}
+          placeholder="Type to expand..."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onFocus={() => {
+            if (message.length > 0 || thoughts.length > 0) {
+              setIsPill(false);
+              setIsOpen(true);
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && message.trim()) {
+              setIsPill(false);
+              setIsOpen(true);
+              handleSend();
+            } else if (message.length > 0 && e.key !== 'Escape') {
+              // Expand on any typing
+              setIsPill(false);
+              setIsOpen(true);
+            }
+          }}
         />
+        <button
+          className="amx-icon-btn"
+          onClick={() => {
+            setIsPill(false);
+            setIsMini(true);
+          }}
+        >
+          <Minimize2 className="w-4 h-4" />
+        </button>
       </div>
     );
   }
@@ -427,12 +535,18 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
             >
               <RotateCcw className="w-4 h-4" />
             </button>
-            <button className="amx-icon-btn" onClick={() => setIsOpen(false)} title="Minimize (Esc)">
+            <button 
+              className="amx-icon-btn" 
+              onClick={() => {
+                setIsOpen(false);
+                setIsPill(true);
+              }}
+              title="Minimize (Esc)"
+            >
               <Minimize2 className="w-4 h-4" />
             </button>
           </div>
         </div>
-
         {/* Thoughts stream / Welcome screen */}
         <div className="amx-thoughts" role="status" aria-live="polite">
           {showWelcome ? (
