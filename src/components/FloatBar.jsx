@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Camera, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2, Sparkles, ArrowRight, Wifi, WifiOff } from 'lucide-react';
 import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
-import useConnectionStatus from '../hooks/useConnectionStatus';
 
 export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -23,7 +22,9 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   const inputRef = useRef(null);
   const thoughtsEndRef = useRef(null);
   const { profile } = useStore();
-  const { isConnected } = useConnectionStatus();
+  
+  // Simple connection status check (can be enhanced later)
+  const [isConnected, setIsConnected] = useState(true);
 
   // Window resize handler
   useEffect(() => {
@@ -167,6 +168,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       const response = await chatAPI.sendMessage(userMessage, userContext, screenshotData);
       
       setProgress(100);
+      setIsConnected(true); // Mark as connected on successful response
       
       // Autonomous endpoint returns: final_response, steps, status, execution_time
       const aiResponse = response.data.final_response || response.data.response || 'No response';
@@ -209,6 +211,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
         errorMsg = '🔌 Cannot connect to backend';
         errorDetail = 'The API server is not running. Please start it with:\ncd Agent_Max && ./start_api.sh';
+        setIsConnected(false); // Update connection status
       } else if (error.response?.status === 404) {
         errorMsg = '🔍 API endpoint not found';
         errorDetail = 'The backend may be outdated. Check that you have the latest version.';
