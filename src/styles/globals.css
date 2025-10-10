@@ -578,38 +578,42 @@
 
 /* ========== WELCOME SCREEN ========== */
 .amx-welcome {
-  padding: 20px;
+  padding: 24px 20px 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   animation: fadeIn 0.3s ease;
+  height: 100%;
+  justify-content: space-between;
 }
 
 .amx-welcome-header {
   text-align: center;
-  margin-bottom: 6px;
+  margin-bottom: 0;
 }
 
 .amx-welcome-title {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 500;
   color: #fff;
   letter-spacing: -0.01em;
+  margin-bottom: 4px;
 }
 
 .amx-welcome-subtitle {
-  font-size: 13px;
+  font-size: 12px;
   color: rgba(255, 255, 255, 0.5);
   text-align: center;
-  margin-bottom: 12px;
+  margin-bottom: 0;
   font-weight: 400;
 }
 
 .amx-welcome-steps {
-  min-height: 180px;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 0;
 }
 
 .amx-welcome-step {
@@ -619,23 +623,25 @@
 
 .amx-welcome-label {
   display: block;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 400;
   color: rgba(255, 255, 255, 0.9);
-  margin-bottom: 14px;
+  margin-bottom: 10px;
   letter-spacing: -0.01em;
+  text-align: center;
 }
 
 .amx-welcome-input {
   width: 100%;
-  padding: 10px 14px;
+  padding: 11px 14px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
+  border-radius: 8px;
   color: #fff;
   font-size: 14px;
   transition: all 0.2s ease;
   outline: none;
+  text-align: center;
 }
 
 .amx-welcome-input:focus {
@@ -651,20 +657,21 @@
 .amx-welcome-options {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  gap: 6px;
 }
 
 .amx-welcome-options-stacked {
   grid-template-columns: 1fr;
+  gap: 6px;
 }
 
 .amx-welcome-option {
-  padding: 11px 14px;
+  padding: 10px 12px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   color: rgba(255, 255, 255, 0.75);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 400;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -686,29 +693,29 @@
 }
 
 .amx-welcome-option-stacked {
-  text-align: left;
-  padding: 13px 16px;
+  text-align: center;
+  padding: 11px 14px;
 }
 
 .amx-welcome-option-label {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 400;
   letter-spacing: -0.01em;
 }
 
 .amx-welcome-nav {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   justify-content: space-between;
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .amx-welcome-btn {
   flex: 1;
   padding: 10px 16px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
@@ -752,15 +759,16 @@
 
 .amx-welcome-progress {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   justify-content: center;
-  margin-top: 8px;
+  margin-top: 0;
+  padding-top: 4px;
 }
 
 .amx-welcome-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 2.5px;
   background: rgba(255, 255, 255, 0.15);
   transition: all 0.2s ease;
 }

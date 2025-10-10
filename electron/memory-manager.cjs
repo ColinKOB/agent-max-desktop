@@ -309,6 +309,12 @@ class LocalMemoryManager {
    */
   setPreference(key, value, type = 'explicit') {
     const preferences = this.getPreferences();
+    
+    // Ensure the type object exists
+    if (!preferences[type]) {
+      preferences[type] = {};
+    }
+    
     preferences[type][key] = {
       value,
       updated_at: new Date().toISOString()
