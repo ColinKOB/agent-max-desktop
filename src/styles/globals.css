@@ -3,16 +3,23 @@
 @tailwind utilities;
 
 @layer base {
-  body {
+  html, body {
     background: transparent;
-    color: #eaeaf0;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
       'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
       sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    margin: 0;
-    padding: 0;
+  }
+
+  #root {
+    width: 100%;
+    height: 100%;
     overflow: hidden;
   }
 
@@ -101,8 +108,13 @@
    FLOATBAR GLASSMORPHISM STYLES
    ============================================ */
 
-/* Root container - no positioning, let children define size */
+/* Root container - fills window with absolute positioning */
 .amx-root {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   pointer-events: auto;
 }
 
@@ -120,8 +132,11 @@
 
 /* Mini square mode - fully collapsed 68x68 (25% smaller) */
 .amx-mini {
-  width: 68px;
-  height: 68px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -133,15 +148,9 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   cursor: pointer;
   transition: all 0.2s ease;
-  /* Ensure no extra space */
   padding: 0;
   margin: 0;
   overflow: hidden;
-  /* Force exact dimensions */
-  min-width: 68px;
-  max-width: 68px;
-  min-height: 68px;
-  max-height: 68px;
   /* Make entire square clickable */
   pointer-events: all;
   -webkit-app-region: no-drag;  /* Allow clicks, not just drag */
@@ -174,44 +183,76 @@
   letter-spacing: 0.5px;
 }
 
-/* Pill mode (Inactive) - compact 360x80 bar */
-.amx-pill {
-  width: 360px;
-  height: 80px;
+/* Horizontal bar mode - same height as mini square (68px) */
+.amx-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 14px;
-  border-radius: 18px;
-  background: rgba(24, 24, 28, 0.45);
-  backdrop-filter: blur(16px) saturate(1.1);
-  -webkit-backdrop-filter: blur(16px) saturate(1.1);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-  transition: all 0.18s ease;
+  padding: 0 16px;
+  border-radius: 34px; /* Half of height for pill shape */
+  background: rgba(24, 24, 28, 0.4);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
 }
 
-/* Drag handle in pill mode */
-.amx-drag-handle-pill {
+.amx-bar:hover {
+  background: rgba(24, 24, 28, 0.5);
+  border-color: rgba(122, 162, 255, 0.2);
+}
+
+.amx-bar-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0;
+  -webkit-app-region: no-drag;
+}
+
+.amx-bar-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.amx-bar-minimize-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: move;
-  -webkit-app-region: drag;
-  padding: 4px;
-  border-radius: 8px;
-  transition: background 0.15s ease;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: all 0.15s ease;
   flex-shrink: 0;
+  -webkit-app-region: no-drag;
 }
 
-.amx-drag-handle-pill:hover {
-  background: rgba(255, 255, 255, 0.08);
+.amx-bar-minimize-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 /* Card mode (Active) - expanded 360x520 card */
 .amx-card {
-  width: 360px;
-  height: 520px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   border-radius: 18px;
   background: rgba(24, 24, 28, 0.45);
   backdrop-filter: blur(18px) saturate(1.1);
@@ -221,7 +262,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: height 0.18s ease, width 0.18s ease;
+  transition: all 0.2s ease;
 }
 
 /* Input field styling */

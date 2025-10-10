@@ -22,10 +22,10 @@ function createWindow() {
     height: windowHeight,
     x: screenWidth - windowWidth - margin,
     y: margin,
-    minWidth: 68,  // Allow shrinking to mini square
+    minWidth: 68,  // Mini square
     minHeight: 68,
-    maxWidth: 520,  // Allow expanding to full card
-    maxHeight: 520,
+    maxWidth: 360,  // Full card width
+    maxHeight: 520, // Full card height
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -105,7 +105,20 @@ ipcMain.handle('get-app-path', () => {
 // Window resize for expand/collapse
 ipcMain.handle('resize-window', (event, { width, height }) => {
   if (mainWindow) {
+    console.log(`[Electron] Resizing window to ${width}x${height}`);
+    const beforeBounds = mainWindow.getBounds();
+    console.log('[Electron] Before resize:', beforeBounds);
+    
     mainWindow.setSize(width, height);
+    
+    // Check actual size after resize
+    setTimeout(() => {
+      const afterBounds = mainWindow.getBounds();
+      console.log('[Electron] After resize:', afterBounds);
+      if (afterBounds.width !== width || afterBounds.height !== height) {
+        console.error(`[Electron] RESIZE FAILED! Expected ${width}x${height}, got ${afterBounds.width}x${afterBounds.height}`);
+      }
+    }, 100);
   }
 });
 

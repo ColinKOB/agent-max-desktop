@@ -4,9 +4,9 @@ import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
 
 export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) {
-  const [isOpen, setIsOpen] = useState(false); // Card mode (full chat)
-  const [isMini, setIsMini] = useState(true); // Mini square mode
-  const [isPill, setIsPill] = useState(false); // Pill mode (input bar)
+  const [isOpen, setIsOpen] = useState(false); // Card mode (full chat with conversation)
+  const [isMini, setIsMini] = useState(true); // Mini square mode (68x68)
+  const [isBar, setIsBar] = useState(false); // Horizontal bar mode (240x68)
   const [thoughts, setThoughts] = useState([]);
   const [progress, setProgress] = useState(0);
   const [currentCommand, setCurrentCommand] = useState('');
@@ -32,66 +32,82 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   const [similarGoals, setSimilarGoals] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Window resize handler with boundary checking
+  // Window resize handler
   useEffect(() => {
     const resizeWindow = async () => {
       if (window.electron?.resizeWindow) {
         if (isOpen) {
-          // Full card mode
+          // Full card mode with conversation
+          console.log('[FloatBar] Resizing to CARD mode: 360x520');
           await window.electron.resizeWindow(360, 520);
-        } else if (isPill) {
-          // Pill mode (input bar)
-          await window.electron.resizeWindow(360, 80);
+        } else if (isBar) {
+          // Horizontal bar mode (same height as mini square)
+          console.log('[FloatBar] Resizing to BAR mode: 320x68');
+          await window.electron.resizeWindow(320, 68);
         } else if (isMini) {
-          // Mini square mode - 25% smaller
+          // Mini square mode
+          console.log('[FloatBar] Resizing to MINI mode: 68x68');
           await window.electron.resizeWindow(68, 68);
+        }
+        
+        // Debug: Check actual window size after resize
+        if (window.electron?.getBounds) {
+          const bounds = await window.electron.getBounds();
+          console.log('[FloatBar] Actual window bounds after resize:', bounds);
         }
       }
     };
     resizeWindow();
-  }, [isOpen, isPill, isMini]);
+  }, [isOpen, isBar, isMini]);
 
   // Keep window on screen (boundary checking)
-  useEffect(() => {
-    const checkBoundaries = async () => {
-      if (window.electron?.getBounds && window.electron?.setBounds) {
-        const bounds = await window.electron.getBounds();
-        const screen = window.screen;
-        
-        let { x, y, width, height } = bounds;
-        let changed = false;
-
-        // Ensure window doesn't go off-screen
-        if (x + width > screen.availWidth) {
-          x = screen.availWidth - width;
-          changed = true;
-        }
-        if (y + height > screen.availHeight) {
-          y = screen.availHeight - height;
-          changed = true;
-        }
-        if (x < 0) {
-          x = 0;
-          changed = true;
-        }
-        if (y < 0) {
-          y = 0;
-          changed = true;
-        }
-
-        if (changed) {
-          await window.electron.setBounds({ x, y, width, height });
-        }
-      }
-    };
-
-    // Check boundaries on state changes
-    checkBoundaries();
-    
-    // Also check when window is moved (periodically)
-    const interval = setInterval(checkBoundaries, 1000);
-    return () => clearInterval(interval);
-  }, [isOpen, isPill, isMini]);
+  // DISABLED: This was interfering with window resizing by preserving old dimensions
+  // The boundary checking was calling setBounds with old width/height values
+  // which prevented the window from properly resizing to 68x68
+  
+  // TODO: Re-implement boundary checking that only adjusts x,y position
+  // and doesn't interfere with programmatic resizing
+  
+  // useEffect(() => {
+  //   const checkBoundaries = async () => {
+  //     if (window.electron?.getBounds && window.electron?.setBounds) {
+  //       const bounds = await window.electron.getBounds();
+  //       const screen = window.screen;
+  //       
+  //       let { x, y, width, height } = bounds;
+  //       let changed = false;
+  //
+  //       // Ensure window doesn't go off-screen
+  //       if (x + width > screen.availWidth) {
+  //         x = screen.availWidth - width;
+  //         changed = true;
+  //       }
+  //       if (y + height > screen.availHeight) {
+  //         y = screen.availHeight - height;
+  //         changed = true;
+  //       }
+  //       if (x < 0) {
+  //         x = 0;
+  //         changed = true;
+  //       }
+  //       if (y < 0) {
+  //         y = 0;
+  //         changed = true;
+  //       }
+  //
+  //       if (changed) {
+  //         await window.electron.setBounds({ x, y, width, height });
+  //       }
+  //     }
+  //   };
+  //
+  //   // Check boundaries on state changes
+  //   checkBoundaries();
+  //   
+  //   // Also check when window is moved (periodically)
+  //   const interval = setInterval(checkBoundaries, 1000);
+  //   return () => clearInterval(interval);
+  // }, [isOpen, isPill, isMini]);
 
   // Removed automatic preference test - onboarding now works correctly
 
@@ -100,30 +116,30 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     function onHotkey(e) {
       if ((e.metaKey || e.ctrlKey) && e.altKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
-        // Toggle through states: mini -> pill -> card
+        // Toggle through states: mini -> bar -> card
         if (isMini) {
           setIsMini(false);
-          setIsPill(true);
+          setIsBar(true);
           setTimeout(() => inputRef.current?.focus(), 100);
-        } else if (isPill) {
-          setIsPill(false);
+        } else if (isBar) {
+          setIsBar(false);
           setIsOpen(true);
         } else {
           setIsOpen(false);
-          setIsPill(false);
+          setIsBar(false);
           setIsMini(true);
         }
       }
       // Escape to collapse to mini
       if (e.key === 'Escape') {
         setIsOpen(false);
-        setIsPill(false);
+        setIsBar(false);
         setIsMini(true);
       }
     }
     window.addEventListener('keydown', onHotkey);
     return () => window.removeEventListener('keydown', onHotkey);
-  }, [isOpen, isPill, isMini]);
+  }, [isOpen, isBar, isMini]);
 
   // SSE streaming (placeholder - connect to your backend)
   useEffect(() => {
@@ -229,6 +245,20 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       // Build user context (now includes recent messages!)
       setProgress(40);
       const userContext = await memoryService.buildContextForAPI();
+      
+      // 🔥 SEMANTIC CONTEXT: If we have high-similarity past conversations, include them
+      if (similarGoals.length > 0 && similarGoals[0].similarity >= 0.70) {
+        const topMatch = similarGoals[0];
+        console.log(`[Semantic] High similarity (${(topMatch.similarity * 100).toFixed(0)}%) - Adding context`);
+        
+        // Add semantic context to user_context
+        userContext.semantic_context = {
+          similar_question: topMatch.goal,
+          similarity_score: topMatch.similarity,
+          was_successful: topMatch.success,
+          note: 'User asked something very similar before. Use this for context.'
+        };
+      }
       
       // Send to autonomous API with optional screenshot
       setProgress(60);
@@ -488,10 +518,11 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       <div 
         className="amx-root amx-mini"
         onClick={() => {
-          // Go straight to full chat when clicking MAX
+          // Open to horizontal bar mode
+          console.log('[FloatBar] Mini clicked: Opening to bar mode');
           setIsMini(false);
-          setIsPill(false);
-          setIsOpen(true);
+          setIsBar(true);
+          setIsOpen(false);
           setTimeout(() => inputRef.current?.focus(), 100);
         }}
       >
@@ -502,43 +533,42 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     );
   }
 
-  // Pill mode - input bar
-  if (isPill) {
+  // Horizontal bar mode - input bar (same height as mini)
+  if (isBar) {
     return (
-      <div className="amx-root amx-pill">
-        <div className="amx-drag-handle-pill">
-          <GripVertical className="w-5 h-5 text-white/40" />
-        </div>
+      <div className="amx-root amx-bar">
         <input
           ref={inputRef}
-          className="amx-input"
-          placeholder="Type to expand..."
+          className="amx-bar-input"
+          placeholder="Ask MAX..."
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onFocus={() => {
-            if (message.length > 0 || thoughts.length > 0) {
-              setIsPill(false);
+            // Expand to full chat if there's conversation
+            if (thoughts.length > 0) {
+              setIsBar(false);
               setIsOpen(true);
             }
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && message.trim()) {
-              setIsPill(false);
+              // Hide suggestions and send message
+              setShowSuggestions(false);
+              // Send and expand to full chat
+              setIsBar(false);
               setIsOpen(true);
-              handleSend();
-            } else if (message.length > 0 && e.key !== 'Escape') {
-              // Expand on any typing
-              setIsPill(false);
-              setIsOpen(true);
+              handleSendMessage();
             }
           }}
         />
         <button
-          className="amx-icon-btn"
+          className="amx-bar-minimize-btn"
           onClick={() => {
-            setIsPill(false);
+            console.log('[FloatBar] Bar minimize clicked: Going to mini');
+            setIsBar(false);
             setIsMini(true);
           }}
+          title="Minimize"
         >
           <Minimize2 className="w-4 h-4" />
         </button>
@@ -574,8 +604,10 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
             <button 
               className="amx-icon-btn" 
               onClick={() => {
+                console.log('[FloatBar] Card minimize clicked: Going to mini');
                 setIsOpen(false);
-                setIsPill(true);
+                setIsBar(false);
+                setIsMini(true);
               }}
               title="Minimize (Esc)"
             >
