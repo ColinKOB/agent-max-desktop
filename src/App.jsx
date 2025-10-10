@@ -31,21 +31,39 @@ function App() {
 
   const loadProfile = async () => {
     try {
-      const profileData = await profileAPI.get();
-      setProfile(profileData);
-      
-      // Get greeting
-      const greetingData = await profileAPI.getGreeting();
-      setGreeting(greetingData.greeting);
+      // Load profile from local memory (Electron)
+      if (window.electron?.memory) {
+        const profileData = await window.electron.memory.getProfile();
+        setProfile({
+          name: profileData.name || 'User',
+          interaction_count: profileData.interaction_count || 0,
+          temporal_info: {},
+          top_preferences: []
+        });
+        
+        // Generate greeting
+        const greeting = profileData.name 
+          ? `Hi, ${profileData.name}!` 
+          : 'Hi there!';
+        setGreeting(greeting);
+      } else {
+        // Fallback: try API (for non-Electron environments)
+        const profileData = await profileAPI.get();
+        setProfile(profileData);
+        
+        const greetingData = await profileAPI.getGreeting();
+        setGreeting(greetingData.greeting);
+      }
     } catch (error) {
       console.error('Failed to load profile:', error);
-      // Set default profile if API fails
+      // Set default profile if everything fails
       setProfile({
         name: 'User',
         interaction_count: 0,
         temporal_info: {},
         top_preferences: []
       });
+      setGreeting('Hi there!');
     }
   };
 

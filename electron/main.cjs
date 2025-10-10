@@ -180,90 +180,90 @@ ipcMain.handle('memory:get-profile', () => {
 
 // Update user profile
 ipcMain.handle('memory:update-profile', (event, updates) => {
-  return memoryManager.updateProfile(updates);
+  return ensureMemoryManager().updateProfile(updates);
 });
 
 // Set user name
 ipcMain.handle('memory:set-name', (event, name) => {
-  return memoryManager.setUserName(name);
+  return ensureMemoryManager().setUserName(name);
 });
 
 // Increment interaction count
 ipcMain.handle('memory:increment-interaction', () => {
-  return memoryManager.incrementInteraction();
+  return ensureMemoryManager().incrementInteraction();
 });
 
 // Get all facts
 ipcMain.handle('memory:get-facts', () => {
-  return memoryManager.getFacts();
+  return ensureMemoryManager().getFacts();
 });
 
 // Set a fact
 ipcMain.handle('memory:set-fact', (event, { category, key, value }) => {
-  return memoryManager.setFact(category, key, value);
+  return ensureMemoryManager().setFact(category, key, value);
 });
 
 // Delete a fact
 ipcMain.handle('memory:delete-fact', (event, { category, key }) => {
-  return memoryManager.deleteFact(category, key);
+  return ensureMemoryManager().deleteFact(category, key);
 });
 
 // Start new conversation session
 ipcMain.handle('memory:start-session', (event, sessionId) => {
-  return memoryManager.startSession(sessionId);
+  return ensureMemoryManager().startSession(sessionId);
 });
 
 // Add message to conversation
 ipcMain.handle('memory:add-message', (event, { role, content, sessionId }) => {
-  return memoryManager.addMessage(role, content, sessionId);
+  return ensureMemoryManager().addMessage(role, content, sessionId);
 });
 
 // Get recent messages
 ipcMain.handle('memory:get-recent-messages', (event, { count, sessionId }) => {
-  return memoryManager.getRecentMessages(count, sessionId);
+  return ensureMemoryManager().getRecentMessages(count, sessionId);
 });
 
 // Clear conversation session
 ipcMain.handle('memory:clear-session', (event, sessionId) => {
-  return memoryManager.clearSession(sessionId);
+  return ensureMemoryManager().clearSession(sessionId);
 });
 
 // Get preferences
 ipcMain.handle('memory:get-preferences', () => {
-  return memoryManager.getPreferences();
+  return ensureMemoryManager().getPreferences();
 });
 
 // Set preference
 ipcMain.handle('memory:set-preference', (event, { key, value, type }) => {
-  return memoryManager.setPreference(key, value, type);
+  return ensureMemoryManager().setPreference(key, value, type);
 });
 
 // Get preference by key
 ipcMain.handle('memory:get-preference', (event, key) => {
-  return memoryManager.getPreference(key);
+  return ensureMemoryManager().getPreference(key);
 });
 
 // Build complete context for AI request
 ipcMain.handle('memory:build-context', () => {
-  return memoryManager.buildContext();
+  return ensureMemoryManager().buildContext();
 });
 
 // Export memories (for backup)
 ipcMain.handle('memory:export', () => {
-  return memoryManager.exportMemories();
+  return ensureMemoryManager().exportMemories();
 });
 
 // Import memories (from backup)
 ipcMain.handle('memory:import', (event, data) => {
-  return memoryManager.importMemories(data);
+  return ensureMemoryManager().importMemories(data);
 });
 
 // Get memory statistics
 ipcMain.handle('memory:get-stats', () => {
-  return memoryManager.getStats();
+  return ensureMemoryManager().getStats();
 });
 
 // Get memory storage location
 ipcMain.handle('memory:get-location', () => {
-  return memoryManager.getMemoryLocation();
+  return ensureMemoryManager().getMemoryLocation();
 });
