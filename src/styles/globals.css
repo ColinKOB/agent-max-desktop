@@ -382,15 +382,12 @@
 
 /* Progress bar */
 .amx-progress {
-  height: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 999px;
-  overflow: hidden;
-  margin: 4px 0;
+  margin-top: 8px;
+  position: relative;
 }
 
 .amx-progress > div {
-  height: 100%;
+  height: 4px;
   background: linear-gradient(90deg, #7aa2ff, #a8ffcf);
   transition: width 0.3s ease;
   border-radius: 999px;

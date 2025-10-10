@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Camera, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2, Sparkles, ArrowRight } from 'lucide-react';
+import { Camera, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2, Sparkles, ArrowRight, Wifi, WifiOff } from 'lucide-react';
 import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
+import useConnectionStatus from '../hooks/useConnectionStatus';
 
 export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -22,6 +23,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   const inputRef = useRef(null);
   const thoughtsEndRef = useRef(null);
   const { profile } = useStore();
+  const { isConnected } = useConnectionStatus();
 
   // Window resize handler
   useEffect(() => {
@@ -180,15 +182,45 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       
     } catch (error) {
       console.error('Message send error:', error);
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to send message';
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Failed to send message';
+      let userFriendlyMessage = 'Something went wrong. Please try again.';
+      
+      if (!error.response) {
+        // Network error
+        errorMessage = 'Network error';
+        userFriendlyMessage = 'Cannot reach the server. Check your connection.';
+      } else if (error.code === 'ECONNABORTED') {
+        // Timeout
+        errorMessage = 'Request timeout';
+        userFriendlyMessage = 'The request took too long. The server might be busy.';
+      } else if (error.response.status === 429) {
+        // Rate limit
+        errorMessage = 'Rate limit exceeded';
+        userFriendlyMessage = 'Too many requests. Please wait a moment.';
+      } else if (error.response.status >= 500) {
+        // Server error
+        errorMessage = 'Server error';
+        userFriendlyMessage = 'The server encountered an error. Please try again.';
+      } else if (error.response.status === 401 || error.response.status === 403) {
+        // Auth error
+        errorMessage = 'Authentication error';
+        userFriendlyMessage = 'Authentication failed. Please check your API key.';
+      } else if (error.response?.data?.detail) {
+        // API provided error message
+        errorMessage = error.response.data.detail;
+        userFriendlyMessage = error.response.data.detail;
+      }
+      
       setThoughts((prev) => [...prev, { 
         type: 'agent', 
-        content: `❌ Error: ${errorMessage}` 
+        content: `❌ ${userFriendlyMessage}` 
       }]);
       setIsThinking(false);
       setProgress(0);
       setScreenshotData(null); // Clear screenshot on error
-      toast.error(errorMessage);
+      toast.error(userFriendlyMessage);
     }
   };
 
@@ -324,6 +356,13 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           <div className="flex items-center gap-2">
             <GripVertical className="w-4 h-4 text-white/40" />
             <span>Hi, {profile?.name || 'there'}</span>
+            {/* Connection status indicator */}
+            {!isConnected && (
+              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30">
+                <WifiOff className="w-3 h-3 text-red-400" />
+                <span className="text-xs text-red-400">Offline</span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button 

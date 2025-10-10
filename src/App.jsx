@@ -16,18 +16,42 @@ function App() {
     // Load initial profile
     loadProfile();
 
-    // Check API connection every 30 seconds
-    const interval = setInterval(checkApiConnection, 30000);
-    return () => clearInterval(interval);
+    // Adaptive health check with exponential backoff
+    let checkInterval = 30000; // Start with 30 seconds
+    let intervalId;
+
+    const scheduleNextCheck = (wasSuccessful) => {
+      if (wasSuccessful) {
+        // Reset to normal interval on success
+        checkInterval = 30000;
+      } else {
+        // Exponential backoff: 30s → 60s → 120s → max 300s (5min)
+        checkInterval = Math.min(checkInterval * 2, 300000);
+      }
+
+      intervalId = setTimeout(async () => {
+        const success = await checkApiConnection();
+        scheduleNextCheck(success);
+      }, checkInterval);
+    };
+
+    // Start the adaptive checking
+    checkApiConnection().then(scheduleNextCheck);
+
+    return () => {
+      if (intervalId) clearTimeout(intervalId);
+    };
   }, []);
 
   const checkApiConnection = async () => {
     try {
       await healthAPI.check();
       setApiConnected(true);
+      return true;
     } catch (error) {
       setApiConnected(false);
       console.error('API health check failed:', error);
+      return false;
     }
   };
 
