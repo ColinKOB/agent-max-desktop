@@ -155,8 +155,8 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       // Show thinking indicator
       setProgress(20);
       const thinkingMsg = screenshotData 
-        ? '🤔 Analyzing screenshot and your message...' 
-        : '🤔 Processing your request...';
+        ? 'Analyzing screenshot and your message...' 
+        : 'Processing your request...';
       setThoughts((prev) => [...prev, { type: 'thought', content: thinkingMsg }]);
       
       // Build user context (now includes recent messages!)
@@ -182,11 +182,30 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         content: aiResponse
       }]);
       
-      // Show execution time if available
+      // Show debug info
+      const debugInfo = [];
       if (response.data.execution_time) {
+        debugInfo.push(`Completed in ${response.data.execution_time.toFixed(1)}s`);
+      }
+      if (response.data.steps && response.data.steps.length > 0) {
+        debugInfo.push(`Steps executed: ${response.data.steps.length}`);
+        response.data.steps.forEach((step, idx) => {
+          if (step.action === 'execute_command') {
+            debugInfo.push(`  ${idx + 1}. Command: ${step.command}`);
+            if (step.output) {
+              debugInfo.push(`     Output: ${step.output.substring(0, 100)}${step.output.length > 100 ? '...' : ''}`);
+            }
+          }
+        });
+      }
+      if (screenshotData) {
+        debugInfo.push('Screenshot was included in request');
+      }
+      
+      if (debugInfo.length > 0) {
         setThoughts((prev) => [...prev, { 
-          type: 'thought', 
-          content: `⏱️ Completed in ${response.data.execution_time.toFixed(1)}s` 
+          type: 'debug', 
+          content: debugInfo.join('\n')
         }]);
       }
       
@@ -209,27 +228,36 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       let errorDetail = '';
       
       if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
-        errorMsg = '🔌 Cannot connect to backend';
+        errorMsg = 'Cannot connect to backend';
         errorDetail = 'The API server is not running. Please start it with:\ncd Agent_Max && ./start_api.sh';
         setIsConnected(false); // Update connection status
       } else if (error.response?.status === 404) {
-        errorMsg = '🔍 API endpoint not found';
+        errorMsg = 'API endpoint not found';
         errorDetail = 'The backend may be outdated. Check that you have the latest version.';
       } else if (error.response?.status === 500) {
-        errorMsg = '💥 Backend error';
+        errorMsg = 'Backend error';
         const detail = error.response?.data?.detail || error.response?.data?.final_response;
         errorDetail = detail || 'Internal server error';
+        // Add full error details for debugging
+        if (error.response?.data) {
+          errorDetail += '\n\nFull error: ' + JSON.stringify(error.response.data, null, 2);
+        }
       } else if (error.message?.includes('timeout') || error.code === 'ECONNABORTED') {
-        errorMsg = '⏱️ Request timed out';
+        errorMsg = 'Request timed out';
         errorDetail = 'The server is taking too long to respond. Try a simpler request.';
       } else if (error.response?.status === 401 || error.response?.status === 403) {
-        errorMsg = '🔐 Authentication failed';
+        errorMsg = 'Authentication failed';
         errorDetail = 'Check your API key in settings.';
       } else if (error.response?.status === 429) {
-        errorMsg = '⚠️ Rate limit exceeded';
+        errorMsg = 'Rate limit exceeded';
         errorDetail = 'Too many requests. Please wait a moment and try again.';
       } else {
         errorDetail = error.message || 'Unknown error occurred';
+        // Add full error for debugging
+        if (error.response) {
+          errorDetail += '\n\nStatus: ' + error.response.status;
+          errorDetail += '\nData: ' + JSON.stringify(error.response.data, null, 2);
+        }
       }
       
       // Add error to thoughts
@@ -546,8 +574,10 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
                 >
                   {thought.type === 'user' && <span className="amx-message-label">You</span>}
                   {thought.type === 'agent' && <span className="amx-message-label">Agent Max</span>}
-                  {thought.type === 'thought' && <span className="amx-thought-label">💭 Thinking</span>}
-                  <div className="amx-message-content">{thought.content}</div>
+                  {thought.type === 'thought' && <span className="amx-thought-label">Thinking</span>}
+                  {thought.type === 'debug' && <span className="amx-debug-label">Debug Info</span>}
+                  {thought.type === 'error' && <span className="amx-error-label">Error</span>}
+                  <div className="amx-message-content" style={{ whiteSpace: 'pre-wrap' }}>{thought.content}</div>
                 </div>
               ))}
               {isThinking && (
