@@ -118,8 +118,8 @@
   pointer-events: auto;
 }
 
-/* Animated gradient backdrop */
-.amx-root::before {
+/* Animated gradient backdrop - only for expanded card view */
+.amx-root.amx-card::before {
   content: "";
   position: fixed;
   inset: 0;
@@ -963,7 +963,7 @@
     background: #202229;
   }
   
-  .amx-root::before {
+  .amx-root.amx-card::before {
     display: none;
   }
 }
