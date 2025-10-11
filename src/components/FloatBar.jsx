@@ -398,9 +398,11 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       
       setIsStreaming(false);
       
-      // Show detailed execution steps with friendly text
+      // Show detailed execution steps with friendly text (progressive loading!)
       if (response.data.steps && response.data.steps.length > 0) {
-        response.data.steps.forEach((step, idx) => {
+        for (let idx = 0; idx < response.data.steps.length; idx++) {
+          const step = response.data.steps[idx];
+          
           // Show reasoning for each step (now friendly!)
           if (step.reasoning) {
             const friendlyText = getFriendlyThinking(step);
@@ -408,6 +410,9 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
               type: 'thought', 
               content: `Step ${idx + 1}: ${friendlyText}`
             }]);
+            
+            // Small delay between steps for readability
+            await new Promise(resolve => setTimeout(resolve, 150));
           }
           
           // Show command execution with FULL output
@@ -441,8 +446,11 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
               type: 'debug', 
               content: `🔄 Action: ${step.action}${step.result ? '\nResult: ' + step.result : ''}`
             }]);
+            
+            // Small delay for readability
+            await new Promise(resolve => setTimeout(resolve, 150));
           }
-        });
+        }
       }
       
       // Show execution summary
@@ -720,43 +728,32 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           localStorage.setItem('agentMaxPosition', JSON.stringify(newPos));
         }}
         bounds="parent"
-        handle=".amx-mini-content"
+        handle=".amx-drag-handle-mini"
       >
-        <div className="amx-root amx-mini" style={{ position: 'fixed', cursor: 'move', userSelect: 'none' }}>
-          <div 
-            className="amx-mini-content"
-            style={{ 
-              userSelect: 'none', 
-              WebkitUserSelect: 'none',
-              backgroundColor: '#000',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            onClick={(e) => {
-              // Only expand if not dragging
-              if (!e.defaultPrevented) {
-                // Open to horizontal bar mode
-                console.log('[FloatBar] Mini clicked: Opening to bar mode');
-                setIsMini(false);
-                setIsBar(true);
-                setIsOpen(false);
-                setTimeout(() => inputRef.current?.focus(), 100);
-              }
-            }}
-          >
-            <img 
-              src="/AgentMaxLogo.png" 
-              alt="Agent Max" 
-              style={{ 
-                width: '48px', 
-                height: '48px', 
-                userSelect: 'none',
-                WebkitUserDrag: 'none',
-                pointerEvents: 'none'
-              }}
-              draggable={false}
-            />
+        <div 
+          className="amx-root amx-mini amx-mini-draggable"
+          onClick={(e) => {
+            // Single click to expand (now that we have separate drag handle)
+            if (!e.target.classList.contains('amx-drag-handle-mini')) {
+              console.log('[FloatBar] Mini clicked: Opening to bar mode');
+              setIsMini(false);
+              setIsBar(true);
+              setIsOpen(false);
+              // Auto-focus the input field immediately
+              requestAnimationFrame(() => {
+                inputRef.current?.focus();
+              });
+            }
+          }}
+        >
+          <img 
+            src="/AgentMaxLogo.png" 
+            alt="Agent Max" 
+            className="amx-mini-logo"
+          />
+          {/* Drag handle in bottom-left corner */}
+          <div className="amx-drag-handle-mini">
+            <GripVertical size={12} />
           </div>
         </div>
       </Draggable>
