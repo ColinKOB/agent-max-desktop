@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Camera, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2, Sparkles, ArrowRight, Wifi, WifiOff } from 'lucide-react';
+import Draggable from 'react-draggable';
 import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
 
@@ -28,9 +29,72 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   // Simple connection status check (can be enhanced later)
   const [isConnected, setIsConnected] = useState(true);
   
+  // Draggable position state (persists across sessions)
+  const [position, setPosition] = useState(() => {
+    const saved = localStorage.getItem('agentMaxPosition');
+    return saved ? JSON.parse(saved) : { x: 20, y: 20 };
+  });
+  
   // Semantic suggestions
   const [similarGoals, setSimilarGoals] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  
+  // Streaming state for fake streaming effect
+  const [isStreaming, setIsStreaming] = useState(false);
+  
+  // Helper: Stream text word-by-word for better perceived speed
+  const streamText = async (text, callback) => {
+    const words = text.split(' ');
+    let displayed = '';
+    
+    for (let i = 0; i < words.length; i++) {
+      displayed += words[i] + (i < words.length - 1 ? ' ' : '');
+      callback(displayed);
+      await new Promise(resolve => setTimeout(resolve, 40)); // 40ms per word
+    }
+  };
+  
+  // Helper: Convert technical reasoning to friendly user-facing text
+  const getFriendlyThinking = (step) => {
+    const friendlyMap = {
+      'analyze_image': 'Looking at your screen',
+      'execute_command': 'Running command',
+      'respond': 'Thinking',
+      'done': 'Complete!'
+    };
+    
+    // Try pre-defined map first
+    if (friendlyMap[step.action]) {
+      return friendlyMap[step.action];
+    }
+    
+    // Shorten technical phrases
+    const reasoning = step.reasoning || '';
+    const lowerReasoning = reasoning.toLowerCase();
+    
+    if (lowerReasoning.includes('check if') || lowerReasoning.includes('checking')) {
+      return '🔍 Checking tools';
+    }
+    if (lowerReasoning.includes('weather') || lowerReasoning.includes('temperature')) {
+      return '🌤️ Getting weather';
+    }
+    if (lowerReasoning.includes('restaurant') || lowerReasoning.includes('food') || lowerReasoning.includes('place')) {
+      return '🍽️ Finding places';
+    }
+    if (lowerReasoning.includes('screenshot') || lowerReasoning.includes('screen')) {
+      return '👀 Looking';
+    }
+    if (lowerReasoning.includes('install') || lowerReasoning.includes('download')) {
+      return '📦 Installing';
+    }
+    if (lowerReasoning.includes('search') || lowerReasoning.includes('find')) {
+      return '🔍 Searching';
+    }
+    
+    // Default: Show first 5 words
+    const words = reasoning.split(' ').slice(0, 5);
+    return words.join(' ') + (reasoning.split(' ').length > 5 ? '...' : '');
+  };
 
   // Window resize handler
   useEffect(() => {
@@ -240,11 +304,11 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       // 🔥 SAVE USER MESSAGE TO MEMORY (for conversation history)
       await memoryService.addMessage('user', userMessage);
       
-      // Show thinking indicator
+      // Show thinking indicator (friendly!)
       setProgress(20);
       const thinkingMsg = screenshotData 
-        ? 'Analyzing screenshot and your message...' 
-        : 'Processing your request...';
+        ? '👀 Looking at your screenshot...' 
+        : '💭 Thinking...';
       setThoughts((prev) => [...prev, { type: 'thought', content: thinkingMsg }]);
       
       // Build user context (now includes recent messages!)
@@ -307,20 +371,42 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         }
       }
       
-      // Add AI response to UI
+      // Add AI response to UI with streaming effect
+      setIsStreaming(true);
+      
+      // Add placeholder for streaming response
+      const responseIndex = thoughts.length;
       setThoughts((prev) => [...prev, { 
         type: 'agent', 
-        content: aiResponse
+        content: ''
       }]);
       
-      // Show detailed execution steps
+      // Stream the response word-by-word
+      await streamText(aiResponse, (partial) => {
+        setThoughts((prev) => {
+          const newThoughts = [...prev];
+          // Update the last thought (the placeholder we added)
+          if (newThoughts.length > 0) {
+            newThoughts[newThoughts.length - 1] = {
+              type: 'agent',
+              content: partial
+            };
+          }
+          return newThoughts;
+        });
+      });
+      
+      setIsStreaming(false);
+      
+      // Show detailed execution steps with friendly text
       if (response.data.steps && response.data.steps.length > 0) {
         response.data.steps.forEach((step, idx) => {
-          // Show reasoning for each step
+          // Show reasoning for each step (now friendly!)
           if (step.reasoning) {
+            const friendlyText = getFriendlyThinking(step);
             setThoughts((prev) => [...prev, { 
               type: 'thought', 
-              content: `Step ${idx + 1}: ${step.reasoning}`
+              content: `Step ${idx + 1}: ${friendlyText}`
             }]);
           }
           
@@ -626,21 +712,54 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   // Mini square mode - fully collapsed
   if (isMini) {
     return (
-      <div className="amx-root amx-mini">
-        <div 
-          className="amx-mini-content"
-          onClick={() => {
-            // Open to horizontal bar mode
-            console.log('[FloatBar] Mini clicked: Opening to bar mode');
-            setIsMini(false);
-            setIsBar(true);
-            setIsOpen(false);
-            setTimeout(() => inputRef.current?.focus(), 100);
-          }}
-        >
-          <span className="amx-mini-text">MAX</span>
+      <Draggable
+        position={position}
+        onStop={(e, data) => {
+          const newPos = { x: data.x, y: data.y };
+          setPosition(newPos);
+          localStorage.setItem('agentMaxPosition', JSON.stringify(newPos));
+        }}
+        bounds="parent"
+        handle=".amx-mini-content"
+      >
+        <div className="amx-root amx-mini" style={{ position: 'fixed', cursor: 'move', userSelect: 'none' }}>
+          <div 
+            className="amx-mini-content"
+            style={{ 
+              userSelect: 'none', 
+              WebkitUserSelect: 'none',
+              backgroundColor: '#000',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            onClick={(e) => {
+              // Only expand if not dragging
+              if (!e.defaultPrevented) {
+                // Open to horizontal bar mode
+                console.log('[FloatBar] Mini clicked: Opening to bar mode');
+                setIsMini(false);
+                setIsBar(true);
+                setIsOpen(false);
+                setTimeout(() => inputRef.current?.focus(), 100);
+              }
+            }}
+          >
+            <img 
+              src="/AgentMaxLogo.png" 
+              alt="Agent Max" 
+              style={{ 
+                width: '48px', 
+                height: '48px', 
+                userSelect: 'none',
+                WebkitUserDrag: 'none',
+                pointerEvents: 'none'
+              }}
+              draggable={false}
+            />
+          </div>
         </div>
-      </div>
+      </Draggable>
     );
   }
 
