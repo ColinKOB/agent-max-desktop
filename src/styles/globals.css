@@ -1,35 +1,93 @@
+/* ============================================
+   TAILWIND CSS DIRECTIVES
+   These import Tailwind's utility classes
+   ============================================ */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================
    GLASS DESIGN SYSTEM - Subtle & Professional
+   
+   This design uses a "glass morphism" style with:
+   - Semi-transparent backgrounds
+   - Backdrop blur effects
+   - Soft shadows and borders
+   - Consistent spacing and colors
    ============================================ */
 
 :root {
-  /* Base colors - ink grays + soft accent */
-  --bg: #0f1115;
-  --panel: hsla(220, 14%, 18%, 0.50);        /* light glass - lower opacity */
-  --bubble: hsla(220, 14%, 18%, 0.82);       /* bubbles - readable */
-  --stroke: hsla(0, 0%, 100%, 0.06);         /* hairline borders */
-  --text: hsla(0, 0%, 100%, 0.94);           /* primary text - SF Pro */
-  --text-muted: hsla(0, 0%, 100%, 0.64);     /* secondary text */
+  /* ==========================================
+     COLOR PALETTE
+     All colors use HSLA format: hue, saturation, lightness, alpha (opacity)
+     
+     TIP: To adjust colors:
+     - Hue (0-360): Changes the color (0=red, 120=green, 240=blue)
+     - Saturation (0-100%): 0%=gray, 100%=vibrant
+     - Lightness (0-100%): 0%=black, 50%=pure color, 100%=white
+     - Alpha (0-1): 0=transparent, 1=opaque
+     ========================================== */
   
-  /* Accent - single muted blue */
-  --accent: hsl(228, 100%, 74%);
+  /* Background color (rarely used since we use transparency) */
+  --bg: #0f1115;  /* Very dark blue-gray */
   
-  /* Glass effects */
+  /* Panel/Window background - Light glass effect */
+  --panel: hsla(220, 14%, 18%, 0.50);
+  /* 220 = blue hue, 14% = low saturation (grayish), 18% = dark, 50% = half transparent */
+  /* TIP: Increase alpha (0.50 → 0.70) for more solid, decrease for more transparent */
+  
+  /* Bubble/Card background - Thicker glass for better readability */
+  --bubble: hsla(220, 14%, 18%, 0.82);
+  /* Same color as panel but 82% opaque for better text contrast */
+  /* TIP: Keep this higher than --panel for readable text backgrounds */
+  
+  /* Border color - Ultra-subtle hairline */
+  --stroke: hsla(0, 0%, 100%, 0.06);
+  /* Pure white at 6% opacity = barely visible border */
+  /* TIP: Increase to 0.10 for more visible borders, decrease to 0.03 for nearly invisible */
+  
+  /* Text colors */
+  --text: hsla(0, 0%, 100%, 0.94);  /* Primary text - 94% white (high contrast) */
+  --text-muted: hsla(0, 0%, 100%, 0.64);  /* Secondary text - 64% white (lower contrast) */
+  /* TIP: Keep text high contrast (90%+) for readability */
+  
+  /* Accent color - Used for focus rings and highlights */
+  --accent: hsl(228, 100%, 74%);  /* Soft blue - not neon */
+  /* 228 = blue hue, 100% = fully saturated, 74% = light/pastel */
+  /* TIP: Try different hues: 0=red, 30=orange, 120=green, 280=purple */
+  
+  /* ==========================================
+     GLASS EFFECTS
+     These control the blur and transparency
+     ========================================== */
+  
+  /* Blur amount - Higher = more blurred background */
   --blur: 20px;
-  --blur-panel: 20px;
+  /* TIP: 10-15px = subtle, 20-30px = strong, 40px+ = very blurry */
+  
+  --blur-panel: 20px;  /* Same as --blur, kept for compatibility */
+  
+  /* Saturation boost - Makes colors richer through glass */
   --saturation: 115%;
+  /* TIP: 100% = normal, 110-120% = slightly richer, 130%+ = very vibrant */
   
-  /* Corner radii tiers */
-  --r-panel: 16px;  /* Window/panel */
-  --r-el: 12px;     /* Elements (bubbles, input) */
-  --r-pill: 10px;   /* Pills/tags */
+  /* ==========================================
+     CORNER RADIUS (ROUNDNESS)
+     Three tiers for visual hierarchy
+     ========================================== */
   
-  /* Motion - tightened */
+  --r-panel: 16px;   /* Large - Windows and main containers */
+  --r-el: 12px;      /* Medium - Buttons, inputs, chat bubbles */
+  --r-pill: 10px;    /* Small - Pills, tags, small elements */
+  /* TIP: Increase all by 2-4px for rounder look, decrease for sharper edges */
+  
+  /* ==========================================
+     ANIMATION SPEED
+     ========================================== */
+  
   --transition: 140ms ease-out;
+  /* 140ms = fast but smooth, ease-out = starts fast, ends slow */
+  /* TIP: 100ms = snappy, 200ms = relaxed, 300ms+ = slow/dramatic */
 }
 
 @layer base {
@@ -153,32 +211,69 @@
   display: none;
 }
 
-/* Mini square mode - fully collapsed 68x68 - Dark pill like reference */
+/* ============================================
+   MINI PILL MODE (68x68px)
+   The collapsed state - small square with logo
+   
+   CUSTOMIZATION TIPS:
+   - Change size: Modify width/height in electron/main.cjs (line 16-17)
+   - Make lighter: Increase alpha in background (0.85 → 0.95)
+   - Make darker: Decrease lightness (0% → stay at 0%)
+   - More rounded: Increase border-radius (18px → 24px)
+   - Less rounded: Decrease border-radius (18px → 12px)
+   ============================================ */
 .amx-mini {
+  /* Positioning - fills the entire window */
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
+  
+  /* Layout - centers the logo */
   display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 18px;  /* Larger radius like reference */
-  background: hsla(220, 0%, 0%, 0.85);  /* Darker, more opaque */
+  align-items: center;      /* Vertical centering */
+  justify-content: center;  /* Horizontal centering */
+  
+  /* Appearance */
+  border-radius: 0px;  /* Rounded corners (18px = soft pill shape) */
+  /* OPTIONS: 12px = slightly rounded, 24px = very rounded, 0px = sharp square */
+  
+  background: hsla(220, 0%, 0%, 0.85);  /* Almost black at 85% opacity */
+  /* FORMAT: hsla(hue, saturation, lightness, alpha) */
+  /* CURRENT: Pure black (0% lightness) with 85% opacity */
+  /* TIP: For lighter pill, try: hsla(220, 10%, 20%, 0.85) */
+  
+  /* Glass blur effect - blurs what's behind the window */
   backdrop-filter: saturate(var(--saturation)) blur(var(--blur));
   -webkit-backdrop-filter: saturate(var(--saturation)) blur(var(--blur));
-  border: 1px solid hsl(0, 0%, 0%);  /* Slightly more visible */
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4),
-              0 2px 8px rgba(0, 0, 0, 0.3);
-  cursor: pointer;
-  transition: all var(--transition);
-  padding: 12px;
+  /* This creates the "frosted glass" look by blurring the background */
+  
+  border: 1px solid hsl(0, 0%, 0%);  /* Black border (currently invisible on black bg) */
+  /* TIP: For visible border, try: hsl(0, 0%, 20%) or hsla(0, 0%, 100%, 0.1) */
+  
+  /* Shadow - creates depth and makes pill "float" */
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.4),   /* Large soft shadow */
+    0 2px 8px rgba(0, 0, 0, 0.3);    /* Small close shadow */
+  /* FORMAT: x-offset y-offset blur-radius color */
+  /* TIP: Increase blur-radius (24px → 40px) for softer shadow */
+  
+  /* Interaction */
+  cursor: pointer;  /* Shows hand cursor on hover */
+  transition: all var(--transition);  /* Smooth animations (140ms) */
+  
+  /* Spacing */
+  padding: 12px;  /* Space inside the pill around content */
   margin: 0;
-  overflow: hidden;
-  pointer-events: all;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-app-region: drag;
+  
+  /* Behavior */
+  overflow: hidden;  /* Clips content that goes outside */
+  pointer-events: all;  /* Allows clicking */
+  user-select: none;  /* Prevents text selection */
+  -webkit-user-select: none;  /* Safari/Chrome version */
+  -webkit-app-region: drag;  /* Makes entire pill draggable (Electron feature) */
+  /* This allows dragging the window by clicking anywhere on the pill */
 }
 
 .amx-mini-draggable {
@@ -186,40 +281,79 @@
   -webkit-app-region: drag !important;
 }
 
+/* ============================================
+   MINI PILL LOGO
+   The centered icon/logo in the pill
+   
+   CUSTOMIZATION:
+   - Larger logo: Increase width/height (36px → 48px)
+   - Smaller logo: Decrease width/height (36px → 28px)
+   - Replace logo: Change src in FloatBar.jsx
+   ============================================ */
 .amx-mini-logo {
-  width: 36px;
-  height: 36px;
-  object-fit: contain;
-  user-select: none;
-  -webkit-user-drag: none;
-  pointer-events: auto;
-  -webkit-app-region: no-drag;  /* Logo is clickable, not draggable */
+  width: 36px;   /* Logo width */
+  height: 36px;  /* Logo height (same as width = square) */
+  object-fit: contain;  /* Scales image to fit without distortion */
+  user-select: none;  /* Prevents selecting the image */
+  -webkit-user-drag: none;  /* Prevents dragging the image itself */
+  pointer-events: auto;  /* Allows clicking the logo */
+  -webkit-app-region: no-drag;  /* Logo is clickable, NOT draggable */
+  /* This means clicking the logo expands the pill instead of dragging */
 }
 
-/* Drag handle in bottom-left corner - 6-dot grid (2×3) */
+/* ============================================
+   DRAG HANDLE (6-Dot Grid)
+   Bottom-left corner indicator showing you can drag
+   
+   VISUAL: Two columns, three rows of dots
+   ∙ ∙
+   ∙ ∙
+   ∙ ∙
+   
+   CUSTOMIZATION:
+   - Move position: Change bottom/left values
+   - Larger dots: Increase dot size (3px → 4px) and gap
+   - More visible: Increase opacity (0.4 → 0.6)
+   - Different color: Change rgba values in .amx-dot
+   ============================================ */
 .amx-drag-handle-mini {
+  /* Position in bottom-left corner */
   position: absolute;
-  bottom: 8px;
-  left: 8px;
-  width: 12px;
-  height: 18px;
+  bottom: 8px;  /* 8px from bottom edge */
+  left: 8px;    /* 8px from left edge */
+  
+  /* Size of the entire grid */
+  width: 12px;   /* 2 dots × 3px + 1 gap × 3px = 9px (with some extra space) */
+  height: 18px;  /* 3 dots × 3px + 2 gaps × 3px = 15px (with some extra space) */
+  
+  /* Grid layout for dots */
   display: grid;
-  grid-template-columns: repeat(2, 3px);
-  grid-template-rows: repeat(3, 3px);
-  gap: 3px;
-  cursor: grab;
-  z-index: 10;
-  pointer-events: none;
-  -webkit-app-region: drag;
-  opacity: 0.4;
+  grid-template-columns: repeat(2, 3px);  /* 2 columns, each 3px wide */
+  grid-template-rows: repeat(3, 3px);     /* 3 rows, each 3px tall */
+  gap: 3px;  /* Space between dots */
+  /* TIP: Increase gap (3px → 4px) for more spaced out dots */
+  
+  /* Interaction */
+  cursor: grab;  /* Shows "grab hand" cursor */
+  z-index: 10;   /* Appears above other elements */
+  pointer-events: none;  /* Doesn't block clicks (visual only) */
+  -webkit-app-region: drag;  /* This area triggers window dragging */
+  
+  /* Visibility */
+  opacity: 0.4;  /* 40% visible (subtle) */
+  /* TIP: Increase to 0.6 or 0.8 for more visible dots */
 }
 
-/* Individual dots */
+/* ============================================
+   INDIVIDUAL DOTS
+   Each of the 6 dots in the drag handle grid
+   ============================================ */
 .amx-dot {
-  width: 3px;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: 50%;
+  width: 3px;   /* Dot width */
+  height: 3px;  /* Dot height (same = circle) */
+  background: rgba(255, 255, 255, 0.5);  /* White at 50% opacity */
+  /* TIP: Try rgba(255, 165, 0, 0.6) for orange dots */
+  border-radius: 50%;  /* Makes it circular (50% = perfect circle) */
 }
 
 .amx-mini-content {
@@ -244,57 +378,88 @@
   letter-spacing: 0.5px;
 }
 
-/* Horizontal bar mode - same height as mini square (68px) - Refined glass */
+/* ============================================
+   HORIZONTAL BAR MODE (240x68px)
+   Expanded input bar - shows when you click the mini pill
+   
+   CUSTOMIZATION:
+   - Wider bar: Change width in electron/main.cjs (line 144)
+   - Different height: Change height in electron/main.cjs
+   - More opaque: Increase --panel opacity in :root
+   - Different color: Change --panel hue/lightness
+   ============================================ */
 .amx-bar {
+  /* Positioning - fills window */
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
+  
+  /* Layout - horizontal row */
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 16px;
-  border-radius: var(--r-panel);
-  background: var(--panel) !important;
-  backdrop-filter: saturate(var(--saturation)) blur(var(--blur));
+  align-items: center;  /* Vertically center items */
+  gap: 12px;  /* Space between input and button */
+  padding: 0 12px 0 20px;  /* More left padding, less right */
+  
+  /* Appearance - dark solid background like reference */
+  border-radius: 0px;  /* Slightly rounded corners */
+  background: hsla(220, 0%, 0%, 0.85) !important;  /* Matches mini pill background */
+  backdrop-filter: saturate(var(--saturation)) blur(var(--blur));  /* Blur effect */
   -webkit-backdrop-filter: saturate(var(--saturation)) blur(var(--blur));
-  border: 1px solid var(--stroke) !important;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.28);
-  transition: all var(--transition);
+  border: 1px solid hsla(0, 0%, 100%, 0.08) !important;  /* Subtle border */
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4),
+              0 2px 8px rgba(0, 0, 0, 0.3);  /* Deeper shadow like reference */
+  transition: all var(--transition);  /* Smooth animations */
 }
 
+/* ============================================
+   BAR INPUT FIELD
+   The text input where you type messages
+   
+   CUSTOMIZATION:
+   - Larger text: Increase font-size (14px → 16px)
+   - Different font: Add font-family
+   - Text color: Change --text variable
+   ============================================ */
 .amx-bar-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  -webkit-app-region: no-drag;
+  flex: 1;  /* Takes up all available space */
+  background: transparent;  /* No background (shows through) */
+  border: none;  /* No border */
+  outline: none;  /* No outline */
+  color: hsla(0, 0%, 100%, 0.85);  /* Lighter gray text like reference */
+  font-size: 16px;  /* Larger text like reference */
+  font-weight: 400;  /* Normal weight */
+  letter-spacing: 0.01em;  /* Slight spacing between letters */
+  -webkit-app-region: no-drag;  /* Input is NOT draggable */
+  /* This allows typing instead of dragging when clicking the input */
 }
 
+/* Placeholder text (the "Ask MAX..." hint) */
 .amx-bar-input::placeholder {
-  color: var(--text-muted);
+  color: hsla(0, 0%, 100%, 0.5);  /* Muted gray like reference */
+  font-weight: 400;
+  /* TIP: Make more visible with higher opacity */
 }
 
+/* When input is focused (clicked/active) */
 .amx-bar-input:focus {
-  outline: 0;
-  box-shadow: 0 0 0 2px var(--accent);
+  outline: 0;  /* Remove default outline */
+  box-shadow: none;  /* No focus ring like reference */
+  /* This creates a 2px blue ring around the input when typing */
+  /* TIP: Change ring size (2px → 3px) or color (var(--accent)) */
 }
 
 .amx-bar-minimize-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.6);
+  width: 36px;  /* Slightly larger like reference */
+  height: 36px;
+  border-radius: 50%;  /* Perfect circle */
+  background: hsla(0, 0%, 100%, 0.08);  /* Subtle gray background */
+  border: 1px solid hsla(0, 0%, 100%, 0.12);  /* Slightly visible border */
+  color: hsla(0, 0%, 100%, 0.7);  /* Light gray icon */
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
@@ -380,29 +545,51 @@
   user-select: none;
 }
 
+/* ============================================
+   ICON BUTTONS
+   Small circular buttons with icons (camera, minimize, etc.)
+   
+   CUSTOMIZATION:
+   - Larger buttons: Increase width/height (32px → 40px)
+   - Colored background: Add background color
+   - Different shape: Change border-radius (50% = circle, 8px = rounded square)
+   - Icon color: Change color value
+   ============================================ */
 .amx-icon-btn {
-  background: transparent;
-  border: 1px solid var(--stroke);
-  border-radius: var(--r-pill);
-  width: 32px;
-  height: 32px;
+  background: transparent;  /* No background (see-through) */
+  border: 1px solid var(--stroke);  /* Hairline border */
+  border-radius: var(--r-pill);  /* Rounded (10px) */
+  /* TIP: Use 50% for perfect circles, or match other radii */
+  
+  width: 32px;   /* Button width */
+  height: 32px;  /* Button height (same = square/circle) */
+  
+  /* Layout - centers the icon */
   display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all var(--transition);
-  -webkit-app-region: no-drag;
-  flex-shrink: 0;
+  align-items: center;      /* Vertical center */
+  justify-content: center;  /* Horizontal center */
+  
+  color: var(--text-muted);  /* Icon color (64% white = subtle) */
+  /* TIP: Use var(--text) for brighter icons, or var(--accent) for colored */
+  
+  cursor: pointer;  /* Hand cursor on hover */
+  transition: all var(--transition);  /* Smooth animations */
+  -webkit-app-region: no-drag;  /* Buttons are clickable, not draggable */
+  flex-shrink: 0;  /* Don't shrink when space is tight */
 }
 
+/* When button is focused (keyboard navigation) */
 .amx-icon-btn:focus-visible {
-  outline: 0;
-  box-shadow: 0 0 0 2px var(--accent);
+  outline: 0;  /* Remove default outline */
+  box-shadow: 0 0 0 2px var(--accent);  /* Add colored ring */
+  /* This shows a blue ring when navigating with Tab key */
 }
 
+/* When button is clicked/pressed */
 .amx-icon-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.95);  /* Shrink to 95% size */
+  /* This creates a "press down" effect when clicking */
+  /* TIP: Change to 0.90 for more dramatic press effect */
 }
 
 /* Thoughts stream area */
@@ -481,31 +668,59 @@
   font-size: 13px;
 }
 
+/* ============================================
+   CHAT BUBBLES - User Messages
+   Messages you send to the AI
+   
+   CUSTOMIZATION:
+   - Different color: Change --bubble variable
+   - More contrast: Increase --bubble opacity
+   - Larger text: Modify font-size in .amx-message-content
+   ============================================ */
 .amx-message-user .amx-message-content {
-  background: var(--bubble);
-  border: 1px solid var(--stroke);
-  color: var(--text);
-  border-radius: var(--r-el);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22),
-              inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: var(--bubble);  /* Semi-transparent background (82% opacity) */
+  border: 1px solid var(--stroke);  /* Hairline border */
+  color: var(--text);  /* Text color (94% white) */
+  border-radius: var(--r-el);  /* Rounded corners (12px) */
+  box-shadow: 
+    0 6px 18px rgba(0, 0, 0, 0.22),  /* Soft outer shadow */
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);  /* Subtle inner highlight */
+  /* TIP: Increase outer shadow blur (18px → 24px) for softer look */
 }
 
+/* ============================================
+   CHAT BUBBLES - AI/Agent Messages
+   Responses from the AI
+   
+   Same styling as user messages for consistency
+   ============================================ */
 .amx-message-agent .amx-message-content {
   background: var(--bubble);
   border: 1px solid var(--stroke);
   color: var(--text);
   border-radius: var(--r-el);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22),
-              inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: 
+    0 6px 18px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+/* ============================================
+   THOUGHT/DEBUG MESSAGES
+   System messages showing AI thinking process
+   
+   CUSTOMIZATION:
+   - More visible: Increase opacity (0.75 → 0.9)
+   - Solid border: Change 'dashed' to 'solid'
+   - Different style: Remove italic
+   ============================================ */
 .amx-message-thought .amx-message-content {
-  background: hsla(220, 14%, 18%, 0.60);
-  border: 1px dashed var(--stroke);
-  color: var(--text-muted);
-  font-style: italic;
-  font-size: 12px;
-  opacity: 0.75;
+  background: hsla(220, 14%, 18%, 0.60);  /* More transparent than regular bubbles */
+  border: 1px dashed var(--stroke);  /* Dashed border (not solid) */
+  color: var(--text-muted);  /* Muted text (64% white) */
+  font-style: italic;  /* Italicized text */
+  font-size: 12px;  /* Smaller text */
+  opacity: 0.75;  /* 75% visible (subtle) */
+  /* TIP: This makes system messages less prominent than chat */
 }
 
 /* Debug message */
