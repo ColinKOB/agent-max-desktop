@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Camera, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2, Sparkles, ArrowRight, Wifi, WifiOff } from 'lucide-react';
+import { Camera, X, Play, Copy, Minimize2, RotateCcw, Loader2, Sparkles, ArrowRight, Wifi, WifiOff } from 'lucide-react';
 import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
 
@@ -730,9 +730,14 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           alt="Agent Max" 
           className="amx-mini-logo"
         />
-        {/* Drag handle visual indicator - entire pill is draggable via CSS */}
+        {/* Drag handle visual indicator - 6-dot grid (2×3) */}
         <div className="amx-drag-handle-mini">
-          <GripVertical size={12} />
+          <span className="amx-dot"></span>
+          <span className="amx-dot"></span>
+          <span className="amx-dot"></span>
+          <span className="amx-dot"></span>
+          <span className="amx-dot"></span>
+          <span className="amx-dot"></span>
         </div>
       </div>
     );

@@ -29,7 +29,7 @@ function createWindow() {
     frame: false,
     transparent: true,
     alwaysOnTop: true,
-    resizable: true,  // Must allow resizing for setSize to work
+    resizable: false,  // Non-resizable pill
     skipTaskbar: false,
     webPreferences: {
       nodeIntegration: false,
@@ -44,7 +44,7 @@ function createWindow() {
     show: false,
     title: 'Agent Max',
     hasShadow: true,
-    vibrancy: 'hud', // macOS only
+    vibrancy: 'under-window', // macOS only - subtle glass effect
     visualEffectState: 'active', // macOS only
   });
 
