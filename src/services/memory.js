@@ -105,8 +105,9 @@ class MemoryService {
    * Extract facts from conversation (client-side parsing)
    */
   async extractFactsFromMessage(message, response) {
-    // Simple fact extraction (can be enhanced)
+    // Enhanced fact extraction with more patterns
     const facts = {};
+    const messageLower = message.toLowerCase();
     
     // Look for "my name is X" pattern
     const nameMatch = message.match(/my name is (\w+)/i);
@@ -116,6 +117,27 @@ class MemoryService {
       facts.name = nameMatch[1];
     }
 
+    // Look for location patterns
+    const locationPatterns = [
+      /I live in ([A-Za-z\s]+?)(?:\.|,|$)/i,
+      /I'm in ([A-Za-z\s]+?)(?:\.|,|$)/i,
+      /I am in ([A-Za-z\s]+?)(?:\.|,|$)/i,
+      /I'm from ([A-Za-z\s]+?)(?:\.|,|$)/i,
+      /I am from ([A-Za-z\s]+?)(?:\.|,|$)/i,
+      /my location is ([A-Za-z\s]+?)(?:\.|,|$)/i,
+    ];
+    
+    for (const pattern of locationPatterns) {
+      const locationMatch = message.match(pattern);
+      if (locationMatch) {
+        const location = locationMatch[1].trim();
+        await this.setFact('location', 'city', location);
+        facts.location = location;
+        console.log(`[Memory] Extracted location: ${location}`);
+        break;
+      }
+    }
+
     // Look for "I like X" pattern
     const likeMatch = message.match(/I like ([\w\s]+)/i);
     if (likeMatch) {
@@ -123,11 +145,23 @@ class MemoryService {
       facts.likes = likeMatch[1];
     }
 
-    // Look for "I am X" pattern
-    const descriptionMatch = message.match(/I am ([\w\s]+)/i);
-    if (descriptionMatch) {
-      await this.setFact('personal', 'description', descriptionMatch[1]);
-      facts.description = descriptionMatch[1];
+    // Look for "I am X" or "I'm a X" pattern  
+    const descriptionPatterns = [
+      /I am (?:a |an )?([\w\s]+?)(?:\.|,|$)/i,
+      /I'm (?:a |an )?([\w\s]+?)(?:\.|,|$)/i
+    ];
+    
+    for (const pattern of descriptionPatterns) {
+      const descMatch = message.match(pattern);
+      if (descMatch) {
+        const desc = descMatch[1].trim();
+        // Don't save common words as descriptions
+        if (!['in', 'from', 'here', 'there'].includes(desc.toLowerCase())) {
+          await this.setFact('personal', 'description', desc);
+          facts.description = desc;
+          break;
+        }
+      }
     }
 
     return facts;
