@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { Camera, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2, Sparkles, ArrowRight, Wifi, WifiOff } from 'lucide-react';
-import Draggable from 'react-draggable';
 import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
 
@@ -29,12 +28,6 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   // Simple connection status check (can be enhanced later)
   const [isConnected, setIsConnected] = useState(true);
   
-  // Draggable position state (persists across sessions)
-  const [position, setPosition] = useState(() => {
-    const saved = localStorage.getItem('agentMaxPosition');
-    return saved ? JSON.parse(saved) : { x: 20, y: 20 };
-  });
-  
   // Semantic suggestions
   const [similarGoals, setSimilarGoals] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -54,13 +47,12 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     }
   };
   
-  // Helper: Convert technical reasoning to friendly user-facing text
   const getFriendlyThinking = (step) => {
     const friendlyMap = {
       'analyze_image': 'Looking at your screen',
       'execute_command': 'Running command',
       'respond': 'Thinking',
-      'done': 'Complete!'
+      'done': 'Complete'
     };
     
     // Try pre-defined map first
@@ -73,22 +65,22 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     const lowerReasoning = reasoning.toLowerCase();
     
     if (lowerReasoning.includes('check if') || lowerReasoning.includes('checking')) {
-      return '🔍 Checking tools';
+      return 'Checking tools';
     }
     if (lowerReasoning.includes('weather') || lowerReasoning.includes('temperature')) {
-      return '🌤️ Getting weather';
+      return 'Getting weather';
     }
     if (lowerReasoning.includes('restaurant') || lowerReasoning.includes('food') || lowerReasoning.includes('place')) {
-      return '🍽️ Finding places';
+      return 'Finding places';
     }
     if (lowerReasoning.includes('screenshot') || lowerReasoning.includes('screen')) {
-      return '👀 Looking';
+      return 'Looking';
     }
     if (lowerReasoning.includes('install') || lowerReasoning.includes('download')) {
-      return '📦 Installing';
+      return 'Installing';
     }
     if (lowerReasoning.includes('search') || lowerReasoning.includes('find')) {
-      return '🔍 Searching';
+      return 'Searching';
     }
     
     // Default: Show first 5 words
@@ -256,7 +248,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           setScreenshotData(screenshot.base64);
           const sizeKB = Math.round(screenshot.size / 1024);
           console.log(`[FloatBar] Screenshot attached (${sizeKB}KB)`);
-          toast.success(`Screenshot attached! 📸 (${sizeKB}KB)`);
+          toast.success(`Screenshot attached (${sizeKB}KB)`);
         }
       } else {
         toast.error('Screenshot feature not available');
@@ -304,11 +296,11 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       // 🔥 SAVE USER MESSAGE TO MEMORY (for conversation history)
       await memoryService.addMessage('user', userMessage);
       
-      // Show thinking indicator (friendly!)
+      // Show thinking indicator
       setProgress(20);
       const thinkingMsg = screenshotData 
-        ? '👀 Looking at your screenshot...' 
-        : '💭 Thinking...';
+        ? 'Looking at your screenshot...' 
+        : 'Thinking...';
       setThoughts((prev) => [...prev, { type: 'thought', content: thinkingMsg }]);
       
       // Build user context (now includes recent messages!)
@@ -365,7 +357,6 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         
         if (factCount > 0) {
           toast.success(`Learned ${factCount} new thing${factCount > 1 ? 's' : ''} about you!`, {
-            icon: '🧠',
             duration: 3000
           });
         }
@@ -419,23 +410,23 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           if (step.action === 'execute_command' && step.command) {
             setThoughts((prev) => [...prev, { 
               type: 'debug', 
-              content: `🔧 Executing: ${step.command}`
+              content: `Executing: ${step.command}`
             }]);
             
             // Show full command output (not truncated)
             if (step.output) {
               setThoughts((prev) => [...prev, { 
                 type: 'debug', 
-                content: `📤 Output:\n${step.output}`
+                content: `Output:\n${step.output}`
               }]);
             }
             
             // Show exit code
             if (step.exit_code !== undefined) {
-              const statusEmoji = step.exit_code === 0 ? '✅' : '❌';
+              const statusText = step.exit_code === 0 ? 'Success' : 'Failed';
               setThoughts((prev) => [...prev, { 
                 type: step.exit_code === 0 ? 'debug' : 'error', 
-                content: `${statusEmoji} Exit code: ${step.exit_code}`
+                content: `${statusText} - Exit code: ${step.exit_code}`
               }]);
             }
           }
@@ -444,7 +435,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           if (step.action !== 'execute_command' && step.action !== 'respond') {
             setThoughts((prev) => [...prev, { 
               type: 'debug', 
-              content: `🔄 Action: ${step.action}${step.result ? '\nResult: ' + step.result : ''}`
+              content: `Action: ${step.action}${step.result ? '\nResult: ' + step.result : ''}`
             }]);
             
             // Small delay for readability
@@ -456,13 +447,13 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       // Show execution summary
       const summaryInfo = [];
       if (response.data.execution_time) {
-        summaryInfo.push(`⏱️  Completed in ${response.data.execution_time.toFixed(1)}s`);
+        summaryInfo.push(`Completed in ${response.data.execution_time.toFixed(1)}s`);
       }
       if (response.data.steps && response.data.steps.length > 0) {
-        summaryInfo.push(`📊 Total steps: ${response.data.steps.length}`);
+        summaryInfo.push(`Total steps: ${response.data.steps.length}`);
       }
       if (screenshotData) {
-        summaryInfo.push('📸 Screenshot was analyzed');
+        summaryInfo.push('Screenshot was analyzed');
       }
       
       if (summaryInfo.length > 0) {
@@ -720,43 +711,30 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   // Mini square mode - fully collapsed
   if (isMini) {
     return (
-      <Draggable
-        position={position}
-        onStop={(e, data) => {
-          const newPos = { x: data.x, y: data.y };
-          setPosition(newPos);
-          localStorage.setItem('agentMaxPosition', JSON.stringify(newPos));
+      <div 
+        className="amx-root amx-mini amx-mini-draggable"
+        onClick={(e) => {
+          // Click logo to expand
+          console.log('[FloatBar] Mini clicked: Opening to bar mode');
+          setIsMini(false);
+          setIsBar(true);
+          setIsOpen(false);
+          // Auto-focus the input field immediately
+          requestAnimationFrame(() => {
+            inputRef.current?.focus();
+          });
         }}
-        bounds="parent"
-        handle=".amx-drag-handle-mini"
       >
-        <div 
-          className="amx-root amx-mini amx-mini-draggable"
-          onClick={(e) => {
-            // Single click to expand (now that we have separate drag handle)
-            if (!e.target.classList.contains('amx-drag-handle-mini')) {
-              console.log('[FloatBar] Mini clicked: Opening to bar mode');
-              setIsMini(false);
-              setIsBar(true);
-              setIsOpen(false);
-              // Auto-focus the input field immediately
-              requestAnimationFrame(() => {
-                inputRef.current?.focus();
-              });
-            }
-          }}
-        >
-          <img 
-            src="/AgentMaxLogo.png" 
-            alt="Agent Max" 
-            className="amx-mini-logo"
-          />
-          {/* Drag handle in bottom-left corner */}
-          <div className="amx-drag-handle-mini">
-            <GripVertical size={12} />
-          </div>
+        <img 
+          src="/AgentMaxLogo.png" 
+          alt="Agent Max" 
+          className="amx-mini-logo"
+        />
+        {/* Drag handle visual indicator - entire pill is draggable via CSS */}
+        <div className="amx-drag-handle-mini">
+          <GripVertical size={12} />
         </div>
-      </Draggable>
+      </div>
     );
   }
 
@@ -971,7 +949,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
             </div>
           ) : thoughts.length === 0 ? (
             <div className="amx-empty-state">
-              <div className="amx-empty-icon">💬</div>
+              <div className="amx-empty-icon"></div>
               <div className="amx-empty-text">Start a conversation...</div>
             </div>
           ) : (
@@ -1063,7 +1041,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         {/* Semantic suggestions */}
         {showSuggestions && similarGoals.length > 0 && (
           <div className="amx-suggestions">
-            <div className="amx-suggestions-label">💡 Similar past conversations:</div>
+            <div className="amx-suggestions-label">Similar past conversations:</div>
             {similarGoals.map((goal, idx) => (
               <div 
                 key={idx}
@@ -1094,7 +1072,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
             alignItems: 'center',
             gap: '4px'
           }}>
-            📸 Screenshot attached
+            Screenshot attached
           </div>
         )}
         {message.length > 1800 && (

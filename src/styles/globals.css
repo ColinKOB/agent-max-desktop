@@ -140,7 +140,7 @@
   border: 1px solid rgba(255, 165, 0, 0.2) !important;  /* Orange border */
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6),
               0 0 0 1px rgba(255, 165, 0, 0.05) inset;
-  cursor: pointer;  /* Main action is clicking to open */
+  cursor: pointer;
   transition: all 0.2s ease;
   padding: 12px;
   margin: 0;
@@ -148,16 +148,16 @@
   pointer-events: all;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-app-region: drag;  /* Entire pill is draggable by default */
 }
 
 .amx-mini-draggable {
   cursor: pointer !important;
+  -webkit-app-region: drag !important;
 }
 
 .amx-mini:hover {
-  border-color: rgba(255, 165, 0, 0.4) !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6),
-              0 0 20px rgba(255, 165, 0, 0.2);  /* Orange glow on hover */
+  /* No hover effects */
 }
 
 .amx-mini-logo {
@@ -166,10 +166,11 @@
   object-fit: contain;
   user-select: none;
   -webkit-user-drag: none;
-  pointer-events: none;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;  /* Logo is clickable, not draggable */
 }
 
-/* Drag handle in bottom-left corner */
+/* Drag handle in bottom-left corner - purely visual now */
 .amx-drag-handle-mini {
   position: absolute;
   bottom: 4px;
@@ -179,24 +180,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 165, 0, 0.15);
-  border: 1px solid rgba(255, 165, 0, 0.3);
-  border-radius: 4px;
+  background: transparent;
+  border: none;
   cursor: grab;
-  color: rgba(255, 165, 0, 0.8);
-  transition: all 0.15s ease;
-}
-
-.amx-drag-handle-mini:hover {
-  background: rgba(255, 165, 0, 0.25);
-  border-color: rgba(255, 165, 0, 0.5);
-  color: rgba(255, 165, 0, 1);
-  box-shadow: 0 0 8px rgba(255, 165, 0, 0.3);
+  color: rgba(255, 165, 0, 0.6);
+  z-index: 10;
+  pointer-events: none;  /* Visual indicator only, pill itself drags */
+  -webkit-app-region: drag;  /* This area drags */
 }
 
 .amx-drag-handle-mini:active {
   cursor: grabbing;
-  background: rgba(255, 165, 0, 0.3);
 }
 
 .amx-mini-content {
@@ -243,9 +237,7 @@
 }
 
 .amx-bar:hover {
-  border-color: rgba(255, 165, 0, 0.4) !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6),
-              0 0 20px rgba(255, 165, 0, 0.15);
+  /* No hover effects */
 }
 
 .amx-bar-input {
@@ -373,10 +365,7 @@
 }
 
 .amx-icon-btn:hover {
-  background: rgba(255, 165, 0, 0.15);
-  color: rgba(255, 165, 0, 1);
-  border-color: rgba(255, 165, 0, 0.4);
-  box-shadow: 0 0 12px rgba(255, 165, 0, 0.2);
+  /* No hover effects */
 }
 
 .amx-icon-btn:active {
