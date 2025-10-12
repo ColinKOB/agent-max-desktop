@@ -78,6 +78,7 @@
     "react-draggable": "^4.4.6",
     "react-hot-toast": "^2.4.1",
     "tailwind-merge": "^2.1.0",
+    "uuid": "^13.0.0",
     "zustand": "^4.4.7"
   },
   "devDependencies": {

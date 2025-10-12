@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Camera, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2, Sparkles, ArrowRight, Wifi, WifiOff } from 'lucide-react';
 import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
+import telemetry from '../services/telemetry';
 
 export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) {
   const [isOpen, setIsOpen] = useState(false); // Card mode (full chat with conversation)
@@ -389,6 +390,36 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       
       setIsStreaming(false);
       
+      // 📊 LOG TELEMETRY (async, non-blocking)
+      try {
+        const startTime = Date.now();
+        const executionTime = response.data.execution_time 
+          ? Math.round(response.data.execution_time * 1000) 
+          : null;
+        
+        telemetry.logInteraction({
+          userPrompt: userMessage,
+          aiResponse: aiResponse,
+          aiThoughts: response.data.steps?.find(s => s.reasoning)?.reasoning || null,
+          toolsUsed: response.data.steps
+            ?.filter(s => s.action && s.action !== 'respond')
+            .map(s => s.action) || [],
+          success: response.data.status === 'success',
+          executionTime: executionTime,
+          model: response.data.model || 'autonomous-agent',
+          metadata: {
+            hasScreenshot: !!screenshotData,
+            stepsCount: response.data.steps?.length || 0,
+            factsExtracted: response.data.facts_extracted ? Object.keys(response.data.facts_extracted).length : 0,
+            semanticContextUsed: !!userContext.semantic_context
+          }
+        });
+        console.log('[Telemetry] Interaction logged successfully');
+      } catch (telemetryError) {
+        // Never let telemetry break the user experience
+        console.warn('[Telemetry] Failed to log (non-critical):', telemetryError);
+      }
+      
       // Show detailed execution steps with friendly text (progressive loading!)
       if (response.data.steps && response.data.steps.length > 0) {
         for (let idx = 0; idx < response.data.steps.length; idx++) {
@@ -476,6 +507,22 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       console.error('[FloatBar] Message send error:', error);
       setIsThinking(false);
       setProgress(0);
+      
+      // 📊 LOG ERROR TO TELEMETRY
+      try {
+        telemetry.logError(error, {
+          severity: error.response?.status >= 500 ? 'critical' : 'error',
+          context: {
+            userPrompt: trimmedMessage,
+            hasScreenshot: !!screenshotData,
+            errorCode: error.code,
+            statusCode: error.response?.status
+          }
+        });
+        console.log('[Telemetry] Error logged');
+      } catch (telemetryError) {
+        console.warn('[Telemetry] Failed to log error (non-critical):', telemetryError);
+      }
       
       // Generate helpful error message based on error type
       let errorMsg = 'Failed to send message';

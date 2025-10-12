@@ -7,7 +7,7 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
-const TELEMETRY_API = process.env.VITE_TELEMETRY_API || 'https://agent-max-telemetry.railway.app';
+const TELEMETRY_API = process.env.VITE_TELEMETRY_API || 'http://localhost:8000';
 const TELEMETRY_ENABLED = localStorage.getItem('telemetry_enabled') !== 'false'; // Opt-in by default
 const BATCH_SIZE = 10;
 const BATCH_INTERVAL = 5000; // 5 seconds
