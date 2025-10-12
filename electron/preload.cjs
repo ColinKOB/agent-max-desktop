@@ -59,3 +59,8 @@ contextBridge.exposeInMainWorld('electron', {
     testPreferences: () => ipcRenderer.invoke('memory:test-preferences'),
   },
 });
+
+// Also expose as electronAPI for compatibility
+contextBridge.exposeInMainWorld('electronAPI', {
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+});

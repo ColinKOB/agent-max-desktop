@@ -4,6 +4,7 @@ import useStore from '../store/useStore';
 import { healthAPI, reconfigureAPI } from '../services/api';
 import apiConfigManager from '../config/apiConfig';
 import toast from 'react-hot-toast';
+import { GoogleConnect } from '../components/GoogleConnect';
 
 export default function Settings() {
   const { theme, setTheme, apiConnected, setApiConnected } = useStore();
@@ -184,6 +185,11 @@ export default function Settings() {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Google Services */}
+      <div className="card mb-6">
+        <GoogleConnect />
       </div>
 
       {/* Data Management */}
