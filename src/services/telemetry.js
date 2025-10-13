@@ -5,10 +5,18 @@
  */
 
 import axios from 'axios';
-import { v4 as uuidv4 } from 'uuid';
 
-const TELEMETRY_API = process.env.VITE_TELEMETRY_API || 'http://localhost:8000';
-const TELEMETRY_ENABLED = localStorage.getItem('telemetry_enabled') !== 'false'; // Opt-in by default
+// Simple UUID generator (no external dependency)
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+const TELEMETRY_API = import.meta.env.VITE_TELEMETRY_API || 'http://localhost:8000';
+const TELEMETRY_ENABLED = typeof localStorage !== 'undefined' ? localStorage.getItem('telemetry_enabled') !== 'false' : true; // Opt-in by default
 const BATCH_SIZE = 10;
 const BATCH_INTERVAL = 5000; // 5 seconds
 
@@ -16,9 +24,9 @@ class TelemetryService {
   constructor() {
     this.enabled = TELEMETRY_ENABLED;
     this.userId = this.getUserId();
-    this.sessionId = uuidv4();
+    this.sessionId = generateUUID();
     this.batch = [];
-    this.apiKey = process.env.VITE_TELEMETRY_API_KEY || 'dev-key';
+    this.apiKey = import.meta.env.VITE_TELEMETRY_API_KEY || 'dev-key';
     
     // Start batch sender
     if (this.enabled) {
@@ -30,9 +38,12 @@ class TelemetryService {
    * Get or create anonymized user ID
    */
   getUserId() {
+    if (typeof localStorage === 'undefined') {
+      return 'user_' + generateUUID();
+    }
     let userId = localStorage.getItem('telemetry_user_id');
     if (!userId) {
-      userId = 'user_' + uuidv4();
+      userId = 'user_' + generateUUID();
       localStorage.setItem('telemetry_user_id', userId);
     }
     return userId;
@@ -43,7 +54,9 @@ class TelemetryService {
    */
   setEnabled(enabled) {
     this.enabled = enabled;
-    localStorage.setItem('telemetry_enabled', enabled.toString());
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('telemetry_enabled', enabled.toString());
+    }
     
     if (enabled && !this.batchInterval) {
       this.startBatchSender();
@@ -229,7 +242,9 @@ class TelemetryService {
    */
   clearData() {
     this.batch = [];
-    localStorage.removeItem('telemetry_user_id');
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('telemetry_user_id');
+    }
     this.userId = this.getUserId();
   }
 }
