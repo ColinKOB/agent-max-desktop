@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Camera, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2, Sparkles, ArrowRight, Wifi, WifiOff } from 'lucide-react';
+import { Camera, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2, Sparkles, ArrowRight, Wifi, WifiOff, Wrench } from 'lucide-react';
 import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
 import telemetry from '../services/telemetry';
+import ToolsPanel from '../pages/ToolsPanel';
 
 export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) {
   const [isOpen, setIsOpen] = useState(false); // Card mode (full chat with conversation)
@@ -35,6 +36,9 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   
   // Streaming state for fake streaming effect
   const [isStreaming, setIsStreaming] = useState(false);
+  
+  // Tools panel
+  const [showToolsPanel, setShowToolsPanel] = useState(false);
   
   // Helper: Stream text word-by-word for better perceived speed
   const streamText = async (text, callback) => {
@@ -853,6 +857,13 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           <div className="flex items-center gap-2">
             <button 
               className="amx-icon-btn" 
+              onClick={() => setShowToolsPanel(true)} 
+              title="Tools: Screen Control, Agents, History"
+            >
+              <Wrench className="w-4 h-4" />
+            </button>
+            <button 
+              className="amx-icon-btn" 
               onClick={handleResetConversation} 
               title="Reset conversation"
             >
@@ -1158,6 +1169,27 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
             </div>
           </div>
         </div>
+      )}
+
+      {/* Tools Panel */}
+      {showToolsPanel && (
+        <ToolsPanel 
+          onClose={() => setShowToolsPanel(false)}
+          onLoadConversation={(conversation) => {
+            // Load conversation messages into thoughts
+            if (conversation.messages) {
+              const loadedThoughts = conversation.messages.map((msg, idx) => ({
+                id: idx,
+                type: msg.role === 'user' ? 'user' : 'ai',
+                content: msg.content,
+                timestamp: msg.timestamp || new Date().toISOString()
+              }));
+              setThoughts(loadedThoughts);
+              setShowToolsPanel(false);
+              toast.success('Conversation loaded!');
+            }
+          }}
+        />
       )}
     </div>
   );

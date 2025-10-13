@@ -225,6 +225,15 @@ export const conversationAPI = {
     api.delete('/api/v2/conversation', { 
       params: { session_id: sessionId } 
     }),
+  
+  // NEW: Conversation History
+  getHistory: (limit = 10, offset = 0) =>
+    api.get('/api/v2/conversation/history', {
+      params: { limit, offset }
+    }),
+  
+  getConversationById: (conversationId) =>
+    api.get(`/api/v2/conversation/history/${conversationId}`),
 };
 
 // ============================================
@@ -270,6 +279,55 @@ export const chatAPI = {
       timeout: 310000, // 310 seconds (slightly more than backend timeout)
     });
   },
+};
+
+// ============================================
+// SCREEN CONTROL API
+// ============================================
+export const screenAPI = {
+  getCapabilities: () => api.get('/api/v2/screen/capabilities'),
+  getInfo: () => api.get('/api/v2/screen/info'),
+  getStatus: () => api.get('/api/v2/screen/status'),
+  
+  click: (x, y, button = 'left', clicks = 1) =>
+    api.post('/api/v2/screen/click', { x, y, button, clicks }),
+  
+  clickText: (text, clicks = 1) =>
+    api.post('/api/v2/screen/click-text', { text, clicks }),
+  
+  clickElement: (description, clicks = 1) =>
+    api.post('/api/v2/screen/click-element', { description, clicks }),
+  
+  typeText: (text, clear_first = false) =>
+    api.post('/api/v2/screen/type', { text, clear_first }),
+  
+  pressKey: (keys) =>
+    api.post('/api/v2/screen/press-key', { keys }),
+  
+  scroll: (direction = 'down', amount = 3) =>
+    api.post('/api/v2/screen/scroll', { direction, amount }),
+  
+  takeScreenshot: (save_name = null) =>
+    api.post('/api/v2/screen/screenshot', { save_name }),
+};
+
+// ============================================
+// AGENTS API
+// ============================================
+export const agentsAPI = {
+  listProviders: () => api.get('/api/v2/agents/providers'),
+  listRoles: () => api.get('/api/v2/agents/roles'),
+  
+  createAgent: (role, provider = null, apiKeys = null) =>
+    api.post('/api/v2/agents/create', { role, provider, api_keys: apiKeys }),
+  
+  delegateTask: (agentId, task, context = null) =>
+    api.post('/api/v2/agents/delegate', { agent_id: agentId, task, context }),
+  
+  listAgents: () => api.get('/api/v2/agents/list'),
+  
+  deleteAgent: (agentId) =>
+    api.delete(`/api/v2/agents/${agentId}`),
 };
 
 // ============================================
