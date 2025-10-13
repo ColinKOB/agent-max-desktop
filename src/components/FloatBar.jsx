@@ -3,6 +3,7 @@ import { Camera, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2, Spa
 import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
 import telemetry from '../services/telemetry';
+import responseCache from '../services/responseCache';
 import ToolsPanel from '../pages/ToolsPanel';
 
 export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) {
@@ -289,6 +290,49 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     setProgress(0);
     
     try {
+      // ⚡ CHECK CACHE FIRST (instant response for repeated questions!)
+      console.log('[Cache] Checking cache for:', userMessage);
+      const cachedResult = responseCache.getCachedResponse(userMessage);
+      console.log('[Cache] Cache result:', cachedResult);
+      
+      if (cachedResult && cachedResult.cached && !screenshotData) {
+        // INSTANT CACHED RESPONSE
+        console.log('[Cache] Using cached response - instant!');
+        
+        // Show cached indicator
+        setThoughts((prev) => [...prev, { 
+          type: 'thought', 
+          content: cachedResult.cacheType === 'exact' 
+            ? '⚡ Instant (exact match)' 
+            : `⚡ Instant (${(cachedResult.similarity * 100).toFixed(0)}% similar)` 
+        }]);
+        
+        // Add cached AI response with streaming effect
+        setIsStreaming(true);
+        const responseIndex = thoughts.length;
+        setThoughts((prev) => [...prev, { type: 'agent', content: '' }]);
+        
+        await streamText(cachedResult.response, (partial) => {
+          setThoughts((prev) => {
+            const newThoughts = [...prev];
+            if (newThoughts.length > 0) {
+              newThoughts[newThoughts.length - 1] = {
+                type: 'agent',
+                content: partial
+              };
+            }
+            return newThoughts;
+          });
+        });
+        
+        setIsStreaming(false);
+        setIsThinking(false);
+        setProgress(0);
+        
+        toast.success('⚡ Instant response from cache!', { duration: 2000 });
+        return; // Exit early - no API call needed!
+      }
+      
       // Import services
       const memoryService = (await import('../services/memory')).default;
       const { chatAPI } = await import('../services/api');
@@ -422,6 +466,20 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       } catch (telemetryError) {
         // Never let telemetry break the user experience
         console.warn('[Telemetry] Failed to log (non-critical):', telemetryError);
+      }
+      
+      // 💾 SAVE TO CACHE (for instant future responses)
+      try {
+        responseCache.cacheResponse(userMessage, aiResponse, {
+          success: response.data.status === 'success',
+          executionTime: response.data.execution_time,
+          model: response.data.model || 'autonomous-agent',
+          stepsCount: response.data.steps?.length || 0
+        });
+        console.log('[Cache] Response saved to cache');
+      } catch (cacheError) {
+        // Never let cache break the user experience
+        console.warn('[Cache] Failed to save (non-critical):', cacheError);
       }
       
       // Show detailed execution steps with friendly text (progressive loading!)
