@@ -279,6 +279,70 @@ export const chatAPI = {
       timeout: 310000, // 310 seconds (slightly more than backend timeout)
     });
   },
+  
+  sendMessageStream: async (message, userContext = null, image = null, onEvent) => {
+    const payload = {
+      goal: message,
+      user_context: userContext,
+      max_steps: 10,
+      timeout: 300,
+    };
+    
+    if (image) {
+      payload.image = image;
+    }
+    
+    // Get API key
+    const apiKey = apiConfigManager.getApiKey();
+    const baseURL = apiConfigManager.getConfig().baseURL;
+    
+    // Use fetch for SSE streaming
+    const response = await fetch(`${baseURL}/api/v2/autonomous/execute/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey || '',
+      },
+      body: JSON.stringify(payload),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (done) break;
+      
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // Keep incomplete line in buffer
+      
+      for (const line of lines) {
+        if (line.startsWith('event:')) {
+          const eventType = line.substring(6).trim();
+          continue;
+        }
+        
+        if (line.startsWith('data:')) {
+          const data = line.substring(5).trim();
+          if (data) {
+            try {
+              const parsed = JSON.parse(data);
+              onEvent(parsed);
+            } catch (e) {
+              console.error('Failed to parse SSE data:', e);
+            }
+          }
+        }
+      }
+    }
+  },
 };
 
 // ============================================

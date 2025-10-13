@@ -370,22 +370,64 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         };
       }
       
-      // Send to autonomous API with optional screenshot
+      // Send to autonomous API with streaming for real-time updates
       setProgress(60);
-      const response = await chatAPI.sendMessage(userMessage, userContext, screenshotData);
+      let allSteps = [];
+      let finalResponse = '';
+      let factsExtracted = null;
+      let executionTime = 0;
+      let currentStepThought = null;
       
-      setProgress(100);
+      await chatAPI.sendMessageStream(userMessage, userContext, screenshotData, (event) => {
+        // Handle different event types
+        if (event.message) {
+          // Thinking event
+          if (!currentStepThought) {
+            currentStepThought = { type: 'thought', content: event.message };
+            setThoughts((prev) => [...prev, currentStepThought]);
+          } else {
+            // Update existing thought
+            currentStepThought.content = event.message;
+            setThoughts((prev) => {
+              const newThoughts = [...prev];
+              newThoughts[newThoughts.length - 1] = { ...currentStepThought };
+              return newThoughts;
+            });
+          }
+        } else if (event.step_number !== undefined) {
+          // Step event - show the step in real-time!
+          const stepText = `Step ${event.step_number}: ${event.reasoning}`;
+          setThoughts((prev) => [...prev, { 
+            type: 'thought', 
+            content: stepText,
+            step: event
+          }]);
+          allSteps.push(event);
+          currentStepThought = null;
+          setProgress(60 + (event.step_number * 5)); // Increment progress
+        } else if (event.final_response) {
+          // Done event
+          finalResponse = event.final_response;
+          allSteps = event.steps || allSteps;
+          factsExtracted = event.facts_extracted;
+          executionTime = event.execution_time;
+          setProgress(100);
+        } else if (event.error) {
+          // Error event
+          throw new Error(event.error);
+        }
+      });
+      
       setIsConnected(true); // Mark as connected on successful response
       
-      // Autonomous endpoint returns: final_response, steps, status, execution_time
-      const aiResponse = response.data.final_response || response.data.response || 'No response';
+      const aiResponse = finalResponse || 'No response';
       
       // 🔥 SAVE AI RESPONSE TO MEMORY (for conversation history)
       await memoryService.addMessage('assistant', aiResponse);
       
       // 🔥 EXTRACT AND SAVE FACTS if provided by backend
-      if (response.data.facts_extracted && Object.keys(response.data.facts_extracted).length > 0) {
-        const facts = response.data.facts_extracted;
+      if (factsExtracted && Object.keys(factsExtracted).length > 0) {
+        const facts = factsExtracted;
         console.log('[Memory] Facts extracted by backend:', facts);
         
         // Save each category of facts
@@ -440,26 +482,26 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       
       // 📊 LOG TELEMETRY (async, non-blocking)
       try {
-        const startTime = Date.now();
-        const executionTime = response.data.execution_time 
-          ? Math.round(response.data.execution_time * 1000) 
+        const executionTimeMs = executionTime 
+          ? Math.round(executionTime * 1000) 
           : null;
         
         telemetry.logInteraction({
           userPrompt: userMessage,
           aiResponse: aiResponse,
-          aiThoughts: response.data.steps?.find(s => s.reasoning)?.reasoning || null,
-          toolsUsed: response.data.steps
+          aiThoughts: allSteps?.find(s => s.reasoning)?.reasoning || null,
+          toolsUsed: allSteps
             ?.filter(s => s.action && s.action !== 'respond')
             .map(s => s.action) || [],
-          success: response.data.status === 'success',
-          executionTime: executionTime,
-          model: response.data.model || 'autonomous-agent',
+          success: true,
+          executionTime: executionTimeMs,
+          model: 'autonomous-agent',
           metadata: {
             hasScreenshot: !!screenshotData,
-            stepsCount: response.data.steps?.length || 0,
-            factsExtracted: response.data.facts_extracted ? Object.keys(response.data.facts_extracted).length : 0,
-            semanticContextUsed: !!userContext.semantic_context
+            stepsCount: allSteps?.length || 0,
+            factsExtracted: factsExtracted ? Object.keys(factsExtracted).length : 0,
+            semanticContextUsed: !!userContext.semantic_context,
+            streamingEnabled: true
           }
         });
         console.log('[Telemetry] Interaction logged successfully');
@@ -471,10 +513,10 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       // 💾 SAVE TO CACHE (for instant future responses)
       try {
         responseCache.cacheResponse(userMessage, aiResponse, {
-          success: response.data.status === 'success',
-          executionTime: response.data.execution_time,
-          model: response.data.model || 'autonomous-agent',
-          stepsCount: response.data.steps?.length || 0
+          success: true,
+          executionTime: executionTime,
+          model: 'autonomous-agent',
+          stepsCount: allSteps?.length || 0
         });
         console.log('[Cache] Response saved to cache');
       } catch (cacheError) {
@@ -482,68 +524,14 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         console.warn('[Cache] Failed to save (non-critical):', cacheError);
       }
       
-      // Show detailed execution steps with friendly text (progressive loading!)
-      if (response.data.steps && response.data.steps.length > 0) {
-        for (let idx = 0; idx < response.data.steps.length; idx++) {
-          const step = response.data.steps[idx];
-          
-          // Show reasoning for each step (now friendly!)
-          if (step.reasoning) {
-            const friendlyText = getFriendlyThinking(step);
-            setThoughts((prev) => [...prev, { 
-              type: 'thought', 
-              content: `Step ${idx + 1}: ${friendlyText}`
-            }]);
-            
-            // Small delay between steps for readability
-            await new Promise(resolve => setTimeout(resolve, 150));
-          }
-          
-          // Show command execution with FULL output
-          if (step.action === 'execute_command' && step.command) {
-            setThoughts((prev) => [...prev, { 
-              type: 'debug', 
-              content: `Executing: ${step.command}`
-            }]);
-            
-            // Show full command output (not truncated)
-            if (step.output) {
-              setThoughts((prev) => [...prev, { 
-                type: 'debug', 
-                content: `Output:\n${step.output}`
-              }]);
-            }
-            
-            // Show exit code
-            if (step.exit_code !== undefined) {
-              const statusText = step.exit_code === 0 ? 'Success' : 'Failed';
-              setThoughts((prev) => [...prev, { 
-                type: step.exit_code === 0 ? 'debug' : 'error', 
-                content: `${statusText} - Exit code: ${step.exit_code}`
-              }]);
-            }
-          }
-          
-          // Show other action types
-          if (step.action !== 'execute_command' && step.action !== 'respond') {
-            setThoughts((prev) => [...prev, { 
-              type: 'debug', 
-              content: `Action: ${step.action}${step.result ? '\nResult: ' + step.result : ''}`
-            }]);
-            
-            // Small delay for readability
-            await new Promise(resolve => setTimeout(resolve, 150));
-          }
-        }
-      }
-      
+      // Steps are now shown in real-time via streaming!
       // Show execution summary
       const summaryInfo = [];
-      if (response.data.execution_time) {
-        summaryInfo.push(`Completed in ${response.data.execution_time.toFixed(1)}s`);
+      if (executionTime) {
+        summaryInfo.push(`Completed in ${executionTime.toFixed(1)}s`);
       }
-      if (response.data.steps && response.data.steps.length > 0) {
-        summaryInfo.push(`Total steps: ${response.data.steps.length}`);
+      if (allSteps && allSteps.length > 0) {
+        summaryInfo.push(`Total steps: ${allSteps.length}`);
       }
       if (screenshotData) {
         summaryInfo.push('Screenshot was analyzed');
