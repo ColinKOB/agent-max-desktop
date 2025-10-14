@@ -1,0 +1,107 @@
+const js = require('@eslint/js');
+const reactRecommended = require('eslint-plugin-react/configs/recommended');
+const reactHooksRecommended = require('eslint-plugin-react-hooks/configs/recommended');
+const prettier = require('eslint-config-prettier');
+
+module.exports = [
+  js.configs.recommended,
+  {
+    files: ['**/*.{js,jsx,cjs,mjs}'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+      globals: {
+        window: 'readonly',
+        document: 'readonly',
+        console: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+        exports: 'readonly',
+        global: 'readonly',
+        navigator: 'readonly',
+        fetch: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        FormData: 'readonly',
+        performance: 'readonly',
+        CustomEvent: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        Promise: 'readonly',
+        jest: 'readonly',
+        describe: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+      },
+    },
+    plugins: {
+      react: require('eslint-plugin-react'),
+      'react-hooks': require('eslint-plugin-react-hooks'),
+      prettier: require('eslint-plugin-prettier'),
+    },
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
+    rules: {
+      ...reactRecommended.rules,
+      ...reactHooksRecommended.rules,
+      ...prettier.rules,
+      'prettier/prettier': 'error',
+      'react/react-in-jsx-scope': 'off',
+      'react/prop-types': 'off',
+      'no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
+      'no-console': [
+        'warn',
+        {
+          allow: ['warn', 'error', 'info'],
+        },
+      ],
+      'prefer-const': 'error',
+      'no-var': 'error',
+      'object-shorthand': 'error',
+      'prefer-template': 'warn',
+      'prefer-destructuring': [
+        'warn',
+        {
+          object: true,
+          array: false,
+        },
+      ],
+      'no-duplicate-imports': 'error',
+      'no-unused-expressions': 'error',
+      'no-return-await': 'error',
+      'require-await': 'warn',
+      'no-nested-ternary': 'warn',
+      'no-unneeded-ternary': 'error',
+      'spaced-comment': ['error', 'always'],
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+    },
+  },
+  {
+    ignores: ['dist/**', 'build/**', 'node_modules/**', '*.min.js', 'coverage/**', 'release/**'],
+  },
+];

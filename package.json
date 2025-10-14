@@ -19,7 +19,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:jest": "jest",
+    "test:jest:watch": "jest --watch",
+    "test:jest:coverage": "jest --coverage",
+    "lint": "eslint . --ext .js,.jsx,.cjs",
+    "lint:fix": "eslint . --ext .js,.jsx,.cjs --fix",
+    "format": "prettier --write \"**/*.{js,jsx,cjs,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{js,jsx,cjs,json,css,md}\""
   },
   "build": {
     "appId": "com.agentmax.desktop",
@@ -69,6 +76,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.13.4",
     "axios": "^1.6.2",
+    "axios-retry": "^4.5.0",
     "clsx": "^2.0.0",
     "date-fns": "^3.0.6",
     "lucide-react": "^0.294.0",
@@ -83,6 +91,12 @@
     "zustand": "^4.4.7"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.28.3",
+    "@babel/preset-react": "^7.27.1",
+    "@eslint/js": "^9.37.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
@@ -91,8 +105,16 @@
     "concurrently": "^8.2.2",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
+    "eslint": "^9.37.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.0",
+    "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0",
     "jsdom": "^27.0.0",
     "postcss": "^8.4.32",
+    "prettier": "^3.6.2",
     "tailwindcss": "^3.4.0",
     "vite": "^5.0.8",
     "vitest": "^1.0.4",

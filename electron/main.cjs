@@ -4,6 +4,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const LocalMemoryManager = require('./memory-manager.cjs');
+const IPCValidator = require('./ipc-validator.cjs');
 
 let mainWindow;
 let settingsWindow;
@@ -36,9 +37,10 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.cjs'),
-      // Disable web security for API requests (both local dev and remote prod)
-      webSecurity: false,
-      // Allow cross-origin requests (needed for remote API)
+      // Only disable web security in development
+      webSecurity: process.env.NODE_ENV === 'development' ? false : true,
+      sandbox: true,
+      // Disallow running insecure content in production
       allowRunningInsecureContent: false,
     },
     backgroundColor: '#00000000',
@@ -58,6 +60,28 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+  });
+
+  // Add Content Security Policy
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; " +
+          "script-src 'self' 'unsafe-inline' http://localhost:5173; " +
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+          "font-src 'self' https://fonts.gstatic.com; " +
+          "img-src 'self' data: https: blob:; " +
+          "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://accounts.google.com https://www.googleapis.com; " +
+          "frame-src 'none'; " +
+          "object-src 'none'; " +
+          "base-uri 'self'; " +
+          "form-action 'self'; " +
+          "frame-ancestors 'none'"
+        ]
+      }
+    });
   });
 
   if (process.env.NODE_ENV === 'development') {
@@ -129,7 +153,8 @@ function createSettingsWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.cjs'),
-      webSecurity: false,
+      webSecurity: process.env.NODE_ENV === 'development' ? false : true,
+      sandbox: true,
     },
     backgroundColor: '#1a1a2e',
     title: 'Agent Max Settings',
@@ -138,6 +163,28 @@ function createSettingsWindow() {
 
   settingsWindow.once('ready-to-show', () => {
     settingsWindow.show();
+  });
+
+  // Add Content Security Policy for settings window
+  settingsWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; " +
+          "script-src 'self' 'unsafe-inline' http://localhost:5173; " +
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+          "font-src 'self' https://fonts.gstatic.com; " +
+          "img-src 'self' data: https: blob:; " +
+          "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://accounts.google.com https://www.googleapis.com; " +
+          "frame-src 'none'; " +
+          "object-src 'none'; " +
+          "base-uri 'self'; " +
+          "form-action 'self'; " +
+          "frame-ancestors 'none'"
+        ]
+      }
+    });
   });
 
   if (process.env.NODE_ENV === 'development') {
@@ -163,9 +210,10 @@ ipcMain.handle('get-app-path', () => {
 });
 
 // Window resize for expand/collapse
-ipcMain.handle('resize-window', (event, { width, height }) => {
-  if (mainWindow) {
-    console.log(`[Electron] Resizing window to ${width}x${height}`);
+ipcMain.handle('resize-window', IPCValidator.createValidatedHandler(
+  (event, { width, height }) => {
+    if (mainWindow) {
+      console.log(`[Electron] Resizing window to ${width}x${height}`);
     const beforeBounds = mainWindow.getBounds();
     console.log('[Electron] Before resize:', beforeBounds);
     
@@ -180,7 +228,10 @@ ipcMain.handle('resize-window', (event, { width, height }) => {
       }
     }, 100);
   }
-});
+}, {
+  width: { type: 'number', required: true, min: 50, max: 2000, integer: true },
+  height: { type: 'number', required: true, min: 50, max: 2000, integer: true }
+}));
 
 // Get window bounds (for boundary checking)
 ipcMain.handle('get-bounds', () => {
@@ -191,11 +242,19 @@ ipcMain.handle('get-bounds', () => {
 });
 
 // Set window bounds (for boundary correction)
-ipcMain.handle('set-bounds', (event, bounds) => {
-  if (mainWindow) {
-    mainWindow.setBounds(bounds);
+ipcMain.handle('set-bounds', IPCValidator.createValidatedHandler(
+  (event, bounds) => {
+    if (mainWindow) {
+      mainWindow.setBounds(bounds);
+    }
+  },
+  {
+    x: { type: 'number', integer: true },
+    y: { type: 'number', integer: true },
+    width: { type: 'number', min: 50, max: 2000, integer: true },
+    height: { type: 'number', min: 50, max: 2000, integer: true }
   }
-});
+));
 
 // Switch to FloatBar mode (after welcome screen)
 ipcMain.handle('switch-to-floatbar', () => {
@@ -219,7 +278,8 @@ ipcMain.handle('get-screen-size', () => {
 });
 
 // Execute terminal command (with security confirmation)
-ipcMain.handle('execute-command', async (event, { command }) => {
+ipcMain.handle('execute-command', IPCValidator.createValidatedHandler(
+  async (event, { command }) => {
   const logDir = path.join(os.homedir(), 'Library', 'Logs', 'AgentMax');
   const logFile = path.join(logDir, 'commands.log');
   
@@ -262,25 +322,38 @@ ipcMain.handle('execute-command', async (event, { command }) => {
   } catch (error) {
     return { success: false, message: error.message };
   }
-});
+}, {
+  command: { type: 'string', required: true, maxLength: 5000 }
+}));
 
 // Copy to clipboard
-ipcMain.handle('copy-to-clipboard', (event, text) => {
-  const { clipboard } = require('electron');
-  clipboard.writeText(text);
-  return { success: true };
-});
+ipcMain.handle('copy-to-clipboard', IPCValidator.createValidatedHandler(
+  (event, { text }) => {
+    const { clipboard } = require('electron');
+    clipboard.writeText(text);
+    return { success: true };
+  },
+  { text: { type: 'string', required: true, maxLength: 100000 } }
+));
 
 // Open URL in external browser
-ipcMain.handle('open-external', async (event, url) => {
-  try {
-    await shell.openExternal(url);
-    return { success: true };
-  } catch (error) {
-    console.error('[Electron] Failed to open external URL:', error);
-    return { success: false, error: error.message };
-  }
-});
+ipcMain.handle('open-external', IPCValidator.createValidatedHandler(
+  async (event, { url }) => {
+    try {
+      // Additional URL validation
+      const validatedUrl = IPCValidator.validateURL(url, {
+        required: true,
+        allowedProtocols: ['http:', 'https:', 'mailto:']
+      });
+      await shell.openExternal(validatedUrl);
+      return { success: true };
+    } catch (error) {
+      console.error('[Electron] Failed to open external URL:', error);
+      return { success: false, error: error.message };
+    }
+  },
+  { url: { type: 'string', required: true } }
+));
 
 // Open Settings Window
 ipcMain.handle('open-settings', () => {
@@ -306,14 +379,25 @@ ipcMain.handle('memory:get-profile', () => {
 });
 
 // Update user profile
-ipcMain.handle('memory:update-profile', (event, updates) => {
-  return ensureMemoryManager().updateProfile(updates);
-});
+ipcMain.handle('memory:update-profile', IPCValidator.createValidatedHandler(
+  (event, updates) => {
+    return ensureMemoryManager().updateProfile(updates);
+  },
+  {
+    name: { type: 'string', maxLength: 100 },
+    preferences: { type: 'object' },
+    facts: { type: 'object' },
+    interaction_count: { type: 'number', integer: true, min: 0 }
+  }
+));
 
 // Set user name
-ipcMain.handle('memory:set-name', (event, name) => {
-  return ensureMemoryManager().setUserName(name);
-});
+ipcMain.handle('memory:set-name', IPCValidator.createValidatedHandler(
+  (event, { name }) => {
+    return ensureMemoryManager().setUserName(name);
+  },
+  { name: { type: 'string', required: true, maxLength: 100, minLength: 1 } }
+));
 
 // Increment interaction count
 ipcMain.handle('memory:increment-interaction', () => {
@@ -326,9 +410,16 @@ ipcMain.handle('memory:get-facts', () => {
 });
 
 // Set a fact
-ipcMain.handle('memory:set-fact', (event, { category, key, value }) => {
-  return ensureMemoryManager().setFact(category, key, value);
-});
+ipcMain.handle('memory:set-fact', IPCValidator.createValidatedHandler(
+  (event, { category, key, value }) => {
+    return ensureMemoryManager().setFact(category, key, value);
+  },
+  {
+    category: { type: 'string', required: true, maxLength: 50 },
+    key: { type: 'string', required: true, maxLength: 50 },
+    value: { type: 'string', required: true, maxLength: 1000 }
+  }
+));
 
 // Delete a fact
 ipcMain.handle('memory:delete-fact', (event, { category, key }) => {
@@ -341,9 +432,20 @@ ipcMain.handle('memory:start-session', (event, sessionId) => {
 });
 
 // Add message to conversation
-ipcMain.handle('memory:add-message', (event, { role, content, sessionId }) => {
-  return ensureMemoryManager().addMessage(role, content, sessionId);
-});
+ipcMain.handle('memory:add-message', IPCValidator.createValidatedHandler(
+  (event, { role, content, sessionId }) => {
+    // Additional role validation
+    if (!['user', 'assistant', 'system'].includes(role)) {
+      throw new Error('Invalid role. Must be user, assistant, or system');
+    }
+    return ensureMemoryManager().addMessage(role, content, sessionId);
+  },
+  {
+    role: { type: 'string', required: true },
+    content: { type: 'string', required: true, maxLength: 50000 },
+    sessionId: { type: 'string', maxLength: 100 }
+  }
+));
 
 // Get recent messages
 ipcMain.handle('memory:get-recent-messages', (event, { count, sessionId }) => {
@@ -371,9 +473,16 @@ ipcMain.handle('memory:get-preferences', () => {
 });
 
 // Set preference
-ipcMain.handle('memory:set-preference', (event, { key, value, type }) => {
-  return ensureMemoryManager().setPreference(key, value, type);
-});
+ipcMain.handle('memory:set-preference', IPCValidator.createValidatedHandler(
+  (event, { key, value, type }) => {
+    return ensureMemoryManager().setPreference(key, value, type);
+  },
+  {
+    key: { type: 'string', required: true, maxLength: 100 },
+    value: { type: 'string', required: true, maxLength: 5000 },
+    type: { type: 'string', maxLength: 50 }
+  }
+));
 
 // Get preference by key
 ipcMain.handle('memory:get-preference', (event, key) => {
@@ -391,9 +500,16 @@ ipcMain.handle('memory:export', () => {
 });
 
 // Import memories (from backup)
-ipcMain.handle('memory:import', (event, data) => {
-  return ensureMemoryManager().importMemories(data);
-});
+ipcMain.handle('memory:import', IPCValidator.createValidatedHandler(
+  (event, { data }) => {
+    // Validate import data structure
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid import data');
+    }
+    return ensureMemoryManager().importMemories(data);
+  },
+  { data: { type: 'object', required: true } }
+));
 
 // Get memory statistics
 ipcMain.handle('memory:get-stats', () => {

@@ -1,11 +1,16 @@
 import axios from 'axios';
+import axiosRetry from 'axios-retry';
 import apiConfigManager from '../config/apiConfig';
+import { handleError, parseApiError, ErrorCodes } from './errorHandler';
+import { createLogger } from './logger';
+import { toast } from 'react-hot-toast';
 
-console.log('[API] Initializing with config manager...');
+const logger = createLogger('API');
+logger.info('Initializing with config manager...');
 
 // Get initial configuration
 const initialConfig = apiConfigManager.getConfig();
-console.log('[API] Initial configuration:', {
+logger.info('Initial configuration', {
   baseURL: initialConfig.baseURL,
   hasApiKey: !!initialConfig.apiKey,
   environment: import.meta.env.MODE,
@@ -43,24 +48,28 @@ const api = axios.create({
   timeout: 60000, // 60 seconds for AI responses
 });
 
-// Retry configuration
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // Start with 1 second
+// Configure axios-retry for automatic retries
+axiosRetry(api, {
+  retries: 3,
+  retryDelay: axiosRetry.exponentialDelay, // Exponential backoff
+  retryCondition: (error) => {
+    // Retry on network errors or 5xx server errors
+    return (
+      axiosRetry.isNetworkOrIdempotentRequestError(error) ||
+      (error.response && error.response.status >= 500) ||
+      error.code === 'ECONNABORTED'
+    );
+  },
+  onRetry: (retryCount, error, requestConfig) => {
+    logger.warn(`Retry attempt ${retryCount}`, {
+      url: requestConfig.url,
+      method: requestConfig.method,
+      error: error.message
+    });
+  }
+});
 
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-const shouldRetry = (error) => {
-  // Retry on network errors or 5xx server errors
-  return (
-    !error.response || 
-    error.code === 'ECONNABORTED' ||
-    error.code === 'ENOTFOUND' ||
-    error.code === 'ENETUNREACH' ||
-    (error.response && error.response.status >= 500)
-  );
-};
-
-// Request interceptor with retry logic
+// Request interceptor
 api.interceptors.request.use(
   (config) => {
     // Get API key from config manager
@@ -69,27 +78,43 @@ api.interceptors.request.use(
       config.headers['X-API-Key'] = apiKey;
     }
     
-    // Add retry metadata
+    // Add request metadata
     config.metadata = { 
-      retryCount: 0,
-      startTime: Date.now() 
+      startTime: Date.now(),
+      requestId: Math.random().toString(36).substr(2, 9)
     };
+    
+    // Log outgoing request
+    logger.debug(`${config.method?.toUpperCase()} ${config.url}`, {
+      params: config.params,
+      data: config.data
+    });
     
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    logger.error('Request interceptor error', error);
+    return Promise.reject(error);
+  }
 );
 
-// Response interceptor with retry and connection status
+// Response interceptor
 api.interceptors.response.use(
   (response) => {
     // Success - mark as connected
     notifyConnectionChange(true);
     
-    // Log request timing for monitoring
-    const duration = Date.now() - response.config.metadata.startTime;
+    // Log response timing
+    const duration = Date.now() - response.config.metadata?.startTime;
+    const timer = logger.startTimer(`${response.config.method?.toUpperCase()} ${response.config.url}`);
+    timer.end('completed');
+    
+    // Warn on slow requests
     if (duration > 5000) {
-      console.warn(`Slow request: ${response.config.url} took ${duration}ms`);
+      logger.warn('Slow request detected', {
+        url: response.config.url,
+        duration: `${duration}ms`
+      });
     }
     
     return response;
@@ -97,46 +122,60 @@ api.interceptors.response.use(
   async (error) => {
     const config = error.config;
     
-    // Enhanced error logging FIRST
-    console.error('API Error Details:', {
+    // Parse error using centralized handler
+    const appError = parseApiError(error);
+    
+    // Log error with context
+    logger.error('API request failed', {
       url: config?.url,
       method: config?.method,
-      baseURL: config?.baseURL,
       status: error.response?.status,
-      statusText: error.response?.statusText,
-      code: error.code,
-      message: error.message,
-      data: error.response?.data,
-      headers: error.response?.headers,
+      code: appError.code,
+      message: appError.message,
+      requestId: config?.metadata?.requestId
     });
     
-    // Check if we should retry
-    if (config && shouldRetry(error) && config.metadata.retryCount < MAX_RETRIES) {
-      config.metadata.retryCount += 1;
-      
-      // Exponential backoff: 1s, 2s, 4s
-      const delay = RETRY_DELAY * Math.pow(2, config.metadata.retryCount - 1);
-      
-      console.log(`[Retry ${config.metadata.retryCount}/${MAX_RETRIES}] ${config.url} after ${delay}ms...`);
-      
-      await sleep(delay);
-      
-      // Reset start time for retry
-      config.metadata.startTime = Date.now();
-      
-      return api(config);
-    }
-    
-    // Mark as disconnected if network error
+    // Update connection status
     if (!error.response) {
-      console.warn('[Connection] Marking as disconnected - no response from server');
+      logger.warn('Connection lost - no response from server');
       notifyConnectionChange(false);
     } else {
-      // If we got a response, connection is working
       notifyConnectionChange(true);
     }
     
-    return Promise.reject(error);
+    // Handle specific error cases
+    if (error.response?.status === 401) {
+      handleError(appError, 'API', {
+        severity: 'high',
+        showToast: true,
+        fallbackMessage: 'Authentication failed. Please sign in again.'
+      });
+      // Trigger re-authentication if needed
+      window.dispatchEvent(new CustomEvent('auth:expired'));
+    } else if (error.response?.status === 403) {
+      handleError(appError, 'API', {
+        severity: 'medium',
+        showToast: true,
+        fallbackMessage: 'You do not have permission to perform this action.'
+      });
+    } else if (error.response?.status === 429) {
+      // Rate limiting
+      const retryAfter = error.response.headers['retry-after'];
+      handleError(appError, 'API', {
+        severity: 'medium',
+        showToast: true,
+        fallbackMessage: `Rate limit exceeded. Please try again in ${retryAfter || '60'} seconds.`
+      });
+    } else if (!error.response) {
+      // Network error
+      handleError(appError, 'API', {
+        severity: 'high',
+        showToast: true,
+        fallbackMessage: 'Cannot connect to server. Please check your internet connection.'
+      });
+    }
+    
+    return Promise.reject(appError);
   }
 );
 
@@ -409,7 +448,7 @@ export { API_BASE_URL };
  * Called when user updates settings
  */
 export const reconfigureAPI = (newBaseURL, newApiKey = null) => {
-  console.log('[API] Reconfiguring with new base URL:', newBaseURL);
+  logger.info('Reconfiguring with new base URL', { newBaseURL });
   
   // Update config manager
   apiConfigManager.updateConfig(newBaseURL, newApiKey);
@@ -418,12 +457,13 @@ export const reconfigureAPI = (newBaseURL, newApiKey = null) => {
   api.defaults.baseURL = newBaseURL;
   API_BASE_URL = newBaseURL;
   
-  console.log('[API] ✅ Reconfiguration complete');
+  logger.info('Reconfiguration complete');
+  toast.success('API configuration updated');
 };
 
 // Listen for config changes from other sources
 apiConfigManager.onChange((config) => {
-  console.log('[API] Config changed externally, updating axios instance');
+  logger.info('Config changed externally, updating axios instance', config);
   api.defaults.baseURL = config.baseURL;
   API_BASE_URL = config.baseURL;
 });
