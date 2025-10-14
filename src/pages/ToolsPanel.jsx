@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Monitor, Users, X } from 'lucide-react';
+import { Monitor, Users, MessageSquare, X } from 'lucide-react';
 import ScreenControl from '../components/ScreenControl';
 import AgentDashboard from '../components/AgentDashboard';
+import ChatHistory from '../components/ChatHistory';
 
 export default function ToolsPanel({ onClose, onLoadConversation }) {
   const [activeTab, setActiveTab] = useState('screen');
@@ -9,6 +10,7 @@ export default function ToolsPanel({ onClose, onLoadConversation }) {
   const tabs = [
     { id: 'screen', label: 'Screen Control', icon: Monitor, component: ScreenControl },
     { id: 'agents', label: 'AI Agents', icon: Users, component: AgentDashboard },
+    { id: 'chats', label: 'Chat History', icon: MessageSquare, component: ChatHistory },
   ];
 
   const ActiveComponent = tabs.find(t => t.id === activeTab)?.component;

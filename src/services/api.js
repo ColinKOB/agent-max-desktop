@@ -385,6 +385,123 @@ export const chatAPI = {
 };
 
 // ============================================
+// GOOGLE SERVICES API
+// ============================================
+export const googleAPI = {
+  // Connection status
+  getStatus: (email = null) =>
+    api.get('/api/v2/google/status', { params: email ? { email } : {} }),
+  
+  // Gmail
+  listMessages: (maxResults = 10, query = '') => {
+    const email = localStorage.getItem('google_user_email');
+    return api.get('/api/v2/google/messages', { 
+      params: { email, max_results: maxResults, q: query } 
+    });
+  },
+  
+  getMessage: (messageId) => {
+    const email = localStorage.getItem('google_user_email');
+    return api.get(`/api/v2/google/message/${messageId}`, { params: { email } });
+  },
+  
+  sendEmail: (to, subject, body) => {
+    const email = localStorage.getItem('google_user_email');
+    return api.post('/api/v2/google/send', { to, subject, body }, { params: { email } });
+  },
+  
+  markAsRead: (messageId) => {
+    const email = localStorage.getItem('google_user_email');
+    return api.post(`/api/v2/google/mark-read/${messageId}`, null, { params: { email } });
+  },
+  
+  archiveMessage: (messageId) => {
+    const email = localStorage.getItem('google_user_email');
+    return api.post(`/api/v2/google/archive/${messageId}`, null, { params: { email } });
+  },
+  
+  // Calendar
+  listEvents: (maxResults = 10) => {
+    const email = localStorage.getItem('google_user_email');
+    return api.get('/api/v2/google/calendar/events', { 
+      params: { email, max_results: maxResults } 
+    });
+  },
+  
+  createEvent: (summary, startTime, endTime, description = '') => {
+    const email = localStorage.getItem('google_user_email');
+    return api.post('/api/v2/google/calendar/events', 
+      { summary, start_time: startTime, end_time: endTime, description },
+      { params: { email } }
+    );
+  },
+  
+  // YouTube
+  searchYouTube: (query, maxResults = 10) =>
+    api.get('/api/v2/google/youtube/search', { 
+      params: { q: query, max_results: maxResults } 
+    }),
+  
+  // Sheets
+  readSheet: (spreadsheetId, range = 'A1:Z100') => {
+    const email = localStorage.getItem('google_user_email');
+    return api.get(`/api/v2/google/sheets/${spreadsheetId}/range`, 
+      { params: { email, range_name: range } }
+    );
+  },
+  
+  // Docs
+  getDocument: (documentId) => {
+    const email = localStorage.getItem('google_user_email');
+    return api.get(`/api/v2/google/docs/${documentId}`, { params: { email } });
+  },
+};
+
+// ============================================
+// TELEMETRY API
+// ============================================
+export const telemetryAPI = {
+  sendBatch: (events) =>
+    api.post('/api/v2/telemetry/batch', { 
+      events, 
+      userId: localStorage.getItem('user_id') || 'anonymous',
+      sessionId: localStorage.getItem('session_id') || Date.now().toString(),
+      timestamp: Date.now() 
+    }),
+  
+  trackInteraction: (action, metadata = {}) =>
+    api.post('/api/v2/telemetry/batch', {
+      events: [{
+        type: 'interaction',
+        action,
+        metadata,
+        timestamp: Date.now()
+      }],
+      userId: localStorage.getItem('user_id') || 'anonymous',
+      sessionId: localStorage.getItem('session_id') || Date.now().toString(),
+    }),
+  
+  trackError: (error, context = {}) =>
+    api.post('/api/v2/telemetry/batch', {
+      events: [{
+        type: 'error',
+        error: error.message || error,
+        stack: error.stack,
+        context,
+        timestamp: Date.now()
+      }],
+      userId: localStorage.getItem('user_id') || 'anonymous',
+      sessionId: localStorage.getItem('session_id') || Date.now().toString(),
+    }),
+  
+  getStats: () =>
+    api.get('/api/v2/telemetry/stats'),
+  
+  getInteractions: (limit = 100) =>
+    api.get('/api/v2/telemetry/interactions', { params: { limit } }),
+};
+
+// ============================================
 // SCREEN CONTROL API
 // ============================================
 export const screenAPI = {
