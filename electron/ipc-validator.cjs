@@ -2,6 +2,8 @@
  * IPC Input Validation Utility
  * Provides secure validation for all IPC handler inputs
  * Prevents injection attacks and ensures type safety
+ * 
+ * All methods are static - no need to instantiate
  */
 
 class IPCValidator {
