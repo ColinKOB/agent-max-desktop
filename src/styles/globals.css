@@ -52,7 +52,7 @@
   /* TIP: Keep text high contrast (90%+) for readability */
   
   /* Accent color - Used for focus rings and highlights */
-  --accent: hsl(228, 100%, 74%);  /* Soft blue - not neon */
+  --accent: hsl(0, 0%, 0%);  /* Soft blue - not neon */
   /* 228 = blue hue, 100% = fully saturated, 74% = light/pastel */
   /* TIP: Try different hues: 0=red, 30=orange, 120=green, 280=purple */
   

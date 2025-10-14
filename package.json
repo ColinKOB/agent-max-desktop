@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Desktop application for Agent Max Memory System V2",
   "main": "electron/main.cjs",
-  "author": "Agent Max",
+  "author": "Colin O'Brien",
   "homepage": "https://agentmax.app",
   "scripts": {
     "dev": "vite",
@@ -24,7 +24,7 @@
   "build": {
     "appId": "com.agentmax.desktop",
     "productName": "Agent Max",
-    "copyright": "Copyright © 2025 Agent Max",
+    "copyright": "Copyright © 2025 Colin O'Brien",
     "directories": {
       "output": "release"
     },

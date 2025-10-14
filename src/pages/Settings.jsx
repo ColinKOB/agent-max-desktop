@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Moon, Sun, Zap, Info, Trash2, Globe, Monitor, Camera, MousePointer } from 'lucide-react';
+import { Moon, Sun, Zap, Info, Trash2, Globe, Monitor, Camera, MousePointer, CreditCard } from 'lucide-react';
 import useStore from '../store/useStore';
 import { healthAPI, reconfigureAPI, screenAPI } from '../services/api';
 import apiConfigManager from '../config/apiConfig';
 import toast from 'react-hot-toast';
 import { GoogleConnect } from '../components/GoogleConnect';
+import { SubscriptionManager } from '../components/SubscriptionManager';
 
 export default function Settings() {
   const { theme, setTheme, apiConnected, setApiConnected } = useStore();
@@ -370,8 +371,25 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Subscription & Billing */}
+      <div className="card mb-6">
+        <div className="flex items-center space-x-2 mb-4">
+          <CreditCard className="w-5 h-5 text-green-600 dark:text-green-400" />
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+            Subscription & Billing
+          </h2>
+        </div>
+        <SubscriptionManager />
+      </div>
+
       {/* Google Services */}
       <div className="card mb-6">
+        <div className="flex items-center space-x-2 mb-4">
+          <Globe className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+            Google Services
+          </h2>
+        </div>
         <GoogleConnect />
       </div>
 
