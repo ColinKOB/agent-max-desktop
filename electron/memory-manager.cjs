@@ -281,13 +281,22 @@ class LocalMemoryManager {
    * Returns array of sessions sorted by most recent
    */
   getAllSessions() {
+    console.log('[MemoryManager] getAllSessions called');
     const conversations = this.getConversations();
+    
+    console.log('[MemoryManager] Conversations object keys:', Object.keys(conversations));
+    console.log('[MemoryManager] Sessions count:', Object.keys(conversations.sessions || {}).length);
     
     // Convert sessions object to array
     const sessionsArray = Object.entries(conversations.sessions || {}).map(([sessionId, session]) => ({
       sessionId,
       ...session
     }));
+    
+    console.log('[MemoryManager] Sessions array length:', sessionsArray.length);
+    if (sessionsArray.length > 0) {
+      console.log('[MemoryManager] First session messages:', sessionsArray[0].messages?.length || 0);
+    }
     
     // Sort by most recent (last message timestamp)
     sessionsArray.sort((a, b) => {
@@ -296,6 +305,7 @@ class LocalMemoryManager {
       return bTime - aTime; // Most recent first
     });
     
+    console.log('[MemoryManager] Returning', sessionsArray.length, 'sessions');
     return sessionsArray;
   }
 

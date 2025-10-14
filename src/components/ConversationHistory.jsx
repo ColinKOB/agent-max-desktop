@@ -17,15 +17,26 @@ export default function ConversationHistory({ onLoadConversation }) {
   const loadHistory = async () => {
     setLoading(true);
     try {
+      console.log('[History] Starting to load history...');
+      console.log('[History] Checking for Electron API:', !!window.electron);
+      console.log('[History] Checking for memory API:', !!window.electron?.memory);
+      console.log('[History] Checking for getAllSessions:', !!window.electron?.memory?.getAllSessions);
+      
       // Check if Electron memory API is available
       if (window.electron?.memory?.getAllSessions) {
+        console.log('[History] Calling getAllSessions...');
         // Load ALL sessions from Electron local memory (no limit!)
         const allSessions = await window.electron.memory.getAllSessions();
+        
+        console.log('[History] Raw sessions received:', allSessions?.length || 0);
+        console.log('[History] First session:', allSessions?.[0]);
         
         // Transform sessions into conversation format
         const convs = allSessions.map(session => {
           const firstUserMsg = session.messages.find(m => m.role === 'user');
           const lastMessage = session.messages[session.messages.length - 1];
+          
+          console.log(`[History] Processing session ${session.sessionId}: ${session.messages.length} messages`);
           
           return {
             id: session.sessionId,
@@ -40,6 +51,7 @@ export default function ConversationHistory({ onLoadConversation }) {
         });
         
         console.log(`[History] Loaded ${convs.length} conversations from local storage`);
+        console.log('[History] Conversations:', convs);
         setConversations(convs);
       } else {
         // Fallback to API (for web version)
@@ -47,8 +59,9 @@ export default function ConversationHistory({ onLoadConversation }) {
         setConversations(res.data.conversations || []);
       }
     } catch (error) {
-      console.error('Failed to load conversation history:', error);
-      toast.error('Failed to load history');
+      console.error('[History] Failed to load conversation history:', error);
+      console.error('[History] Error stack:', error.stack);
+      toast.error('Failed to load history: ' + error.message);
     } finally {
       setLoading(false);
     }
