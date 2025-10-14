@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import telemetry from '../services/telemetry';
 import responseCache from '../services/responseCache';
 import ToolsPanel from '../pages/ToolsPanel';
+import { generateConversationSummary } from '../services/conversationSummary';
 
 export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) {
   const [isOpen, setIsOpen] = useState(false); // Card mode (full chat with conversation)
@@ -26,7 +27,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   });
   const inputRef = useRef(null);
   const thoughtsEndRef = useRef(null);
-  const { profile } = useStore();
+  const { profile, addToHistory } = useStore();
   
   // Simple connection status check (can be enhanced later)
   const [isConnected, setIsConnected] = useState(true);
@@ -630,13 +631,29 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       });
     }
   };
-  const handleResetConversation = () => {
+  const handleResetConversation = async () => {
+    // Generate summary before clearing if there are thoughts
+    if (thoughts.length > 0) {
+      try {
+        console.log('[FloatBar] Generating conversation summary...');
+        const summary = await generateConversationSummary(thoughts);
+        console.log('[FloatBar] Summary generated:', summary);
+        
+        // Add to history
+        addToHistory(summary, thoughts);
+        toast.success(`Saved: "${summary}"`);
+      } catch (error) {
+        console.error('[FloatBar] Failed to generate summary:', error);
+        // Still clear the conversation even if summary fails
+      }
+    }
+    
+    // Clear conversation
     setThoughts([]);
     setProgress(0);
     setCurrentCommand('');
     setMessage('');
     setIsThinking(false);
-    toast.success('Conversation reset');
   };
 
   const handleRunCommand = () => {

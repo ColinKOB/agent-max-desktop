@@ -9,6 +9,7 @@ const useStore = create((set, get) => ({
   messages: [],
   pendingTasks: [],
   sessionId: null,
+  conversationHistory: JSON.parse(localStorage.getItem('conversationHistory') || '[]'),
   
   // Facts state
   facts: {},
@@ -52,6 +53,25 @@ const useStore = create((set, get) => ({
   },
   
   setCurrentPage: (page) => set({ currentPage: page }),
+  
+  // Conversation history actions
+  addToHistory: (summary, messages) => {
+    const history = get().conversationHistory;
+    const newEntry = {
+      id: Date.now(),
+      summary,
+      timestamp: new Date().toISOString(),
+      messageCount: messages.length
+    };
+    const updated = [newEntry, ...history].slice(0, 50); // Keep last 50
+    localStorage.setItem('conversationHistory', JSON.stringify(updated));
+    set({ conversationHistory: updated });
+  },
+  
+  clearHistory: () => {
+    localStorage.removeItem('conversationHistory');
+    set({ conversationHistory: [] });
+  },
   
   // Clear all state
   reset: () => set({
