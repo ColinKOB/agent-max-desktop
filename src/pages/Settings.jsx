@@ -116,8 +116,8 @@ export default function Settings() {
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">
+    <div className="p-6 max-w-4xl mx-auto">
+      <h1 className="text-2xl font-bold text-gray-100 mb-6">
         Settings
       </h1>
 
@@ -125,11 +125,11 @@ export default function Settings() {
       <div className="card mb-6">
         <div className="flex items-center space-x-2 mb-4">
           {theme === 'dark' ? (
-            <Moon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <Moon className="w-5 h-5 text-blue-400" />
           ) : (
-            <Sun className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <Sun className="w-5 h-5 text-blue-400" />
           )}
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          <h2 className="text-lg font-bold text-gray-100">
             Appearance
           </h2>
         </div>
@@ -170,8 +170,8 @@ export default function Settings() {
       {/* API Settings */}
       <div className="card mb-6">
         <div className="flex items-center space-x-2 mb-4">
-          <Globe className="w-5 h-5 text-green-600 dark:text-green-400" />
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          <Globe className="w-5 h-5 text-green-400" />
+          <h2 className="text-lg font-bold text-gray-100">
             API Configuration
           </h2>
         </div>
@@ -238,8 +238,8 @@ export default function Settings() {
       {/* Screen Control */}
       <div className="card mb-6">
         <div className="flex items-center space-x-2 mb-4">
-          <Monitor className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          <Monitor className="w-5 h-5 text-purple-400" />
+          <h2 className="text-lg font-bold text-gray-100">
             Screen Control
           </h2>
         </div>
@@ -374,8 +374,8 @@ export default function Settings() {
       {/* Subscription & Billing */}
       <div className="card mb-6">
         <div className="flex items-center space-x-2 mb-4">
-          <CreditCard className="w-5 h-5 text-green-600 dark:text-green-400" />
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          <CreditCard className="w-5 h-5 text-green-400" />
+          <h2 className="text-lg font-bold text-gray-100">
             Subscription & Billing
           </h2>
         </div>
@@ -385,8 +385,8 @@ export default function Settings() {
       {/* Google Services */}
       <div className="card mb-6">
         <div className="flex items-center space-x-2 mb-4">
-          <Globe className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          <Globe className="w-5 h-5 text-blue-400" />
+          <h2 className="text-lg font-bold text-gray-100">
             Google Services
           </h2>
         </div>
@@ -396,8 +396,8 @@ export default function Settings() {
       {/* Data Management */}
       <div className="card mb-6">
         <div className="flex items-center space-x-2 mb-4">
-          <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          <Trash2 className="w-5 h-5 text-red-400" />
+          <h2 className="text-lg font-bold text-gray-100">
             Data Management
           </h2>
         </div>
@@ -421,10 +421,10 @@ export default function Settings() {
       </div>
 
       {/* About */}
-      <div className="card">
+      <div className="card mb-6">
         <div className="flex items-center space-x-2 mb-4">
-          <Info className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          <Info className="w-5 h-5 text-gray-400" />
+          <h2 className="text-lg font-bold text-gray-100">
             About
           </h2>
         </div>

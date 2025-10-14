@@ -7,7 +7,9 @@
 class ResponseCache {
   constructor() {
     this.cache = this.loadCache();
+    this.questionFrequency = this.loadQuestionFrequency();
     this.maxCacheSize = 100; // Keep last 100 interactions
+    this.minAsksBeforeCache = 3; // Only cache after 3+ asks
   }
 
   /**
@@ -29,6 +31,30 @@ class ResponseCache {
   }
 
   /**
+   * Load question frequency tracker from localStorage
+   */
+  loadQuestionFrequency() {
+    try {
+      const cached = localStorage.getItem('agent_max_question_frequency');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        // Filter out old entries (older than 7 days)
+        const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+        const filtered = {};
+        for (const [key, value] of Object.entries(parsed)) {
+          if (value.lastAsked > sevenDaysAgo) {
+            filtered[key] = value;
+          }
+        }
+        return filtered;
+      }
+    } catch (error) {
+      console.warn('[ResponseCache] Failed to load question frequency:', error);
+    }
+    return {};
+  }
+
+  /**
    * Save cache to localStorage
    */
   saveCache() {
@@ -43,6 +69,17 @@ class ResponseCache {
   }
 
   /**
+   * Save question frequency to localStorage
+   */
+  saveQuestionFrequency() {
+    try {
+      localStorage.setItem('agent_max_question_frequency', JSON.stringify(this.questionFrequency));
+    } catch (error) {
+      console.warn('[ResponseCache] Failed to save question frequency:', error);
+    }
+  }
+
+  /**
    * Normalize text for comparison
    */
   normalizeText(text) {
@@ -51,6 +88,44 @@ class ResponseCache {
       .trim()
       .replace(/[?!.,;]/g, '') // Remove punctuation
       .replace(/\s+/g, ' '); // Normalize whitespace
+  }
+
+  /**
+   * Check if question is multi-step (contains multiple requests)
+   */
+  isMultiStepQuestion(text) {
+    const multiStepIndicators = [
+      ' and then ',
+      ' then ',
+      ' after that ',
+      ' also ',
+      ' next ',
+      ' finally ',
+      ' afterwards ',
+      ' followed by '
+    ];
+    
+    const lowerText = text.toLowerCase();
+    
+    // Check for multi-step indicators
+    for (const indicator of multiStepIndicators) {
+      if (lowerText.includes(indicator)) {
+        return true;
+      }
+    }
+    
+    // Check for multiple questions (multiple question marks)
+    const questionMarks = (text.match(/\?/g) || []).length;
+    if (questionMarks > 1) {
+      return true;
+    }
+    
+    // Check for numbered steps (1., 2., etc.)
+    if (/\d+\.\s/.test(text)) {
+      return true;
+    }
+    
+    return false;
   }
 
   /**
@@ -125,7 +200,7 @@ class ResponseCache {
   }
 
   /**
-   * Add a new response to cache
+   * Add a new response to cache (only if asked 3+ times and not multi-step)
    */
   cacheResponse(userPrompt, aiResponse, metadata = {}) {
     // Don't cache errors
@@ -133,9 +208,40 @@ class ResponseCache {
       return;
     }
 
-    // Check if this exact prompt already exists
+    // Don't cache multi-step questions for safety
+    if (this.isMultiStepQuestion(userPrompt)) {
+      console.log(`[ResponseCache] ⚠️ Skipping cache - multi-step question detected`);
+      return;
+    }
+
+    const normalized = this.normalizeText(userPrompt);
+    
+    // Track question frequency
+    if (!this.questionFrequency[normalized]) {
+      this.questionFrequency[normalized] = {
+        count: 1,
+        firstAsked: Date.now(),
+        lastAsked: Date.now(),
+        originalPrompt: userPrompt
+      };
+    } else {
+      this.questionFrequency[normalized].count++;
+      this.questionFrequency[normalized].lastAsked = Date.now();
+    }
+    
+    this.saveQuestionFrequency();
+    
+    const askCount = this.questionFrequency[normalized].count;
+    
+    // Only cache if asked 3 or more times
+    if (askCount < this.minAsksBeforeCache) {
+      console.log(`[ResponseCache] 📊 Question asked ${askCount}/${this.minAsksBeforeCache} times - not caching yet`);
+      return;
+    }
+
+    // Check if this exact prompt already exists in cache
     const existingIndex = this.cache.findIndex(
-      entry => this.normalizeText(entry.prompt) === this.normalizeText(userPrompt)
+      entry => this.normalizeText(entry.prompt) === normalized
     );
 
     if (existingIndex !== -1) {
@@ -145,21 +251,24 @@ class ResponseCache {
         response: aiResponse,
         timestamp: Date.now(),
         lastUpdated: Date.now(),
+        askCount: askCount,
         ...metadata
       };
+      console.log(`[ResponseCache] ✅ Updated cache (asked ${askCount} times): "${userPrompt.substring(0, 50)}..."`);
     } else {
-      // Add new entry
+      // Add new entry (only after 3+ asks)
       this.cache.push({
         prompt: userPrompt,
         response: aiResponse,
         timestamp: Date.now(),
         hitCount: 0,
+        askCount: askCount,
         ...metadata
       });
+      console.log(`[ResponseCache] ✅ Cached response (asked ${askCount} times): "${userPrompt.substring(0, 50)}..."`);
     }
 
     this.saveCache();
-    console.log(`[ResponseCache] Cached response for: "${userPrompt.substring(0, 50)}..."`);
   }
 
   /**
@@ -172,12 +281,20 @@ class ResponseCache {
       .filter(e => e.hitCount > 0)
       .sort((a, b) => b.hitCount - a.hitCount)
       .slice(0, 5);
+    
+    const totalTrackedQuestions = Object.keys(this.questionFrequency).length;
+    const questionsNearCache = Object.values(this.questionFrequency)
+      .filter(q => q.count === 2)
+      .length;
 
     return {
       totalEntries,
       totalHits,
       mostUsed,
-      cacheHitRate: totalEntries > 0 ? (totalHits / totalEntries * 100).toFixed(1) : 0
+      cacheHitRate: totalEntries > 0 ? (totalHits / totalEntries * 100).toFixed(1) : 0,
+      totalTrackedQuestions,
+      questionsNearCache,
+      minAsksBeforeCache: this.minAsksBeforeCache
     };
   }
 
@@ -186,8 +303,10 @@ class ResponseCache {
    */
   clearCache() {
     this.cache = [];
+    this.questionFrequency = {};
     localStorage.removeItem('agent_max_response_cache');
-    console.log('[ResponseCache] Cache cleared');
+    localStorage.removeItem('agent_max_question_frequency');
+    console.log('[ResponseCache] Cache and question frequency cleared');
   }
 
   /**
