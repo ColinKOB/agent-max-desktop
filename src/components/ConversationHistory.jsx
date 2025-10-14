@@ -17,8 +17,35 @@ export default function ConversationHistory({ onLoadConversation }) {
   const loadHistory = async () => {
     setLoading(true);
     try {
-      const res = await conversationAPI.getHistory(50, 0);
-      setConversations(res.data.conversations || []);
+      // Check if Electron memory API is available
+      if (window.electron?.memory?.getAllSessions) {
+        // Load ALL sessions from Electron local memory (no limit!)
+        const allSessions = await window.electron.memory.getAllSessions();
+        
+        // Transform sessions into conversation format
+        const convs = allSessions.map(session => {
+          const firstUserMsg = session.messages.find(m => m.role === 'user');
+          const lastMessage = session.messages[session.messages.length - 1];
+          
+          return {
+            id: session.sessionId,
+            summary: firstUserMsg 
+              ? (firstUserMsg.content.substring(0, 60) + (firstUserMsg.content.length > 60 ? '...' : ''))
+              : `Conversation (${session.messages.length} messages)`,
+            messages: session.messages,
+            created_at: session.started_at,
+            updated_at: lastMessage?.timestamp || session.started_at,
+            message_count: session.messages.length
+          };
+        });
+        
+        console.log(`[History] Loaded ${convs.length} conversations from local storage`);
+        setConversations(convs);
+      } else {
+        // Fallback to API (for web version)
+        const res = await conversationAPI.getHistory(50, 0);
+        setConversations(res.data.conversations || []);
+      }
     } catch (error) {
       console.error('Failed to load conversation history:', error);
       toast.error('Failed to load history');
@@ -29,9 +56,14 @@ export default function ConversationHistory({ onLoadConversation }) {
 
   const loadConversationDetails = async (convId) => {
     try {
-      const res = await conversationAPI.getConversationById(convId);
-      setSelectedConv(res.data);
-      setViewingDetails(true);
+      // Find conversation in loaded conversations
+      const conv = conversations.find(c => c.id === convId);
+      if (conv) {
+        setSelectedConv(conv);
+        setViewingDetails(true);
+      } else {
+        toast.error('Conversation not found');
+      }
     } catch (error) {
       toast.error('Failed to load conversation');
     }

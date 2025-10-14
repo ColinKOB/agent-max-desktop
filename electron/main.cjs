@@ -6,6 +6,7 @@ const os = require('os');
 const LocalMemoryManager = require('./memory-manager.cjs');
 
 let mainWindow;
+let settingsWindow;
 let ffmpegProcess;
 let memoryManager;
 
@@ -88,10 +89,69 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
+  // On macOS, clicking dock icon opens Settings window
+  if (settingsWindow) {
+    settingsWindow.show();
+    settingsWindow.focus();
+  } else {
+    createSettingsWindow();
+  }
+  
+  // Create main window if it doesn't exist
+  if (!mainWindow) {
     createWindow();
   }
 });
+
+// Create Settings Window
+function createSettingsWindow() {
+  if (settingsWindow) {
+    settingsWindow.show();
+    settingsWindow.focus();
+    return;
+  }
+
+  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+  
+  settingsWindow = new BrowserWindow({
+    width: 900,
+    height: 700,
+    x: Math.floor((screenWidth - 900) / 2),
+    y: Math.floor((screenHeight - 700) / 2),
+    minWidth: 800,
+    minHeight: 600,
+    frame: true,
+    transparent: false,
+    alwaysOnTop: false,
+    resizable: true,
+    skipTaskbar: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.cjs'),
+      webSecurity: false,
+    },
+    backgroundColor: '#1a1a2e',
+    title: 'Agent Max Settings',
+    show: false,
+  });
+
+  settingsWindow.once('ready-to-show', () => {
+    settingsWindow.show();
+  });
+
+  if (process.env.NODE_ENV === 'development') {
+    settingsWindow.loadURL('http://localhost:5173/#/settings');
+  } else {
+    settingsWindow.loadFile(path.join(__dirname, '../dist/index.html'), {
+      hash: '/settings'
+    });
+  }
+
+  settingsWindow.on('closed', () => {
+    settingsWindow = null;
+  });
+}
 
 // IPC handlers
 ipcMain.handle('get-app-version', () => {
@@ -222,6 +282,12 @@ ipcMain.handle('open-external', async (event, url) => {
   }
 });
 
+// Open Settings Window
+ipcMain.handle('open-settings', () => {
+  createSettingsWindow();
+  return { success: true };
+});
+
 // ============================================
 // MEMORY MANAGEMENT IPC HANDLERS
 // ============================================
@@ -282,6 +348,16 @@ ipcMain.handle('memory:add-message', (event, { role, content, sessionId }) => {
 // Get recent messages
 ipcMain.handle('memory:get-recent-messages', (event, { count, sessionId }) => {
   return ensureMemoryManager().getRecentMessages(count, sessionId);
+});
+
+// Get all conversation sessions (for history)
+ipcMain.handle('memory:get-all-sessions', () => {
+  return ensureMemoryManager().getAllSessions();
+});
+
+// Get session by ID
+ipcMain.handle('memory:get-session-by-id', (event, sessionId) => {
+  return ensureMemoryManager().getSessionById(sessionId);
 });
 
 // Clear conversation session

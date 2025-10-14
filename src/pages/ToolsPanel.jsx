@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import { Monitor, Users, History, X, Settings as SettingsIcon } from 'lucide-react';
+import { Monitor, Users, X } from 'lucide-react';
 import ScreenControl from '../components/ScreenControl';
 import AgentDashboard from '../components/AgentDashboard';
-import ConversationHistory from '../components/ConversationHistory';
-import Settings from './Settings';
 
 export default function ToolsPanel({ onClose, onLoadConversation }) {
   const [activeTab, setActiveTab] = useState('screen');
@@ -11,8 +9,6 @@ export default function ToolsPanel({ onClose, onLoadConversation }) {
   const tabs = [
     { id: 'screen', label: 'Screen Control', icon: Monitor, component: ScreenControl },
     { id: 'agents', label: 'AI Agents', icon: Users, component: AgentDashboard },
-    { id: 'history', label: 'History', icon: History, component: ConversationHistory },
-    { id: 'settings', label: 'Settings', icon: SettingsIcon, component: Settings },
   ];
 
   const ActiveComponent = tabs.find(t => t.id === activeTab)?.component;
@@ -52,19 +48,9 @@ export default function ToolsPanel({ onClose, onLoadConversation }) {
           </button>
         </div>
 
-        {/* Content - with proper scrolling */}
+        {/* Content */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
-          {ActiveComponent && (
-            activeTab === 'history' ? (
-              <ActiveComponent onLoadConversation={onLoadConversation} />
-            ) : activeTab === 'settings' ? (
-              <div className="h-full overflow-y-auto">
-                <ActiveComponent />
-              </div>
-            ) : (
-              <ActiveComponent />
-            )
-          )}
+          {ActiveComponent && <ActiveComponent />}
         </div>
       </div>
     </div>

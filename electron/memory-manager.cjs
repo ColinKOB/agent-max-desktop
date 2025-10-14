@@ -269,7 +269,42 @@ class LocalMemoryManager {
     }
 
     const messages = conversations.sessions[sid].messages;
+    // If count is null or -1, return all messages
+    if (count === null || count === -1) {
+      return messages;
+    }
     return messages.slice(-count);
+  }
+
+  /**
+   * Get all conversation sessions (for history view)
+   * Returns array of sessions sorted by most recent
+   */
+  getAllSessions() {
+    const conversations = this.getConversations();
+    
+    // Convert sessions object to array
+    const sessionsArray = Object.entries(conversations.sessions || {}).map(([sessionId, session]) => ({
+      sessionId,
+      ...session
+    }));
+    
+    // Sort by most recent (last message timestamp)
+    sessionsArray.sort((a, b) => {
+      const aTime = a.messages.length > 0 ? new Date(a.messages[a.messages.length - 1].timestamp) : new Date(a.started_at);
+      const bTime = b.messages.length > 0 ? new Date(b.messages[b.messages.length - 1].timestamp) : new Date(b.started_at);
+      return bTime - aTime; // Most recent first
+    });
+    
+    return sessionsArray;
+  }
+
+  /**
+   * Get session by ID
+   */
+  getSessionById(sessionId) {
+    const conversations = this.getConversations();
+    return conversations.sessions[sessionId] || null;
   }
 
   /**

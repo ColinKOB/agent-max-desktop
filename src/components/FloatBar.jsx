@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Camera, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2, Sparkles, ArrowRight, Wifi, WifiOff, Wrench } from 'lucide-react';
+import { Camera, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2, Sparkles, ArrowRight, Wifi, WifiOff, Wrench, Settings as SettingsIcon } from 'lucide-react';
 import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
 import telemetry from '../services/telemetry';
@@ -41,6 +41,26 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   
   // Tools panel
   const [showToolsPanel, setShowToolsPanel] = useState(false);
+  
+  // Open Settings window
+  const handleOpenSettings = async () => {
+    try {
+      if (window.electron?.openSettings) {
+        await window.electron.openSettings();
+      } else if (window.electronAPI?.openSettings) {
+        await window.electronAPI.openSettings();
+      } else {
+        toast.error('Settings window unavailable. Please restart the app.');
+        console.error('[FloatBar] electron.openSettings not available:', {
+          electron: !!window.electron,
+          electronAPI: !!window.electronAPI
+        });
+      }
+    } catch (error) {
+      console.error('[FloatBar] Failed to open settings:', error);
+      toast.error('Failed to open settings window');
+    }
+  };
   
   // Helper: Stream text word-by-word for better perceived speed
   const streamText = async (text, callback) => {
@@ -921,9 +941,16 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
             <button 
               className="amx-icon-btn" 
               onClick={() => setShowToolsPanel(true)} 
-              title="Tools: Screen Control, Agents, History"
+              title="Tools: Screen Control & Agents"
             >
               <Wrench className="w-4 h-4" />
+            </button>
+            <button 
+              className="amx-icon-btn" 
+              onClick={handleOpenSettings} 
+              title="Settings & History"
+            >
+              <SettingsIcon className="w-4 h-4" />
             </button>
             <button 
               className="amx-icon-btn" 

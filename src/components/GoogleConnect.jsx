@@ -21,17 +21,31 @@ export function GoogleConnect() {
 
   const checkConnectionStatus = async () => {
     try {
-      const storedEmail = localStorage.getItem('google_user_email');
-      if (!storedEmail) return;
+      // Call status API without email to get any connected account
+      const { data } = await axios.get(`${API_URL}/api/v2/google/status`);
 
-      const { data } = await axios.get(`${API_URL}/api/v2/google/status`, {
-        params: { email: storedEmail }
-      });
-
-      if (data.connected) {
+      if (data.connected && data.email) {
         setConnected(true);
         setUserEmail(data.email);
         setScopes(data.scopes || []);
+        
+        // Store in localStorage for this window
+        localStorage.setItem('google_user_email', data.email);
+      } else {
+        // Check localStorage as fallback
+        const storedEmail = localStorage.getItem('google_user_email');
+        if (storedEmail) {
+          // Verify with backend
+          const response = await axios.get(`${API_URL}/api/v2/google/status`, {
+            params: { email: storedEmail }
+          });
+          
+          if (response.data.connected) {
+            setConnected(true);
+            setUserEmail(response.data.email);
+            setScopes(response.data.scopes || []);
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to check connection status:', err);
@@ -39,47 +53,53 @@ export function GoogleConnect() {
   };
 
   const connectGoogle = async () => {
+    console.log('[GoogleConnect] Connect button clicked');
     setLoading(true);
     setError('');
 
     try {
       // Get auth URL from backend
+      console.log('[GoogleConnect] Fetching auth URL from:', `${API_URL}/api/v2/google/auth/url`);
       const { data } = await axios.get(`${API_URL}/api/v2/google/auth/url`);
+      console.log('[GoogleConnect] Auth URL received:', data.auth_url.substring(0, 100) + '...');
 
       // Open system browser for OAuth
       if (window.electronAPI && window.electronAPI.openExternal) {
+        console.log('[GoogleConnect] Opening in external browser via Electron');
         await window.electronAPI.openExternal(data.auth_url);
+      } else if (window.electron && window.electron.openExternal) {
+        console.log('[GoogleConnect] Opening in external browser via electron.openExternal');
+        await window.electron.openExternal(data.auth_url);
       } else {
         // Fallback for web
+        console.log('[GoogleConnect] Opening in new window (fallback)');
         window.open(data.auth_url, '_blank');
       }
+      
+      console.log('[GoogleConnect] Browser opened, starting polling...');
 
       // Poll for connection status
       const pollInterval = setInterval(async () => {
         try {
-          // Try to get user email from a test endpoint
-          const testResponse = await axios.get(`${API_URL}/api/v2/google/status`, {
-            params: { email: 'test@gmail.com' }
-          });
-
-          // If we get a valid response, check for actual connection
-          // This is a simplified polling - in production, you'd want a better mechanism
-          const storedEmail = localStorage.getItem('google_user_email');
-          if (storedEmail) {
-            const statusResponse = await axios.get(`${API_URL}/api/v2/google/status`, {
-              params: { email: storedEmail }
-            });
-
-            if (statusResponse.data.connected) {
-              setConnected(true);
-              setUserEmail(statusResponse.data.email);
-              setScopes(statusResponse.data.scopes || []);
-              setLoading(false);
-              clearInterval(pollInterval);
-            }
+          // Check all connected accounts by calling status without email
+          const statusResponse = await axios.get(`${API_URL}/api/v2/google/status`);
+          
+          // If connected, the backend returns the connected account
+          if (statusResponse.data.connected && statusResponse.data.email) {
+            setConnected(true);
+            setUserEmail(statusResponse.data.email);
+            setScopes(statusResponse.data.scopes || []);
+            
+            // Store email locally for future checks
+            localStorage.setItem('google_user_email', statusResponse.data.email);
+            
+            toast.success(`Connected to ${statusResponse.data.email}!`);
+            setLoading(false);
+            clearInterval(pollInterval);
           }
         } catch (err) {
-          // Continue polling
+          // Continue polling if error
+          console.log('Polling...', err.message);
         }
       }, 2000);
 
@@ -127,10 +147,11 @@ export function GoogleConnect() {
       let result;
       switch (serviceName) {
         case 'Gmail':
-          result = await axios.get(`${API_URL}/api/v2/google/gmail/recent`, {
+          // Correct endpoint: /api/v2/google/messages
+          result = await axios.get(`${API_URL}/api/v2/google/messages`, {
             params: { email: userEmail, max_results: 1 }
           });
-          toast.success(`Gmail works! Found ${result.data.emails?.length || 0} recent emails`);
+          toast.success(`Gmail works! Found ${result.data.messages?.length || 0} recent emails`);
           setServiceStatus(prev => ({ ...prev, Gmail: 'working' }));
           break;
         
@@ -143,21 +164,23 @@ export function GoogleConnect() {
           break;
         
         case 'Sheets':
-          // Test by getting user's spreadsheets (if endpoint exists)
-          toast.success('Sheets access is configured');
+          // Sheets access is configured (no test endpoint without spreadsheet ID)
+          toast.success('Sheets access is configured and ready');
           setServiceStatus(prev => ({ ...prev, Sheets: 'working' }));
           break;
         
         case 'Docs':
-          toast.success('Docs access is configured');
+          // Docs access is configured (no test endpoint without document ID)
+          toast.success('Docs access is configured and ready');
           setServiceStatus(prev => ({ ...prev, Docs: 'working' }));
           break;
         
         case 'YouTube':
+          // Correct parameter: q (not query)
           result = await axios.get(`${API_URL}/api/v2/google/youtube/search`, {
-            params: { email: userEmail, query: 'test', max_results: 1 }
+            params: { email: userEmail, q: 'test', max_results: 1 }
           });
-          toast.success('YouTube works! Search is functional');
+          toast.success(`YouTube works! Found ${result.data.videos?.length || 0} videos`);
           setServiceStatus(prev => ({ ...prev, YouTube: 'working' }));
           break;
         
@@ -166,7 +189,8 @@ export function GoogleConnect() {
       }
     } catch (err) {
       console.error(`Failed to test ${serviceName}:`, err);
-      toast.error(`${serviceName} test failed: ${err.response?.data?.detail || err.message}`);
+      const errorDetail = err.response?.data?.detail || err.message;
+      toast.error(`${serviceName} test failed: ${errorDetail}`);
       setServiceStatus(prev => ({ ...prev, [serviceName]: 'error' }));
     } finally {
       setTestingService(null);

@@ -15,6 +15,9 @@ contextBridge.exposeInMainWorld('electron', {
   // Open URL in external browser
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   
+  // Open Settings window
+  openSettings: () => ipcRenderer.invoke('open-settings'),
+  
   // Memory management functions
   memory: {
     // Profile
@@ -36,6 +39,8 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.invoke('memory:add-message', { role, content, sessionId }),
     getRecentMessages: (count, sessionId) => 
       ipcRenderer.invoke('memory:get-recent-messages', { count, sessionId }),
+    getAllSessions: () => ipcRenderer.invoke('memory:get-all-sessions'),
+    getSessionById: (sessionId) => ipcRenderer.invoke('memory:get-session-by-id', sessionId),
     clearSession: (sessionId) => ipcRenderer.invoke('memory:clear-session', sessionId),
     
     // Preferences
@@ -63,4 +68,5 @@ contextBridge.exposeInMainWorld('electron', {
 // Also expose as electronAPI for compatibility
 contextBridge.exposeInMainWorld('electronAPI', {
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  openSettings: () => ipcRenderer.invoke('open-settings'),
 });
