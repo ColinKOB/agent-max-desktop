@@ -19,8 +19,8 @@ export async function generateConversationSummary(thoughts) {
 
     // Build conversation text from thoughts
     const conversationText = thoughts
-      .map(t => typeof t === 'string' ? t : t.text || t.message || '')
-      .filter(t => t.length > 0)
+      .map((t) => (typeof t === 'string' ? t : t.text || t.message || ''))
+      .filter((t) => t.length > 0)
       .join('\n');
 
     // If conversation is too short, create a simple summary
@@ -36,7 +36,7 @@ export async function generateConversationSummary(thoughts) {
       },
       body: JSON.stringify({
         conversation: conversationText,
-        max_words: 5
+        max_words: 5,
       }),
     });
 
@@ -47,7 +47,6 @@ export async function generateConversationSummary(thoughts) {
 
     const data = await response.json();
     return data.summary || generateFallbackSummary(conversationText);
-
   } catch (error) {
     console.error('[Summary] Error generating summary:', error);
     return generateFallbackSummary(thoughts);
@@ -60,18 +59,54 @@ export async function generateConversationSummary(thoughts) {
  * @returns {string} - Simple 5-word summary
  */
 function generateFallbackSummary(content) {
-  const text = Array.isArray(content) 
-    ? content.map(t => typeof t === 'string' ? t : t.text || t.message || '').join(' ')
+  const text = Array.isArray(content)
+    ? content.map((t) => (typeof t === 'string' ? t : t.text || t.message || '')).join(' ')
     : String(content);
 
   // Extract meaningful words (skip common words)
-  const skipWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should', 'could', 'may', 'might', 'must', 'can']);
-  
+  const skipWords = new Set([
+    'the',
+    'a',
+    'an',
+    'and',
+    'or',
+    'but',
+    'in',
+    'on',
+    'at',
+    'to',
+    'for',
+    'of',
+    'with',
+    'by',
+    'from',
+    'is',
+    'was',
+    'are',
+    'were',
+    'been',
+    'be',
+    'have',
+    'has',
+    'had',
+    'do',
+    'does',
+    'did',
+    'will',
+    'would',
+    'should',
+    'could',
+    'may',
+    'might',
+    'must',
+    'can',
+  ]);
+
   const words = text
     .toLowerCase()
     .replace(/[^\w\s]/g, ' ')
     .split(/\s+/)
-    .filter(w => w.length > 2 && !skipWords.has(w))
+    .filter((w) => w.length > 2 && !skipWords.has(w))
     .slice(0, 5);
 
   if (words.length >= 3) {
@@ -81,13 +116,13 @@ function generateFallbackSummary(content) {
   }
 
   // Ultimate fallback - use timestamp
-  const timestamp = new Date().toLocaleTimeString('en-US', { 
-    hour: 'numeric', 
-    minute: '2-digit' 
+  const timestamp = new Date().toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
   });
   return `Chat ${timestamp}`;
 }
 
 export default {
-  generateConversationSummary
+  generateConversationSummary,
 };

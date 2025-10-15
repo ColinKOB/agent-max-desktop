@@ -31,9 +31,9 @@ export default function ChatHistory() {
 
   useEffect(() => {
     if (searchQuery) {
-      const filtered = conversations.filter(conv => {
+      const filtered = conversations.filter((conv) => {
         const messages = conv.messages || [];
-        return messages.some(msg => 
+        return messages.some((msg) =>
           msg.content.toLowerCase().includes(searchQuery.toLowerCase())
         );
       });
@@ -56,27 +56,28 @@ export default function ChatHistory() {
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
+
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
   const getConversationSummary = (messages) => {
     if (!messages || messages.length === 0) return 'Empty conversation';
-    
+
     // Find first user message
-    const firstUserMessage = messages.find(m => m.role === 'user');
+    const firstUserMessage = messages.find((m) => m.role === 'user');
     if (firstUserMessage) {
-      return firstUserMessage.content.slice(0, 100) + 
-             (firstUserMessage.content.length > 100 ? '...' : '');
+      return (
+        firstUserMessage.content.slice(0, 100) +
+        (firstUserMessage.content.length > 100 ? '...' : '')
+      );
     }
-    
-    return messages[0].content.slice(0, 100) + 
-           (messages[0].content.length > 100 ? '...' : '');
+
+    return messages[0].content.slice(0, 100) + (messages[0].content.length > 100 ? '...' : '');
   };
 
   const detectGoogleServiceUsage = (messages) => {
@@ -85,15 +86,19 @@ export default function ChatHistory() {
       calendar: false,
       youtube: false,
       sheets: false,
-      docs: false
+      docs: false,
     };
 
-    messages.forEach(msg => {
+    messages.forEach((msg) => {
       const content = msg.content.toLowerCase();
       if (content.includes('email') || content.includes('gmail') || content.includes('inbox')) {
         services.gmail = true;
       }
-      if (content.includes('calendar') || content.includes('event') || content.includes('meeting')) {
+      if (
+        content.includes('calendar') ||
+        content.includes('event') ||
+        content.includes('meeting')
+      ) {
         services.calendar = true;
       }
       if (content.includes('youtube') || content.includes('video')) {
@@ -126,7 +131,7 @@ export default function ChatHistory() {
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
-          
+
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -155,8 +160,8 @@ export default function ChatHistory() {
             filteredConversations.map((conv, index) => {
               const isSelected = selectedConversation?.id === conv.id;
               const services = detectGoogleServiceUsage(conv.messages || []);
-              const hasGoogleServices = Object.values(services).some(v => v);
-              
+              const hasGoogleServices = Object.values(services).some((v) => v);
+
               return (
                 <div
                   key={conv.id || index}
@@ -179,9 +184,30 @@ export default function ChatHistory() {
                     </div>
                     {hasGoogleServices && (
                       <div className="flex gap-1">
-                        {services.gmail && <span className="text-xs px-1 bg-red-900 text-red-300 rounded" title="Used Gmail">G</span>}
-                        {services.calendar && <span className="text-xs px-1 bg-blue-900 text-blue-300 rounded" title="Used Calendar">C</span>}
-                        {services.youtube && <span className="text-xs px-1 bg-red-900 text-red-300 rounded" title="Used YouTube">Y</span>}
+                        {services.gmail && (
+                          <span
+                            className="text-xs px-1 bg-red-900 text-red-300 rounded"
+                            title="Used Gmail"
+                          >
+                            G
+                          </span>
+                        )}
+                        {services.calendar && (
+                          <span
+                            className="text-xs px-1 bg-blue-900 text-blue-300 rounded"
+                            title="Used Calendar"
+                          >
+                            C
+                          </span>
+                        )}
+                        {services.youtube && (
+                          <span
+                            className="text-xs px-1 bg-red-900 text-red-300 rounded"
+                            title="Used YouTube"
+                          >
+                            Y
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -204,7 +230,7 @@ export default function ChatHistory() {
                 {selectedConversation.messages?.length || 0} messages
               </p>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {selectedConversation.messages?.map((msg, index) => (
                 <div
@@ -213,39 +239,37 @@ export default function ChatHistory() {
                     msg.role === 'user' ? 'flex-row-reverse' : ''
                   }`}
                 >
-                  <div className={`p-2 rounded-full ${
-                    msg.role === 'user' 
-                      ? 'bg-blue-600' 
-                      : 'bg-gray-700'
-                  }`}>
+                  <div
+                    className={`p-2 rounded-full ${
+                      msg.role === 'user' ? 'bg-blue-600' : 'bg-gray-700'
+                    }`}
+                  >
                     {msg.role === 'user' ? (
                       <User className="w-4 h-4" />
                     ) : (
                       <Bot className="w-4 h-4" />
                     )}
                   </div>
-                  
-                  <div className={`flex-1 ${
-                    msg.role === 'user' ? 'text-right' : ''
-                  }`}>
+
+                  <div className={`flex-1 ${msg.role === 'user' ? 'text-right' : ''}`}>
                     <p className="text-xs text-gray-500 mb-1">
                       {msg.role === 'user' ? 'You' : 'Agent Max'}
                     </p>
-                    <div className={`inline-block p-3 rounded-lg ${
-                      msg.role === 'user'
-                        ? 'bg-blue-900 text-blue-100'
-                        : 'bg-gray-800 text-gray-100'
-                    }`}>
-                      <pre className="whitespace-pre-wrap text-sm font-normal">
-                        {msg.content}
-                      </pre>
-                      
+                    <div
+                      className={`inline-block p-3 rounded-lg ${
+                        msg.role === 'user'
+                          ? 'bg-blue-900 text-blue-100'
+                          : 'bg-gray-800 text-gray-100'
+                      }`}
+                    >
+                      <pre className="whitespace-pre-wrap text-sm font-normal">{msg.content}</pre>
+
                       {/* Show if this message triggered Google services */}
                       {msg.metadata?.google_services_used && (
                         <div className="mt-2 pt-2 border-t border-gray-600">
                           <p className="text-xs text-gray-400">Used Google Services:</p>
                           <div className="flex gap-2 mt-1">
-                            {msg.metadata.google_services_used.map(service => (
+                            {msg.metadata.google_services_used.map((service) => (
                               <span key={service} className="text-xs px-2 py-1 bg-gray-700 rounded">
                                 {service}
                               </span>
@@ -253,7 +277,7 @@ export default function ChatHistory() {
                           </div>
                         </div>
                       )}
-                      
+
                       {/* Show any error info */}
                       {msg.error && (
                         <div className="mt-2 pt-2 border-t border-red-600">

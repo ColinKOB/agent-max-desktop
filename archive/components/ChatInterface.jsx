@@ -43,10 +43,9 @@ export default function ChatInterface() {
         content: 'Message received and processed by Agent Max.',
         timestamp: new Date().toISOString(),
       };
-      
+
       addMessage(agentMessage);
       await conversationAPI.addMessage('assistant', agentMessage.content, sessionId);
-      
     } catch (error) {
       console.error('Failed to send message:', error);
       toast.error('Failed to send message');
@@ -78,26 +77,21 @@ export default function ChatInterface() {
           messages.map((message, idx) => (
             <div
               key={idx}
-              className={cn(
-                "flex",
-                message.role === 'user' ? "justify-end" : "justify-start"
-              )}
+              className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}
             >
               <div
                 className={cn(
-                  "max-w-[70%] rounded-lg px-4 py-3",
+                  'max-w-[70%] rounded-lg px-4 py-3',
                   message.role === 'user'
-                    ? "bg-blue-500 text-white"
-                    : "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
                 )}
               >
                 <p className="whitespace-pre-wrap break-words">{message.content}</p>
                 <p
                   className={cn(
-                    "text-xs mt-1",
-                    message.role === 'user'
-                      ? "text-blue-100"
-                      : "text-gray-500 dark:text-gray-400"
+                    'text-xs mt-1',
+                    message.role === 'user' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
                   )}
                 >
                   {message.timestamp && format(new Date(message.timestamp), 'HH:mm')}
@@ -127,11 +121,7 @@ export default function ChatInterface() {
             disabled={!input.trim() || sending}
             className="btn-primary px-4"
           >
-            {sending ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Send className="w-5 h-5" />
-            )}
+            {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
           </button>
         </div>
       </div>

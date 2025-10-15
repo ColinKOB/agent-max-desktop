@@ -27,9 +27,7 @@ export default function ProfileCard() {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {name || 'Guest User'}
             </h2>
-            {greeting && (
-              <p className="text-gray-600 dark:text-gray-400 mt-1">{greeting}</p>
-            )}
+            {greeting && <p className="text-gray-600 dark:text-gray-400 mt-1">{greeting}</p>}
           </div>
         </div>
       </div>
@@ -46,15 +44,17 @@ export default function ProfileCard() {
         <div className="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
           <Calendar className="w-6 h-6 mx-auto text-green-500 mb-2" />
           <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-            {temporal_info?.last_seen ? (() => {
-              try {
-                const date = new Date(temporal_info.last_seen);
-                if (isNaN(date.getTime())) return 'Never';
-                return formatDistanceToNow(date, { addSuffix: true });
-              } catch {
-                return 'Never';
-              }
-            })() : 'Never'}
+            {temporal_info?.last_seen
+              ? (() => {
+                  try {
+                    const date = new Date(temporal_info.last_seen);
+                    if (isNaN(date.getTime())) return 'Never';
+                    return formatDistanceToNow(date, { addSuffix: true });
+                  } catch {
+                    return 'Never';
+                  }
+                })()
+              : 'Never'}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Last Seen</p>
         </div>

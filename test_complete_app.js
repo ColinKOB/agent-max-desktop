@@ -2,7 +2,7 @@
 /**
  * Complete Desktop App System Test
  * Tests all components: Electron, React, API connectivity, Memory system, UI components
- * 
+ *
  * Usage:
  *   cd /Users/colinobrien/Desktop/Coding\ Projects/agent-max-desktop
  *   node test_complete_app.js
@@ -35,7 +35,9 @@ const results = {
 // Helper functions
 function printHeader(text) {
   console.log(`\n${colors.bright}${colors.blue}${'='.repeat(70)}${colors.reset}`);
-  console.log(`${colors.bright}${colors.blue}${text.padStart((70 + text.length) / 2).padEnd(70)}${colors.reset}`);
+  console.log(
+    `${colors.bright}${colors.blue}${text.padStart((70 + text.length) / 2).padEnd(70)}${colors.reset}`
+  );
   console.log(`${colors.bright}${colors.blue}${'='.repeat(70)}${colors.reset}\n`);
 }
 
@@ -44,8 +46,8 @@ function printSection(name) {
 }
 
 function printTest(name, passed, details = '') {
-  const status = passed 
-    ? `${colors.green}✓ PASS${colors.reset}` 
+  const status = passed
+    ? `${colors.green}✓ PASS${colors.reset}`
     : `${colors.red}✗ FAIL${colors.reset}`;
   console.log(`${status} ${name}`);
   if (details) {
@@ -90,7 +92,7 @@ function test(name, func, critical = true) {
 // ============================================
 
 function testNodeVersion() {
-  const version = process.version;
+  const { version } = process;
   const major = parseInt(version.slice(1).split('.')[0]);
   const passed = major >= 18;
   const details = `Node ${version}${!passed ? ' (Need Node 18+)' : ''}`;
@@ -111,16 +113,16 @@ function testPackageJson() {
 function testNodeModules() {
   const nodeModulesPath = path.join(__dirname, 'node_modules');
   const exists = fs.existsSync(nodeModulesPath);
-  
+
   if (!exists) {
     return [false, 'Run: npm install'];
   }
-  
+
   // Count installed packages
-  const packages = fs.readdirSync(nodeModulesPath).filter(f => 
-    !f.startsWith('.') && f !== '.bin'
-  );
-  
+  const packages = fs
+    .readdirSync(nodeModulesPath)
+    .filter((f) => !f.startsWith('.') && f !== '.bin');
+
   return [true, `${packages.length} packages installed`];
 }
 
@@ -133,7 +135,7 @@ function testAllDependencies() {
   const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
   const allDeps = {
     ...pkg.dependencies,
-    ...pkg.devDependencies
+    ...pkg.devDependencies,
   };
 
   const required = [
@@ -148,11 +150,11 @@ function testAllDependencies() {
     'vite',
   ];
 
-  const missing = required.filter(dep => !allDeps[dep]);
+  const missing = required.filter((dep) => !allDeps[dep]);
 
   const passed = missing.length === 0;
-  const details = passed 
-    ? `All ${required.length} required dependencies listed` 
+  const details = passed
+    ? `All ${required.length} required dependencies listed`
     : `Missing: ${missing.join(', ')}`;
   return [passed, details];
 }
@@ -176,57 +178,51 @@ function testElectronStructure() {
   }
 
   const passed = missing.length === 0;
-  const details = passed 
-    ? `All ${Object.keys(files).length} Electron files present` 
+  const details = passed
+    ? `All ${Object.keys(files).length} Electron files present`
     : `Missing: ${missing.join(', ')}`;
   return [passed, details];
 }
 
 function testReactStructure() {
   const dirs = ['src/components', 'src/pages', 'src/services', 'src/store', 'src/styles'];
-  
-  const missing = dirs.filter(dir => 
-    !fs.existsSync(path.join(__dirname, dir))
-  );
+
+  const missing = dirs.filter((dir) => !fs.existsSync(path.join(__dirname, dir)));
 
   const passed = missing.length === 0;
-  const details = passed 
-    ? 'React structure complete' 
-    : `Missing: ${missing.join(', ')}`;
+  const details = passed ? 'React structure complete' : `Missing: ${missing.join(', ')}`;
   return [passed, details];
 }
 
 function testComponents() {
   const componentsDir = path.join(__dirname, 'src/components');
-  
+
   if (!fs.existsSync(componentsDir)) {
     return [false, 'src/components/ not found'];
   }
 
-  const components = fs.readdirSync(componentsDir).filter(f => 
-    f.endsWith('.jsx') || f.endsWith('.js')
-  );
+  const components = fs
+    .readdirSync(componentsDir)
+    .filter((f) => f.endsWith('.jsx') || f.endsWith('.js'));
 
   const required = ['FloatBar.jsx', 'ProfileCard.jsx', 'ErrorBoundary.jsx'];
-  const missing = required.filter(comp => !components.includes(comp));
+  const missing = required.filter((comp) => !components.includes(comp));
 
   const passed = missing.length === 0;
-  const details = passed 
-    ? `${components.length} components found` 
+  const details = passed
+    ? `${components.length} components found`
     : `Missing: ${missing.join(', ')}`;
   return [passed, details];
 }
 
 function testPages() {
   const pagesDir = path.join(__dirname, 'src/pages');
-  
+
   if (!fs.existsSync(pagesDir)) {
     return [false, 'src/pages/ not found'];
   }
 
-  const pages = fs.readdirSync(pagesDir).filter(f => 
-    f.endsWith('.jsx') || f.endsWith('.js')
-  );
+  const pages = fs.readdirSync(pagesDir).filter((f) => f.endsWith('.jsx') || f.endsWith('.js'));
 
   const details = `${pages.length} pages found`;
   return [true, details];
@@ -234,57 +230,51 @@ function testPages() {
 
 function testServices() {
   const servicesDir = path.join(__dirname, 'src/services');
-  
+
   if (!fs.existsSync(servicesDir)) {
     return [false, 'src/services/ not found'];
   }
 
   const required = ['api.js', 'memory.js'];
-  const missing = required.filter(file => 
-    !fs.existsSync(path.join(servicesDir, file))
-  );
+  const missing = required.filter((file) => !fs.existsSync(path.join(servicesDir, file)));
 
   const passed = missing.length === 0;
-  const details = passed 
-    ? 'API and Memory services present' 
-    : `Missing: ${missing.join(', ')}`;
+  const details = passed ? 'API and Memory services present' : `Missing: ${missing.join(', ')}`;
   return [passed, details];
 }
 
 function testStore() {
   const storePath = path.join(__dirname, 'src/store/useStore.js');
-  
+
   if (!fs.existsSync(storePath)) {
     return [false, 'useStore.js not found'];
   }
 
   const content = fs.readFileSync(storePath, 'utf8');
-  
+
   // Check for key store features
   const hasZustand = content.includes('zustand');
   const hasState = content.includes('create(');
-  
+
   const passed = hasZustand && hasState;
-  const details = passed 
-    ? 'Zustand store configured' 
+  const details = passed
+    ? 'Zustand store configured'
     : `Zustand: ${hasZustand}, State: ${hasState}`;
   return [passed, details];
 }
 
 function testStyles() {
   const stylesDir = path.join(__dirname, 'src/styles');
-  
+
   if (!fs.existsSync(stylesDir)) {
     return [false, 'src/styles/ not found'];
   }
 
-  const styles = fs.readdirSync(stylesDir).filter(f => f.endsWith('.css'));
+  const styles = fs.readdirSync(stylesDir).filter((f) => f.endsWith('.css'));
   const hasGlobals = styles.includes('globals.css');
 
   const passed = hasGlobals;
-  const details = passed 
-    ? `${styles.length} style files found` 
-    : 'globals.css missing';
+  const details = passed ? `${styles.length} style files found` : 'globals.css missing';
   return [passed, details];
 }
 
@@ -304,9 +294,7 @@ function testConfigFiles() {
   }
 
   const passed = missing.length === 0;
-  const details = passed 
-    ? 'All config files present' 
-    : `Missing: ${missing.join(', ')}`;
+  const details = passed ? 'All config files present' : `Missing: ${missing.join(', ')}`;
   return [passed, details];
 }
 
@@ -316,18 +304,18 @@ function testConfigFiles() {
 
 function testFloatBarComponent() {
   const filePath = path.join(__dirname, 'src/components/FloatBar.jsx');
-  
+
   if (!fs.existsSync(filePath)) {
     return [false, 'FloatBar.jsx not found'];
   }
 
   const content = fs.readFileSync(filePath, 'utf8');
-  
+
   const features = {
-    'useState': content.includes('useState'),
-    'useEffect': content.includes('useEffect'),
-    'axios': content.includes('axios') || content.includes('api'),
-    'modes': content.includes('mini') || content.includes('bar') || content.includes('card'),
+    useState: content.includes('useState'),
+    useEffect: content.includes('useEffect'),
+    axios: content.includes('axios') || content.includes('api'),
+    modes: content.includes('mini') || content.includes('bar') || content.includes('card'),
   };
 
   const missing = Object.entries(features)
@@ -335,25 +323,23 @@ function testFloatBarComponent() {
     .map(([name, _]) => name);
 
   const passed = missing.length === 0;
-  const details = passed 
-    ? 'All features present' 
-    : `Missing: ${missing.join(', ')}`;
+  const details = passed ? 'All features present' : `Missing: ${missing.join(', ')}`;
   return [passed, details];
 }
 
 function testAPIService() {
   const filePath = path.join(__dirname, 'src/services/api.js');
-  
+
   if (!fs.existsSync(filePath)) {
     return [false, 'api.js not found'];
   }
 
   const content = fs.readFileSync(filePath, 'utf8');
-  
+
   const features = {
-    'axios': content.includes('axios'),
-    'baseURL': content.includes('baseURL') || content.includes('BASE_URL'),
-    'endpoints': content.includes('export') && content.includes('API'),
+    axios: content.includes('axios'),
+    baseURL: content.includes('baseURL') || content.includes('BASE_URL'),
+    endpoints: content.includes('export') && content.includes('API'),
   };
 
   const missing = Object.entries(features)
@@ -361,45 +347,43 @@ function testAPIService() {
     .map(([name, _]) => name);
 
   const passed = missing.length === 0;
-  const details = passed 
-    ? 'API service configured' 
-    : `Missing: ${missing.join(', ')}`;
+  const details = passed ? 'API service configured' : `Missing: ${missing.join(', ')}`;
   return [passed, details];
 }
 
 function testMemoryService() {
   const filePath = path.join(__dirname, 'src/services/memory.js');
-  
+
   if (!fs.existsSync(filePath)) {
     return [false, 'memory.js not found'];
   }
 
   const content = fs.readFileSync(filePath, 'utf8');
-  
+
   const hasElectron = content.includes('electron') || content.includes('window.electron');
   const hasMemory = content.includes('memory');
 
   const passed = hasElectron && hasMemory;
-  const details = passed 
-    ? 'Memory service configured' 
+  const details = passed
+    ? 'Memory service configured'
     : `Electron: ${hasElectron}, Memory: ${hasMemory}`;
   return [passed, details];
 }
 
 function testPreloadExposure() {
   const filePath = path.join(__dirname, 'electron/preload.cjs');
-  
+
   if (!fs.existsSync(filePath)) {
     return [false, 'preload.cjs not found'];
   }
 
   const content = fs.readFileSync(filePath, 'utf8');
-  
+
   const features = {
-    'contextBridge': content.includes('contextBridge'),
-    'electron': content.includes("exposeInMainWorld('electron'"),
-    'memory': content.includes('memory:'),
-    'openExternal': content.includes('openExternal'),
+    contextBridge: content.includes('contextBridge'),
+    electron: content.includes("exposeInMainWorld('electron'"),
+    memory: content.includes('memory:'),
+    openExternal: content.includes('openExternal'),
   };
 
   const missing = Object.entries(features)
@@ -407,21 +391,19 @@ function testPreloadExposure() {
     .map(([name, _]) => name);
 
   const passed = missing.length === 0;
-  const details = passed 
-    ? 'All APIs exposed' 
-    : `Missing: ${missing.join(', ')}`;
+  const details = passed ? 'All APIs exposed' : `Missing: ${missing.join(', ')}`;
   return [passed, details];
 }
 
 function testMainIPCHandlers() {
   const filePath = path.join(__dirname, 'electron/main.cjs');
-  
+
   if (!fs.existsSync(filePath)) {
     return [false, 'main.cjs not found'];
   }
 
   const content = fs.readFileSync(filePath, 'utf8');
-  
+
   const handlers = [
     'resize-window',
     'open-external',
@@ -430,11 +412,9 @@ function testMainIPCHandlers() {
     'memory:get-facts',
   ];
 
-  const registered = handlers.filter(handler => 
-    content.includes(`ipcMain.handle('${handler}'`)
-  );
+  const registered = handlers.filter((handler) => content.includes(`ipcMain.handle('${handler}'`));
 
-  const passed = registered.length >= 3;  // At least 3 handlers
+  const passed = registered.length >= 3; // At least 3 handlers
   const details = `${registered.length}/${handlers.length} key handlers registered`;
   return [passed, details];
 }
@@ -455,14 +435,14 @@ function testAPIConnectivity() {
 
     const req = http.request(options, (res) => {
       let data = '';
-      res.on('data', (chunk) => { data += chunk; });
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
       res.on('end', () => {
         try {
           const json = JSON.parse(data);
           const passed = res.statusCode === 200 && json.status === 'healthy';
-          const details = passed 
-            ? `API running: ${json.service}` 
-            : `Status: ${res.statusCode}`;
+          const details = passed ? `API running: ${json.service}` : `Status: ${res.statusCode}`;
           resolve([passed, details]);
         } catch (error) {
           resolve([false, 'Invalid JSON response']);
@@ -495,15 +475,17 @@ function testAPIEndpoints() {
 
     const req = http.request(options, (res) => {
       let data = '';
-      res.on('data', (chunk) => { data += chunk; });
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
       res.on('end', () => {
         try {
           const json = JSON.parse(data);
           const endpoints = json.endpoints || {};
           const count = Object.keys(endpoints).length;
           const passed = count >= 5;
-          const details = passed 
-            ? `${count} endpoint groups registered` 
+          const details = passed
+            ? `${count} endpoint groups registered`
             : `Only ${count} endpoints found`;
           resolve([passed, details]);
         } catch (error) {
@@ -557,7 +539,7 @@ function testProfileAPI() {
 function testChatAPI() {
   return new Promise((resolve) => {
     const postData = JSON.stringify({ message: 'test' });
-    
+
     const options = {
       hostname: 'localhost',
       port: 8000,
@@ -572,12 +554,12 @@ function testChatAPI() {
 
     const req = http.request(options, (res) => {
       let data = '';
-      res.on('data', (chunk) => { data += chunk; });
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
       res.on('end', () => {
         const passed = res.statusCode === 200;
-        const details = passed 
-          ? 'Chat endpoint responding' 
-          : `Status: ${res.statusCode}`;
+        const details = passed ? 'Chat endpoint responding' : `Status: ${res.statusCode}`;
         resolve([passed, details]);
       });
     });
@@ -602,18 +584,18 @@ function testChatAPI() {
 
 async function main() {
   printHeader('Agent Max Desktop - Complete System Test');
-  
+
   console.log(`${colors.bright}Testing All Components${colors.reset}`);
   console.log(`Time: ${new Date().toLocaleString()}`);
   console.log(`Path: ${__dirname}\n`);
-  
+
   // Environment Tests
   printSection('Environment & Dependencies');
   test('Node.js Version', testNodeVersion);
   test('package.json', testPackageJson);
   test('node_modules Installed', testNodeModules);
   test('All Dependencies', testAllDependencies);
-  
+
   // File Structure Tests
   printSection('File Structure');
   test('Electron Structure', testElectronStructure);
@@ -624,7 +606,7 @@ async function main() {
   test('Store Configuration', testStore);
   test('Styles Directory', testStyles);
   test('Config Files', testConfigFiles);
-  
+
   // Component Validation Tests
   printSection('Component Validation');
   test('FloatBar Component', testFloatBarComponent);
@@ -632,10 +614,10 @@ async function main() {
   test('Memory Service', testMemoryService);
   test('Preload API Exposure', testPreloadExposure);
   test('Main IPC Handlers', testMainIPCHandlers);
-  
+
   // API Connectivity Tests
   printSection('API Connectivity');
-  const apiRunning = await new Promise(resolve => {
+  const apiRunning = await new Promise((resolve) => {
     testAPIConnectivity().then(([passed, details]) => {
       printTest('API Server Running', passed, details);
       results.total++;
@@ -648,9 +630,9 @@ async function main() {
       resolve(passed);
     });
   });
-  
+
   if (apiRunning) {
-    await new Promise(resolve => {
+    await new Promise((resolve) => {
       testAPIEndpoints().then(([passed, details]) => {
         printTest('API Endpoints', passed, details);
         results.total++;
@@ -663,8 +645,8 @@ async function main() {
         resolve();
       });
     });
-    
-    await new Promise(resolve => {
+
+    await new Promise((resolve) => {
       testProfileAPI().then(([passed, details]) => {
         printTest('Profile API', passed, details);
         results.total++;
@@ -677,8 +659,8 @@ async function main() {
         resolve();
       });
     });
-    
-    await new Promise(resolve => {
+
+    await new Promise((resolve) => {
       testChatAPI().then(([passed, details]) => {
         printTest('Chat API', passed, details);
         results.total++;
@@ -692,62 +674,68 @@ async function main() {
       });
     });
   } else {
-    console.log(`\n${colors.yellow}⚠️  Skipping API endpoint tests (server not running)${colors.reset}`);
-    console.log(`${colors.yellow}   Start API with: cd ../Agent_Max && python agent_max.py --api${colors.reset}`);
+    console.log(
+      `\n${colors.yellow}⚠️  Skipping API endpoint tests (server not running)${colors.reset}`
+    );
+    console.log(
+      `${colors.yellow}   Start API with: cd ../Agent_Max && python agent_max.py --api${colors.reset}`
+    );
   }
-  
+
   // Summary
   printHeader('Test Summary');
-  
+
   const { total, passed, failed, warnings } = results;
-  const passRate = total > 0 ? (passed / total * 100).toFixed(1) : 0;
-  
+  const passRate = total > 0 ? ((passed / total) * 100).toFixed(1) : 0;
+
   console.log(`Total Tests:  ${total}`);
   console.log(`${colors.green}Passed:       ${passed}${colors.reset}`);
   console.log(`${colors.red}Failed:       ${failed}${colors.reset}`);
   console.log(`${colors.yellow}Warnings:     ${warnings}${colors.reset}`);
   console.log(`Pass Rate:    ${passRate}%\n`);
-  
+
   if (failed > 0) {
     console.log(`${colors.bright}${colors.red}Critical Failures:${colors.reset}`);
-    results.errors.forEach(error => {
+    results.errors.forEach((error) => {
       console.log(`  ${colors.red}✗${colors.reset} ${error}`);
     });
     console.log();
   }
-  
+
   if (warnings > 0) {
     console.log(`${colors.bright}${colors.yellow}Warnings (Non-Critical):${colors.reset}`);
-    results.warnings_list.forEach(warning => {
+    results.warnings_list.forEach((warning) => {
       console.log(`  ${colors.yellow}⚠${colors.reset} ${warning}`);
     });
     console.log();
   }
-  
+
   // Recommendations
   if (failed > 0 || warnings > 0) {
     console.log(`${colors.bright}${colors.yellow}Recommendations:${colors.reset}`);
-    
-    if (results.errors.some(e => e.includes('node_modules'))) {
+
+    if (results.errors.some((e) => e.includes('node_modules'))) {
       console.log(`  1. Install dependencies:`);
       console.log(`     ${colors.blue}npm install${colors.reset}`);
     }
-    
+
     if (!apiRunning) {
       console.log(`  2. Start the API server:`);
-      console.log(`     ${colors.blue}cd ../Agent_Max && source venv/bin/activate && python agent_max.py --api${colors.reset}`);
+      console.log(
+        `     ${colors.blue}cd ../Agent_Max && source venv/bin/activate && python agent_max.py --api${colors.reset}`
+      );
     }
-    
-    if (results.errors.some(e => e.includes('Missing'))) {
+
+    if (results.errors.some((e) => e.includes('Missing'))) {
       console.log(`  3. Check file structure - some files may be missing`);
     }
-    
+
     console.log();
   }
-  
+
   // Exit code
   const exitCode = failed === 0 ? 0 : 1;
-  
+
   if (exitCode === 0) {
     console.log(`${colors.green}${colors.bright}✓ All critical tests passed!${colors.reset}`);
     if (warnings > 0) {
@@ -758,14 +746,16 @@ async function main() {
     console.log(`  2. Test the UI and features`);
     console.log(`  3. Connect Google services in Settings\n`);
   } else {
-    console.log(`${colors.red}${colors.bright}✗ ${failed} critical test(s) failed. Fix issues above.${colors.reset}\n`);
+    console.log(
+      `${colors.red}${colors.bright}✗ ${failed} critical test(s) failed. Fix issues above.${colors.reset}\n`
+    );
   }
-  
+
   process.exit(exitCode);
 }
 
 // Run tests
-main().catch(error => {
+main().catch((error) => {
   console.error(`${colors.red}Fatal error: ${error.message}${colors.reset}`);
   process.exit(1);
 });

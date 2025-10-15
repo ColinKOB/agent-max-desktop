@@ -22,35 +22,35 @@ export const ErrorCodes = {
   NETWORK_ERROR: 'NETWORK_ERROR',
   API_ERROR: 'API_ERROR',
   TIMEOUT: 'TIMEOUT',
-  
+
   // Auth errors
   UNAUTHORIZED: 'UNAUTHORIZED',
   FORBIDDEN: 'FORBIDDEN',
   SESSION_EXPIRED: 'SESSION_EXPIRED',
-  
+
   // Validation errors
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   INVALID_INPUT: 'INVALID_INPUT',
-  
+
   // Storage errors
   STORAGE_ERROR: 'STORAGE_ERROR',
   QUOTA_EXCEEDED: 'QUOTA_EXCEEDED',
-  
+
   // Google Service errors
   GOOGLE_AUTH_ERROR: 'GOOGLE_AUTH_ERROR',
   GOOGLE_API_ERROR: 'GOOGLE_API_ERROR',
-  
+
   // General errors
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
-  OPERATION_FAILED: 'OPERATION_FAILED'
+  OPERATION_FAILED: 'OPERATION_FAILED',
 };
 
 // Error severity levels
 export const ErrorSeverity = {
-  LOW: 'low',      // Log only, don't show to user
+  LOW: 'low', // Log only, don't show to user
   MEDIUM: 'medium', // Show non-intrusive notification
-  HIGH: 'high',    // Show prominent error message
-  CRITICAL: 'critical' // Show error dialog, may require restart
+  HIGH: 'high', // Show prominent error message
+  CRITICAL: 'critical', // Show error dialog, may require restart
 };
 
 // Error logger
@@ -68,7 +68,7 @@ class ErrorLogger {
       stack: error.stack,
       context,
       severity,
-      details: error.details
+      details: error.details,
     };
 
     // Add to memory
@@ -81,14 +81,14 @@ class ErrorLogger {
     console.error(`[${context}] ${severity.toUpperCase()}:`, error.message, {
       code: error.code,
       details: error.details,
-      stack: error.stack
+      stack: error.stack,
     });
 
     // Send to external service in production (e.g., Sentry)
     if (process.env.NODE_ENV === 'production' && window.Sentry) {
       window.Sentry.captureException(error, {
         level: severity,
-        tags: { context, code: error.code }
+        tags: { context, code: error.code },
       });
     }
 
@@ -118,7 +118,7 @@ export const handleError = (error, context = 'Application', options = {}) => {
     showToast = true,
     severity = ErrorSeverity.MEDIUM,
     fallbackMessage = 'An error occurred',
-    retry = null
+    retry = null,
   } = options;
 
   // Log the error
@@ -126,7 +126,7 @@ export const handleError = (error, context = 'Application', options = {}) => {
 
   // Determine user message
   let userMessage = fallbackMessage;
-  
+
   if (error.code) {
     switch (error.code) {
       case ErrorCodes.NETWORK_ERROR:
@@ -163,7 +163,7 @@ export const handleError = (error, context = 'Application', options = {}) => {
       case ErrorSeverity.MEDIUM:
         toast.error(userMessage, {
           duration: 4000,
-          position: 'bottom-right'
+          position: 'bottom-right',
         });
         break;
       case ErrorSeverity.HIGH:
@@ -173,8 +173,8 @@ export const handleError = (error, context = 'Application', options = {}) => {
           style: {
             background: '#ff4444',
             color: '#fff',
-            fontWeight: 'bold'
-          }
+            fontWeight: 'bold',
+          },
         });
         break;
       case ErrorSeverity.CRITICAL:
@@ -197,8 +197,8 @@ export const handleError = (error, context = 'Application', options = {}) => {
           retry();
         },
         style: {
-          cursor: 'pointer'
-        }
+          cursor: 'pointer',
+        },
       });
     }, 1000);
   }
@@ -206,7 +206,7 @@ export const handleError = (error, context = 'Application', options = {}) => {
   return {
     handled: true,
     message: userMessage,
-    code: error.code || ErrorCodes.UNKNOWN_ERROR
+    code: error.code || ErrorCodes.UNKNOWN_ERROR,
   };
 };
 
@@ -235,12 +235,12 @@ export const withErrorHandler = (fn, context = 'Operation', options = {}) => {
 export const parseApiError = (error) => {
   if (error.response) {
     // Server responded with error
-    const status = error.response.status;
-    const data = error.response.data;
-    
+    const { status } = error.response;
+    const { data } = error.response;
+
     let code = ErrorCodes.API_ERROR;
     let message = data.message || data.error || 'API request failed';
-    
+
     switch (status) {
       case 401:
         code = ErrorCodes.UNAUTHORIZED;
@@ -255,7 +255,7 @@ export const parseApiError = (error) => {
         message = 'Server error. Please try again later.';
         break;
     }
-    
+
     return new AppError(message, code, { status, data });
   } else if (error.request) {
     // No response received
@@ -266,10 +266,7 @@ export const parseApiError = (error) => {
     );
   } else {
     // Request setup error
-    return new AppError(
-      error.message || 'Failed to make request',
-      ErrorCodes.UNKNOWN_ERROR
-    );
+    return new AppError(error.message || 'Failed to make request', ErrorCodes.UNKNOWN_ERROR);
   }
 };
 
@@ -284,5 +281,5 @@ export default {
   AppError,
   ErrorCodes,
   ErrorSeverity,
-  errorLogger
+  errorLogger,
 };

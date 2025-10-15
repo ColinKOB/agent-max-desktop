@@ -1,5 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
-import { Camera, X, Play, Copy, Minimize2, GripVertical, RotateCcw, Loader2, Sparkles, ArrowRight, Wifi, WifiOff, Wrench, Settings as SettingsIcon } from 'lucide-react';
+import {
+  Camera,
+  Send,
+  Minimize2,
+  ChevronRight,
+  Trash2,
+  Play,
+  Zap,
+  WifiOff,
+  Wrench,
+  Settings as SettingsIcon,
+  GripVertical,
+  RotateCcw,
+  ArrowRight,
+  Loader2,
+  Copy,
+} from 'lucide-react';
 import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
 import telemetry from '../services/telemetry';
@@ -28,20 +44,20 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   const inputRef = useRef(null);
   const thoughtsEndRef = useRef(null);
   const { profile, addToHistory } = useStore();
-  
+
   // Simple connection status check (can be enhanced later)
   const [isConnected, setIsConnected] = useState(true);
-  
+
   // Semantic suggestions
   const [similarGoals, setSimilarGoals] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  
+
   // Streaming state for fake streaming effect
   const [isStreaming, setIsStreaming] = useState(false);
-  
+
   // Tools panel
   const [showToolsPanel, setShowToolsPanel] = useState(false);
-  
+
   // Open Settings window
   const handleOpenSettings = async () => {
     try {
@@ -53,7 +69,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         toast.error('Settings window unavailable. Please restart the app.');
         console.error('[FloatBar] electron.openSettings not available:', {
           electron: !!window.electron,
-          electronAPI: !!window.electronAPI
+          electronAPI: !!window.electronAPI,
         });
       }
     } catch (error) {
@@ -61,43 +77,47 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       toast.error('Failed to open settings window');
     }
   };
-  
+
   // Helper: Stream text word-by-word for better perceived speed
   const streamText = async (text, callback) => {
     const words = text.split(' ');
     let displayed = '';
-    
+
     for (let i = 0; i < words.length; i++) {
       displayed += words[i] + (i < words.length - 1 ? ' ' : '');
       callback(displayed);
-      await new Promise(resolve => setTimeout(resolve, 40)); // 40ms per word
+      await new Promise((resolve) => setTimeout(resolve, 40)); // 40ms per word
     }
   };
-  
+
   const getFriendlyThinking = (step) => {
     const friendlyMap = {
-      'analyze_image': 'Looking at your screen',
-      'execute_command': 'Running command',
-      'respond': 'Thinking',
-      'done': 'Complete'
+      analyze_image: 'Looking at your screen',
+      execute_command: 'Running command',
+      respond: 'Thinking',
+      done: 'Complete',
     };
-    
+
     // Try pre-defined map first
     if (friendlyMap[step.action]) {
       return friendlyMap[step.action];
     }
-    
+
     // Shorten technical phrases
     const reasoning = step.reasoning || '';
     const lowerReasoning = reasoning.toLowerCase();
-    
+
     if (lowerReasoning.includes('check if') || lowerReasoning.includes('checking')) {
       return 'Checking tools';
     }
     if (lowerReasoning.includes('weather') || lowerReasoning.includes('temperature')) {
       return 'Getting weather';
     }
-    if (lowerReasoning.includes('restaurant') || lowerReasoning.includes('food') || lowerReasoning.includes('place')) {
+    if (
+      lowerReasoning.includes('restaurant') ||
+      lowerReasoning.includes('food') ||
+      lowerReasoning.includes('place')
+    ) {
       return 'Finding places';
     }
     if (lowerReasoning.includes('screenshot') || lowerReasoning.includes('screen')) {
@@ -109,7 +129,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     if (lowerReasoning.includes('search') || lowerReasoning.includes('find')) {
       return 'Searching';
     }
-    
+
     // Default: Show first 5 words
     const words = reasoning.split(' ').slice(0, 5);
     return words.join(' ') + (reasoning.split(' ').length > 5 ? '...' : '');
@@ -132,7 +152,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           console.log('[FloatBar] Resizing to MINI mode: 68x68');
           await window.electron.resizeWindow(68, 68);
         }
-        
+
         // Debug: Check actual window size after resize
         if (window.electron?.getBounds) {
           const bounds = await window.electron.getBounds();
@@ -147,17 +167,21 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   // Only adjusts position, not size - runs periodically to catch manual drags
   useEffect(() => {
     const checkBoundaries = async () => {
-      if (window.electron?.getBounds && window.electron?.setBounds && window.electron?.getScreenSize) {
+      if (
+        window.electron?.getBounds &&
+        window.electron?.setBounds &&
+        window.electron?.getScreenSize
+      ) {
         try {
           const bounds = await window.electron.getBounds();
           const screenSize = await window.electron.getScreenSize();
-          
+
           let { x, y, width, height } = bounds;
           let changed = false;
 
           // Ensure window doesn't go off-screen (with 10px margin)
           const margin = 10;
-          
+
           // Right edge
           if (x + width > screenSize.width - margin) {
             x = screenSize.width - width - margin;
@@ -192,10 +216,10 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
 
     // Check boundaries periodically (every 2 seconds to catch drags)
     const interval = setInterval(checkBoundaries, 2000);
-    
+
     // Also check immediately on state changes
     checkBoundaries();
-    
+
     return () => clearInterval(interval);
   }, [isOpen, isBar, isMini]);
 
@@ -232,10 +256,10 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   // SSE streaming (placeholder - connect to your backend)
   useEffect(() => {
     if (!isOpen) return;
-    
+
     // Example SSE connection - adjust URL to your backend
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    
+
     // Uncomment when backend streaming endpoint is ready
     /*
     const es = new EventSource(`${apiUrl}/v1/chat/stream`, { withCredentials: true });
@@ -269,7 +293,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     try {
       if (window.electron?.takeScreenshot) {
         const screenshot = await window.electron.takeScreenshot();
-        
+
         if (screenshot && screenshot.base64) {
           // Store base64 image data
           setScreenshotData(screenshot.base64);
@@ -288,109 +312,113 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
 
   const handleSendMessage = async () => {
     const trimmedMessage = message.trim();
-    
+
     // Validation
     if (!trimmedMessage) return;
-    
+
     if (trimmedMessage.length > 2000) {
       toast.error('Message too long (max 2000 characters)');
       return;
     }
-    
+
     if (trimmedMessage.length < 2) {
       toast.error('Message too short (min 2 characters)');
       return;
     }
-    
+
     const userMessage = trimmedMessage;
-    
+
     // Add user message to UI
     setThoughts((prev) => [...prev, { type: 'user', content: userMessage }]);
     setMessage('');
     setIsThinking(true);
     setProgress(0);
-    
+
     try {
       // ⚡ CHECK CACHE FIRST (instant response for repeated questions!)
       console.log('[Cache] Checking cache for:', userMessage);
       const cachedResult = responseCache.getCachedResponse(userMessage);
       console.log('[Cache] Cache result:', cachedResult);
-      
+
       if (cachedResult && cachedResult.cached && !screenshotData) {
         // INSTANT CACHED RESPONSE
         console.log('[Cache] Using cached response - instant!');
-        
+
         // Show cached indicator
-        setThoughts((prev) => [...prev, { 
-          type: 'thought', 
-          content: cachedResult.cacheType === 'exact' 
-            ? '⚡ Instant (exact match)' 
-            : `⚡ Instant (${(cachedResult.similarity * 100).toFixed(0)}% similar)` 
-        }]);
-        
+        setThoughts((prev) => [
+          ...prev,
+          {
+            type: 'thought',
+            content:
+              cachedResult.cacheType === 'exact'
+                ? '⚡ Instant (exact match)'
+                : `⚡ Instant (${(cachedResult.similarity * 100).toFixed(0)}% similar)`,
+          },
+        ]);
+
         // Add cached AI response with streaming effect
         setIsStreaming(true);
         const responseIndex = thoughts.length;
         setThoughts((prev) => [...prev, { type: 'agent', content: '' }]);
-        
+
         await streamText(cachedResult.response, (partial) => {
           setThoughts((prev) => {
             const newThoughts = [...prev];
             if (newThoughts.length > 0) {
               newThoughts[newThoughts.length - 1] = {
                 type: 'agent',
-                content: partial
+                content: partial,
               };
             }
             return newThoughts;
           });
         });
-        
+
         setIsStreaming(false);
         setIsThinking(false);
         setProgress(0);
-        
+
         toast.success('⚡ Instant response from cache!', { duration: 2000 });
         return; // Exit early - no API call needed!
       }
-      
+
       // Import services
       const memoryService = (await import('../services/memory')).default;
       const { chatAPI } = await import('../services/api');
-      
+
       // Initialize if needed
       if (!memoryService.initialized) {
         await memoryService.initialize();
       }
-      
+
       // 🔥 SAVE USER MESSAGE TO MEMORY (for conversation history)
       await memoryService.addMessage('user', userMessage);
-      
+
       // Show thinking indicator
       setProgress(20);
-      const thinkingMsg = screenshotData 
-        ? 'Looking at your screenshot...' 
-        : 'Thinking...';
+      const thinkingMsg = screenshotData ? 'Looking at your screenshot...' : 'Thinking...';
       setThoughts((prev) => [...prev, { type: 'thought', content: thinkingMsg }]);
-      
+
       // Build user context (now includes recent messages!)
       setProgress(40);
       const userContext = await memoryService.buildContextForAPI();
-      
+
       // 🔥 SEMANTIC CONTEXT: If we have high-similarity past conversations, include them
-      if (similarGoals.length > 0 && similarGoals[0].similarity >= 0.70) {
+      if (similarGoals.length > 0 && similarGoals[0].similarity >= 0.7) {
         const topMatch = similarGoals[0];
-        console.log(`[Semantic] High similarity (${(topMatch.similarity * 100).toFixed(0)}%) - Adding context`);
-        
+        console.log(
+          `[Semantic] High similarity (${(topMatch.similarity * 100).toFixed(0)}%) - Adding context`
+        );
+
         // Add semantic context to user_context
         userContext.semantic_context = {
           similar_question: topMatch.goal,
           similarity_score: topMatch.similarity,
           was_successful: topMatch.success,
-          note: 'User asked something very similar before. Use this for context.'
+          note: 'User asked something very similar before. Use this for context.',
         };
       }
-      
+
       // Send to autonomous API with streaming for real-time updates
       setProgress(60);
       let allSteps = [];
@@ -398,7 +426,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       let factsExtracted = null;
       let executionTime = 0;
       let currentStepThought = null;
-      
+
       await chatAPI.sendMessageStream(userMessage, userContext, screenshotData, (event) => {
         // Handle different event types
         if (event.message) {
@@ -418,14 +446,17 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         } else if (event.step_number !== undefined) {
           // Step event - show the step in real-time!
           const stepText = `Step ${event.step_number}: ${event.reasoning}`;
-          setThoughts((prev) => [...prev, { 
-            type: 'thought', 
-            content: stepText,
-            step: event
-          }]);
+          setThoughts((prev) => [
+            ...prev,
+            {
+              type: 'thought',
+              content: stepText,
+              step: event,
+            },
+          ]);
           allSteps.push(event);
           currentStepThought = null;
-          setProgress(60 + (event.step_number * 5)); // Increment progress
+          setProgress(60 + event.step_number * 5); // Increment progress
         } else if (event.final_response) {
           // Done event
           finalResponse = event.final_response;
@@ -438,19 +469,19 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           throw new Error(event.error);
         }
       });
-      
+
       setIsConnected(true); // Mark as connected on successful response
-      
+
       const aiResponse = finalResponse || 'No response';
-      
+
       // 🔥 SAVE AI RESPONSE TO MEMORY (for conversation history)
       await memoryService.addMessage('assistant', aiResponse);
-      
+
       // 🔥 EXTRACT AND SAVE FACTS if provided by backend
       if (factsExtracted && Object.keys(factsExtracted).length > 0) {
         const facts = factsExtracted;
         console.log('[Memory] Facts extracted by backend:', facts);
-        
+
         // Save each category of facts
         let factCount = 0;
         for (const [category, data] of Object.entries(facts)) {
@@ -466,24 +497,27 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
             }
           }
         }
-        
+
         if (factCount > 0) {
           toast.success(`Learned ${factCount} new thing${factCount > 1 ? 's' : ''} about you!`, {
-            duration: 3000
+            duration: 3000,
           });
         }
       }
-      
+
       // Add AI response to UI with streaming effect
       setIsStreaming(true);
-      
+
       // Add placeholder for streaming response
       const responseIndex = thoughts.length;
-      setThoughts((prev) => [...prev, { 
-        type: 'agent', 
-        content: ''
-      }]);
-      
+      setThoughts((prev) => [
+        ...prev,
+        {
+          type: 'agent',
+          content: '',
+        },
+      ]);
+
       // Stream the response word-by-word
       await streamText(aiResponse, (partial) => {
         setThoughts((prev) => {
@@ -492,28 +526,25 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           if (newThoughts.length > 0) {
             newThoughts[newThoughts.length - 1] = {
               type: 'agent',
-              content: partial
+              content: partial,
             };
           }
           return newThoughts;
         });
       });
-      
+
       setIsStreaming(false);
-      
+
       // 📊 LOG TELEMETRY (async, non-blocking)
       try {
-        const executionTimeMs = executionTime 
-          ? Math.round(executionTime * 1000) 
-          : null;
-        
+        const executionTimeMs = executionTime ? Math.round(executionTime * 1000) : null;
+
         telemetry.logInteraction({
           userPrompt: userMessage,
-          aiResponse: aiResponse,
-          aiThoughts: allSteps?.find(s => s.reasoning)?.reasoning || null,
-          toolsUsed: allSteps
-            ?.filter(s => s.action && s.action !== 'respond')
-            .map(s => s.action) || [],
+          aiResponse,
+          aiThoughts: allSteps?.find((s) => s.reasoning)?.reasoning || null,
+          toolsUsed:
+            allSteps?.filter((s) => s.action && s.action !== 'respond').map((s) => s.action) || [],
           success: true,
           executionTime: executionTimeMs,
           model: 'autonomous-agent',
@@ -522,29 +553,29 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
             stepsCount: allSteps?.length || 0,
             factsExtracted: factsExtracted ? Object.keys(factsExtracted).length : 0,
             semanticContextUsed: !!userContext.semantic_context,
-            streamingEnabled: true
-          }
+            streamingEnabled: true,
+          },
         });
         console.log('[Telemetry] Interaction logged successfully');
       } catch (telemetryError) {
         // Never let telemetry break the user experience
         console.warn('[Telemetry] Failed to log (non-critical):', telemetryError);
       }
-      
+
       // 💾 SAVE TO CACHE (for instant future responses)
       try {
         responseCache.cacheResponse(userMessage, aiResponse, {
           success: true,
-          executionTime: executionTime,
+          executionTime,
           model: 'autonomous-agent',
-          stepsCount: allSteps?.length || 0
+          stepsCount: allSteps?.length || 0,
         });
         console.log('[Cache] Response saved to cache');
       } catch (cacheError) {
         // Never let cache break the user experience
         console.warn('[Cache] Failed to save (non-critical):', cacheError);
       }
-      
+
       // Steps are now shown in real-time via streaming!
       // Show execution summary
       const summaryInfo = [];
@@ -557,28 +588,30 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       if (screenshotData) {
         summaryInfo.push('Screenshot was analyzed');
       }
-      
+
       if (summaryInfo.length > 0) {
-        setThoughts((prev) => [...prev, { 
-          type: 'debug', 
-          content: summaryInfo.join('\n')
-        }]);
+        setThoughts((prev) => [
+          ...prev,
+          {
+            type: 'debug',
+            content: summaryInfo.join('\n'),
+          },
+        ]);
       }
-      
+
       // Clear screenshot after sending
       if (screenshotData) {
         setScreenshotData(null);
         console.log('[FloatBar] Screenshot sent and cleared');
       }
-      
+
       setIsThinking(false);
       setProgress(0);
-      
     } catch (error) {
       console.error('[FloatBar] Message send error:', error);
       setIsThinking(false);
       setProgress(0);
-      
+
       // 📊 LOG ERROR TO TELEMETRY
       try {
         telemetry.logError(error, {
@@ -587,21 +620,22 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
             userPrompt: trimmedMessage,
             hasScreenshot: !!screenshotData,
             errorCode: error.code,
-            statusCode: error.response?.status
-          }
+            statusCode: error.response?.status,
+          },
         });
         console.log('[Telemetry] Error logged');
       } catch (telemetryError) {
         console.warn('[Telemetry] Failed to log error (non-critical):', telemetryError);
       }
-      
+
       // Generate helpful error message based on error type
       let errorMsg = 'Failed to send message';
       let errorDetail = '';
-      
+
       if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
         errorMsg = 'Cannot connect to backend';
-        errorDetail = 'The API server is not running. Please start it with:\ncd Agent_Max && ./start_api.sh';
+        errorDetail =
+          'The API server is not running. Please start it with:\ncd Agent_Max && ./start_api.sh';
         setIsConnected(false); // Update connection status
       } else if (error.response?.status === 404) {
         errorMsg = 'API endpoint not found';
@@ -612,7 +646,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         errorDetail = detail || 'Internal server error';
         // Add full error details for debugging
         if (error.response?.data) {
-          errorDetail += '\n\nFull error: ' + JSON.stringify(error.response.data, null, 2);
+          errorDetail += `\n\nFull error: ${JSON.stringify(error.response.data, null, 2)}`;
         }
       } else if (error.message?.includes('timeout') || error.code === 'ECONNABORTED') {
         errorMsg = 'Request timed out';
@@ -627,27 +661,30 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         errorDetail = error.message || 'Unknown error occurred';
         // Add full error for debugging
         if (error.response) {
-          errorDetail += '\n\nStatus: ' + error.response.status;
-          errorDetail += '\nData: ' + JSON.stringify(error.response.data, null, 2);
+          errorDetail += `\n\nStatus: ${error.response.status}`;
+          errorDetail += `\nData: ${JSON.stringify(error.response.data, null, 2)}`;
         }
       }
-      
+
       // Add error to thoughts
-      setThoughts((prev) => [...prev, { 
-        type: 'error', 
-        content: `${errorMsg}${errorDetail ? '\n' + errorDetail : ''}` 
-      }]);
-      
+      setThoughts((prev) => [
+        ...prev,
+        {
+          type: 'error',
+          content: `${errorMsg}${errorDetail ? `\n${errorDetail}` : ''}`,
+        },
+      ]);
+
       // Clear screenshot on error
       setScreenshotData(null);
-      
+
       // Show toast notification
-      toast.error(errorMsg, { 
+      toast.error(errorMsg, {
         duration: 5000,
         style: {
           background: '#ef4444',
           color: '#fff',
-        }
+        },
       });
     }
   };
@@ -658,7 +695,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         console.log('[FloatBar] Generating conversation summary...');
         const summary = await generateConversationSummary(thoughts);
         console.log('[FloatBar] Summary generated:', summary);
-        
+
         // Add to history
         addToHistory(summary, thoughts);
         toast.success(`Saved: "${summary}"`);
@@ -667,7 +704,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         // Still clear the conversation even if summary fails
       }
     }
-    
+
     // Clear conversation
     setThoughts([]);
     setProgress(0);
@@ -720,24 +757,24 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   // Convert URLs in text to clickable links
   const renderMessageWithLinks = (text) => {
     if (!text) return null;
-    
+
     // URL regex pattern
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const parts = text.split(urlRegex);
-    
+
     return parts.map((part, index) => {
       if (part.match(urlRegex)) {
         return (
-          <a 
+          <a
             key={index}
-            href={part} 
-            target="_blank" 
+            href={part}
+            target="_blank"
             rel="noopener noreferrer"
             style={{
               color: '#7aa2ff',
               textDecoration: 'underline',
               cursor: 'pointer',
-              wordBreak: 'break-all'
+              wordBreak: 'break-all',
             }}
             onClick={(e) => {
               e.preventDefault();
@@ -776,7 +813,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         toast.error('Please enter your name');
         return;
       }
-      
+
       if (window.electron?.memory) {
         console.log('Saving onboarding data:', { ...welcomeData, name: trimmedName });
         await window.electron.memory.setName(trimmedName);
@@ -790,7 +827,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         toast.error('Memory system not available');
         return;
       }
-      
+
       toast.success(`Welcome, ${trimmedName}!`);
       onWelcomeComplete({ ...welcomeData, name: trimmedName });
     } catch (error) {
@@ -831,7 +868,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       try {
         const { semanticAPI } = await import('../services/api');
         const response = await semanticAPI.findSimilar(message.trim(), 0.7, 3);
-        
+
         if (response.data.similar_goals && response.data.similar_goals.length > 0) {
           setSimilarGoals(response.data.similar_goals);
           setShowSuggestions(true);
@@ -858,7 +895,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         console.log('[FloatBar Debug] Mini pill styles:', {
           background: styles.background,
           backdropFilter: styles.backdropFilter,
-          webkitBackdropFilter: styles.webkitBackdropFilter
+          webkitBackdropFilter: styles.webkitBackdropFilter,
         });
       }
     }
@@ -867,7 +904,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   // Mini square mode - fully collapsed
   if (isMini) {
     return (
-      <div 
+      <div
         className="amx-root amx-mini amx-mini-draggable"
         onClick={(e) => {
           // Click logo to expand
@@ -881,11 +918,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           });
         }}
       >
-        <img 
-          src="/AgentMaxLogo.png" 
-          alt="Agent Max" 
-          className="amx-mini-logo"
-        />
+        <img src="/AgentMaxLogo.png" alt="Agent Max" className="amx-mini-logo" />
         {/* Drag handle visual indicator - 6-dot grid (2×3) */}
         <div className="amx-drag-handle-mini">
           <span className="amx-dot"></span>
@@ -960,29 +993,29 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button 
-              className="amx-icon-btn" 
-              onClick={() => setShowToolsPanel(true)} 
+            <button
+              className="amx-icon-btn"
+              onClick={() => setShowToolsPanel(true)}
               title="Tools: Screen Control & Agents"
             >
               <Wrench className="w-4 h-4" />
             </button>
-            <button 
-              className="amx-icon-btn" 
-              onClick={handleOpenSettings} 
+            <button
+              className="amx-icon-btn"
+              onClick={handleOpenSettings}
               title="Settings & History"
             >
               <SettingsIcon className="w-4 h-4" />
             </button>
-            <button 
-              className="amx-icon-btn" 
-              onClick={handleResetConversation} 
+            <button
+              className="amx-icon-btn"
+              onClick={handleResetConversation}
               title="Reset conversation"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
-            <button 
-              className="amx-icon-btn" 
+            <button
+              className="amx-icon-btn"
               onClick={() => {
                 console.log('[FloatBar] Card minimize clicked: Going to mini');
                 setIsOpen(false);
@@ -1003,7 +1036,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
                 <span className="amx-welcome-title">Welcome to Agent Max</span>
               </div>
               <div className="amx-welcome-subtitle">Let's set up your workspace</div>
-              
+
               <div className="amx-welcome-steps">
                 {/* Step 1: Name */}
                 {welcomeStep === 1 && (
@@ -1026,7 +1059,14 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
                   <div className="amx-welcome-step">
                     <label className="amx-welcome-label">What's your role?</label>
                     <div className="amx-welcome-options">
-                      {['Developer', 'Designer', 'Product Manager', 'Researcher', 'Writer', 'Other'].map((opt) => {
+                      {[
+                        'Developer',
+                        'Designer',
+                        'Product Manager',
+                        'Researcher',
+                        'Writer',
+                        'Other',
+                      ].map((opt) => {
                         const value = opt.toLowerCase().replace(' ', '_');
                         return (
                           <button
@@ -1047,8 +1087,16 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
                   <div className="amx-welcome-step">
                     <label className="amx-welcome-label">What will you use Agent Max for?</label>
                     <div className="amx-welcome-options">
-                      {['Code Development', 'Task Automation', 'Research & Analysis', 'Content Creation'].map((opt) => {
-                        const value = opt.toLowerCase().replace(/\s+&\s+/, '_').replace(/\s+/g, '_');
+                      {[
+                        'Code Development',
+                        'Task Automation',
+                        'Research & Analysis',
+                        'Content Creation',
+                      ].map((opt) => {
+                        const value = opt
+                          .toLowerCase()
+                          .replace(/\s+&\s+/, '_')
+                          .replace(/\s+/g, '_');
                         return (
                           <button
                             key={value}
@@ -1118,7 +1166,10 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
               {/* Progress dots */}
               <div className="amx-welcome-progress">
                 {[1, 2, 3, 4].map((step) => (
-                  <div key={step} className={`amx-welcome-dot ${step <= welcomeStep ? 'active' : ''}`} />
+                  <div
+                    key={step}
+                    className={`amx-welcome-dot ${step <= welcomeStep ? 'active' : ''}`}
+                  />
                 ))}
               </div>
             </div>
@@ -1130,13 +1181,12 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           ) : (
             <>
               {thoughts.map((thought, i) => (
-                <div 
-                  key={i} 
-                  className={`amx-message amx-message-${thought.type}`}
-                >
+                <div key={i} className={`amx-message amx-message-${thought.type}`}>
                   {thought.type === 'user' && <span className="amx-message-label">You</span>}
                   {thought.type === 'agent' && <span className="amx-message-label">Agent Max</span>}
-                  {thought.type === 'thought' && <span className="amx-thought-label">Thinking</span>}
+                  {thought.type === 'thought' && (
+                    <span className="amx-thought-label">Thinking</span>
+                  )}
                   {thought.type === 'debug' && <span className="amx-debug-label">Debug Info</span>}
                   {thought.type === 'error' && <span className="amx-error-label">Error</span>}
                   <div className="amx-message-content" style={{ whiteSpace: 'pre-wrap' }}>
@@ -1190,35 +1240,37 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
             maxLength={2000}
             disabled={isThinking}
           />
-          <button 
-            className="amx-send" 
-            onClick={handleScreenshot} 
+          <button
+            className="amx-send"
+            onClick={handleScreenshot}
             title="Take Screenshot"
             disabled={isThinking}
             style={{ position: 'relative' }}
           >
             <Camera className="w-4 h-4" />
             {screenshotData && (
-              <span style={{
-                position: 'absolute',
-                top: '-4px',
-                right: '-4px',
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                background: '#7aa2ff',
-                border: '2px solid rgba(28, 28, 32, 0.95)',
-              }} />
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  background: '#7aa2ff',
+                  border: '2px solid rgba(28, 28, 32, 0.95)',
+                }}
+              />
             )}
           </button>
         </div>
-        
+
         {/* Semantic suggestions */}
         {showSuggestions && similarGoals.length > 0 && (
           <div className="amx-suggestions">
             <div className="amx-suggestions-label">Similar past conversations:</div>
             {similarGoals.map((goal, idx) => (
-              <div 
+              <div
                 key={idx}
                 className="amx-suggestion-item"
                 onClick={() => {
@@ -1236,27 +1288,31 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
             ))}
           </div>
         )}
-        
+
         {screenshotData && (
-          <div style={{ 
-            fontSize: '11px', 
-            color: 'rgba(122, 162, 255, 0.8)', 
-            textAlign: 'left',
-            padding: '4px 16px 0',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}>
+          <div
+            style={{
+              fontSize: '11px',
+              color: 'rgba(122, 162, 255, 0.8)',
+              textAlign: 'left',
+              padding: '4px 16px 0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
             Screenshot attached
           </div>
         )}
         {message.length > 1800 && (
-          <div style={{ 
-            fontSize: '11px', 
-            color: message.length > 2000 ? '#ff6b6b' : 'rgba(255,255,255,0.5)', 
-            textAlign: 'right',
-            padding: '4px 16px 0'
-          }}>
+          <div
+            style={{
+              fontSize: '11px',
+              color: message.length > 2000 ? '#ff6b6b' : 'rgba(255,255,255,0.5)',
+              textAlign: 'right',
+              padding: '4px 16px 0',
+            }}
+          >
             {message.length}/2000 characters
           </div>
         )}
@@ -1267,9 +1323,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         <div className="amx-modal">
           <div className="amx-modal-content">
             <h3 className="amx-modal-title">Execute Command?</h3>
-            <p className="amx-modal-text">
-              This will run the following command in your terminal:
-            </p>
+            <p className="amx-modal-text">This will run the following command in your terminal:</p>
             <code className="amx-modal-code">{currentCommand}</code>
             <div className="amx-modal-actions">
               <button onClick={() => setShowConfirmModal(false)} className="amx-btn-secondary">
@@ -1285,7 +1339,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
 
       {/* Tools Panel */}
       {showToolsPanel && (
-        <ToolsPanel 
+        <ToolsPanel
           onClose={() => setShowToolsPanel(false)}
           onLoadConversation={(conversation) => {
             // Load conversation messages into thoughts
@@ -1294,7 +1348,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
                 id: idx,
                 type: msg.role === 'user' ? 'user' : 'ai',
                 content: msg.content,
-                timestamp: msg.timestamp || new Date().toISOString()
+                timestamp: msg.timestamp || new Date().toISOString(),
               }));
               setThoughts(loadedThoughts);
               setShowToolsPanel(false);

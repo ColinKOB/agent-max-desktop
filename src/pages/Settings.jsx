@@ -1,5 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Moon, Sun, Zap, Info, Trash2, Globe, Monitor, Camera, MousePointer, CreditCard } from 'lucide-react';
+import {
+  Moon,
+  Sun,
+  Zap,
+  Info,
+  Trash2,
+  Globe,
+  Monitor,
+  Camera,
+  MousePointer,
+  CreditCard,
+} from 'lucide-react';
 import useStore from '../store/useStore';
 import { healthAPI, reconfigureAPI, screenAPI } from '../services/api';
 import apiConfigManager from '../config/apiConfig';
@@ -13,7 +24,7 @@ export default function Settings() {
   const [apiKey, setApiKey] = useState(apiConfigManager.getApiKey() || '');
   const [testing, setTesting] = useState(false);
   const [appVersion, setAppVersion] = useState('1.0.0');
-  
+
   // Screen Control state
   const [screenControlEnabled, setScreenControlEnabled] = useState(() => {
     return localStorage.getItem('screenControlEnabled') === 'true';
@@ -26,7 +37,7 @@ export default function Settings() {
     if (window.electron?.getAppVersion) {
       window.electron.getAppVersion().then(setAppVersion);
     }
-    
+
     // Load current config
     const config = apiConfigManager.getConfig();
     setApiUrl(config.baseURL);
@@ -38,7 +49,7 @@ export default function Settings() {
       // Reconfigure the API with new settings
       reconfigureAPI(apiUrl, apiKey || null);
       toast.success('API settings saved');
-      
+
       // Automatically test the new connection
       setTimeout(() => {
         handleTestConnection();
@@ -117,9 +128,7 @@ export default function Settings() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-100 mb-6">
-        Settings
-      </h1>
+      <h1 className="text-2xl font-bold text-gray-100 mb-6">Settings</h1>
 
       {/* Theme Settings */}
       <div className="card mb-6">
@@ -129,9 +138,7 @@ export default function Settings() {
           ) : (
             <Sun className="w-5 h-5 text-blue-400" />
           )}
-          <h2 className="text-lg font-bold text-gray-100">
-            Appearance
-          </h2>
+          <h2 className="text-lg font-bold text-gray-100">Appearance</h2>
         </div>
 
         <div className="space-y-4">
@@ -171,9 +178,7 @@ export default function Settings() {
       <div className="card mb-6">
         <div className="flex items-center space-x-2 mb-4">
           <Globe className="w-5 h-5 text-green-400" />
-          <h2 className="text-lg font-bold text-gray-100">
-            API Configuration
-          </h2>
+          <h2 className="text-lg font-bold text-gray-100">API Configuration</h2>
         </div>
 
         <div className="space-y-4">
@@ -224,9 +229,7 @@ export default function Settings() {
 
           <div className="flex items-center space-x-2 text-sm">
             <div
-              className={`w-2 h-2 rounded-full ${
-                apiConnected ? 'bg-green-500' : 'bg-red-500'
-              }`}
+              className={`w-2 h-2 rounded-full ${apiConnected ? 'bg-green-500' : 'bg-red-500'}`}
             />
             <span className="text-gray-600 dark:text-gray-400">
               {apiConnected ? 'Connected to API' : 'Not connected'}
@@ -239,9 +242,7 @@ export default function Settings() {
       <div className="card mb-6">
         <div className="flex items-center space-x-2 mb-4">
           <Monitor className="w-5 h-5 text-purple-400" />
-          <h2 className="text-lg font-bold text-gray-100">
-            Screen Control
-          </h2>
+          <h2 className="text-lg font-bold text-gray-100">Screen Control</h2>
         </div>
 
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
@@ -286,33 +287,44 @@ export default function Settings() {
               </button>
 
               {screenControlStatus && (
-                <div className={`p-4 rounded-lg ${
-                  screenControlStatus.available
-                    ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                    : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
-                }`}>
+                <div
+                  className={`p-4 rounded-lg ${
+                    screenControlStatus.available
+                      ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                      : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                  }`}
+                >
                   <div className="flex items-start space-x-2">
-                    <div className={`w-2 h-2 rounded-full mt-1 ${
-                      screenControlStatus.available ? 'bg-green-500' : 'bg-red-500'
-                    }`} />
+                    <div
+                      className={`w-2 h-2 rounded-full mt-1 ${
+                        screenControlStatus.available ? 'bg-green-500' : 'bg-red-500'
+                      }`}
+                    />
                     <div className="flex-1">
-                      <h4 className={`font-semibold ${
-                        screenControlStatus.available
-                          ? 'text-green-900 dark:text-green-300'
-                          : 'text-red-900 dark:text-red-300'
-                      }`}>
-                        {screenControlStatus.available ? '✅ Screen Control Available' : '❌ Screen Control Unavailable'}
+                      <h4
+                        className={`font-semibold ${
+                          screenControlStatus.available
+                            ? 'text-green-900 dark:text-green-300'
+                            : 'text-red-900 dark:text-red-300'
+                        }`}
+                      >
+                        {screenControlStatus.available
+                          ? '✅ Screen Control Available'
+                          : '❌ Screen Control Unavailable'}
                       </h4>
-                      <p className={`text-sm mt-1 ${
-                        screenControlStatus.available
-                          ? 'text-green-700 dark:text-green-400'
-                          : 'text-red-700 dark:text-red-400'
-                      }`}>
+                      <p
+                        className={`text-sm mt-1 ${
+                          screenControlStatus.available
+                            ? 'text-green-700 dark:text-green-400'
+                            : 'text-red-700 dark:text-red-400'
+                        }`}
+                      >
                         {screenControlStatus.message}
                       </p>
                       {!screenControlStatus.available && (
                         <p className="text-xs mt-2 text-gray-600 dark:text-gray-400">
-                          Note: macOS may require Screen Recording and Accessibility permissions in System Settings → Privacy & Security
+                          Note: macOS may require Screen Recording and Accessibility permissions in
+                          System Settings → Privacy & Security
                         </p>
                       )}
                     </div>
@@ -334,7 +346,9 @@ export default function Settings() {
                     onClick={async () => {
                       try {
                         const response = await screenAPI.getInfo();
-                        toast.success(`Screen: ${response.data.screen.resolution}`, { duration: 3000 });
+                        toast.success(`Screen: ${response.data.screen.resolution}`, {
+                          duration: 3000,
+                        });
                       } catch (error) {
                         toast.error('Failed to get screen info');
                       }
@@ -375,9 +389,7 @@ export default function Settings() {
       <div className="card mb-6">
         <div className="flex items-center space-x-2 mb-4">
           <CreditCard className="w-5 h-5 text-green-400" />
-          <h2 className="text-lg font-bold text-gray-100">
-            Subscription & Billing
-          </h2>
+          <h2 className="text-lg font-bold text-gray-100">Subscription & Billing</h2>
         </div>
         <SubscriptionManager />
       </div>
@@ -386,9 +398,7 @@ export default function Settings() {
       <div className="card mb-6">
         <div className="flex items-center space-x-2 mb-4">
           <Globe className="w-5 h-5 text-blue-400" />
-          <h2 className="text-lg font-bold text-gray-100">
-            Google Services
-          </h2>
+          <h2 className="text-lg font-bold text-gray-100">Google Services</h2>
         </div>
         <GoogleConnect />
       </div>
@@ -397,16 +407,12 @@ export default function Settings() {
       <div className="card mb-6">
         <div className="flex items-center space-x-2 mb-4">
           <Trash2 className="w-5 h-5 text-red-400" />
-          <h2 className="text-lg font-bold text-gray-100">
-            Data Management
-          </h2>
+          <h2 className="text-lg font-bold text-gray-100">Data Management</h2>
         </div>
 
         <div className="space-y-4">
           <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-            <h3 className="font-semibold text-red-900 dark:text-red-300 mb-2">
-              Clear Local Cache
-            </h3>
+            <h3 className="font-semibold text-red-900 dark:text-red-300 mb-2">Clear Local Cache</h3>
             <p className="text-sm text-red-700 dark:text-red-400 mb-3">
               This will remove all locally stored settings and preferences. The app will reload.
             </p>
@@ -424,17 +430,13 @@ export default function Settings() {
       <div className="card mb-6">
         <div className="flex items-center space-x-2 mb-4">
           <Info className="w-5 h-5 text-gray-400" />
-          <h2 className="text-lg font-bold text-gray-100">
-            About
-          </h2>
+          <h2 className="text-lg font-bold text-gray-100">About</h2>
         </div>
 
         <div className="space-y-3">
           <div className="flex justify-between">
             <span className="text-gray-600 dark:text-gray-400">App Version</span>
-            <span className="font-semibold text-gray-900 dark:text-gray-100">
-              {appVersion}
-            </span>
+            <span className="font-semibold text-gray-900 dark:text-gray-100">{appVersion}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600 dark:text-gray-400">Product</span>
@@ -444,9 +446,7 @@ export default function Settings() {
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600 dark:text-gray-400">System</span>
-            <span className="font-semibold text-gray-900 dark:text-gray-100">
-              Memory System V2
-            </span>
+            <span className="font-semibold text-gray-900 dark:text-gray-100">Memory System V2</span>
           </div>
         </div>
 

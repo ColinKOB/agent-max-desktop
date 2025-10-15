@@ -8,15 +8,18 @@ import axios from 'axios';
 
 // Simple UUID generator (no external dependency)
 function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
 
 const TELEMETRY_API = import.meta.env.VITE_TELEMETRY_API || 'http://localhost:8000';
-const TELEMETRY_ENABLED = typeof localStorage !== 'undefined' ? localStorage.getItem('telemetry_enabled') !== 'false' : true; // Opt-in by default
+const TELEMETRY_ENABLED =
+  typeof localStorage !== 'undefined'
+    ? localStorage.getItem('telemetry_enabled') !== 'false'
+    : true; // Opt-in by default
 const BATCH_SIZE = 10;
 const BATCH_INTERVAL = 5000; // 5 seconds
 
@@ -27,7 +30,7 @@ class TelemetryService {
     this.sessionId = generateUUID();
     this.batch = [];
     this.apiKey = import.meta.env.VITE_TELEMETRY_API_KEY || 'dev-key';
-    
+
     // Start batch sender
     if (this.enabled) {
       this.startBatchSender();
@@ -39,11 +42,11 @@ class TelemetryService {
    */
   getUserId() {
     if (typeof localStorage === 'undefined') {
-      return 'user_' + generateUUID();
+      return `user_${generateUUID()}`;
     }
     let userId = localStorage.getItem('telemetry_user_id');
     if (!userId) {
-      userId = 'user_' + generateUUID();
+      userId = `user_${generateUUID()}`;
       localStorage.setItem('telemetry_user_id', userId);
     }
     return userId;
@@ -57,7 +60,7 @@ class TelemetryService {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem('telemetry_enabled', enabled.toString());
     }
-    
+
     if (enabled && !this.batchInterval) {
       this.startBatchSender();
     } else if (!enabled && this.batchInterval) {
@@ -99,8 +102,8 @@ class TelemetryService {
         userAgent: navigator.userAgent,
         language: navigator.language,
         screenResolution: `${window.screen.width}x${window.screen.height}`,
-        ...data.metadata
-      }
+        ...data.metadata,
+      },
     };
 
     this.addToBatch(event);
@@ -126,12 +129,12 @@ class TelemetryService {
       context: {
         ...context,
         url: window.location?.href,
-        userAgent: navigator.userAgent
-      }
+        userAgent: navigator.userAgent,
+      },
     };
 
     this.addToBatch(event);
-    
+
     // Send critical errors immediately
     if (context.severity === 'critical') {
       this.sendBatch();
@@ -154,7 +157,7 @@ class TelemetryService {
       timestamp: new Date().toISOString(),
       metric,
       value,
-      unit
+      unit,
     };
 
     this.addToBatch(event);
@@ -174,7 +177,7 @@ class TelemetryService {
       sessionId: this.sessionId,
       timestamp: new Date().toISOString(),
       eventName,
-      properties
+      properties,
     };
 
     this.addToBatch(event);
@@ -203,22 +206,28 @@ class TelemetryService {
 
     try {
       // Fire and forget - don't wait for response
-      axios.post(`${TELEMETRY_API}/api/telemetry/batch`, {
-        events: eventsToSend
-      }, {
-        headers: {
-          'X-API-Key': this.apiKey,
-          'Content-Type': 'application/json'
-        },
-        timeout: 5000, // 5 second timeout
-        validateStatus: (status) => {
-          // Accept any status code - we don't want to throw on 401/500
-          return true;
-        }
-      }).catch(() => {
-        // Silently fail - don't interrupt user experience
-        // Don't log to avoid console spam in development
-      });
+      axios
+        .post(
+          `${TELEMETRY_API}/api/telemetry/batch`,
+          {
+            events: eventsToSend,
+          },
+          {
+            headers: {
+              'X-API-Key': this.apiKey,
+              'Content-Type': 'application/json',
+            },
+            timeout: 5000, // 5 second timeout
+            validateStatus: (status) => {
+              // Accept any status code - we don't want to throw on 401/500
+              return true;
+            },
+          }
+        )
+        .catch(() => {
+          // Silently fail - don't interrupt user experience
+          // Don't log to avoid console spam in development
+        });
     } catch (error) {
       // Silently fail - telemetry is optional
     }

@@ -1,5 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Mail, Calendar, FileText, Youtube, Sheet, CheckCircle, AlertCircle, ExternalLink, RefreshCw, TestTube } from 'lucide-react';
+import {
+  Mail,
+  Calendar,
+  FileText,
+  Youtube,
+  Sheet,
+  CheckCircle,
+  AlertCircle,
+  ExternalLink,
+  RefreshCw,
+  TestTube,
+} from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -28,7 +39,7 @@ export function GoogleConnect() {
         setConnected(true);
         setUserEmail(data.email);
         setScopes(data.scopes || []);
-        
+
         // Store in localStorage for this window
         localStorage.setItem('google_user_email', data.email);
       } else {
@@ -37,9 +48,9 @@ export function GoogleConnect() {
         if (storedEmail) {
           // Verify with backend
           const response = await axios.get(`${API_URL}/api/v2/google/status`, {
-            params: { email: storedEmail }
+            params: { email: storedEmail },
           });
-          
+
           if (response.data.connected) {
             setConnected(true);
             setUserEmail(response.data.email);
@@ -61,7 +72,7 @@ export function GoogleConnect() {
       // Get auth URL from backend
       console.log('[GoogleConnect] Fetching auth URL from:', `${API_URL}/api/v2/google/auth/url`);
       const { data } = await axios.get(`${API_URL}/api/v2/google/auth/url`);
-      console.log('[GoogleConnect] Auth URL received:', data.auth_url.substring(0, 100) + '...');
+      console.log('[GoogleConnect] Auth URL received:', `${data.auth_url.substring(0, 100)}...`);
 
       // Open system browser for OAuth
       if (window.electronAPI && window.electronAPI.openExternal) {
@@ -75,7 +86,7 @@ export function GoogleConnect() {
         console.log('[GoogleConnect] Opening in new window (fallback)');
         window.open(data.auth_url, '_blank');
       }
-      
+
       console.log('[GoogleConnect] Browser opened, starting polling...');
 
       // Poll for connection status
@@ -83,16 +94,16 @@ export function GoogleConnect() {
         try {
           // Check all connected accounts by calling status without email
           const statusResponse = await axios.get(`${API_URL}/api/v2/google/status`);
-          
+
           // If connected, the backend returns the connected account
           if (statusResponse.data.connected && statusResponse.data.email) {
             setConnected(true);
             setUserEmail(statusResponse.data.email);
             setScopes(statusResponse.data.scopes || []);
-            
+
             // Store email locally for future checks
             localStorage.setItem('google_user_email', statusResponse.data.email);
-            
+
             toast.success(`Connected to ${statusResponse.data.email}!`);
             setLoading(false);
             clearInterval(pollInterval);
@@ -108,7 +119,6 @@ export function GoogleConnect() {
         clearInterval(pollInterval);
         setLoading(false);
       }, 120000);
-
     } catch (err) {
       console.error('Failed to connect Google:', err);
       setError('Failed to start Google authentication. Please try again.');
@@ -119,7 +129,7 @@ export function GoogleConnect() {
   const disconnectGoogle = async () => {
     try {
       await axios.post(`${API_URL}/api/v2/google/disconnect`, null, {
-        params: { email: userEmail }
+        params: { email: userEmail },
       });
 
       setConnected(false);
@@ -142,48 +152,48 @@ export function GoogleConnect() {
     }
 
     setTestingService(serviceName);
-    
+
     try {
       let result;
       switch (serviceName) {
         case 'Gmail':
           // Correct endpoint: /api/v2/google/messages
           result = await axios.get(`${API_URL}/api/v2/google/messages`, {
-            params: { email: userEmail, max_results: 1 }
+            params: { email: userEmail, max_results: 1 },
           });
           toast.success(`Gmail works! Found ${result.data.messages?.length || 0} recent emails`);
-          setServiceStatus(prev => ({ ...prev, Gmail: 'working' }));
+          setServiceStatus((prev) => ({ ...prev, Gmail: 'working' }));
           break;
-        
+
         case 'Calendar':
           result = await axios.get(`${API_URL}/api/v2/google/calendar/events`, {
-            params: { email: userEmail, max_results: 1 }
+            params: { email: userEmail, max_results: 1 },
           });
           toast.success(`Calendar works! Found ${result.data.events?.length || 0} upcoming events`);
-          setServiceStatus(prev => ({ ...prev, Calendar: 'working' }));
+          setServiceStatus((prev) => ({ ...prev, Calendar: 'working' }));
           break;
-        
+
         case 'Sheets':
           // Sheets access is configured (no test endpoint without spreadsheet ID)
           toast.success('Sheets access is configured and ready');
-          setServiceStatus(prev => ({ ...prev, Sheets: 'working' }));
+          setServiceStatus((prev) => ({ ...prev, Sheets: 'working' }));
           break;
-        
+
         case 'Docs':
           // Docs access is configured (no test endpoint without document ID)
           toast.success('Docs access is configured and ready');
-          setServiceStatus(prev => ({ ...prev, Docs: 'working' }));
+          setServiceStatus((prev) => ({ ...prev, Docs: 'working' }));
           break;
-        
+
         case 'YouTube':
           // Correct parameter: q (not query)
           result = await axios.get(`${API_URL}/api/v2/google/youtube/search`, {
-            params: { email: userEmail, q: 'test', max_results: 1 }
+            params: { email: userEmail, q: 'test', max_results: 1 },
           });
           toast.success(`YouTube works! Found ${result.data.videos?.length || 0} videos`);
-          setServiceStatus(prev => ({ ...prev, YouTube: 'working' }));
+          setServiceStatus((prev) => ({ ...prev, YouTube: 'working' }));
           break;
-        
+
         default:
           break;
       }
@@ -191,7 +201,7 @@ export function GoogleConnect() {
       console.error(`Failed to test ${serviceName}:`, err);
       const errorDetail = err.response?.data?.detail || err.message;
       toast.error(`${serviceName} test failed: ${errorDetail}`);
-      setServiceStatus(prev => ({ ...prev, [serviceName]: 'error' }));
+      setServiceStatus((prev) => ({ ...prev, [serviceName]: 'error' }));
     } finally {
       setTestingService(null);
     }
@@ -202,7 +212,7 @@ export function GoogleConnect() {
     { name: 'Calendar', icon: Calendar, description: 'Manage events and meetings' },
     { name: 'Docs', icon: FileText, description: 'Create and read documents' },
     { name: 'Sheets', icon: Sheet, description: 'Work with spreadsheets' },
-    { name: 'YouTube', icon: Youtube, description: 'Search and manage videos' }
+    { name: 'YouTube', icon: Youtube, description: 'Search and manage videos' },
   ];
 
   return (
@@ -210,7 +220,8 @@ export function GoogleConnect() {
       <div className="google-connect-header">
         <h2 className="text-2xl font-bold mb-2">Google Services</h2>
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Connect your Google account to enable AI-powered assistance with Gmail, Calendar, Docs, Sheets, and YouTube.
+          Connect your Google account to enable AI-powered assistance with Gmail, Calendar, Docs,
+          Sheets, and YouTube.
         </p>
       </div>
 
@@ -233,11 +244,7 @@ export function GoogleConnect() {
             </div>
           )}
 
-          <button
-            onClick={connectGoogle}
-            disabled={loading}
-            className="connect-button"
-          >
+          <button onClick={connectGoogle} disabled={loading} className="connect-button">
             {loading ? (
               <>
                 <div className="spinner" />
@@ -253,7 +260,8 @@ export function GoogleConnect() {
 
           {loading && (
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-4 text-center">
-              A browser window has opened. Please authorize Agent Max to access your Google services.
+              A browser window has opened. Please authorize Agent Max to access your Google
+              services.
             </p>
           )}
         </div>
@@ -275,7 +283,9 @@ export function GoogleConnect() {
                       <service.icon className="w-5 h-5 text-green-600" />
                       <div className="flex-1">
                         <span className="font-medium">{service.name}</span>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">{service.description}</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          {service.description}
+                        </p>
                       </div>
                     </div>
                     <button
@@ -299,10 +309,7 @@ export function GoogleConnect() {
               </div>
             </div>
 
-            <button
-              onClick={disconnectGoogle}
-              className="disconnect-button"
-            >
+            <button onClick={disconnectGoogle} className="disconnect-button">
               Disconnect Google Account
             </button>
           </div>
@@ -462,7 +469,9 @@ export function GoogleConnect() {
         }
 
         @keyframes spin {
-          to { transform: rotate(360deg); }
+          to {
+            transform: rotate(360deg);
+          }
         }
 
         @media (prefers-color-scheme: dark) {

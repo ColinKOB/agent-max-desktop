@@ -47,8 +47,8 @@ function App() {
   const checkApiConnection = async () => {
     try {
       const apiUrl = apiConfigManager.getBaseURL();
-      console.log('[Health] Checking API connection to:', apiUrl + '/health');
-      
+      console.log('[Health] Checking API connection to:', `${apiUrl}/health`);
+
       // Use axios request with current config
       const response = await healthAPI.check();
       console.log('[Health] Health check successful:', response.data);
@@ -74,31 +74,30 @@ function App() {
       // Load profile from local memory (Electron)
       if (window.electron?.memory) {
         const profileData = await window.electron.memory.getProfile();
-        
+
         // Check if onboarding is completed
-        const onboardingCompleted = await window.electron.memory.getPreference('onboarding_completed');
+        const onboardingCompleted =
+          await window.electron.memory.getPreference('onboarding_completed');
         setShowWelcome(!onboardingCompleted);
-        
+
         setProfile({
           name: profileData.name || 'User',
           interaction_count: profileData.interaction_count || 0,
           temporal_info: {},
-          top_preferences: []
+          top_preferences: [],
         });
-        
+
         // Generate greeting
-        const greeting = profileData.name 
-          ? `Hi, ${profileData.name}!` 
-          : 'Hi there!';
+        const greeting = profileData.name ? `Hi, ${profileData.name}!` : 'Hi there!';
         setGreeting(greeting);
       } else {
         // Fallback: try API (for non-Electron environments)
         const { data: profileData } = await profileAPI.getProfile();
         setProfile(profileData);
-        
+
         const { data: greetingData } = await profileAPI.getGreeting();
         setGreeting(greetingData.greeting);
-        
+
         setShowWelcome(false); // No welcome for web version
       }
     } catch (error) {
@@ -108,7 +107,7 @@ function App() {
         name: 'User',
         interaction_count: 0,
         temporal_info: {},
-        top_preferences: []
+        top_preferences: [],
       });
       setGreeting('Hi there!');
       setShowWelcome(true); // Show welcome if error (first time)
@@ -123,14 +122,18 @@ function App() {
       name: userData.name,
       interaction_count: 0,
       temporal_info: {},
-      top_preferences: []
+      top_preferences: [],
     });
     setGreeting(`Hi, ${userData.name}!`);
   };
 
   return (
     <>
-      <FloatBar showWelcome={showWelcome} onWelcomeComplete={handleWelcomeComplete} isLoading={isLoading} />
+      <FloatBar
+        showWelcome={showWelcome}
+        onWelcomeComplete={handleWelcomeComplete}
+        isLoading={isLoading}
+      />
       <Toaster
         position="bottom-right"
         toastOptions={{

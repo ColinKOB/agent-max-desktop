@@ -83,9 +83,7 @@ export default function FactsManager({ facts, onEdit, onDelete, onAdd, selectedC
         </button>
       ) : (
         <div className="card bg-blue-50 dark:bg-blue-900/20">
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Add New Fact
-          </h3>
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Add New Fact</h3>
           <div className="space-y-3">
             <input
               type="text"
@@ -194,9 +192,7 @@ function FactCard({
     <div className="card bg-gray-50 dark:bg-gray-700/50">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-            {factKey}
-          </p>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{factKey}</p>
           {isEditing ? (
             <div className="mt-2 space-y-2">
               <input

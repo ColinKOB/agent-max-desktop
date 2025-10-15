@@ -1,7 +1,7 @@
 /**
  * Feature Tests for Agent Max Desktop
  * Tests screenshots and semantic embeddings functionality
- * 
+ *
  * Run with: npm test
  */
 
@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 describe('Screenshot Feature', () => {
   let mockElectronAPI;
-  
+
   beforeEach(() => {
     // Mock electron API
     mockElectronAPI = {
@@ -26,7 +26,8 @@ describe('Screenshot Feature', () => {
 
   it('should capture screenshot and return base64 data', async () => {
     // Arrange
-    const mockBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const mockBase64 =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
     mockElectronAPI.takeScreenshot.mockResolvedValue(mockBase64);
 
     // Act
@@ -64,7 +65,7 @@ describe('Screenshot Feature', () => {
     // Arrange
     const mockBase64 = 'mock-screenshot-data';
     const userMessage = 'What is this?';
-    
+
     const payload = {
       goal: userMessage,
       user_context: {},
@@ -80,10 +81,10 @@ describe('Screenshot Feature', () => {
     // This tests the FloatBar behavior
     // After sending, screenshotData should be set to null
     let screenshotData = 'mock-data';
-    
+
     // Simulate sending
     screenshotData = null;
-    
+
     expect(screenshotData).toBeNull();
   });
 });
@@ -170,7 +171,7 @@ describe('Semantic Embeddings Feature', () => {
     const result = await mockSemanticAPI.findSimilar('test query', 0.7, 3);
 
     // Assert
-    result.data.similar_goals.forEach(goal => {
+    result.data.similar_goals.forEach((goal) => {
       expect(goal.similarity).toBeGreaterThanOrEqual(0);
       expect(goal.similarity).toBeLessThanOrEqual(1);
     });
@@ -193,7 +194,7 @@ describe('Semantic Embeddings Feature', () => {
     const result = await mockSemanticAPI.findSimilar('test', threshold, 3);
 
     // Assert
-    result.data.similar_goals.forEach(goal => {
+    result.data.similar_goals.forEach((goal) => {
       expect(goal.similarity).toBeGreaterThanOrEqual(threshold);
     });
   });
@@ -223,13 +224,15 @@ describe('Semantic Embeddings Feature', () => {
     mockSemanticAPI.findSimilar.mockRejectedValue(new Error('Backend unavailable'));
 
     // Act & Assert
-    await expect(mockSemanticAPI.findSimilar('test', 0.7, 3)).rejects.toThrow('Backend unavailable');
+    await expect(mockSemanticAPI.findSimilar('test', 0.7, 3)).rejects.toThrow(
+      'Backend unavailable'
+    );
   });
 
   it('should debounce search requests', async () => {
     // This tests that we don't spam the API
     const searchText = 'why is grass';
-    
+
     // Simulate typing (multiple rapid updates)
     let debounceTimer;
     const debouncedSearch = (text) => {
@@ -252,7 +255,7 @@ describe('Semantic Embeddings Feature', () => {
     debouncedSearch(searchText);
 
     // Wait for debounce
-    await new Promise(resolve => setTimeout(resolve, 900));
+    await new Promise((resolve) => setTimeout(resolve, 900));
 
     // Assert - API should only be called once
     expect(mockSemanticAPI.findSimilar).toHaveBeenCalledTimes(1);
@@ -276,7 +279,7 @@ describe('Semantic Embeddings Feature', () => {
     // Assert
     expect(result.data.embedding).toHaveLength(1536);
     expect(result.data.dimension).toBe(1536);
-    result.data.embedding.forEach(value => {
+    result.data.embedding.forEach((value) => {
       expect(typeof value).toBe('number');
       expect(value).toBeGreaterThanOrEqual(-1);
       expect(value).toBeLessThanOrEqual(1);
@@ -290,7 +293,7 @@ describe('Integration Tests', () => {
     const mockElectron = {
       takeScreenshot: vi.fn().mockResolvedValue('mock-screenshot'),
     };
-    
+
     const mockChatAPI = {
       sendMessage: vi.fn().mockResolvedValue({
         data: {
@@ -339,7 +342,7 @@ describe('Integration Tests', () => {
     // Act - simulate typing
     message = 'why';
     if (message.length >= 3) {
-      await new Promise(resolve => setTimeout(resolve, 800)); // Debounce
+      await new Promise((resolve) => setTimeout(resolve, 800)); // Debounce
       const result = await mockSemanticAPI.findSimilar(message, 0.7, 3);
       if (result.data.similar_goals.length > 0) {
         similarGoals = result.data.similar_goals;
@@ -358,7 +361,7 @@ describe('Best Practices Validation', () => {
   it('should not expose sensitive data in screenshot base64', async () => {
     // Screenshot data should be base64, not contain API keys or passwords
     const mockBase64 = 'VGVzdCBkYXRh'; // "Test data" in base64
-    
+
     // Should not contain common sensitive patterns
     expect(mockBase64).not.toMatch(/api[_-]?key/i);
     expect(mockBase64).not.toMatch(/password/i);
@@ -371,24 +374,24 @@ describe('Best Practices Validation', () => {
     // This is a conceptual test - actual rate limiting happens in backend
     const rateLimit = 10;
     const timeWindow = 60000; // 1 minute
-    
+
     // Simulate rate limiter
     const rateLimiter = {
       requests: [],
       canMakeRequest() {
         const now = Date.now();
-        this.requests = this.requests.filter(time => now - time < timeWindow);
+        this.requests = this.requests.filter((time) => now - time < timeWindow);
         return this.requests.length < rateLimit;
       },
       recordRequest() {
         this.requests.push(Date.now());
-      }
+      },
     };
 
     // Simulate 15 requests
     let allowed = 0;
     let blocked = 0;
-    
+
     for (let i = 0; i < 15; i++) {
       if (rateLimiter.canMakeRequest()) {
         rateLimiter.recordRequest();
@@ -405,7 +408,7 @@ describe('Best Practices Validation', () => {
 
   it('should cache embeddings to reduce API calls', async () => {
     const cache = new Map();
-    
+
     const getEmbeddingWithCache = async (text) => {
       if (cache.has(text)) {
         return { cached: true, data: cache.get(text) };
@@ -442,9 +445,14 @@ describe('Best Practices Validation', () => {
 
   it('should handle concurrent requests properly', async () => {
     const mockAPI = {
-      sendMessage: vi.fn().mockImplementation(() => 
-        new Promise(resolve => setTimeout(() => resolve({ data: { final_response: 'ok' } }), 100))
-      ),
+      sendMessage: vi
+        .fn()
+        .mockImplementation(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(() => resolve({ data: { final_response: 'ok' } }), 100)
+            )
+        ),
     };
 
     // Send multiple requests

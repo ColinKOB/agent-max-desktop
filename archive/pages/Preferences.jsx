@@ -106,9 +106,7 @@ export default function Preferences() {
   return (
     <div className="p-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-          Preferences
-        </h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Preferences</h1>
         {!isAdding && (
           <button
             onClick={() => setIsAdding(true)}
@@ -174,9 +172,7 @@ export default function Preferences() {
 
         {Object.keys(explicitPrefs).length === 0 ? (
           <div className="card text-center py-12">
-            <p className="text-gray-500 dark:text-gray-400">
-              No explicit preferences set
-            </p>
+            <p className="text-gray-500 dark:text-gray-400">No explicit preferences set</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -215,9 +211,7 @@ export default function Preferences() {
 
         {Object.keys(implicitPrefs).length === 0 ? (
           <div className="card text-center py-12">
-            <p className="text-gray-500 dark:text-gray-400">
-              No implicit preferences detected yet
-            </p>
+            <p className="text-gray-500 dark:text-gray-400">No implicit preferences detected yet</p>
             <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
               These are learned from your interactions over time
             </p>
@@ -256,9 +250,7 @@ function PreferenceCard({
     <div className="card bg-gray-50 dark:bg-gray-700/50">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-            {prefKey}
-          </p>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{prefKey}</p>
           {isEditing ? (
             <div className="mt-2 space-y-2">
               <textarea
@@ -315,9 +307,7 @@ function ImplicitPreferenceCard({ prefKey, data, onDelete }) {
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-2 mb-2">
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              {prefKey}
-            </p>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{prefKey}</p>
             <span className="px-2 py-0.5 bg-purple-200 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs rounded">
               {(confidence * 100).toFixed(0)}% confidence
             </span>
@@ -325,7 +315,7 @@ function ImplicitPreferenceCard({ prefKey, data, onDelete }) {
           <p className="text-gray-900 dark:text-gray-100">
             {typeof value === 'object' ? JSON.stringify(value) : String(value)}
           </p>
-          
+
           <div className="mt-2">
             <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
               <div

@@ -1,4 +1,11 @@
-import { Home, MessageSquare, BookOpen, Search, Settings as SettingsIcon, Sliders } from 'lucide-react';
+import {
+  Home,
+  MessageSquare,
+  BookOpen,
+  Search,
+  Settings as SettingsIcon,
+  Sliders,
+} from 'lucide-react';
 import { cn } from '../utils/cn';
 import useStore from '../store/useStore';
 
@@ -33,10 +40,9 @@ export default function Sidebar() {
               {profile?.name || 'Guest'}
             </p>
             <div className="flex items-center space-x-1">
-              <div className={cn(
-                "w-2 h-2 rounded-full",
-                apiConnected ? "bg-green-500" : "bg-red-500"
-              )} />
+              <div
+                className={cn('w-2 h-2 rounded-full', apiConnected ? 'bg-green-500' : 'bg-red-500')}
+              />
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {apiConnected ? 'Connected' : 'Disconnected'}
               </p>
@@ -50,16 +56,16 @@ export default function Sidebar() {
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentPage === item.id;
-          
+
           return (
             <button
               key={item.id}
               onClick={() => setCurrentPage(item.id)}
               className={cn(
-                "w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors",
+                'w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors',
                 isActive
-                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
-                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
               )}
             >
               <Icon className="w-5 h-5" />
@@ -71,9 +77,7 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-        <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-          v1.0.0
-        </p>
+        <p className="text-xs text-center text-gray-500 dark:text-gray-400">v1.0.0</p>
       </div>
     </div>
   );

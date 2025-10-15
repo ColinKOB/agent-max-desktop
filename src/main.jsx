@@ -1,10 +1,10 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { HashRouter, Routes, Route } from 'react-router-dom'
-import App from './App.jsx'
-import SettingsApp from './pages/SettingsApp.jsx'
-import ErrorBoundary from './components/ErrorBoundary.jsx'
-import './styles/globals.css'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { HashRouter, Routes, Route } from 'react-router-dom';
+import App from './App.jsx';
+import SettingsApp from './pages/SettingsApp.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
+import './styles/globals.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -16,5 +16,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         </Routes>
       </HashRouter>
     </ErrorBoundary>
-  </React.StrictMode>,
-)
+  </React.StrictMode>
+);

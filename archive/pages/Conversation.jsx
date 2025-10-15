@@ -51,7 +51,7 @@ export default function Conversation() {
   const handleCompleteTask = async (task) => {
     try {
       await conversationAPI.completeTask(task, sessionId);
-      setPendingTasks(pendingTasks.filter(t => t !== task));
+      setPendingTasks(pendingTasks.filter((t) => t !== task));
       toast.success('Task completed!');
     } catch (error) {
       console.error('Failed to complete task:', error);
@@ -60,7 +60,9 @@ export default function Conversation() {
   };
 
   const handleClearConversation = async () => {
-    if (!window.confirm('Are you sure you want to clear the conversation? This cannot be undone.')) {
+    if (
+      !window.confirm('Are you sure you want to clear the conversation? This cannot be undone.')
+    ) {
       return;
     }
 
@@ -79,9 +81,7 @@ export default function Conversation() {
       {/* Chat Area */}
       <div className="flex-1 flex flex-col">
         <div className="border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between bg-white dark:bg-gray-800">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Conversation
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Conversation</h1>
           <button
             onClick={handleClearConversation}
             className="btn-secondary flex items-center space-x-2"
@@ -99,9 +99,7 @@ export default function Conversation() {
       <div className="w-80 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-              Tasks
-            </h2>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Tasks</h2>
             <button
               onClick={() => setIsAddingTask(true)}
               className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
@@ -142,9 +140,7 @@ export default function Conversation() {
         <div className="flex-1 overflow-y-auto p-4">
           {pendingTasks.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500 dark:text-gray-400 text-sm">
-                No pending tasks
-              </p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">No pending tasks</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -153,9 +149,7 @@ export default function Conversation() {
                   key={idx}
                   className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg group hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
-                  <p className="text-sm text-gray-900 dark:text-gray-100 mb-2">
-                    {task}
-                  </p>
+                  <p className="text-sm text-gray-900 dark:text-gray-100 mb-2">{task}</p>
                   <button
                     onClick={() => handleCompleteTask(task)}
                     className="flex items-center space-x-1 text-xs text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300"

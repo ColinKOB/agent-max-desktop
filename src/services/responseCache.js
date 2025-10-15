@@ -21,8 +21,8 @@ class ResponseCache {
       if (cached) {
         const parsed = JSON.parse(cached);
         // Filter out old entries (older than 7 days)
-        const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-        return parsed.filter(item => item.timestamp > sevenDaysAgo);
+        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        return parsed.filter((item) => item.timestamp > sevenDaysAgo);
       }
     } catch (error) {
       console.warn('[ResponseCache] Failed to load cache:', error);
@@ -39,7 +39,7 @@ class ResponseCache {
       if (cached) {
         const parsed = JSON.parse(cached);
         // Filter out old entries (older than 7 days)
-        const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
         const filtered = {};
         for (const [key, value] of Object.entries(parsed)) {
           if (value.lastAsked > sevenDaysAgo) {
@@ -102,29 +102,29 @@ class ResponseCache {
       ' next ',
       ' finally ',
       ' afterwards ',
-      ' followed by '
+      ' followed by ',
     ];
-    
+
     const lowerText = text.toLowerCase();
-    
+
     // Check for multi-step indicators
     for (const indicator of multiStepIndicators) {
       if (lowerText.includes(indicator)) {
         return true;
       }
     }
-    
+
     // Check for multiple questions (multiple question marks)
     const questionMarks = (text.match(/\?/g) || []).length;
     if (questionMarks > 1) {
       return true;
     }
-    
+
     // Check for numbered steps (1., 2., etc.)
     if (/\d+\.\s/.test(text)) {
       return true;
     }
-    
+
     return false;
   }
 
@@ -135,11 +135,11 @@ class ResponseCache {
   calculateSimilarity(text1, text2) {
     const words1 = new Set(this.normalizeText(text1).split(' '));
     const words2 = new Set(this.normalizeText(text2).split(' '));
-    
+
     // Jaccard similarity
-    const intersection = new Set([...words1].filter(x => words2.has(x)));
+    const intersection = new Set([...words1].filter((x) => words2.has(x)));
     const union = new Set([...words1, ...words2]);
-    
+
     return intersection.size / union.size;
   }
 
@@ -149,7 +149,7 @@ class ResponseCache {
    */
   getCachedResponse(userPrompt) {
     const normalized = this.normalizeText(userPrompt);
-    
+
     // First, check for exact match (instant)
     for (const entry of this.cache) {
       if (this.normalizeText(entry.prompt) === normalized) {
@@ -160,7 +160,7 @@ class ResponseCache {
         return {
           ...entry,
           cached: true,
-          cacheType: 'exact'
+          cacheType: 'exact',
         };
       }
     }
@@ -168,8 +168,10 @@ class ResponseCache {
     // Then check for high similarity (>90%)
     for (const entry of this.cache) {
       const similarity = this.calculateSimilarity(userPrompt, entry.prompt);
-      if (similarity >= 0.90) {
-        console.log(`[ResponseCache] ⚡ High similarity (${(similarity * 100).toFixed(0)}%) - using cached response!`);
+      if (similarity >= 0.9) {
+        console.log(
+          `[ResponseCache] ⚡ High similarity (${(similarity * 100).toFixed(0)}%) - using cached response!`
+        );
         entry.hitCount = (entry.hitCount || 0) + 1;
         entry.lastHit = Date.now();
         this.saveCache();
@@ -177,7 +179,7 @@ class ResponseCache {
           ...entry,
           cached: true,
           cacheType: 'similar',
-          similarity: similarity
+          similarity,
         };
       }
     }
@@ -185,13 +187,15 @@ class ResponseCache {
     // Check for medium similarity (70-90%) - show suggestion but don't auto-use
     for (const entry of this.cache) {
       const similarity = this.calculateSimilarity(userPrompt, entry.prompt);
-      if (similarity >= 0.70) {
-        console.log(`[ResponseCache] 💡 Similar question found (${(similarity * 100).toFixed(0)}%)`);
+      if (similarity >= 0.7) {
+        console.log(
+          `[ResponseCache] 💡 Similar question found (${(similarity * 100).toFixed(0)}%)`
+        );
         return {
           suggestion: true,
           similarPrompt: entry.prompt,
           similarResponse: entry.response,
-          similarity: similarity
+          similarity,
         };
       }
     }
@@ -215,33 +219,35 @@ class ResponseCache {
     }
 
     const normalized = this.normalizeText(userPrompt);
-    
+
     // Track question frequency
     if (!this.questionFrequency[normalized]) {
       this.questionFrequency[normalized] = {
         count: 1,
         firstAsked: Date.now(),
         lastAsked: Date.now(),
-        originalPrompt: userPrompt
+        originalPrompt: userPrompt,
       };
     } else {
       this.questionFrequency[normalized].count++;
       this.questionFrequency[normalized].lastAsked = Date.now();
     }
-    
+
     this.saveQuestionFrequency();
-    
+
     const askCount = this.questionFrequency[normalized].count;
-    
+
     // Only cache if asked 3 or more times
     if (askCount < this.minAsksBeforeCache) {
-      console.log(`[ResponseCache] 📊 Question asked ${askCount}/${this.minAsksBeforeCache} times - not caching yet`);
+      console.log(
+        `[ResponseCache] 📊 Question asked ${askCount}/${this.minAsksBeforeCache} times - not caching yet`
+      );
       return;
     }
 
     // Check if this exact prompt already exists in cache
     const existingIndex = this.cache.findIndex(
-      entry => this.normalizeText(entry.prompt) === normalized
+      (entry) => this.normalizeText(entry.prompt) === normalized
     );
 
     if (existingIndex !== -1) {
@@ -251,10 +257,12 @@ class ResponseCache {
         response: aiResponse,
         timestamp: Date.now(),
         lastUpdated: Date.now(),
-        askCount: askCount,
-        ...metadata
+        askCount,
+        ...metadata,
       };
-      console.log(`[ResponseCache] ✅ Updated cache (asked ${askCount} times): "${userPrompt.substring(0, 50)}..."`);
+      console.log(
+        `[ResponseCache] ✅ Updated cache (asked ${askCount} times): "${userPrompt.substring(0, 50)}..."`
+      );
     } else {
       // Add new entry (only after 3+ asks)
       this.cache.push({
@@ -262,10 +270,12 @@ class ResponseCache {
         response: aiResponse,
         timestamp: Date.now(),
         hitCount: 0,
-        askCount: askCount,
-        ...metadata
+        askCount,
+        ...metadata,
       });
-      console.log(`[ResponseCache] ✅ Cached response (asked ${askCount} times): "${userPrompt.substring(0, 50)}..."`);
+      console.log(
+        `[ResponseCache] ✅ Cached response (asked ${askCount} times): "${userPrompt.substring(0, 50)}..."`
+      );
     }
 
     this.saveCache();
@@ -278,23 +288,23 @@ class ResponseCache {
     const totalEntries = this.cache.length;
     const totalHits = this.cache.reduce((sum, entry) => sum + (entry.hitCount || 0), 0);
     const mostUsed = this.cache
-      .filter(e => e.hitCount > 0)
+      .filter((e) => e.hitCount > 0)
       .sort((a, b) => b.hitCount - a.hitCount)
       .slice(0, 5);
-    
+
     const totalTrackedQuestions = Object.keys(this.questionFrequency).length;
-    const questionsNearCache = Object.values(this.questionFrequency)
-      .filter(q => q.count === 2)
-      .length;
+    const questionsNearCache = Object.values(this.questionFrequency).filter(
+      (q) => q.count === 2
+    ).length;
 
     return {
       totalEntries,
       totalHits,
       mostUsed,
-      cacheHitRate: totalEntries > 0 ? (totalHits / totalEntries * 100).toFixed(1) : 0,
+      cacheHitRate: totalEntries > 0 ? ((totalHits / totalEntries) * 100).toFixed(1) : 0,
       totalTrackedQuestions,
       questionsNearCache,
-      minAsksBeforeCache: this.minAsksBeforeCache
+      minAsksBeforeCache: this.minAsksBeforeCache,
     };
   }
 
@@ -317,7 +327,7 @@ class ResponseCache {
       version: '1.0',
       timestamp: new Date().toISOString(),
       entries: this.cache,
-      stats: this.getStats()
+      stats: this.getStats(),
     };
   }
 }

@@ -2,7 +2,7 @@
  * IPC Input Validation Utility
  * Provides secure validation for all IPC handler inputs
  * Prevents injection attacks and ensures type safety
- * 
+ *
  * All methods are static - no need to instantiate
  */
 
@@ -21,7 +21,7 @@ class IPCValidator {
       minLength = 0,
       pattern = null,
       allowEmpty = !required,
-      sanitize = true
+      sanitize = true,
     } = options;
 
     if (value === undefined || value === null) {
@@ -70,12 +70,7 @@ class IPCValidator {
    * @throws {Error} - If validation fails
    */
   static validateNumber(value, options = {}) {
-    const {
-      required = false,
-      min = -Infinity,
-      max = Infinity,
-      integer = false
-    } = options;
+    const { required = false, min = -Infinity, max = Infinity, integer = false } = options;
 
     if (value === undefined || value === null) {
       if (required) {
@@ -85,7 +80,7 @@ class IPCValidator {
     }
 
     const num = Number(value);
-    
+
     if (isNaN(num)) {
       throw new Error(`Expected number, got ${typeof value}`);
     }
@@ -130,11 +125,11 @@ class IPCValidator {
     }
 
     const validated = {};
-    
+
     // Validate each field according to schema
     for (const [key, fieldSchema] of Object.entries(schema)) {
       const fieldValue = value[key];
-      
+
       if (fieldSchema.type === 'string') {
         validated[key] = this.validateString(fieldValue, fieldSchema);
       } else if (fieldSchema.type === 'number') {
@@ -151,7 +146,7 @@ class IPCValidator {
     // Check for unexpected fields (prevent injection)
     const allowedKeys = new Set(Object.keys(schema));
     const providedKeys = Object.keys(value);
-    
+
     for (const key of providedKeys) {
       if (!allowedKeys.has(key)) {
         console.warn(`[IPCValidator] Unexpected field "${key}" in object`);
@@ -169,12 +164,7 @@ class IPCValidator {
    * @throws {Error} - If validation fails
    */
   static validateArray(value, options = {}) {
-    const {
-      required = false,
-      maxLength = 1000,
-      minLength = 0,
-      itemType = null
-    } = options;
+    const { required = false, maxLength = 1000, minLength = 0, itemType = null } = options;
 
     if (value === undefined || value === null) {
       if (required) {
@@ -227,18 +217,18 @@ class IPCValidator {
     const {
       required = false,
       allowedProtocols = ['http:', 'https:'],
-      allowedDomains = null
+      allowedDomains = null,
     } = options;
 
     const str = this.validateString(url, { required, maxLength: 2048 });
-    
+
     if (!str && !required) {
       return str;
     }
 
     try {
       const urlObj = new URL(str);
-      
+
       // Check protocol
       if (allowedProtocols && !allowedProtocols.includes(urlObj.protocol)) {
         throw new Error(`Protocol ${urlObj.protocol} not allowed`);
@@ -263,18 +253,14 @@ class IPCValidator {
    * @throws {Error} - If validation fails
    */
   static validatePath(filepath, options = {}) {
-    const {
-      required = false,
-      mustExist = false,
-      allowTraversal = false
-    } = options;
+    const { required = false, mustExist = false, allowTraversal = false } = options;
 
-    const str = this.validateString(filepath, { 
-      required, 
+    const str = this.validateString(filepath, {
+      required,
       maxLength: 1024,
-      sanitize: false  // Don't sanitize paths
+      sanitize: false, // Don't sanitize paths
     });
-    
+
     if (!str && !required) {
       return str;
     }
@@ -311,16 +297,16 @@ class IPCValidator {
   static validateCommand(command) {
     const str = this.validateString(command, {
       required: true,
-      maxLength: 5000
+      maxLength: 5000,
     });
 
     // Dangerous command patterns
     const dangerousPatterns = [
-      /rm\s+-rf\s+\/(?:\s|$)/,  // rm -rf /
-      />\s*\/dev\/sda/,          // Write to disk device
-      /mkfs/,                     // Format filesystem
-      /dd\s+if=/,                 // Disk destroyer
-      /:(){ :|:& };:/,           // Fork bomb
+      /rm\s+-rf\s+\/(?:\s|$)/, // rm -rf /
+      />\s*\/dev\/sda/, // Write to disk device
+      /mkfs/, // Format filesystem
+      /dd\s+if=/, // Disk destroyer
+      /:(){ :|:& };:/, // Fork bomb
     ];
 
     for (const pattern of dangerousPatterns) {
@@ -343,7 +329,7 @@ class IPCValidator {
       try {
         // Validate input against schema
         const validatedInput = schema ? this.validateObject(input || {}, schema) : input;
-        
+
         // Call original handler with validated input
         return await handler(event, validatedInput);
       } catch (err) {

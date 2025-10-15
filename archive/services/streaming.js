@@ -29,7 +29,7 @@ export class StreamingService {
     // Adjust the URL to match your backend's streaming endpoint
     const url = new URL(`${API_BASE}/v1/chat/stream`);
     url.searchParams.append('message', message);
-    
+
     if (options.userId) {
       url.searchParams.append('user_id', options.userId);
     }
@@ -107,7 +107,7 @@ export class StreamingService {
    */
   off(event, callback) {
     if (this.listeners[event]) {
-      this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
+      this.listeners[event] = this.listeners[event].filter((cb) => cb !== callback);
     }
   }
 
@@ -118,7 +118,7 @@ export class StreamingService {
    */
   emit(event, data) {
     if (this.listeners[event]) {
-      this.listeners[event].forEach(callback => {
+      this.listeners[event].forEach((callback) => {
         try {
           callback(data);
         } catch (error) {

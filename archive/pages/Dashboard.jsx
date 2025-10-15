@@ -6,7 +6,8 @@ import { profileAPI, conversationAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 export default function Dashboard() {
-  const { profile, setProfile, greeting, setGreeting, pendingTasks, setPendingTasks, setLoading } = useStore();
+  const { profile, setProfile, greeting, setGreeting, pendingTasks, setPendingTasks, setLoading } =
+    useStore();
   const [insights, setInsights] = useState(null);
 
   useEffect(() => {
@@ -42,7 +43,7 @@ export default function Dashboard() {
   const handleCompleteTask = async (task) => {
     try {
       await conversationAPI.completeTask(task);
-      setPendingTasks(pendingTasks.filter(t => t !== task));
+      setPendingTasks(pendingTasks.filter((t) => t !== task));
       toast.success('Task completed!');
     } catch (error) {
       console.error('Failed to complete task:', error);
@@ -52,9 +53,7 @@ export default function Dashboard() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">
-        Dashboard
-      </h1>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">Dashboard</h1>
 
       {/* Profile Card */}
       <div className="mb-8">
@@ -75,12 +74,7 @@ export default function Dashboard() {
           value={insights?.tasks_completed || 0}
           color="green"
         />
-        <StatCard
-          icon={Clock}
-          label="Pending Tasks"
-          value={pendingTasks.length}
-          color="yellow"
-        />
+        <StatCard icon={Clock} label="Pending Tasks" value={pendingTasks.length} color="yellow" />
         <StatCard
           icon={TrendingUp}
           label="Facts Stored"
@@ -93,9 +87,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Pending Tasks */}
         <div className="card">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-            Pending Tasks
-          </h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Pending Tasks</h2>
           {pendingTasks.length === 0 ? (
             <p className="text-gray-500 dark:text-gray-400 text-center py-8">
               No pending tasks. Great job! 🎉
@@ -122,9 +114,7 @@ export default function Dashboard() {
 
         {/* Recent Insights */}
         <div className="card">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-            Insights
-          </h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Insights</h2>
           {insights ? (
             <div className="space-y-4">
               {insights.top_categories && insights.top_categories.length > 0 && (
@@ -179,9 +169,7 @@ function StatCard({ icon: Icon, label, value, color }) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">
-            {value}
-          </p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{value}</p>
         </div>
         <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
           <Icon className="w-6 h-6" />

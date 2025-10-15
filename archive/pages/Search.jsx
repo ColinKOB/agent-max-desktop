@@ -1,5 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Search as SearchIcon, TrendingUp, AlertCircle, CheckCircle, BarChart3 } from 'lucide-react';
+import {
+  Search as SearchIcon,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle,
+  BarChart3,
+} from 'lucide-react';
 import { semanticAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -39,7 +45,7 @@ export default function Search() {
     try {
       const res = await semanticAPI.findSimilar(query, threshold, limit);
       setResults(res.data.similar_goals || []);
-      
+
       if (res.data.similar_goals?.length === 0) {
         toast('No similar goals found', { icon: '🔍' });
       }
@@ -59,9 +65,7 @@ export default function Search() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">
-        Semantic Search
-      </h1>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">Semantic Search</h1>
 
       {/* Search Section */}
       <div className="card mb-8">
@@ -159,16 +163,18 @@ export default function Search() {
                     )}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
-                  <span className={`text-xs px-2 py-1 rounded ${
-                    result.success
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                      : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                  }`}>
+                  <span
+                    className={`text-xs px-2 py-1 rounded ${
+                      result.success
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                        : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                    }`}
+                  >
                     {result.success ? 'Success' : 'Failed'}
                   </span>
-                  
+
                   <div className="flex items-center space-x-2">
                     <div className="w-32 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                       <div
@@ -194,9 +200,7 @@ export default function Search() {
           <div className="card">
             <div className="flex items-center space-x-2 mb-4">
               <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                Patterns
-              </h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Patterns</h2>
             </div>
             <div className="space-y-3">
               {patterns.common_themes && patterns.common_themes.length > 0 && (
@@ -216,7 +220,7 @@ export default function Search() {
                   </div>
                 </div>
               )}
-              
+
               {patterns.success_rate !== undefined && (
                 <div>
                   <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -263,7 +267,7 @@ export default function Search() {
                   />
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">

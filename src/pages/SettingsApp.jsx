@@ -12,7 +12,7 @@ export default function SettingsApp() {
     { id: 'history', label: 'History', icon: History, component: ConversationHistory },
   ];
 
-  const ActiveComponent = tabs.find(t => t.id === activeTab)?.component;
+  const ActiveComponent = tabs.find((t) => t.id === activeTab)?.component;
 
   const handleClose = () => {
     if (window.electronAPI) {
@@ -26,9 +26,9 @@ export default function SettingsApp() {
       <div className="bg-gray-900 border-b border-gray-800 p-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
           <h1 className="text-xl font-bold text-gray-100">Agent Max Settings</h1>
-          
+
           <div className="flex gap-2 ml-6">
-            {tabs.map(tab => {
+            {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
@@ -59,25 +59,24 @@ export default function SettingsApp() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        {ActiveComponent && (
-          activeTab === 'history' ? (
+        {ActiveComponent &&
+          (activeTab === 'history' ? (
             <div className="h-full">
-              <ActiveComponent 
+              <ActiveComponent
                 onLoadConversation={(conv) => {
                   // In Settings window, we can't load into FloatBar
                   // Just show a toast notification
                   toast('💡 Open the main window to continue this conversation', {
-                    duration: 4000
+                    duration: 4000,
                   });
-                }} 
+                }}
               />
             </div>
           ) : (
             <div className="max-w-5xl mx-auto">
               <ActiveComponent />
             </div>
-          )
-        )}
+          ))}
       </div>
     </div>
   );

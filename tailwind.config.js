@@ -1,9 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   darkMode: 'class',
   theme: {
     extend: {
@@ -27,19 +24,19 @@ export default {
         primary: {
           DEFAULT: '#0FB5AE',
           dark: '#0AA099',
-        }
+        },
       },
       spacing: {
         // 8-point grid system
-        '0': '0',
-        '1': '4px',
-        '2': '8px',
-        '3': '12px',
-        '4': '16px',
-        '5': '24px',
-        '6': '32px',
-        '7': '40px',
-        '8': '48px',
+        0: '0',
+        1: '4px',
+        2: '8px',
+        3: '12px',
+        4: '16px',
+        5: '24px',
+        6: '32px',
+        7: '40px',
+        8: '48px',
       },
       borderRadius: {
         'brand-sm': '8px',
@@ -48,21 +45,21 @@ export default {
         'brand-pill': '999px',
       },
       fontSize: {
-        'display': ['28px', { lineHeight: '1.2', fontWeight: '600', letterSpacing: '-0.2px' }],
-        'title': ['22px', {lineHeight: '1.3', fontWeight: '600', letterSpacing: '-0.2px' }],
-        'body': ['16px', {lineHeight: '1.5', fontWeight: '400' }],
-        'caption': ['13px', {lineHeight: '1.4', fontWeight: '400' }],
-        'mono': ['13px', {lineHeight: '1.6', fontWeight: '400' }],
+        display: ['28px', { lineHeight: '1.2', fontWeight: '600', letterSpacing: '-0.2px' }],
+        title: ['22px', { lineHeight: '1.3', fontWeight: '600', letterSpacing: '-0.2px' }],
+        body: ['16px', { lineHeight: '1.5', fontWeight: '400' }],
+        caption: ['13px', { lineHeight: '1.4', fontWeight: '400' }],
+        mono: ['13px', { lineHeight: '1.6', fontWeight: '400' }],
       },
       transitionDuration: {
-        'micro': '150ms',
-        'fast': '180ms',
-        'base': '200ms',
-        'slow': '240ms',
-        'slower': '320ms',
+        micro: '150ms',
+        fast: '180ms',
+        base: '200ms',
+        slow: '240ms',
+        slower: '320ms',
       },
       transitionTimingFunction: {
-        'brand': 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+        brand: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
       },
       boxShadow: {
         'brand-sm': '0 2px 8px rgba(11, 18, 32, 0.08)',

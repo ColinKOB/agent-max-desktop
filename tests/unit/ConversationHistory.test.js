@@ -113,9 +113,7 @@ describe('ConversationHistory Component', () => {
       {
         sessionId: 'session_1',
         started_at: '2025-01-14T10:00:00Z',
-        messages: [
-          { role: 'user', content: 'Test message', timestamp: '2025-01-14T10:00:00Z' },
-        ],
+        messages: [{ role: 'user', content: 'Test message', timestamp: '2025-01-14T10:00:00Z' }],
       },
     ];
 
@@ -241,16 +239,12 @@ describe('ConversationHistory Component', () => {
       {
         sessionId: 'session_old',
         started_at: '2025-01-13T10:00:00Z',
-        messages: [
-          { role: 'user', content: 'Old message', timestamp: '2025-01-13T10:00:00Z' },
-        ],
+        messages: [{ role: 'user', content: 'Old message', timestamp: '2025-01-13T10:00:00Z' }],
       },
       {
         sessionId: 'session_new',
         started_at: '2025-01-14T10:00:00Z',
-        messages: [
-          { role: 'user', content: 'New message', timestamp: '2025-01-14T10:00:00Z' },
-        ],
+        messages: [{ role: 'user', content: 'New message', timestamp: '2025-01-14T10:00:00Z' }],
       },
     ];
 
@@ -264,7 +258,7 @@ describe('ConversationHistory Component', () => {
 
     // Get all conversation cards
     const conversationTexts = screen.getAllByText(/message$/);
-    
+
     // The newer conversation should appear first
     expect(conversationTexts[0]).toHaveTextContent('New message');
     expect(conversationTexts[1]).toHaveTextContent('Old message');

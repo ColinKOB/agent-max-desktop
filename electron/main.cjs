@@ -1,4 +1,12 @@
-const { app, BrowserWindow, ipcMain, screen, shell, clipboard, desktopCapturer } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  screen,
+  shell,
+  clipboard,
+  desktopCapturer,
+} = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -13,32 +21,32 @@ let memoryManager;
 
 function createWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-  
+
   // Initial size: mini square mode (68x68)
   const windowWidth = 68;
   const windowHeight = 68;
   const margin = 16;
-  
+
   mainWindow = new BrowserWindow({
     width: windowWidth,
     height: windowHeight,
     x: screenWidth - windowWidth - margin,
     y: margin,
-    minWidth: 68,  // Mini square
+    minWidth: 68, // Mini square
     minHeight: 68,
-    maxWidth: 360,  // Full card width
+    maxWidth: 360, // Full card width
     maxHeight: 520, // Full card height
     frame: false,
     transparent: true,
     alwaysOnTop: true,
-    resizable: false,  // Non-resizable pill
+    resizable: false, // Non-resizable pill
     skipTaskbar: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.cjs'),
       // Only disable web security in development
-      webSecurity: process.env.NODE_ENV === 'development' ? false : true,
+      webSecurity: process.env.NODE_ENV !== 'development',
       sandbox: true,
       // Disallow running insecure content in production
       allowRunningInsecureContent: false,
@@ -67,18 +75,18 @@ function createWindow() {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           "default-src 'self'; " +
-          "script-src 'self' 'unsafe-inline' http://localhost:5173; " +
-          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-          "font-src 'self' https://fonts.gstatic.com; " +
-          "img-src 'self' data: https: blob:; " +
-          "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://accounts.google.com https://www.googleapis.com; " +
-          "frame-src 'none'; " +
-          "object-src 'none'; " +
-          "base-uri 'self'; " +
-          "form-action 'self'; " +
-          "frame-ancestors 'none'"
-        ]
-      }
+            "script-src 'self' 'unsafe-inline' http://localhost:5173; " +
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+            "font-src 'self' https://fonts.gstatic.com; " +
+            "img-src 'self' data: https: blob:; " +
+            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://accounts.google.com https://www.googleapis.com; " +
+            "frame-src 'none'; " +
+            "object-src 'none'; " +
+            "base-uri 'self'; " +
+            "form-action 'self'; " +
+            "frame-ancestors 'none'",
+        ],
+      },
     });
   });
 
@@ -100,7 +108,7 @@ app.whenReady().then(() => {
   memoryManager = new LocalMemoryManager();
   console.log('✓ Memory manager initialized');
   console.log('  Storage location:', memoryManager.getMemoryLocation());
-  
+
   createWindow();
 });
 
@@ -118,7 +126,7 @@ app.on('activate', () => {
   } else {
     createSettingsWindow();
   }
-  
+
   // Create main window if it doesn't exist
   if (!mainWindow) {
     createWindow();
@@ -134,7 +142,7 @@ function createSettingsWindow() {
   }
 
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-  
+
   settingsWindow = new BrowserWindow({
     width: 900,
     height: 700,
@@ -151,7 +159,7 @@ function createSettingsWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.cjs'),
-      webSecurity: process.env.NODE_ENV === 'development' ? false : true,
+      webSecurity: process.env.NODE_ENV !== 'development',
       sandbox: true,
     },
     backgroundColor: '#1a1a2e',
@@ -170,18 +178,18 @@ function createSettingsWindow() {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           "default-src 'self'; " +
-          "script-src 'self' 'unsafe-inline' http://localhost:5173; " +
-          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-          "font-src 'self' https://fonts.gstatic.com; " +
-          "img-src 'self' data: https: blob:; " +
-          "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://accounts.google.com https://www.googleapis.com; " +
-          "frame-src 'none'; " +
-          "object-src 'none'; " +
-          "base-uri 'self'; " +
-          "form-action 'self'; " +
-          "frame-ancestors 'none'"
-        ]
-      }
+            "script-src 'self' 'unsafe-inline' http://localhost:5173; " +
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+            "font-src 'self' https://fonts.gstatic.com; " +
+            "img-src 'self' data: https: blob:; " +
+            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://accounts.google.com https://www.googleapis.com; " +
+            "frame-src 'none'; " +
+            "object-src 'none'; " +
+            "base-uri 'self'; " +
+            "form-action 'self'; " +
+            "frame-ancestors 'none'",
+        ],
+      },
     });
   });
 
@@ -189,7 +197,7 @@ function createSettingsWindow() {
     settingsWindow.loadURL('http://localhost:5173/#/settings');
   } else {
     settingsWindow.loadFile(path.join(__dirname, '../dist/index.html'), {
-      hash: '/settings'
+      hash: '/settings',
     });
   }
 
@@ -208,28 +216,35 @@ ipcMain.handle('get-app-path', () => {
 });
 
 // Window resize for expand/collapse
-ipcMain.handle('resize-window', IPCValidator.createValidatedHandler(
-  (event, { width, height }) => {
-    if (mainWindow) {
-      console.log(`[Electron] Resizing window to ${width}x${height}`);
-    const beforeBounds = mainWindow.getBounds();
-    console.log('[Electron] Before resize:', beforeBounds);
-    
-    mainWindow.setSize(width, height);
-    
-    // Check actual size after resize
-    setTimeout(() => {
-      const afterBounds = mainWindow.getBounds();
-      console.log('[Electron] After resize:', afterBounds);
-      if (afterBounds.width !== width || afterBounds.height !== height) {
-        console.error(`[Electron] RESIZE FAILED! Expected ${width}x${height}, got ${afterBounds.width}x${afterBounds.height}`);
+ipcMain.handle(
+  'resize-window',
+  IPCValidator.createValidatedHandler(
+    (event, { width, height }) => {
+      if (mainWindow) {
+        console.log(`[Electron] Resizing window to ${width}x${height}`);
+        const beforeBounds = mainWindow.getBounds();
+        console.log('[Electron] Before resize:', beforeBounds);
+
+        mainWindow.setSize(width, height);
+
+        // Check actual size after resize
+        setTimeout(() => {
+          const afterBounds = mainWindow.getBounds();
+          console.log('[Electron] After resize:', afterBounds);
+          if (afterBounds.width !== width || afterBounds.height !== height) {
+            console.error(
+              `[Electron] RESIZE FAILED! Expected ${width}x${height}, got ${afterBounds.width}x${afterBounds.height}`
+            );
+          }
+        }, 100);
       }
-    }, 100);
-  }
-}, {
-  width: { type: 'number', required: true, min: 50, max: 2000, integer: true },
-  height: { type: 'number', required: true, min: 50, max: 2000, integer: true }
-}));
+    },
+    {
+      width: { type: 'number', required: true, min: 50, max: 2000, integer: true },
+      height: { type: 'number', required: true, min: 50, max: 2000, integer: true },
+    }
+  )
+);
 
 // Get window bounds (for boundary checking)
 ipcMain.handle('get-bounds', () => {
@@ -240,19 +255,22 @@ ipcMain.handle('get-bounds', () => {
 });
 
 // Set window bounds (for boundary correction)
-ipcMain.handle('set-bounds', IPCValidator.createValidatedHandler(
-  (event, bounds) => {
-    if (mainWindow) {
-      mainWindow.setBounds(bounds);
+ipcMain.handle(
+  'set-bounds',
+  IPCValidator.createValidatedHandler(
+    (event, bounds) => {
+      if (mainWindow) {
+        mainWindow.setBounds(bounds);
+      }
+    },
+    {
+      x: { type: 'number', integer: true },
+      y: { type: 'number', integer: true },
+      width: { type: 'number', min: 50, max: 2000, integer: true },
+      height: { type: 'number', min: 50, max: 2000, integer: true },
     }
-  },
-  {
-    x: { type: 'number', integer: true },
-    y: { type: 'number', integer: true },
-    width: { type: 'number', min: 50, max: 2000, integer: true },
-    height: { type: 'number', min: 50, max: 2000, integer: true }
-  }
-));
+  )
+);
 
 // Switch to FloatBar mode (after welcome screen)
 ipcMain.handle('switch-to-floatbar', () => {
@@ -261,7 +279,7 @@ ipcMain.handle('switch-to-floatbar', () => {
     const windowWidth = 360;
     const windowHeight = 80;
     const margin = 16;
-    
+
     mainWindow.setSize(windowWidth, windowHeight);
     mainWindow.setPosition(screenWidth - windowWidth - margin, margin);
     mainWindow.setAlwaysOnTop(true, 'floating', 1);
@@ -276,82 +294,93 @@ ipcMain.handle('get-screen-size', () => {
 });
 
 // Execute terminal command (with security confirmation)
-ipcMain.handle('execute-command', IPCValidator.createValidatedHandler(
-  async (event, { command }) => {
-  const logDir = path.join(os.homedir(), 'Library', 'Logs', 'AgentMax');
-  const logFile = path.join(logDir, 'commands.log');
-  
-  // Ensure log directory exists
-  if (!fs.existsSync(logDir)) {
-    fs.mkdirSync(logDir, { recursive: true });
-  }
-  
-  // Log the command
-  const timestamp = new Date().toISOString();
-  fs.appendFileSync(logFile, `[${timestamp}] ${command}\n`);
-  
-  // Execute command based on platform
-  try {
-    if (process.platform === 'darwin') {
-      // macOS: Use AppleScript to run in Terminal
-      const { exec } = require('child_process');
-      const script = `tell application "Terminal"
+ipcMain.handle(
+  'execute-command',
+  IPCValidator.createValidatedHandler(
+    async (event, { command }) => {
+      const logDir = path.join(os.homedir(), 'Library', 'Logs', 'AgentMax');
+      const logFile = path.join(logDir, 'commands.log');
+
+      // Ensure log directory exists
+      if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+      }
+
+      // Log the command
+      const timestamp = new Date().toISOString();
+      fs.appendFileSync(logFile, `[${timestamp}] ${command}\n`);
+
+      // Execute command based on platform
+      try {
+        if (process.platform === 'darwin') {
+          // macOS: Use AppleScript to run in Terminal
+          const { exec } = require('child_process');
+          const script = `tell application "Terminal"
         activate
         do script "${command.replace(/"/g, '\\"')}"
       end tell`;
-      
-      await new Promise((resolve, reject) => {
-        exec(`osascript -e '${script}'`, (error, stdout, stderr) => {
-          if (error) reject(error);
-          else resolve(stdout);
-        });
-      });
-      
-      return { success: true, message: 'Command executed in Terminal' };
-    } else if (process.platform === 'win32') {
-      // Windows: Use PowerShell
-      shell.openExternal(`powershell.exe -Command "${command}"`);
-      return { success: true, message: 'Command executed in PowerShell' };
-    } else {
-      // Linux: Use default terminal
-      shell.openExternal(`x-terminal-emulator -e "${command}"`);
-      return { success: true, message: 'Command executed in terminal' };
+
+          await new Promise((resolve, reject) => {
+            exec(`osascript -e '${script}'`, (error, stdout, stderr) => {
+              if (error) reject(error);
+              else resolve(stdout);
+            });
+          });
+
+          return { success: true, message: 'Command executed in Terminal' };
+        } else if (process.platform === 'win32') {
+          // Windows: Use PowerShell
+          shell.openExternal(`powershell.exe -Command "${command}"`);
+          return { success: true, message: 'Command executed in PowerShell' };
+        } else {
+          // Linux: Use default terminal
+          shell.openExternal(`x-terminal-emulator -e "${command}"`);
+          return { success: true, message: 'Command executed in terminal' };
+        }
+      } catch (error) {
+        return { success: false, message: error.message };
+      }
+    },
+    {
+      command: { type: 'string', required: true, maxLength: 5000 },
     }
-  } catch (error) {
-    return { success: false, message: error.message };
-  }
-}, {
-  command: { type: 'string', required: true, maxLength: 5000 }
-}));
+  )
+);
 
 // Copy to clipboard
-ipcMain.handle('copy-to-clipboard', IPCValidator.createValidatedHandler(
-  (event, { text }) => {
-    const { clipboard } = require('electron');
-    clipboard.writeText(text);
-    return { success: true };
-  },
-  { text: { type: 'string', required: true, maxLength: 100000 } }
-));
+ipcMain.handle(
+  'copy-to-clipboard',
+  IPCValidator.createValidatedHandler(
+    (event, { text }) => {
+      const { clipboard } = require('electron');
+      clipboard.writeText(text);
+      return { success: true };
+    },
+    { text: { type: 'string', required: true, maxLength: 100000 } }
+  )
+);
 
 // Open URL in external browser
-ipcMain.handle('open-external', IPCValidator.createValidatedHandler(
-  async (event, { url }) => {
-    try {
-      // Additional URL validation
-      const validatedUrl = IPCValidator.validateURL(url, {
-        required: true,
-        allowedProtocols: ['http:', 'https:', 'mailto:']
-      });
-      await shell.openExternal(validatedUrl);
-      return { success: true };
-    } catch (error) {
-      console.error('[Electron] Failed to open external URL:', error);
-      return { success: false, error: error.message };
-    }
-  },
-  { url: { type: 'string', required: true } }
-));
+ipcMain.handle(
+  'open-external',
+  IPCValidator.createValidatedHandler(
+    async (event, { url }) => {
+      try {
+        // Additional URL validation
+        const validatedUrl = IPCValidator.validateURL(url, {
+          required: true,
+          allowedProtocols: ['http:', 'https:', 'mailto:'],
+        });
+        await shell.openExternal(validatedUrl);
+        return { success: true };
+      } catch (error) {
+        console.error('[Electron] Failed to open external URL:', error);
+        return { success: false, error: error.message };
+      }
+    },
+    { url: { type: 'string', required: true } }
+  )
+);
 
 // Open Settings Window
 ipcMain.handle('open-settings', () => {
@@ -377,25 +406,31 @@ ipcMain.handle('memory:get-profile', () => {
 });
 
 // Update user profile
-ipcMain.handle('memory:update-profile', IPCValidator.createValidatedHandler(
-  (event, updates) => {
-    return ensureMemoryManager().updateProfile(updates);
-  },
-  {
-    name: { type: 'string', maxLength: 100 },
-    preferences: { type: 'object' },
-    facts: { type: 'object' },
-    interaction_count: { type: 'number', integer: true, min: 0 }
-  }
-));
+ipcMain.handle(
+  'memory:update-profile',
+  IPCValidator.createValidatedHandler(
+    (event, updates) => {
+      return ensureMemoryManager().updateProfile(updates);
+    },
+    {
+      name: { type: 'string', maxLength: 100 },
+      preferences: { type: 'object' },
+      facts: { type: 'object' },
+      interaction_count: { type: 'number', integer: true, min: 0 },
+    }
+  )
+);
 
 // Set user name
-ipcMain.handle('memory:set-name', IPCValidator.createValidatedHandler(
-  (event, { name }) => {
-    return ensureMemoryManager().setUserName(name);
-  },
-  { name: { type: 'string', required: true, maxLength: 100, minLength: 1 } }
-));
+ipcMain.handle(
+  'memory:set-name',
+  IPCValidator.createValidatedHandler(
+    (event, { name }) => {
+      return ensureMemoryManager().setUserName(name);
+    },
+    { name: { type: 'string', required: true, maxLength: 100, minLength: 1 } }
+  )
+);
 
 // Increment interaction count
 ipcMain.handle('memory:increment-interaction', () => {
@@ -408,16 +443,19 @@ ipcMain.handle('memory:get-facts', () => {
 });
 
 // Set a fact
-ipcMain.handle('memory:set-fact', IPCValidator.createValidatedHandler(
-  (event, { category, key, value }) => {
-    return ensureMemoryManager().setFact(category, key, value);
-  },
-  {
-    category: { type: 'string', required: true, maxLength: 50 },
-    key: { type: 'string', required: true, maxLength: 50 },
-    value: { type: 'string', required: true, maxLength: 1000 }
-  }
-));
+ipcMain.handle(
+  'memory:set-fact',
+  IPCValidator.createValidatedHandler(
+    (event, { category, key, value }) => {
+      return ensureMemoryManager().setFact(category, key, value);
+    },
+    {
+      category: { type: 'string', required: true, maxLength: 50 },
+      key: { type: 'string', required: true, maxLength: 50 },
+      value: { type: 'string', required: true, maxLength: 1000 },
+    }
+  )
+);
 
 // Delete a fact
 ipcMain.handle('memory:delete-fact', (event, { category, key }) => {
@@ -430,20 +468,23 @@ ipcMain.handle('memory:start-session', (event, sessionId) => {
 });
 
 // Add message to conversation
-ipcMain.handle('memory:add-message', IPCValidator.createValidatedHandler(
-  (event, { role, content, sessionId }) => {
-    // Additional role validation
-    if (!['user', 'assistant', 'system'].includes(role)) {
-      throw new Error('Invalid role. Must be user, assistant, or system');
+ipcMain.handle(
+  'memory:add-message',
+  IPCValidator.createValidatedHandler(
+    (event, { role, content, sessionId }) => {
+      // Additional role validation
+      if (!['user', 'assistant', 'system'].includes(role)) {
+        throw new Error('Invalid role. Must be user, assistant, or system');
+      }
+      return ensureMemoryManager().addMessage(role, content, sessionId);
+    },
+    {
+      role: { type: 'string', required: true },
+      content: { type: 'string', required: true, maxLength: 50000 },
+      sessionId: { type: 'string', maxLength: 100 },
     }
-    return ensureMemoryManager().addMessage(role, content, sessionId);
-  },
-  {
-    role: { type: 'string', required: true },
-    content: { type: 'string', required: true, maxLength: 50000 },
-    sessionId: { type: 'string', maxLength: 100 }
-  }
-));
+  )
+);
 
 // Get recent messages
 ipcMain.handle('memory:get-recent-messages', (event, { count, sessionId }) => {
@@ -471,16 +512,19 @@ ipcMain.handle('memory:get-preferences', () => {
 });
 
 // Set preference
-ipcMain.handle('memory:set-preference', IPCValidator.createValidatedHandler(
-  (event, { key, value, type }) => {
-    return ensureMemoryManager().setPreference(key, value, type);
-  },
-  {
-    key: { type: 'string', required: true, maxLength: 100 },
-    value: { type: 'string', required: true, maxLength: 5000 },
-    type: { type: 'string', maxLength: 50 }
-  }
-));
+ipcMain.handle(
+  'memory:set-preference',
+  IPCValidator.createValidatedHandler(
+    (event, { key, value, type }) => {
+      return ensureMemoryManager().setPreference(key, value, type);
+    },
+    {
+      key: { type: 'string', required: true, maxLength: 100 },
+      value: { type: 'string', required: true, maxLength: 5000 },
+      type: { type: 'string', maxLength: 50 },
+    }
+  )
+);
 
 // Get preference by key
 ipcMain.handle('memory:get-preference', (event, key) => {
@@ -498,16 +542,19 @@ ipcMain.handle('memory:export', () => {
 });
 
 // Import memories (from backup)
-ipcMain.handle('memory:import', IPCValidator.createValidatedHandler(
-  (event, { data }) => {
-    // Validate import data structure
-    if (!data || typeof data !== 'object') {
-      throw new Error('Invalid import data');
-    }
-    return ensureMemoryManager().importMemories(data);
-  },
-  { data: { type: 'object', required: true } }
-));
+ipcMain.handle(
+  'memory:import',
+  IPCValidator.createValidatedHandler(
+    (event, { data }) => {
+      // Validate import data structure
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid import data');
+      }
+      return ensureMemoryManager().importMemories(data);
+    },
+    { data: { type: 'object', required: true } }
+  )
+);
 
 // Get memory statistics
 ipcMain.handle('memory:get-stats', () => {
@@ -524,36 +571,36 @@ ipcMain.handle('memory:test-preferences', async () => {
   try {
     const mm = ensureMemoryManager();
     console.log('[Test] Testing preferences system...');
-    
+
     // Test 1: Get current preferences
     const before = mm.getPreferences();
     console.log('[Test] Current preferences:', JSON.stringify(before, null, 2));
-    
+
     // Test 2: Set a test preference
     await mm.setPreference('test_key', 'test_value', 'work');
     console.log('[Test] Set test preference');
-    
+
     // Test 3: Verify it was saved
     const after = mm.getPreferences();
     console.log('[Test] Preferences after set:', JSON.stringify(after, null, 2));
-    
+
     // Test 4: Get the specific preference
     const retrieved = mm.getPreference('test_key');
     console.log('[Test] Retrieved value:', retrieved);
-    
+
     return {
       success: true,
       message: 'Preferences test completed',
       before,
       after,
-      retrieved
+      retrieved,
     };
   } catch (error) {
     console.error('[Test] Preferences test failed:', error);
     return {
       success: false,
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
     };
   }
 });
@@ -561,31 +608,33 @@ ipcMain.handle('memory:test-preferences', async () => {
 // Take screenshot and return base64
 ipcMain.handle('take-screenshot', async () => {
   try {
-    const sources = await desktopCapturer.getSources({ 
-      types: ['screen'], 
-      thumbnailSize: screen.getPrimaryDisplay().size 
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: screen.getPrimaryDisplay().size,
     });
-    
+
     if (sources.length === 0) {
       throw new Error('No screen sources available');
     }
-    
+
     // Get the primary screen
     const primarySource = sources[0];
     const screenshot = primarySource.thumbnail;
-    
+
     // Convert to PNG buffer
     const buffer = screenshot.toPNG();
-    
+
     // Convert to base64 for API transmission
     const base64 = buffer.toString('base64');
-    
-    console.log('[Screenshot] Captured and converted to base64 (' + Math.round(base64.length / 1024) + 'KB)');
-    
+
+    console.log(
+      `[Screenshot] Captured and converted to base64 (${Math.round(base64.length / 1024)}KB)`
+    );
+
     return {
       base64,
       mimeType: 'image/png',
-      size: base64.length
+      size: base64.length,
     };
   } catch (error) {
     console.error('[Screenshot] Error:', error);

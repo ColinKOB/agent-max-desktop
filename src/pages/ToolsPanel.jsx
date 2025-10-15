@@ -13,7 +13,7 @@ export default function ToolsPanel({ onClose, onLoadConversation }) {
     { id: 'chats', label: 'Chat History', icon: MessageSquare, component: ChatHistory },
   ];
 
-  const ActiveComponent = tabs.find(t => t.id === activeTab)?.component;
+  const ActiveComponent = tabs.find((t) => t.id === activeTab)?.component;
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
@@ -22,7 +22,7 @@ export default function ToolsPanel({ onClose, onLoadConversation }) {
         <div className="bg-gray-800 border-b border-gray-700 p-3 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2 overflow-x-auto">
             <div className="flex gap-1 flex-nowrap">
-              {tabs.map(tab => {
+              {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
                   <button
@@ -41,7 +41,7 @@ export default function ToolsPanel({ onClose, onLoadConversation }) {
               })}
             </div>
           </div>
-          
+
           <button
             onClick={onClose}
             className="p-1.5 hover:bg-gray-700 rounded text-gray-400 hover:text-gray-200 flex-shrink-0 ml-2"

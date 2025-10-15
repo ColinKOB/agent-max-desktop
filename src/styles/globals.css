@@ -326,26 +326,56 @@
    
    See UI_CUSTOMIZATION_GUIDE.md for detailed instructions
    ============================================ */
-.amx-mini {
-  /* Positioning - fills the entire window */
+.amx-mini,
+.amx-bar,
+.amx-card {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: none;
+}
+
+.amx-mini::before,
+.amx-bar::before,
+.amx-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--glass-surface, rgba(255, 255, 255, 0.2));
+  backdrop-filter: var(--glass-filter, none);
+  -webkit-backdrop-filter: var(--glass-filter, none);
+  box-shadow: var(--glass-shadow-ring, none);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.amx-mini > *,
+.amx-bar > *,
+.amx-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.amx-mini {
   /* Layout - centers the logo */
   display: flex;
   align-items: center;      /* Vertical centering */
   justify-content: center;  /* Horizontal centering */
   
-  /* Appearance - fully transparent container */
-  border-radius: var(--radius-lg);  /* 16px rounded corners */
-  background: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border: none !important;
-  box-shadow: none !important;
+  /* Appearance - revived liquid glass */
+  --glass-surface:
+    radial-gradient(135% 150% at 32% -18%, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.08) 52%, rgba(255, 255, 255, 0) 70%),
+    linear-gradient(145deg, rgba(82, 146, 255, 0.28), rgba(122, 83, 255, 0.2), rgba(255, 163, 102, 0.14)),
+    rgba(255, 255, 255, 0.22);
+  --glass-filter: blur(22px) saturate(1.4);
+  --glass-shadow-ring:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.18);
   
   cursor: pointer;
   transition: all var(--duration-base) var(--ease-base);
@@ -362,7 +392,7 @@
 
 .amx-mini:hover {
   transform: scale(1.03) translateY(-2px);
-  box-shadow: none !important;
+  box-shadow: none;
 }
 
 .amx-mini:active {
@@ -482,26 +512,21 @@
    - Different color: Change --panel hue/lightness
    ============================================ */
 .amx-bar {
-  /* Positioning - fills window */
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  
   /* Layout - horizontal row */
   display: flex;
   align-items: center;
   gap: var(--space-3);  /* 12px */
   padding: 0 var(--space-3) 0 var(--space-5);  /* 0 12px 0 24px */
   
-  /* Appearance - fully transparent container */
-  border-radius: var(--radius-lg);  /* 16px */
-  background: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border: none !important;
-  box-shadow: none !important;
+  /* Appearance - liquid glass bar */
+  --glass-surface:
+    radial-gradient(150% 210% at 20% -22%, rgba(255, 255, 255, 0.33) 0%, rgba(255, 255, 255, 0.08) 58%, rgba(255, 255, 255, 0) 75%),
+    linear-gradient(145deg, rgba(82, 146, 255, 0.28), rgba(122, 83, 255, 0.2), rgba(255, 163, 102, 0.14)),
+    rgba(255, 255, 255, 0.22);
+  --glass-filter: blur(26px) saturate(1.42);
+  --glass-shadow-ring:
+    inset 0 1px 0 rgba(255, 255, 255, 0.62),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.2);
   
   transition: all var(--duration-base) var(--ease-base);
 }
@@ -623,24 +648,31 @@
    - Depth shadow
    ============================================ */
 .amx-card {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
   display: flex;
   flex-direction: column;
-  border-radius: var(--radius-lg);  /* 16px rounded corners */
   
-  /* Appearance - fully transparent container */
-  background: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border: none !important;
-  box-shadow: none !important;
+  /* Appearance - liquid glass composition */
+  --glass-surface:
+    radial-gradient(190% 240% at 25% -12%, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.09) 58%, rgba(255, 255, 255, 0) 78%),
+    linear-gradient(150deg, rgba(82, 146, 255, 0.31), rgba(122, 83, 255, 0.22), rgba(255, 163, 102, 0.16)),
+    rgba(255, 255, 255, 0.24);
+  --glass-filter: blur(30px) saturate(1.46);
+  --glass-shadow-ring:
+    inset 0 1px 0 rgba(255, 255, 255, 0.62),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.2);
   
   overflow: hidden;
   transition: all var(--duration-base) var(--ease-base);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .amx-mini,
+  .amx-bar,
+  .amx-card {
+    --glass-filter: none;
+    --glass-surface: rgba(255, 255, 255, 0.16);
+    --glass-shadow-ring: none;
+  }
 }
 
 /* ============================================
@@ -655,11 +687,11 @@
   /* Shine gradient + semi-transparent base */
   background:
     linear-gradient(to bottom, 
-      rgba(255, 255, 255, 0.35), 
-      rgba(255, 255, 255, 0.25)
+      rgba(255, 255, 255, 0.92), 
+      rgba(255, 255, 255, 0.78)
     );
   
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.82);
   outline: none;
   padding: 0 14px;
   
@@ -670,8 +702,8 @@
   line-height: 20px;
   
   /* Nested blur + rim light */
-  backdrop-filter: blur(12px) saturate(1.4);
-  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
   box-shadow:
     0 6px 18px rgba(0, 0, 0, 0.08),
     inset 0 0 0 0.5px rgba(255, 255, 255, 0.6);
@@ -688,10 +720,10 @@
   outline: 0;
   background:
     linear-gradient(to bottom, 
-      rgba(255, 255, 255, 0.45), 
-      rgba(255, 255, 255, 0.35)
+      rgba(255, 255, 255, 0.98), 
+      rgba(255, 255, 255, 0.82)
     );
-  border-color: var(--accent);
+  border-color: rgba(122, 162, 255, 0.6);
   box-shadow:
     0 0 0 2px rgba(15, 181, 174, 0.2),
     0 8px 22px rgba(0, 0, 0, 0.12),
@@ -713,8 +745,8 @@
   padding: var(--space-3);  /* 12px padding inside */
   height: 100%;  /* Fill entire window height */
   
-  /* 🎨 TEXT COLOR: Dark text for glassmorphism */
-  color: rgba(16, 18, 30, 0.95);  /* Dark ink color */
+  /* 🎨 TEXT COLOR: Rich dark ink for clarity */
+  color: rgba(30, 35, 55, 0.95);
   background: none !important;
 }
 
@@ -1032,9 +1064,9 @@
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: linear-gradient(180deg, rgba(125, 164, 255, 0.2), rgba(125, 164, 255, 0.05));
-  border: 1px solid rgba(122, 162, 255, 0.35);
-  color: rgba(79, 102, 184, 0.9);
+  background: linear-gradient(180deg, rgba(125, 164, 255, 0.92), rgba(105, 148, 255, 0.82));
+  border: 1px solid rgba(125, 164, 255, 0.95);
+  color: #fff;
   cursor: pointer;
   transition: all 0.15s ease;
   display: flex;
@@ -1044,13 +1076,12 @@
 }
 
 .amx-send:hover {
-  color: rgba(51, 76, 170, 1);
-  border-color: rgba(122, 162, 255, 0.55);
+  border-color: rgba(125, 164, 255, 1);
 }
 
 .amx-send:active {
   transform: scale(0.95);
-  color: rgba(22, 42, 140, 1);
+  color: #fff;
 }
 
 /* Command preview */
@@ -1061,9 +1092,9 @@
   gap: 8px;
   padding: 8px;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.28));
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(235, 240, 255, 0.75));
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.82);
   margin-top: 4px;
 }
 
@@ -1087,8 +1118,8 @@
 }
 
 .amx-btn {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.4));
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 240, 255, 0.82));
+  border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 8px;
   padding: 6px 10px;
   color: rgba(16, 18, 30, 0.9);
@@ -1102,8 +1133,8 @@
 }
 
 .amx-btn:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.5));
-  border-color: rgba(255, 255, 255, 0.7);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(235, 240, 255, 0.88));
+  border-color: rgba(255, 255, 255, 1);
 }
 
 .amx-btn:active {
@@ -1224,14 +1255,14 @@
 .amx-welcome-title {
   font-size: 17px;
   font-weight: 500;
-  color: #fff;
+  color: rgba(16, 18, 30, 0.96);
   letter-spacing: -0.01em;
   margin-bottom: 4px;
 }
 
 .amx-welcome-subtitle {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(75, 80, 96, 0.72);
   text-align: center;
   margin-bottom: 0;
   font-weight: 400;
@@ -1254,7 +1285,7 @@
   display: block;
   font-size: 13px;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(16, 18, 30, 0.82);
   margin-bottom: 10px;
   letter-spacing: -0.01em;
   text-align: center;
@@ -1263,10 +1294,10 @@
 .amx-welcome-input {
   width: 100%;
   padding: 11px 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.85);
   border-radius: 8px;
-  color: #fff;
+  color: rgba(16, 18, 30, 0.9);
   font-size: 14px;
   transition: all 0.2s ease;
   outline: none;
@@ -1274,13 +1305,13 @@
 }
 
 .amx-welcome-input:focus {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(122, 162, 255, 0.4);
-  box-shadow: 0 0 0 3px rgba(122, 162, 255, 0.1);
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(122, 162, 255, 0.7);
+  box-shadow: 0 0 0 3px rgba(122, 162, 255, 0.28);
 }
 
 .amx-welcome-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(16, 18, 30, 0.5);
 }
 
 .amx-welcome-options {
@@ -1296,10 +1327,10 @@
 
 .amx-welcome-option {
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 8px;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(16, 18, 30, 0.85);
   font-size: 12.5px;
   font-weight: 400;
   cursor: pointer;
@@ -1310,14 +1341,14 @@
 }
 
 .amx-welcome-option:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(255, 255, 255, 1);
+  color: rgba(16, 18, 30, 0.92);
 }
 
 .amx-welcome-option.active {
-  background: rgba(122, 162, 255, 0.12);
-  border-color: rgba(122, 162, 255, 0.3);
+  background: rgba(122, 162, 255, 0.9);
+  border-color: rgba(122, 162, 255, 1);
   color: #fff;
 }
 
@@ -1356,33 +1387,35 @@
 }
 
 .amx-welcome-btn.primary {
-  background: rgba(122, 162, 255, 0.18);
-  border: 1px solid rgba(122, 162, 255, 0.3);
+  background: rgba(122, 162, 255, 0.9);
+  border: none;
   color: #fff;
 }
 
 .amx-welcome-btn.primary:hover:not(.disabled) {
-  background: rgba(122, 162, 255, 0.25);
-  border-color: rgba(122, 162, 255, 0.4);
+  background: rgba(122, 162, 255, 0.95);
 }
 
 .amx-welcome-btn.primary:active:not(.disabled) {
   transform: scale(0.98);
+  background: rgba(116, 156, 255, 0.9);
 }
 
 .amx-welcome-btn.primary.disabled {
-  opacity: 0.4;
+  opacity: 0.6;
   cursor: not-allowed;
+  background: rgba(122, 162, 255, 0.4);
+  border: none;
 }
 
 .amx-welcome-btn.secondary {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  color: rgba(16, 18, 30, 0.85);
 }
 
 .amx-welcome-btn.secondary:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.95);
   transform: translateY(-1px);
 }
 

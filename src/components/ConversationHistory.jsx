@@ -20,36 +20,42 @@ export default function ConversationHistory({ onLoadConversation }) {
       console.log('[History] Starting to load history...');
       console.log('[History] Checking for Electron API:', !!window.electron);
       console.log('[History] Checking for memory API:', !!window.electron?.memory);
-      console.log('[History] Checking for getAllSessions:', !!window.electron?.memory?.getAllSessions);
-      
+      console.log(
+        '[History] Checking for getAllSessions:',
+        !!window.electron?.memory?.getAllSessions
+      );
+
       // Check if Electron memory API is available
       if (window.electron?.memory?.getAllSessions) {
         console.log('[History] Calling getAllSessions...');
         // Load ALL sessions from Electron local memory (no limit!)
         const allSessions = await window.electron.memory.getAllSessions();
-        
+
         console.log('[History] Raw sessions received:', allSessions?.length || 0);
         console.log('[History] First session:', allSessions?.[0]);
-        
+
         // Transform sessions into conversation format
-        const convs = allSessions.map(session => {
-          const firstUserMsg = session.messages.find(m => m.role === 'user');
+        const convs = allSessions.map((session) => {
+          const firstUserMsg = session.messages.find((m) => m.role === 'user');
           const lastMessage = session.messages[session.messages.length - 1];
-          
-          console.log(`[History] Processing session ${session.sessionId}: ${session.messages.length} messages`);
-          
+
+          console.log(
+            `[History] Processing session ${session.sessionId}: ${session.messages.length} messages`
+          );
+
           return {
             id: session.sessionId,
-            summary: firstUserMsg 
-              ? (firstUserMsg.content.substring(0, 60) + (firstUserMsg.content.length > 60 ? '...' : ''))
+            summary: firstUserMsg
+              ? firstUserMsg.content.substring(0, 60) +
+                (firstUserMsg.content.length > 60 ? '...' : '')
               : `Conversation (${session.messages.length} messages)`,
             messages: session.messages,
             created_at: session.started_at,
             updated_at: lastMessage?.timestamp || session.started_at,
-            message_count: session.messages.length
+            message_count: session.messages.length,
           };
         });
-        
+
         console.log(`[History] Loaded ${convs.length} conversations from local storage`);
         console.log('[History] Conversations:', convs);
         setConversations(convs);
@@ -61,7 +67,7 @@ export default function ConversationHistory({ onLoadConversation }) {
     } catch (error) {
       console.error('[History] Failed to load conversation history:', error);
       console.error('[History] Error stack:', error.stack);
-      toast.error('Failed to load history: ' + error.message);
+      toast.error(`Failed to load history: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -70,7 +76,7 @@ export default function ConversationHistory({ onLoadConversation }) {
   const loadConversationDetails = async (convId) => {
     try {
       // Find conversation in loaded conversations
-      const conv = conversations.find(c => c.id === convId);
+      const conv = conversations.find((c) => c.id === convId);
       if (conv) {
         setSelectedConv(conv);
         setViewingDetails(true);
@@ -89,7 +95,7 @@ export default function ConversationHistory({ onLoadConversation }) {
     }
   };
 
-  const filteredConversations = conversations.filter(conv =>
+  const filteredConversations = conversations.filter((conv) =>
     conv.summary?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -114,9 +120,7 @@ export default function ConversationHistory({ onLoadConversation }) {
             </button>
           </div>
           <div className="text-sm font-semibold">{selectedConv.summary || 'Conversation'}</div>
-          <div className="text-xs text-gray-400">
-            {selectedConv.messages?.length || 0} messages
-          </div>
+          <div className="text-xs text-gray-400">{selectedConv.messages?.length || 0} messages</div>
         </div>
 
         {/* Messages */}
@@ -150,7 +154,7 @@ export default function ConversationHistory({ onLoadConversation }) {
           <h2 className="text-sm font-semibold">Conversation History</h2>
           <span className="text-xs text-gray-400">({conversations.length})</span>
         </div>
-        
+
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
@@ -179,7 +183,7 @@ export default function ConversationHistory({ onLoadConversation }) {
           </div>
         ) : (
           <div className="p-2 space-y-1">
-            {filteredConversations.map(conv => (
+            {filteredConversations.map((conv) => (
               <button
                 key={conv.id}
                 onClick={() => loadConversationDetails(conv.id)}

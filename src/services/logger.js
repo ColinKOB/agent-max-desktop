@@ -9,7 +9,7 @@ export const LogLevel = {
   INFO: 1,
   WARN: 2,
   ERROR: 3,
-  FATAL: 4
+  FATAL: 4,
 };
 
 // Log level names
@@ -18,22 +18,23 @@ const LogLevelNames = {
   [LogLevel.INFO]: 'INFO',
   [LogLevel.WARN]: 'WARN',
   [LogLevel.ERROR]: 'ERROR',
-  [LogLevel.FATAL]: 'FATAL'
+  [LogLevel.FATAL]: 'FATAL',
 };
 
 // Log colors for console output
 const LogColors = {
   [LogLevel.DEBUG]: '\x1b[36m', // Cyan
-  [LogLevel.INFO]: '\x1b[32m',  // Green
-  [LogLevel.WARN]: '\x1b[33m',  // Yellow
+  [LogLevel.INFO]: '\x1b[32m', // Green
+  [LogLevel.WARN]: '\x1b[33m', // Yellow
   [LogLevel.ERROR]: '\x1b[31m', // Red
   [LogLevel.FATAL]: '\x1b[35m', // Magenta
-  RESET: '\x1b[0m'
+  RESET: '\x1b[0m',
 };
 
 class Logger {
   constructor(options = {}) {
-    this.minLevel = options.minLevel ?? (process.env.NODE_ENV === 'development' ? LogLevel.DEBUG : LogLevel.INFO);
+    this.minLevel =
+      options.minLevel ?? (process.env.NODE_ENV === 'development' ? LogLevel.DEBUG : LogLevel.INFO);
     this.context = options.context || 'App';
     this.enableConsole = options.enableConsole ?? true;
     this.enableRemote = options.enableRemote ?? false;
@@ -60,7 +61,7 @@ class Logger {
       message,
       data,
       metadata: this.metadata,
-      ...this.getEnvironmentInfo()
+      ...this.getEnvironmentInfo(),
     };
   }
 
@@ -72,7 +73,7 @@ class Logger {
       env: process.env.NODE_ENV,
       platform: navigator?.platform,
       userAgent: navigator?.userAgent,
-      url: window?.location?.href
+      url: window?.location?.href,
     };
   }
 
@@ -80,15 +81,16 @@ class Logger {
    * Format message for console
    */
   formatConsoleMessage(entry) {
-    const color = LogColors[Object.keys(LogLevelNames).find(key => LogLevelNames[key] === entry.level)] || '';
+    const color =
+      LogColors[Object.keys(LogLevelNames).find((key) => LogLevelNames[key] === entry.level)] || '';
     const reset = LogColors.RESET;
-    
+
     let message = `${color}[${entry.timestamp}] [${entry.context}] ${entry.level}: ${entry.message}${reset}`;
-    
+
     if (Object.keys(entry.data).length > 0) {
       message += `\n${JSON.stringify(entry.data, null, 2)}`;
     }
-    
+
     return message;
   }
 
@@ -110,7 +112,8 @@ class Logger {
 
     // Console output
     if (this.enableConsole) {
-      const consoleMethod = level >= LogLevel.ERROR ? 'error' : level === LogLevel.WARN ? 'warn' : 'log';
+      const consoleMethod =
+        level >= LogLevel.ERROR ? 'error' : level === LogLevel.WARN ? 'warn' : 'log';
       console[consoleMethod](this.formatConsoleMessage(entry));
     }
 
@@ -157,24 +160,30 @@ class Logger {
   }
 
   error(message, error) {
-    const data = error instanceof Error ? {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
-      ...error
-    } : error;
-    
+    const data =
+      error instanceof Error
+        ? {
+            message: error.message,
+            stack: error.stack,
+            code: error.code,
+            ...error,
+          }
+        : error;
+
     return this.writeLog(LogLevel.ERROR, message, data);
   }
 
   fatal(message, error) {
-    const data = error instanceof Error ? {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
-      ...error
-    } : error;
-    
+    const data =
+      error instanceof Error
+        ? {
+            message: error.message,
+            stack: error.stack,
+            code: error.code,
+            ...error,
+          }
+        : error;
+
     return this.writeLog(LogLevel.FATAL, message, data);
   }
 
@@ -183,17 +192,17 @@ class Logger {
    */
   startTimer(label) {
     // Use Date.now() as fallback for environments where performance.now() is not available
-    const startTime = (typeof performance !== 'undefined' && performance.now) 
-      ? performance.now() 
-      : Date.now();
+    const startTime =
+      typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
     return {
       end: (message) => {
-        const duration = (typeof performance !== 'undefined' && performance.now)
-          ? performance.now() - startTime
-          : Date.now() - startTime;
+        const duration =
+          typeof performance !== 'undefined' && performance.now
+            ? performance.now() - startTime
+            : Date.now() - startTime;
         this.debug(`${label}: ${message}`, { duration: `${duration.toFixed(2)}ms` });
         return duration;
-      }
+      },
     };
   }
 
@@ -204,7 +213,7 @@ class Logger {
     return new Logger({
       ...this,
       context: `${this.context}:${context}`,
-      metadata: { ...this.metadata, ...metadata }
+      metadata: { ...this.metadata, ...metadata },
     });
   }
 
@@ -229,7 +238,7 @@ class Logger {
     return {
       logs: this.buffer,
       metadata: this.metadata,
-      exported_at: new Date().toISOString()
+      exported_at: new Date().toISOString(),
     };
   }
 }
@@ -238,7 +247,7 @@ class Logger {
 const defaultLogger = new Logger({
   context: 'AgentMax',
   enableConsole: process.env.NODE_ENV === 'development',
-  minLevel: process.env.NODE_ENV === 'development' ? LogLevel.DEBUG : LogLevel.INFO
+  minLevel: process.env.NODE_ENV === 'development' ? LogLevel.DEBUG : LogLevel.INFO,
 });
 
 // Factory function to create component-specific loggers
@@ -253,7 +262,7 @@ export const performance = {
       window.performance.mark(name);
     }
   },
-  
+
   measure: (name, startMark, endMark) => {
     if (window.performance?.measure) {
       window.performance.measure(name, startMark, endMark);
@@ -263,17 +272,17 @@ export const performance = {
       return duration;
     }
   },
-  
+
   clearMarks: () => {
     if (window.performance?.clearMarks) {
       window.performance.clearMarks();
     }
-  }
+  },
 };
 
 // Trace function execution
 export const trace = (fn, name) => {
-  return function(...args) {
+  return function (...args) {
     const timer = defaultLogger.startTimer(name || fn.name || 'Anonymous');
     try {
       const result = fn.apply(this, args);
@@ -292,13 +301,13 @@ export const trace = (fn, name) => {
 // Log React component lifecycle
 export const logComponent = (componentName) => {
   const logger = createLogger(`Component:${componentName}`);
-  
+
   return {
     mount: () => logger.debug('Mounted'),
     unmount: () => logger.debug('Unmounted'),
     render: () => logger.debug('Rendered'),
     update: (props) => logger.debug('Updated', { props }),
-    error: (error) => logger.error('Component error', error)
+    error: (error) => logger.error('Component error', error),
   };
 };
 
@@ -306,7 +315,4 @@ export const logComponent = (componentName) => {
 export default defaultLogger;
 
 // Named exports for convenience
-export {
-  defaultLogger as logger,
-  Logger
-};
+export { defaultLogger as logger, Logger };

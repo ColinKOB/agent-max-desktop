@@ -15,7 +15,7 @@ export default function WelcomeScreen({ onComplete }) {
   const totalSteps = 4;
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleNext = () => {
@@ -32,19 +32,23 @@ export default function WelcomeScreen({ onComplete }) {
         toast.error('Please enter your name');
         return;
       }
-      
+
       // Save to local memory
       if (window.electron?.memory) {
         // Set name
         await window.electron.memory.setName(trimmedName);
-        
+
         // Set preferences
         await window.electron.memory.setPreference('role', formData.role, 'work');
         await window.electron.memory.setPreference('primary_use', formData.primaryUse, 'work');
         await window.electron.memory.setPreference('work_style', formData.workStyle, 'work');
         await window.electron.memory.setPreference('timezone', formData.timezone, 'system');
         await window.electron.memory.setPreference('onboarding_completed', true, 'system');
-        await window.electron.memory.setPreference('onboarding_date', new Date().toISOString(), 'system');
+        await window.electron.memory.setPreference(
+          'onboarding_date',
+          new Date().toISOString(),
+          'system'
+        );
       }
 
       toast.success('Welcome to Agent Max! 🎉');
@@ -79,18 +83,13 @@ export default function WelcomeScreen({ onComplete }) {
             <Sparkles className="w-12 h-12" />
           </div>
           <h1 className="welcome-title">Welcome to Agent Max</h1>
-          <p className="welcome-subtitle">
-            Your intelligent AI assistant that learns about you
-          </p>
+          <p className="welcome-subtitle">Your intelligent AI assistant that learns about you</p>
         </div>
 
         {/* Progress Indicator */}
         <div className="welcome-progress">
           {[1, 2, 3, 4].map((s) => (
-            <div
-              key={s}
-              className={`progress-dot ${s <= step ? 'active' : ''}`}
-            />
+            <div key={s} className={`progress-dot ${s <= step ? 'active' : ''}`} />
           ))}
         </div>
 
@@ -103,9 +102,7 @@ export default function WelcomeScreen({ onComplete }) {
                 <Brain className="w-8 h-8" />
               </div>
               <h2 className="step-title">What's your name?</h2>
-              <p className="step-description">
-                I'll use this to personalize our conversations
-              </p>
+              <p className="step-description">I'll use this to personalize our conversations</p>
               <input
                 type="text"
                 className="welcome-input"
@@ -125,9 +122,7 @@ export default function WelcomeScreen({ onComplete }) {
                 <Zap className="w-8 h-8" />
               </div>
               <h2 className="step-title">What do you do?</h2>
-              <p className="step-description">
-                This helps me understand how to assist you better
-              </p>
+              <p className="step-description">This helps me understand how to assist you better</p>
               <div className="option-grid">
                 {[
                   { value: 'developer', label: '👨‍💻 Developer' },
@@ -141,9 +136,7 @@ export default function WelcomeScreen({ onComplete }) {
                 ].map((option) => (
                   <button
                     key={option.value}
-                    className={`option-button ${
-                      formData.role === option.value ? 'selected' : ''
-                    }`}
+                    className={`option-button ${formData.role === option.value ? 'selected' : ''}`}
                     onClick={() => handleInputChange('role', option.value)}
                   >
                     {option.label}
@@ -160,9 +153,7 @@ export default function WelcomeScreen({ onComplete }) {
                 <Sparkles className="w-8 h-8" />
               </div>
               <h2 className="step-title">What will you use me for?</h2>
-              <p className="step-description">
-                Select your primary use case
-              </p>
+              <p className="step-description">Select your primary use case</p>
               <div className="option-grid">
                 {[
                   { value: 'coding', label: '💻 Coding & Development' },
@@ -193,9 +184,7 @@ export default function WelcomeScreen({ onComplete }) {
                 <Check className="w-8 h-8" />
               </div>
               <h2 className="step-title">How do you work?</h2>
-              <p className="step-description">
-                This helps me match your communication style
-              </p>
+              <p className="step-description">This helps me match your communication style</p>
               <div className="option-list">
                 {[
                   {
@@ -238,10 +227,7 @@ export default function WelcomeScreen({ onComplete }) {
         {/* Navigation */}
         <div className="welcome-nav">
           {step > 1 && (
-            <button
-              className="nav-button secondary"
-              onClick={() => setStep(step - 1)}
-            >
+            <button className="nav-button secondary" onClick={() => setStep(step - 1)}>
               Back
             </button>
           )}

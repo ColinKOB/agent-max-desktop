@@ -59,7 +59,7 @@ class RequestQueue {
           console.log('[Queue] Network error, keeping request in queue');
           break;
         }
-        
+
         // For other errors, reject and remove from queue
         item.reject(error);
         this.queue.shift();
@@ -73,7 +73,7 @@ class RequestQueue {
    * Clear all queued requests
    */
   clear() {
-    this.queue.forEach(item => {
+    this.queue.forEach((item) => {
       item.reject(new Error('Queue cleared'));
     });
     this.queue = [];
@@ -90,7 +90,7 @@ class RequestQueue {
    * Get queued requests metadata
    */
   getQueuedRequests() {
-    return this.queue.map(item => ({
+    return this.queue.map((item) => ({
       type: item.metadata.type,
       timestamp: item.metadata.timestamp,
       age: Date.now() - item.timestamp,

@@ -26,12 +26,15 @@ module.exports = {
     '<rootDir>/tests/**/*.{spec,test}.{js,jsx}',
   ],
   transform: {
-    '^.+\\.(js|jsx)$': ['babel-jest', {
-      presets: [
-        ['@babel/preset-env', { targets: { node: 'current' } }],
-        ['@babel/preset-react', { runtime: 'automatic' }]
-      ],
-    }],
+    '^.+\\.(js|jsx)$': [
+      'babel-jest',
+      {
+        presets: [
+          ['@babel/preset-env', { targets: { node: 'current' } }],
+          ['@babel/preset-react', { runtime: 'automatic' }],
+        ],
+      },
+    ],
   },
   moduleDirectories: ['node_modules', 'src'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '/build/'],

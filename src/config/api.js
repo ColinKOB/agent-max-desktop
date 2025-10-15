@@ -1,11 +1,11 @@
 /**
  * API Configuration
- * 
+ *
  * This file manages the API URL for both development and production.
- * 
+ *
  * For Development:
  * - Uses localhost:8000 (local backend)
- * 
+ *
  * For Production:
  * - Set VITE_API_URL environment variable
  * - Or update DEFAULT_PRODUCTION_API below

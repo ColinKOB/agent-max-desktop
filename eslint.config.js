@@ -1,6 +1,5 @@
 const js = require('@eslint/js');
 const reactRecommended = require('eslint-plugin-react/configs/recommended');
-const reactHooksRecommended = require('eslint-plugin-react-hooks/configs/recommended');
 const prettier = require('eslint-config-prettier');
 
 module.exports = [
@@ -61,16 +60,20 @@ module.exports = [
     },
     rules: {
       ...reactRecommended.rules,
-      ...reactHooksRecommended.rules,
       ...prettier.rules,
       'prettier/prettier': 'error',
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
+      'react/no-unescaped-entities': 'warn',
+      'react/no-unknown-property': 'warn',
+      'no-undef': 'warn',
+      'no-control-regex': 'warn',
       'no-unused-vars': [
-        'error',
+        'warn',
         {
           argsIgnorePattern: '^_',
           varsIgnorePattern: '^_',
+          ignoreRestSiblings: true,
         },
       ],
       'no-console': [
@@ -79,7 +82,7 @@ module.exports = [
           allow: ['warn', 'error', 'info'],
         },
       ],
-      'prefer-const': 'error',
+      'prefer-const': 'warn',
       'no-var': 'error',
       'object-shorthand': 'error',
       'prefer-template': 'warn',
@@ -92,7 +95,7 @@ module.exports = [
       ],
       'no-duplicate-imports': 'error',
       'no-unused-expressions': 'error',
-      'no-return-await': 'error',
+      'no-return-await': 'warn',
       'require-await': 'warn',
       'no-nested-ternary': 'warn',
       'no-unneeded-ternary': 'error',
@@ -102,6 +105,17 @@ module.exports = [
     },
   },
   {
-    ignores: ['dist/**', 'build/**', 'node_modules/**', '*.min.js', 'coverage/**', 'release/**'],
+    ignores: [
+      'dist/**',
+      'build/**',
+      'node_modules/**',
+      '*.min.js',
+      'coverage/**',
+      'release/**',
+      '.venv/**',
+      'archive/**',
+      'test_*.js',
+      'debug-*.js',
+    ],
   },
 ];

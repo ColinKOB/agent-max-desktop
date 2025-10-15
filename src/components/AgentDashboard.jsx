@@ -12,7 +12,7 @@ export default function AgentDashboard() {
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [taskInput, setTaskInput] = useState('');
   const [delegating, setDelegating] = useState(false);
-  
+
   // Create agent form
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newAgentRole, setNewAgentRole] = useState('');
@@ -28,9 +28,9 @@ export default function AgentDashboard() {
       const [providersRes, rolesRes, agentsRes] = await Promise.all([
         agentsAPI.listProviders(),
         agentsAPI.listRoles(),
-        agentsAPI.listAgents().catch(() => ({ data: { agents: [] } }))
+        agentsAPI.listAgents().catch(() => ({ data: { agents: [] } })),
       ]);
-      
+
       setProviders(providersRes.data.providers || []);
       setRoles(rolesRes.data.roles || []);
       setAgents(agentsRes.data.agents || []);
@@ -47,7 +47,7 @@ export default function AgentDashboard() {
       toast.error('Select a role');
       return;
     }
-    
+
     setCreating(true);
     try {
       const res = await agentsAPI.createAgent(
@@ -55,14 +55,14 @@ export default function AgentDashboard() {
         newAgentProvider || null,
         null // API keys from environment
       );
-      
+
       toast.success(`Created ${res.data.agent.role}!`);
       setShowCreateForm(false);
       setNewAgentRole('');
       setNewAgentProvider('');
       await loadData();
     } catch (error) {
-      toast.error('Failed to create agent: ' + error.message);
+      toast.error(`Failed to create agent: ${error.message}`);
     } finally {
       setCreating(false);
     }
@@ -70,22 +70,22 @@ export default function AgentDashboard() {
 
   const handleDelegateTask = async () => {
     if (!selectedAgent || !taskInput.trim()) return;
-    
+
     setDelegating(true);
     try {
       const res = await agentsAPI.delegateTask(selectedAgent.id, taskInput);
-      
+
       toast.success('Task completed!');
       setTaskInput('');
-      
+
       // Show result
       if (res.data.result?.response) {
         toast.success(res.data.result.response.substring(0, 100), {
-          duration: 5000
+          duration: 5000,
         });
       }
     } catch (error) {
-      toast.error('Task delegation failed: ' + error.message);
+      toast.error(`Task delegation failed: ${error.message}`);
     } finally {
       setDelegating(false);
     }
@@ -93,11 +93,11 @@ export default function AgentDashboard() {
 
   const handleDeleteAgent = async (agentId) => {
     if (!confirm('Delete this agent?')) return;
-    
+
     try {
       await agentsAPI.deleteAgent(agentId);
       toast.success('Agent deleted');
-      setAgents(prev => prev.filter(a => a.id !== agentId));
+      setAgents((prev) => prev.filter((a) => a.id !== agentId));
       if (selectedAgent?.id === agentId) {
         setSelectedAgent(null);
       }
@@ -145,14 +145,14 @@ export default function AgentDashboard() {
               className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-xs"
             >
               <option value="">Select role...</option>
-              {roles.map(role => (
+              {roles.map((role) => (
                 <option key={role.id} value={role.id}>
                   {role.name} - {role.description}
                 </option>
               ))}
             </select>
           </div>
-          
+
           <div>
             <label className="text-xs text-gray-400 mb-1 block">Provider (optional)</label>
             <select
@@ -161,21 +161,25 @@ export default function AgentDashboard() {
               className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-xs"
             >
               <option value="">Default</option>
-              {providers.map(provider => (
+              {providers.map((provider) => (
                 <option key={provider.id} value={provider.id}>
                   {provider.name}
                 </option>
               ))}
             </select>
           </div>
-          
+
           <div className="flex gap-2">
             <button
               onClick={handleCreateAgent}
               disabled={creating || !newAgentRole}
               className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white py-1.5 rounded text-xs flex items-center justify-center gap-1"
             >
-              {creating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+              {creating ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Plus className="w-3 h-3" />
+              )}
               Create Agent
             </button>
             <button
@@ -198,7 +202,7 @@ export default function AgentDashboard() {
             </div>
           ) : (
             <div className="p-2 space-y-1">
-              {agents.map(agent => (
+              {agents.map((agent) => (
                 <button
                   key={agent.id}
                   onClick={() => setSelectedAgent(agent)}
@@ -222,9 +226,7 @@ export default function AgentDashboard() {
                       </button>
                     )}
                   </div>
-                  <div className="text-[10px] text-gray-400">
-                    {agent.provider}
-                  </div>
+                  <div className="text-[10px] text-gray-400">{agent.provider}</div>
                   {agent.tasks_completed > 0 && (
                     <div className="text-[10px] text-gray-500 mt-1">
                       {agent.tasks_completed} tasks completed
@@ -249,9 +251,7 @@ export default function AgentDashboard() {
                   <Bot className="w-4 h-4 text-purple-400" />
                   <span className="font-semibold text-sm">{selectedAgent.role}</span>
                 </div>
-                <div className="text-xs text-gray-400">
-                  {selectedAgent.provider}
-                </div>
+                <div className="text-xs text-gray-400">{selectedAgent.provider}</div>
                 {selectedAgent.created_at && (
                   <div className="text-[10px] text-gray-500 mt-1">
                     Created {new Date(selectedAgent.created_at).toLocaleDateString()}

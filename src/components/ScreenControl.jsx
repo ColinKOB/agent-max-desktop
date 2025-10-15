@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Monitor, Mouse, Keyboard, Camera, Eye, Info, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import {
+  Monitor,
+  Mouse,
+  Keyboard,
+  Camera,
+  Eye,
+  Info,
+  AlertCircle,
+  CheckCircle,
+  Loader2,
+} from 'lucide-react';
 import { screenAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -8,7 +18,7 @@ export default function ScreenControl() {
   const [capabilities, setCapabilities] = useState(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('click');
-  
+
   // Form states
   const [clickX, setClickX] = useState('');
   const [clickY, setClickY] = useState('');
@@ -27,9 +37,9 @@ export default function ScreenControl() {
     try {
       const [infoRes, capsRes] = await Promise.all([
         screenAPI.getInfo().catch(() => null),
-        screenAPI.getCapabilities().catch(() => null)
+        screenAPI.getCapabilities().catch(() => null),
       ]);
-      
+
       if (infoRes) setScreenInfo(infoRes.data);
       if (capsRes) setCapabilities(capsRes.data);
     } catch (error) {
@@ -42,13 +52,13 @@ export default function ScreenControl() {
       toast.error('Enter both X and Y coordinates');
       return;
     }
-    
+
     setLoading(true);
     try {
       await screenAPI.click(parseInt(clickX), parseInt(clickY));
       toast.success('Click executed!');
     } catch (error) {
-      toast.error('Click failed: ' + error.message);
+      toast.error(`Click failed: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -59,14 +69,14 @@ export default function ScreenControl() {
       toast.error('Enter text to type');
       return;
     }
-    
+
     setLoading(true);
     try {
       await screenAPI.typeText(textToType);
       toast.success('Text typed!');
       setTextToType('');
     } catch (error) {
-      toast.error('Type failed: ' + error.message);
+      toast.error(`Type failed: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -77,13 +87,13 @@ export default function ScreenControl() {
       toast.error('Enter text to find');
       return;
     }
-    
+
     setLoading(true);
     try {
       await screenAPI.clickText(textToFind);
       toast.success(`Found and clicked: "${textToFind}"`);
     } catch (error) {
-      toast.error('Text not found: ' + error.message);
+      toast.error(`Text not found: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -94,13 +104,13 @@ export default function ScreenControl() {
       toast.error('Describe the element');
       return;
     }
-    
+
     setLoading(true);
     try {
       await screenAPI.clickElement(elementDesc);
       toast.success('Element clicked!');
     } catch (error) {
-      toast.error('Element not found: ' + error.message);
+      toast.error(`Element not found: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -112,7 +122,7 @@ export default function ScreenControl() {
       const res = await screenAPI.takeScreenshot();
       toast.success(`Screenshot saved: ${res.data.path}`);
     } catch (error) {
-      toast.error('Screenshot failed: ' + error.message);
+      toast.error(`Screenshot failed: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -133,7 +143,7 @@ export default function ScreenControl() {
             </div>
           )}
         </div>
-        
+
         {capabilities && !capabilities.available && (
           <div className="mt-2 flex items-center gap-2 text-xs text-yellow-400">
             <AlertCircle className="w-4 h-4" />
@@ -150,7 +160,7 @@ export default function ScreenControl() {
           { id: 'find', label: 'Find Text', icon: Eye },
           { id: 'ai', label: 'AI Click', icon: Eye },
           { id: 'screenshot', label: 'Screenshot', icon: Camera },
-        ].map(tab => {
+        ].map((tab) => {
           const Icon = tab.icon;
           return (
             <button
@@ -200,7 +210,11 @@ export default function ScreenControl() {
               disabled={loading || !clickX || !clickY}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-2"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mouse className="w-4 h-4" />}
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Mouse className="w-4 h-4" />
+              )}
               Click at Coordinates
             </button>
           </div>
@@ -223,7 +237,11 @@ export default function ScreenControl() {
               disabled={loading || !textToType}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-2"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Keyboard className="w-4 h-4" />}
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Keyboard className="w-4 h-4" />
+              )}
               Type Text
             </button>
           </div>
@@ -282,7 +300,11 @@ export default function ScreenControl() {
               disabled={loading}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white py-3 rounded text-sm font-medium transition-colors flex items-center justify-center gap-2"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Camera className="w-4 h-4" />
+              )}
               Take Screenshot
             </button>
             <div className="text-xs text-gray-400 text-center">

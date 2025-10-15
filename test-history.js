@@ -43,51 +43,58 @@ console.log('   Data length:', encryptedData.data?.length || 0);
 try {
   // Generate same encryption key as memory manager
   const machineId = require('node-machine-id').machineIdSync();
-  const encryptionKey = crypto.createHash('sha256')
-    .update(machineId + 'agent-max-desktop')
+  const encryptionKey = crypto
+    .createHash('sha256')
+    .update(`${machineId}agent-max-desktop`)
     .digest();
-  
+
   console.log('\n🔐 Decryption:');
-  console.log('   Machine ID:', machineId.substring(0, 16) + '...');
+  console.log('   Machine ID:', `${machineId.substring(0, 16)}...`);
   console.log('   Key generated:', encryptionKey.length, 'bytes');
-  
+
   // Decrypt
   const iv = Buffer.from(encryptedData.iv, 'hex');
   const decipher = crypto.createDecipheriv('aes-256-cbc', encryptionKey, iv);
   let decrypted = decipher.update(encryptedData.data, 'hex', 'utf8');
   decrypted += decipher.final('utf8');
-  
+
   const conversations = JSON.parse(decrypted);
-  
+
   console.log('   ✅ Decryption successful!');
   console.log('\n💬 Conversations Data:');
   console.log('   Current session:', conversations.current_session || 'none');
   console.log('   Total sessions:', Object.keys(conversations.sessions || {}).length);
-  
+
   if (conversations.sessions) {
     const sessionIds = Object.keys(conversations.sessions);
     console.log('\n📝 Sessions:');
-    
+
     sessionIds.forEach((sessionId, index) => {
       const session = conversations.sessions[sessionId];
       console.log(`\n   ${index + 1}. Session: ${sessionId}`);
       console.log(`      Started: ${session.started_at}`);
       console.log(`      Messages: ${session.messages?.length || 0}`);
-      
+
       if (session.messages && session.messages.length > 0) {
         const firstMsg = session.messages[0];
         const lastMsg = session.messages[session.messages.length - 1];
-        console.log(`      First message: ${firstMsg.role}: "${firstMsg.content.substring(0, 50)}..."`);
-        console.log(`      Last message: ${lastMsg.role}: "${lastMsg.content.substring(0, 50)}..."`);
+        console.log(
+          `      First message: ${firstMsg.role}: "${firstMsg.content.substring(0, 50)}..."`
+        );
+        console.log(
+          `      Last message: ${lastMsg.role}: "${lastMsg.content.substring(0, 50)}..."`
+        );
         console.log(`      Last timestamp: ${lastMsg.timestamp}`);
       }
     });
-    
+
     console.log('\n✅ Test Complete!');
     console.log(`\n📊 Summary:`);
     console.log(`   - ${sessionIds.length} conversation sessions found`);
-    console.log(`   - ${sessionIds.reduce((acc, sid) => acc + (conversations.sessions[sid].messages?.length || 0), 0)} total messages`);
-    
+    console.log(
+      `   - ${sessionIds.reduce((acc, sid) => acc + (conversations.sessions[sid].messages?.length || 0), 0)} total messages`
+    );
+
     if (sessionIds.length === 0) {
       console.log('\n⚠️  WARNING: No sessions found in conversations.json');
       console.log('   This means no conversations have been saved yet.');
@@ -96,7 +103,6 @@ try {
   } else {
     console.log('   ❌ No sessions object in conversations data');
   }
-  
 } catch (error) {
   console.error('\n❌ Decryption failed:', error.message);
   console.error('   Stack:', error.stack);

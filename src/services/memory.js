@@ -19,18 +19,18 @@ class MemoryService {
     try {
       // Load user profile
       this.profile = await window.electron.memory.getProfile();
-      
+
       // Start a new session
       this.sessionId = await window.electron.memory.startSession();
-      
+
       // Increment interaction count
       await window.electron.memory.incrementInteraction();
-      
+
       this.initialized = true;
       console.log('✓ Memory service initialized');
       console.log('  User:', this.profile.name || 'Not set');
       console.log('  Session:', this.sessionId);
-      
+
       return this.profile;
     } catch (error) {
       console.error('Failed to initialize memory service:', error);
@@ -108,7 +108,7 @@ class MemoryService {
     // Enhanced fact extraction with more patterns
     const facts = {};
     const messageLower = message.toLowerCase();
-    
+
     // Look for "my name is X" pattern
     const nameMatch = message.match(/my name is (\w+)/i);
     if (nameMatch) {
@@ -126,7 +126,7 @@ class MemoryService {
       /I am from ([A-Za-z\s]+?)(?:\.|,|$)/i,
       /my location is ([A-Za-z\s]+?)(?:\.|,|$)/i,
     ];
-    
+
     for (const pattern of locationPatterns) {
       const locationMatch = message.match(pattern);
       if (locationMatch) {
@@ -145,12 +145,12 @@ class MemoryService {
       facts.likes = likeMatch[1];
     }
 
-    // Look for "I am X" or "I'm a X" pattern  
+    // Look for "I am X" or "I'm a X" pattern
     const descriptionPatterns = [
       /I am (?:a |an )?([\w\s]+?)(?:\.|,|$)/i,
-      /I'm (?:a |an )?([\w\s]+?)(?:\.|,|$)/i
+      /I'm (?:a |an )?([\w\s]+?)(?:\.|,|$)/i,
     ];
-    
+
     for (const pattern of descriptionPatterns) {
       const descMatch = message.match(pattern);
       if (descMatch) {
@@ -176,7 +176,7 @@ class MemoryService {
    */
   async addMessage(role, content) {
     await window.electron.memory.addMessage(role, content, this.sessionId);
-    
+
     // Extract facts if it's a user message
     if (role === 'user') {
       await this.extractFactsFromMessage(content, null);
@@ -253,12 +253,12 @@ class MemoryService {
         goal: message,
         user_context: context,
         max_steps: 10,
-        timeout: 300
+        timeout: 300,
       });
 
       // Extract response (now properly structured!)
       const aiResponse = response.data.response || 'No response';
-      
+
       // Add AI response to local memory
       await this.addMessage('assistant', aiResponse);
 
@@ -266,7 +266,7 @@ class MemoryService {
         response: aiResponse,
         status: response.data.status,
         execution_time: response.data.execution_time,
-        exit_code: response.data.exit_code
+        exit_code: response.data.exit_code,
       };
     } catch (error) {
       console.error('Error sending message with context:', error);
@@ -288,9 +288,9 @@ class MemoryService {
 
       // Send to CHAT endpoint (safe, no commands)
       const response = await api.post('/api/v2/chat/message', {
-        message: message,
+        message,
         user_context: context,
-        include_context: true
+        include_context: true,
       });
 
       // Add AI response to local memory
@@ -314,11 +314,11 @@ class MemoryService {
    */
   async exportMemories() {
     const data = await window.electron.memory.export();
-    
+
     // Create download blob
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
+
     // Trigger download
     const a = document.createElement('a');
     a.href = url;
@@ -327,7 +327,7 @@ class MemoryService {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     return data;
   }
 
@@ -337,21 +337,21 @@ class MemoryService {
   async importMemories(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      
+
       reader.onload = async (e) => {
         try {
           const data = JSON.parse(e.target.result);
           await window.electron.memory.import(data);
-          
+
           // Reload profile
           this.profile = await window.electron.memory.getProfile();
-          
+
           resolve(data);
         } catch (error) {
           reject(error);
         }
       };
-      
+
       reader.onerror = reject;
       reader.readAsText(file);
     });
@@ -381,7 +381,7 @@ class MemoryService {
   async getPersonalizedGreeting() {
     const profile = await this.getProfile();
     const hour = new Date().getHours();
-    
+
     let timeOfDay = 'day';
     if (hour < 12) timeOfDay = 'morning';
     else if (hour < 17) timeOfDay = 'afternoon';

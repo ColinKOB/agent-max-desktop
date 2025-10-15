@@ -3,6 +3,8 @@
  * Runs before all tests
  */
 
+import { vi } from 'vitest';
+
 // Mock global.window if it doesn't exist
 if (typeof window === 'undefined') {
   global.window = {};

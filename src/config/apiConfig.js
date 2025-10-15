@@ -1,6 +1,6 @@
 /**
  * Unified API Configuration Manager
- * 
+ *
  * Provides a single source of truth for API configuration
  * and allows runtime reconfiguration from Settings.
  */
@@ -67,7 +67,7 @@ class ApiConfigManager {
    */
   updateConfig(baseURL, apiKey = null) {
     console.log('[ApiConfig] Updating configuration:', { baseURL, apiKey: apiKey ? '***' : null });
-    
+
     // Save to localStorage
     localStorage.setItem('api_url', baseURL);
     if (apiKey) {
@@ -94,7 +94,7 @@ class ApiConfigManager {
   }
 
   notifyListeners() {
-    this.listeners.forEach(callback => {
+    this.listeners.forEach((callback) => {
       try {
         callback(this.config);
       } catch (error) {

@@ -20,10 +20,10 @@ class LocalMemoryManager {
     this.factsFile = path.join(this.memoryDir, 'facts.json');
     this.conversationsFile = path.join(this.memoryDir, 'conversations.json');
     this.preferencesFile = path.join(this.memoryDir, 'preferences.json');
-    
+
     // Encryption key derived from machine ID (unique per machine)
     this.encryptionKey = this._generateEncryptionKey();
-    
+
     // Initialize directories
     this._ensureDirectories();
   }
@@ -34,9 +34,7 @@ class LocalMemoryManager {
   _generateEncryptionKey() {
     // Use machine ID + app name for unique key
     const machineId = require('node-machine-id').machineIdSync();
-    return crypto.createHash('sha256')
-      .update(machineId + 'agent-max-desktop')
-      .digest();
+    return crypto.createHash('sha256').update(`${machineId}agent-max-desktop`).digest();
   }
 
   /**
@@ -59,7 +57,7 @@ class LocalMemoryManager {
     encrypted += cipher.final('hex');
     return {
       iv: iv.toString('hex'),
-      data: encrypted
+      data: encrypted,
     };
   }
 
@@ -123,7 +121,7 @@ class LocalMemoryManager {
       created_at: new Date().toISOString(),
       interaction_count: 0,
       last_interaction: null,
-      preferences: {}
+      preferences: {},
     });
   }
 
@@ -176,7 +174,7 @@ class LocalMemoryManager {
     }
     facts[category][key] = {
       value,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
     this._saveFile(this.factsFile, facts);
     return facts;
@@ -212,7 +210,7 @@ class LocalMemoryManager {
   getConversations() {
     return this._loadFile(this.conversationsFile, {
       sessions: {},
-      current_session: null
+      current_session: null,
     });
   }
 
@@ -222,14 +220,14 @@ class LocalMemoryManager {
   startSession(sessionId = null) {
     const conversations = this.getConversations();
     const newSessionId = sessionId || `session_${Date.now()}`;
-    
+
     conversations.sessions[newSessionId] = {
       started_at: new Date().toISOString(),
       messages: [],
-      facts_extracted: []
+      facts_extracted: [],
     };
     conversations.current_session = newSessionId;
-    
+
     this._saveFile(this.conversationsFile, conversations);
     return newSessionId;
   }
@@ -240,7 +238,7 @@ class LocalMemoryManager {
   addMessage(role, content, sessionId = null) {
     const conversations = this.getConversations();
     const sid = sessionId || conversations.current_session;
-    
+
     if (!sid || !conversations.sessions[sid]) {
       // Start new session if none exists
       this.startSession(sid);
@@ -250,7 +248,7 @@ class LocalMemoryManager {
     conversations.sessions[sid].messages.push({
       role,
       content,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
     this._saveFile(this.conversationsFile, conversations);
@@ -263,12 +261,12 @@ class LocalMemoryManager {
   getRecentMessages(count = 10, sessionId = null) {
     const conversations = this.getConversations();
     const sid = sessionId || conversations.current_session;
-    
+
     if (!sid || !conversations.sessions[sid]) {
       return [];
     }
 
-    const messages = conversations.sessions[sid].messages;
+    const { messages } = conversations.sessions[sid];
     // If count is null or -1, return all messages
     if (count === null || count === -1) {
       return messages;
@@ -283,28 +281,42 @@ class LocalMemoryManager {
   getAllSessions() {
     console.log('[MemoryManager] getAllSessions called');
     const conversations = this.getConversations();
-    
+
     console.log('[MemoryManager] Conversations object keys:', Object.keys(conversations));
-    console.log('[MemoryManager] Sessions count:', Object.keys(conversations.sessions || {}).length);
-    
+    console.log(
+      '[MemoryManager] Sessions count:',
+      Object.keys(conversations.sessions || {}).length
+    );
+
     // Convert sessions object to array
-    const sessionsArray = Object.entries(conversations.sessions || {}).map(([sessionId, session]) => ({
-      sessionId,
-      ...session
-    }));
-    
+    const sessionsArray = Object.entries(conversations.sessions || {}).map(
+      ([sessionId, session]) => ({
+        sessionId,
+        ...session,
+      })
+    );
+
     console.log('[MemoryManager] Sessions array length:', sessionsArray.length);
     if (sessionsArray.length > 0) {
-      console.log('[MemoryManager] First session messages:', sessionsArray[0].messages?.length || 0);
+      console.log(
+        '[MemoryManager] First session messages:',
+        sessionsArray[0].messages?.length || 0
+      );
     }
-    
+
     // Sort by most recent (last message timestamp)
     sessionsArray.sort((a, b) => {
-      const aTime = a.messages.length > 0 ? new Date(a.messages[a.messages.length - 1].timestamp) : new Date(a.started_at);
-      const bTime = b.messages.length > 0 ? new Date(b.messages[b.messages.length - 1].timestamp) : new Date(b.started_at);
+      const aTime =
+        a.messages.length > 0
+          ? new Date(a.messages[a.messages.length - 1].timestamp)
+          : new Date(a.started_at);
+      const bTime =
+        b.messages.length > 0
+          ? new Date(b.messages[b.messages.length - 1].timestamp)
+          : new Date(b.started_at);
       return bTime - aTime; // Most recent first
     });
-    
+
     console.log('[MemoryManager] Returning', sessionsArray.length, 'sessions');
     return sessionsArray;
   }
@@ -323,15 +335,15 @@ class LocalMemoryManager {
   clearSession(sessionId = null) {
     const conversations = this.getConversations();
     const sid = sessionId || conversations.current_session;
-    
+
     if (sid && conversations.sessions[sid]) {
       delete conversations.sessions[sid];
     }
-    
+
     if (conversations.current_session === sid) {
       conversations.current_session = null;
     }
-    
+
     this._saveFile(this.conversationsFile, conversations);
   }
 
@@ -348,9 +360,9 @@ class LocalMemoryManager {
         explicit: {},
         implicit: {},
         work: {},
-        system: {}
+        system: {},
       });
-      
+
       // Defensive: ensure prefs is an object
       if (!prefs || typeof prefs !== 'object' || Array.isArray(prefs)) {
         console.warn('[Memory] Preferences not an object, creating new structure');
@@ -358,16 +370,16 @@ class LocalMemoryManager {
           explicit: {},
           implicit: {},
           work: {},
-          system: {}
+          system: {},
         };
       }
-      
+
       // Ensure all expected types exist
       if (!prefs.explicit || typeof prefs.explicit !== 'object') prefs.explicit = {};
       if (!prefs.implicit || typeof prefs.implicit !== 'object') prefs.implicit = {};
       if (!prefs.work || typeof prefs.work !== 'object') prefs.work = {};
       if (!prefs.system || typeof prefs.system !== 'object') prefs.system = {};
-      
+
       return prefs;
     } catch (error) {
       console.error('[Memory] Error in getPreferences:', error);
@@ -375,7 +387,7 @@ class LocalMemoryManager {
         explicit: {},
         implicit: {},
         work: {},
-        system: {}
+        system: {},
       };
     }
   }
@@ -386,9 +398,9 @@ class LocalMemoryManager {
   setPreference(key, value, type = 'explicit') {
     try {
       console.log(`[Memory] Setting preference: ${key} = ${value} (type: ${type})`);
-      
+
       let preferences = this.getPreferences();
-      
+
       // Defensive: ensure preferences is an object
       if (!preferences || typeof preferences !== 'object') {
         console.error('[Memory] Preferences is not an object, creating new');
@@ -396,24 +408,24 @@ class LocalMemoryManager {
           explicit: {},
           implicit: {},
           work: {},
-          system: {}
+          system: {},
         };
       }
-      
+
       // Defensive: ensure the type object exists
       if (!preferences[type] || typeof preferences[type] !== 'object') {
         console.log(`[Memory] Creating missing type: ${type}`);
         preferences[type] = {};
       }
-      
+
       // Set the preference
       preferences[type][key] = {
         value,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
-      
+
       console.log(`[Memory] Preference set successfully:`, preferences[type][key]);
-      
+
       this._saveFile(this.preferencesFile, preferences);
       return preferences;
     } catch (error) {
@@ -427,18 +439,20 @@ class LocalMemoryManager {
    */
   getPreference(key, type = null) {
     const preferences = this.getPreferences();
-    
+
     // If type is specified, only check that type
     if (type) {
       return preferences[type]?.[key]?.value || null;
     }
-    
+
     // Otherwise check all types in order: explicit, work, system, implicit
-    return preferences.explicit?.[key]?.value || 
-           preferences.work?.[key]?.value ||
-           preferences.system?.[key]?.value ||
-           preferences.implicit?.[key]?.value || 
-           null;
+    return (
+      preferences.explicit?.[key]?.value ||
+      preferences.work?.[key]?.value ||
+      preferences.system?.[key]?.value ||
+      preferences.implicit?.[key]?.value ||
+      null
+    );
   }
 
   // ============================================
@@ -459,7 +473,7 @@ class LocalMemoryManager {
       profile: {
         name: profile.name,
         interaction_count: profile.interaction_count,
-        last_interaction: profile.last_interaction
+        last_interaction: profile.last_interaction,
       },
       facts: this._summarizeFacts(facts),
       recent_messages: recentMessages,
@@ -471,8 +485,8 @@ class LocalMemoryManager {
         implicit: Object.keys(preferences.implicit).reduce((acc, key) => {
           acc[key] = preferences.implicit[key].value;
           return acc;
-        }, {})
-      }
+        }, {}),
+      },
     };
   }
 
@@ -487,7 +501,7 @@ class LocalMemoryManager {
     for (const category in facts) {
       if (count >= maxFacts) break;
       summary[category] = {};
-      
+
       for (const key in facts[category]) {
         if (count >= maxFacts) break;
         summary[category][key] = facts[category][key].value;
@@ -511,7 +525,7 @@ class LocalMemoryManager {
       facts: this.getFacts(),
       conversations: this.getConversations(),
       preferences: this.getPreferences(),
-      exported_at: new Date().toISOString()
+      exported_at: new Date().toISOString(),
     };
   }
 
@@ -542,12 +556,14 @@ class LocalMemoryManager {
     const conversations = this.getConversations();
     const preferences = this.getPreferences();
 
-    const factCount = Object.values(facts).reduce((sum, category) => 
-      sum + Object.keys(category).length, 0
+    const factCount = Object.values(facts).reduce(
+      (sum, category) => sum + Object.keys(category).length,
+      0
     );
 
-    const messageCount = Object.values(conversations.sessions).reduce((sum, session) =>
-      sum + session.messages.length, 0
+    const messageCount = Object.values(conversations.sessions).reduce(
+      (sum, session) => sum + session.messages.length,
+      0
     );
 
     return {
@@ -556,8 +572,9 @@ class LocalMemoryManager {
       facts_stored: factCount,
       conversations: Object.keys(conversations.sessions).length,
       messages: messageCount,
-      preferences: Object.keys(preferences.explicit).length + Object.keys(preferences.implicit).length,
-      storage_location: this.memoryDir
+      preferences:
+        Object.keys(preferences.explicit).length + Object.keys(preferences.implicit).length,
+      storage_location: this.memoryDir,
     };
   }
 }

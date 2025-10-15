@@ -188,9 +188,9 @@ describe('IPCValidator', () => {
       const numbers = IPCValidator.validateArray([1, 2, 3], { itemType: 'number' });
       expect(numbers).toEqual([1, 2, 3]);
 
-      expect(() =>
-        IPCValidator.validateArray(['a', 123], { itemType: 'string' })
-      ).toThrow('Invalid item at index 1');
+      expect(() => IPCValidator.validateArray(['a', 123], { itemType: 'string' })).toThrow(
+        'Invalid item at index 1'
+      );
     });
   });
 
@@ -207,9 +207,7 @@ describe('IPCValidator', () => {
 
     it('validates protocol whitelist', () => {
       const options = { allowedProtocols: ['https:'] };
-      expect(IPCValidator.validateURL('https://example.com', options)).toBe(
-        'https://example.com/'
-      );
+      expect(IPCValidator.validateURL('https://example.com', options)).toBe('https://example.com/');
       expect(() => IPCValidator.validateURL('http://example.com', options)).toThrow(
         'Protocol http: not allowed'
       );
@@ -217,9 +215,7 @@ describe('IPCValidator', () => {
 
     it('validates domain whitelist', () => {
       const options = { allowedDomains: ['example.com', 'trusted.com'] };
-      expect(IPCValidator.validateURL('https://example.com', options)).toBe(
-        'https://example.com/'
-      );
+      expect(IPCValidator.validateURL('https://example.com', options)).toBe('https://example.com/');
       expect(() => IPCValidator.validateURL('https://evil.com', options)).toThrow(
         'Domain evil.com not allowed'
       );
@@ -337,7 +333,7 @@ describe('IPCValidator', () => {
 
       try {
         await validatedHandler({}, {});
-      } catch (e) {
+      } catch {
         // Expected to throw
       }
 

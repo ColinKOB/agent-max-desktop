@@ -72,16 +72,16 @@ export default function Knowledge() {
   Object.entries(facts).forEach(([category, items]) => {
     const filtered = {};
     Object.entries(items).forEach(([key, value]) => {
-      const matchesSearch = 
+      const matchesSearch =
         !searchQuery ||
         key.toLowerCase().includes(searchQuery.toLowerCase()) ||
         String(value).toLowerCase().includes(searchQuery.toLowerCase());
-      
+
       if (matchesSearch) {
         filtered[key] = value;
       }
     });
-    
+
     if (Object.keys(filtered).length > 0) {
       filteredFacts[category] = filtered;
     }
@@ -89,9 +89,7 @@ export default function Knowledge() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">
-        Knowledge Base
-      </h1>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">Knowledge Base</h1>
 
       {/* Extract Facts Section */}
       <div className="card mb-8 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20">
@@ -155,7 +153,8 @@ export default function Knowledge() {
       <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-6">
         <FileText className="w-4 h-4" />
         <span>
-          {Object.values(filteredFacts).reduce((sum, items) => sum + Object.keys(items).length, 0)} facts
+          {Object.values(filteredFacts).reduce((sum, items) => sum + Object.keys(items).length, 0)}{' '}
+          facts
           {selectedCategory !== 'all' && ` in ${selectedCategory}`}
         </span>
       </div>
