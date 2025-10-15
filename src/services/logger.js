@@ -182,10 +182,15 @@ class Logger {
    * Measure performance
    */
   startTimer(label) {
-    const startTime = performance.now();
+    // Use Date.now() as fallback for environments where performance.now() is not available
+    const startTime = (typeof performance !== 'undefined' && performance.now) 
+      ? performance.now() 
+      : Date.now();
     return {
       end: (message) => {
-        const duration = performance.now() - startTime;
+        const duration = (typeof performance !== 'undefined' && performance.now)
+          ? performance.now() - startTime
+          : Date.now() - startTime;
         this.debug(`${label}: ${message}`, { duration: `${duration.toFixed(2)}ms` });
         return duration;
       }

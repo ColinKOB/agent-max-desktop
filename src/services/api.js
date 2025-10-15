@@ -346,7 +346,20 @@ export const chatAPI = {
     });
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      // Try to get error details from response
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorData.error || errorMessage;
+      } catch (e) {
+        // Response might not be JSON
+        try {
+          errorMessage = await response.text() || errorMessage;
+        } catch (e2) {
+          // Use default message
+        }
+      }
+      throw new Error(errorMessage);
     }
     
     const reader = response.body.getReader();

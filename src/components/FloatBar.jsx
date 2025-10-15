@@ -842,6 +842,21 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     return () => clearTimeout(timer);
   }, [message]);
 
+  // Debug: Log computed styles for glassmorphism
+  useEffect(() => {
+    if (isMini) {
+      const miniEl = document.querySelector('.amx-mini');
+      if (miniEl) {
+        const styles = window.getComputedStyle(miniEl);
+        console.log('[FloatBar Debug] Mini pill styles:', {
+          background: styles.background,
+          backdropFilter: styles.backdropFilter,
+          webkitBackdropFilter: styles.webkitBackdropFilter
+        });
+      }
+    }
+  }, [isMini]);
+
   // Mini square mode - fully collapsed
   if (isMini) {
     return (

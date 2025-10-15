@@ -47,8 +47,9 @@ function createWindow() {
     show: false,
     title: 'Agent Max',
     hasShadow: true,
-    vibrancy: 'under-window', // macOS only - subtle glass effect
-    visualEffectState: 'active', // macOS only
+    // macOS vibrancy - REQUIRED for CSS backdrop-filter to work
+    vibrancy: 'under-window',  // Allows CSS to sample desktop content
+    visualEffectState: 'active',
   });
 
   // Make window visible on all workspaces/desktops

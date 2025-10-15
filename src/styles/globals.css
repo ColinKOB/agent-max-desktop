@@ -1,4 +1,10 @@
 /* ============================================
+   DESIGN TOKENS - Import First!
+   All brand colors, spacing, typography defined here
+   ============================================ */
+@import './tokens.css';
+
+/* ============================================
    TAILWIND CSS DIRECTIVES
    These import Tailwind's utility classes
    ============================================ */
@@ -18,97 +24,62 @@
 
 :root {
   /* ==========================================
-     COLOR PALETTE
-     All colors use HSLA format: hue, saturation, lightness, alpha (opacity)
-     
-     TIP: To adjust colors:
-     - Hue (0-360): Changes the color (0=red, 120=green, 240=blue)
-     - Saturation (0-100%): 0%=gray, 100%=vibrant
-     - Lightness (0-100%): 0%=black, 50%=pure color, 100%=white
-     - Alpha (0-1): 0=transparent, 1=opaque
+     LEGACY VARIABLE MAPPING
+     Mapping old variable names to new tokens for compatibility
+     These can be removed once all components are updated
      ========================================== */
   
-  /* Background color (rarely used since we use transparency) */
-  --bg: #0f1115;  /* Very dark blue-gray */
+  /* Map old names to new token system */
+  --panel: var(--surface);
+  --bubble: var(--surface);
+  --stroke: var(--border);
   
-  /* Panel/Window background - Light glass effect */
-  --panel: hsla(220, 14%, 18%, 0.50);
-  /* 220 = blue hue, 14% = low saturation (grayish), 18% = dark, 50% = half transparent */
-  /* TIP: Increase alpha (0.50 → 0.70) for more solid, decrease for more transparent */
+  /* Legacy glass effects - now using tokens */
+  --blur: var(--blur-amount);
+  --blur-panel: var(--blur-amount);
+  --saturation: 130%;  /* Increased for richer colors through glass */
   
-  /* Bubble/Card background - Thicker glass for better readability */
-  --bubble: hsla(220, 14%, 18%, 0.82);
-  /* Same color as panel but 82% opaque for better text contrast */
-  /* TIP: Keep this higher than --panel for readable text backgrounds */
+  /* Legacy border radius - now using tokens */
+  --r-panel: var(--radius-lg);
+  --r-el: var(--radius-md);
+  --r-pill: var(--radius-sm);
   
-  /* Border color - Ultra-subtle hairline */
-  --stroke: hsla(0, 0%, 100%, 0.06);
-  /* Pure white at 6% opacity = barely visible border */
-  /* TIP: Increase to 0.10 for more visible borders, decrease to 0.03 for nearly invisible */
-  
-  /* Text colors */
-  --text: hsla(0, 0%, 100%, 0.94);  /* Primary text - 94% white (high contrast) */
-  --text-muted: hsla(0, 0%, 100%, 0.64);  /* Secondary text - 64% white (lower contrast) */
-  /* TIP: Keep text high contrast (90%+) for readability */
-  
-  /* Accent color - Used for focus rings and highlights */
-  --accent: hsl(0, 0%, 0%);  /* Soft blue - not neon */
-  /* 228 = blue hue, 100% = fully saturated, 74% = light/pastel */
-  /* TIP: Try different hues: 0=red, 30=orange, 120=green, 280=purple */
-  
-  /* ==========================================
-     GLASS EFFECTS
-     These control the blur and transparency
-     ========================================== */
-  
-  /* Blur amount - Higher = more blurred background */
-  --blur: 20px;
-  /* TIP: 10-15px = subtle, 20-30px = strong, 40px+ = very blurry */
-  
-  --blur-panel: 20px;  /* Same as --blur, kept for compatibility */
-  
-  /* Saturation boost - Makes colors richer through glass */
-  --saturation: 115%;
-  /* TIP: 100% = normal, 110-120% = slightly richer, 130%+ = very vibrant */
-  
-  /* ==========================================
-     CORNER RADIUS (ROUNDNESS)
-     Three tiers for visual hierarchy
-     ========================================== */
-  
-  --r-panel: 16px;   /* Large - Windows and main containers */
-  --r-el: 12px;      /* Medium - Buttons, inputs, chat bubbles */
-  --r-pill: 10px;    /* Small - Pills, tags, small elements */
-  /* TIP: Increase all by 2-4px for rounder look, decrease for sharper edges */
-  
-  /* ==========================================
-     ANIMATION SPEED
-     ========================================== */
-  
-  --transition: 140ms ease-out;
-  /* 140ms = fast but smooth, ease-out = starts fast, ends slow */
-  /* TIP: 100ms = snappy, 200ms = relaxed, 300ms+ = slow/dramatic */
+  /* Legacy animation - now using tokens */
+  --transition: var(--duration-base) var(--ease-base);
 }
 
+/* ============================================
+   BASE STYLES - Foundation for the entire app
+   These styles apply to the root HTML elements
+   ============================================ */
 @layer base {
+  /* 📝 HTML & BODY: The main container for everything */
   html, body {
-    background: transparent;
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
+    /* 🎨 TRANSPARENCY: Makes the window see-through (required for glassmorphism) */
+    background: transparent;  /* No background color - lets desktop show through */
+    
+    /* 📏 LAYOUT: Remove default spacing */
+    margin: 0;   /* No space around edges */
+    padding: 0;  /* No inner spacing */
+    width: 100%;  /* Full window width */
+    height: 100%; /* Full window height */
+    overflow: hidden;  /* Hide scrollbars */
+    
+    /* 🔤 FONT: Use system fonts for native look */
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
       'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
       sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    
+    /* ✨ SMOOTHING: Makes text look crisp and clean */
+    -webkit-font-smoothing: antialiased;  /* For Chrome/Safari */
+    -moz-osx-font-smoothing: grayscale;   /* For Firefox */
   }
 
+  /* 📦 ROOT CONTAINER: Where React mounts the app */
   #root {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
+    width: 100%;   /* Fill entire window width */
+    height: 100%;  /* Fill entire window height */
+    overflow: hidden;  /* No scrollbars */
   }
 
   * {
@@ -116,51 +87,182 @@
   }
 }
 
+/* ============================================
+   REUSABLE COMPONENTS - Buttons, Cards, Inputs
+   These are pre-styled elements you can use anywhere
+   ============================================ */
 @layer components {
+  /* 🔘 PRIMARY BUTTON: Main action button (teal color) */
   .btn-primary {
-    @apply px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 
-           transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-           flex items-center justify-center font-medium shadow-sm;
+    /* 📏 SIZE & SPACING */
+    height: var(--button-md);  /* 36px tall */
+    padding: 0 var(--space-4);  /* 16px left/right padding */
+    
+    /* 🎨 APPEARANCE */
+    border-radius: var(--radius-md);  /* 12px rounded corners */
+    background: var(--accent);  /* Teal color (#0FB5AE) */
+    color: #FFFFFF;  /* White text */
+    border: none;  /* No border */
+    
+    /* 🔤 TEXT STYLE */
+    font-size: var(--text-body-size);  /* 16px */
+    font-weight: var(--weight-semibold);  /* 600 (semi-bold) */
+    
+    /* 👆 INTERACTION */
+    cursor: pointer;  /* Show hand cursor on hover */
+    transition: all var(--duration-micro) var(--ease-base);  /* Smooth animations */
+    
+    /* 📦 LAYOUT */
+    display: inline-flex;  /* Flexbox for centering */
+    align-items: center;  /* Center vertically */
+    justify-content: center;  /* Center horizontally */
+    gap: var(--space-2);  /* 8px space between icon and text */
   }
   
+  /* 👆 HOVER STATE: When mouse is over button */
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);  /* Slightly darker teal */
+    transform: translateY(-1px);  /* Lift up 1px */
+    box-shadow: var(--shadow-md);  /* Add shadow for depth */
+  }
+  
+  /* 👆 ACTIVE STATE: When button is being clicked */
+  .btn-primary:active:not(:disabled) {
+    background: var(--accent-press);  /* Even darker teal */
+    transform: scale(0.98);  /* Shrink slightly (press effect) */
+  }
+  
+  /* ⌨️ FOCUS STATE: When button is selected via keyboard */
+  .btn-primary:focus-visible {
+    outline: 2px solid var(--accent);  /* Teal outline */
+    outline-offset: 2px;  /* 2px space around button */
+  }
+  
+  /* 🚫 DISABLED STATE: When button can't be clicked */
+  .btn-primary:disabled {
+    opacity: 0.5;  /* 50% transparent (looks grayed out) */
+    cursor: not-allowed;  /* Show "not allowed" cursor */
+  }
+  
+  /* 🔘 SECONDARY BUTTON: Less important actions (outlined style) */
   .btn-secondary {
-    @apply px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 
-           transition-colors dark:bg-gray-700 dark:text-gray-200 
-           dark:hover:bg-gray-600 flex items-center justify-center font-medium;
+    /* 📏 SIZE & SPACING */
+    height: var(--button-md);  /* 36px tall */
+    padding: 0 var(--space-4);  /* 16px left/right padding */
+    
+    /* 🎨 APPEARANCE */
+    border-radius: var(--radius-md);  /* 12px rounded corners */
+    background: transparent;  /* No background (see-through) */
+    color: var(--text);  /* Dark text color */
+    border: 1px solid var(--border);  /* Light gray border */
+    
+    /* 🔤 TEXT STYLE */
+    font-size: var(--text-body-size);  /* 16px */
+    font-weight: var(--weight-medium);  /* 500 (medium weight) */
+    
+    /* 👆 INTERACTION */
+    cursor: pointer;  /* Show hand cursor */
+    transition: all var(--duration-micro) var(--ease-base);  /* Smooth animations */
+    
+    /* 📦 LAYOUT */
+    display: inline-flex;  /* Flexbox for centering */
+    align-items: center;  /* Center vertically */
+    justify-content: center;  /* Center horizontally */
+    gap: var(--space-2);  /* 8px space between icon and text */
   }
   
+  /* 👆 HOVER STATE: When mouse is over button */
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--subsurface);  /* Light gray background */
+    border-color: var(--accent);  /* Teal border */
+    transform: translateY(-1px);  /* Lift up 1px */
+  }
+  
+  /* 👆 ACTIVE STATE: When button is being clicked */
+  .btn-secondary:active:not(:disabled) {
+    background: var(--border);  /* Slightly darker gray */
+    transform: scale(0.98);  /* Shrink slightly */
+  }
+  
+  /* ⌨️ FOCUS STATE: When button is selected via keyboard */
+  .btn-secondary:focus-visible {
+    outline: 2px solid var(--accent);  /* Teal outline */
+    outline-offset: 2px;  /* 2px space around button */
+  }
+  
+  /* 🚫 DISABLED STATE: When button can't be clicked */
+  .btn-secondary:disabled {
+    opacity: 0.5;  /* 50% transparent */
+    cursor: not-allowed;  /* Show "not allowed" cursor */
+  }
+  
+  /* 🃏 CARD: Container with shadow and rounded corners */
   .card {
-    @apply bg-white rounded-lg shadow-md p-6 dark:bg-gray-800 
-           border border-gray-200 dark:border-gray-700;
+    border-radius: var(--radius-md);  /* 12px rounded corners */
+    box-shadow: var(--shadow-sm);  /* Subtle shadow */
+    padding: var(--space-4);  /* 16px padding inside */
   }
   
+  /* 👆 CARD HOVER: Lift card slightly on hover */
+  .card:hover {
+    box-shadow: var(--shadow-md);  /* Bigger shadow */
+  }
+  
+  /* ✏️ TEXT INPUT: For typing text (like search boxes, forms) */
   .input {
-    @apply px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 
-           focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600
-           dark:text-gray-100 bg-white text-gray-900 transition-colors;
+    /* 📏 SIZE & SPACING */
+    padding: var(--space-3) var(--space-4);  /* 12px top/bottom, 16px left/right */
+    
+    /* 🎨 APPEARANCE */
+    border: 1px solid var(--border);  /* Light gray border */
+    border-radius: var(--radius-md);  /* 12px rounded corners */
+    background: var(--surface);  /* White background */
+    color: var(--text);  /* Dark text */
+    
+    /* 🔤 TEXT STYLE */
+    font-size: var(--text-body-size);  /* 16px */
+    
+    /* ✨ ANIMATION */
+    transition: all var(--duration-fast) var(--ease-base);  /* Smooth color changes */
+  }
+  
+  /* 👆 FOCUS STATE: When user clicks into input field */
+  .input:focus {
+    outline: none;  /* Remove default browser outline */
+    border-color: var(--accent);  /* Teal border */
+    box-shadow: 0 0 0 2px rgba(15, 181, 174, 0.1);  /* Subtle teal glow */
+  }
+  
+  /* 💬 PLACEHOLDER: Gray text shown when input is empty */
+  .input::placeholder {
+    color: var(--muted);  /* Gray color */
+    opacity: 0.6;  /* 60% transparent */
   }
 
+  /* 🚫 DISABLED STATE: When input can't be edited */
   .input:disabled {
-    @apply opacity-50 cursor-not-allowed;
+    opacity: 0.5;  /* 50% transparent (looks grayed out) */
+    cursor: not-allowed;  /* Show "not allowed" cursor */
   }
 }
 
-/* Scrollbar Styles */
+/* Scrollbar Styles - Light Theme */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-100 dark:bg-gray-900;
+  background: var(--subsurface);
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-400 dark:bg-gray-600 rounded-full;
+  background: var(--border);
+  border-radius: var(--radius-pill);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-500 dark:bg-gray-500;
+  background: var(--muted);
 }
 
 /* Custom Animations */
@@ -215,12 +317,12 @@
    MINI PILL MODE (68x68px)
    The collapsed state - small square with logo
    
-   CUSTOMIZATION TIPS:
-   - Change size: Modify width/height in electron/main.cjs (line 16-17)
-   - Make lighter: Increase alpha in background (0.85 → 0.95)
-   - Make darker: Decrease lightness (0% → stay at 0%)
-   - More rounded: Increase border-radius (18px → 24px)
-   - Less rounded: Decrease border-radius (18px → 12px)
+   🎨 GLASSMORPHISM SETTINGS:
+   - Transparency: Line 307 (background opacity)
+   - Blur: Line 310 (backdrop-filter blur amount)
+   - Border: Line 314 (border opacity)
+   
+   See UI_CUSTOMIZATION_GUIDE.md for detailed instructions
    ============================================ */
 .amx-mini {
   /* Positioning - fills the entire window */
@@ -235,45 +337,46 @@
   align-items: center;      /* Vertical centering */
   justify-content: center;  /* Horizontal centering */
   
-  /* Appearance */
-  border-radius: 0px;  /* Rounded corners (18px = soft pill shape) */
-  /* OPTIONS: 12px = slightly rounded, 24px = very rounded, 0px = sharp square */
+  /* Appearance - GLASSMORPHISM */
+  border-radius: var(--radius-lg);  /* 16px rounded corners */
   
-  background: hsla(220, 0%, 0%, 0.85);  /* Almost black at 85% opacity */
-  /* FORMAT: hsla(hue, saturation, lightness, alpha) */
-  /* CURRENT: Pure black (0% lightness) with 85% opacity */
-  /* TIP: For lighter pill, try: hsla(220, 10%, 20%, 0.85) */
+  /* 🎨 TRANSPARENCY: Lower = more see-through (try 0.08 for very transparent) */
+  background: rgba(255, 255, 255, 0.08);  /* 8% white tint - very transparent! */
   
-  /* Glass blur effect - blurs what's behind the window */
-  backdrop-filter: saturate(var(--saturation)) blur(var(--blur));
-  -webkit-backdrop-filter: saturate(var(--saturation)) blur(var(--blur));
-  /* This creates the "frosted glass" look by blurring the background */
+  /* 🎨 BLUR: Increase number for more frosted glass effect */
+  backdrop-filter: saturate(140%) blur(30px);
+  -webkit-backdrop-filter: saturate(140%) blur(30px);
   
-  border: 1px solid hsl(0, 0%, 0%);  /* Black border (currently invisible on black bg) */
-  /* TIP: For visible border, try: hsl(0, 0%, 20%) or hsla(0, 0%, 100%, 0.1) */
-  
-  /* Shadow - creates depth and makes pill "float" */
-  box-shadow: 
-    0 8px 24px rgba(0, 0, 0, 0.4),   /* Large soft shadow */
-    0 2px 8px rgba(0, 0, 0, 0.3);    /* Small close shadow */
-  /* FORMAT: x-offset y-offset blur-radius color */
-  /* TIP: Increase blur-radius (24px → 40px) for softer shadow */
+  /* Glass border with inner highlight */
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  /* Removed shadow - clean glass look */
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8);  /* Just the inner highlight */
   
   /* Interaction */
-  cursor: pointer;  /* Shows hand cursor on hover */
-  transition: all var(--transition);  /* Smooth animations (140ms) */
+  cursor: pointer;
+  transition: all var(--duration-base) var(--ease-base);
   
   /* Spacing */
-  padding: 12px;  /* Space inside the pill around content */
+  padding: var(--space-3);  /* 12px */
   margin: 0;
   
   /* Behavior */
-  overflow: hidden;  /* Clips content that goes outside */
-  pointer-events: all;  /* Allows clicking */
-  user-select: none;  /* Prevents text selection */
-  -webkit-user-select: none;  /* Safari/Chrome version */
-  -webkit-app-region: drag;  /* Makes entire pill draggable (Electron feature) */
-  /* This allows dragging the window by clicking anywhere on the pill */
+  overflow: hidden;
+  pointer-events: all;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-app-region: drag;
+}
+
+.amx-mini:hover {
+  transform: scale(1.03) translateY(-2px);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8);  /* Just the inner highlight */
+  /* 🎨 HOVER STATE: Slightly less transparent when hovering */
+  background: rgba(255, 255, 255, 0.15);  /* 15% white on hover (was 8% normally) */
+}
+
+.amx-mini:active {
+  transform: scale(0.98);
 }
 
 .amx-mini-draggable {
@@ -398,19 +501,26 @@
   
   /* Layout - horizontal row */
   display: flex;
-  align-items: center;  /* Vertically center items */
-  gap: 12px;  /* Space between input and button */
-  padding: 0 12px 0 20px;  /* More left padding, less right */
+  align-items: center;
+  gap: var(--space-3);  /* 12px */
+  padding: 0 var(--space-3) 0 var(--space-5);  /* 0 12px 0 24px */
   
-  /* Appearance - dark solid background like reference */
-  border-radius: 0px;  /* Slightly rounded corners */
-  background: hsla(220, 0%, 0%, 0.85) !important;  /* Matches mini pill background */
-  backdrop-filter: saturate(var(--saturation)) blur(var(--blur));  /* Blur effect */
-  -webkit-backdrop-filter: saturate(var(--saturation)) blur(var(--blur));
-  border: 1px solid hsla(0, 0%, 100%, 0.08) !important;  /* Subtle border */
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4),
-              0 2px 8px rgba(0, 0, 0, 0.3);  /* Deeper shadow like reference */
-  transition: all var(--transition);  /* Smooth animations */
+  /* Appearance - GLASSMORPHISM */
+  border-radius: var(--radius-lg);  /* 16px */
+  
+  /* 🎨 BAR TRANSPARENCY: Match mini pill for consistency */
+  background: rgba(255, 255, 255, 0.08);  /* 8% white tint - very transparent! */
+  
+  /* 🎨 BAR BLUR: Same as mini pill */
+  backdrop-filter: saturate(140%) blur(30px);
+  -webkit-backdrop-filter: saturate(140%) blur(30px);
+  
+  /* Glass border with inner highlight */
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  /* Removed shadow - clean glass look */
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  
+  transition: all var(--duration-base) var(--ease-base);
 }
 
 /* ============================================
@@ -423,53 +533,52 @@
    - Text color: Change --text variable
    ============================================ */
 .amx-bar-input {
-  flex: 1;  /* Takes up all available space */
-  background: transparent;  /* No background (shows through) */
-  border: none;  /* No border */
-  outline: none;  /* No outline */
-  color: hsla(0, 0%, 100%, 0.85);  /* Lighter gray text like reference */
-  font-size: 16px;  /* Larger text like reference */
-  font-weight: 400;  /* Normal weight */
-  letter-spacing: 0.01em;  /* Slight spacing between letters */
-  -webkit-app-region: no-drag;  /* Input is NOT draggable */
-  /* This allows typing instead of dragging when clicking the input */
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: rgba(255, 255, 255, 0.95);  /* Light text for glass background */
+  font-size: var(--text-body-size);  /* 16px */
+  font-weight: var(--weight-regular);  /* 400 */
+  letter-spacing: var(--tracking-normal);
+  -webkit-app-region: no-drag;
 }
 
-/* Placeholder text (the "Ask MAX..." hint) */
 .amx-bar-input::placeholder {
-  color: hsla(0, 0%, 100%, 0.5);  /* Muted gray like reference */
-  font-weight: 400;
-  /* TIP: Make more visible with higher opacity */
+  color: rgba(255, 255, 255, 0.5);  /* Light placeholder for glass background */
+  font-weight: var(--weight-regular);
 }
 
-/* When input is focused (clicked/active) */
 .amx-bar-input:focus {
-  outline: 0;  /* Remove default outline */
-  box-shadow: none;  /* No focus ring like reference */
-  /* This creates a 2px blue ring around the input when typing */
-  /* TIP: Change ring size (2px → 3px) or color (var(--accent)) */
+  outline: 0;
+  box-shadow: none;
 }
 
 .amx-bar-minimize-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;  /* Slightly larger like reference */
-  height: 36px;
-  border-radius: 50%;  /* Perfect circle */
-  background: hsla(0, 0%, 100%, 0.08);  /* Subtle gray background */
-  border: 1px solid hsla(0, 0%, 100%, 0.12);  /* Slightly visible border */
-  color: hsla(0, 0%, 100%, 0.7);  /* Light gray icon */
+  width: var(--button-md);  /* 36px */
+  height: var(--button-md);
+  border-radius: var(--radius-pill);  /* Full circle */
+  background: rgba(255, 255, 255, 0.1);  /* Translucent for glass */
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.85);  /* Light icon */
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--duration-micro) var(--ease-base);
   flex-shrink: 0;
   -webkit-app-region: no-drag;
 }
 
 .amx-bar-minimize-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.9);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 1);
+  border-color: var(--accent);
+  transform: scale(1.05);
+}
+
+.amx-bar-minimize-btn:active {
+  transform: scale(0.95);
 }
 
 /* Card mode (Active) - expanded 360x520 card - Full card view - larger glass container */
@@ -481,13 +590,21 @@
   bottom: 0;
   display: flex;
   flex-direction: column;
-  background: var(--panel);
-  backdrop-filter: saturate(var(--saturation)) blur(var(--blur));
-  -webkit-backdrop-filter: saturate(var(--saturation)) blur(var(--blur));
-  border: 1px solid var(--stroke);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.28);
-  overflow: hidden;
   border-radius: var(--r-panel);
+  
+  /* 🎨 CARD TRANSPARENCY: Match mini pill and bar for consistency */
+  background: rgba(255, 255, 255, 0.08);  /* 8% white tint - very transparent! */
+  
+  /* 🎨 CARD BLUR: Same as mini pill and bar */
+  backdrop-filter: saturate(140%) blur(30px);
+  -webkit-backdrop-filter: saturate(140%) blur(30px);
+  
+  /* Glass border with inner highlight */
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  /* Removed shadow - clean glass look */
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  
+  overflow: hidden;
   transition: all var(--transition);
 }
 /* Input field styling - Single accent */
@@ -519,88 +636,110 @@
   box-shadow: 0 0 0 2px var(--accent);
 }
 
-/* Panel container */
+/* ============================================
+   PANEL CONTAINER - Main content area
+   This is the container inside the glass window
+   ============================================ */
 .amx-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  color: #eaeaf0;
-  height: 100%;
-}
-
-/* Header with drag handle */
-.amx-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-weight: 600;
-  font-size: 14px;
-  padding: 4px 0;
-}
-
-.amx-drag-handle {
-  cursor: move;
-  -webkit-app-region: drag;
-  user-select: none;
+  /* 📦 LAYOUT: Stack items vertically */
+  display: flex;  /* Use flexbox */
+  flex-direction: column;  /* Stack items top to bottom */
+  gap: var(--space-2);  /* 8px space between items */
+  
+  /* 📏 SPACING */
+  padding: var(--space-3);  /* 12px padding inside */
+  height: 100%;  /* Fill entire window height */
+  
+  /* 🎨 TEXT COLOR: Light text for glass background */
+  color: rgba(255, 255, 255, 0.95);  /* 95% white (almost fully opaque) */
 }
 
 /* ============================================
-   ICON BUTTONS
-   Small circular buttons with icons (camera, minimize, etc.)
+   HEADER - Top bar with "Hi, Colin" and buttons
+   This is the draggable title bar at the top
+   ============================================ */
+.amx-header {
+  /* 📦 LAYOUT: Space items left and right */
+  display: flex;  /* Use flexbox */
+  align-items: center;  /* Center vertically */
+  justify-content: space-between;  /* Push items to edges */
+  
+  /* 🔤 TEXT STYLE */
+  font-weight: var(--weight-semibold);  /* 600 (semi-bold) */
+  font-size: var(--text-title-size);  /* 22px */
+  color: rgba(255, 255, 255, 0.95);  /* 95% white (light text) */
+  letter-spacing: var(--tracking-tight);  /* -0.2px (tighter letters) */
+  
+  /* 📏 SPACING */
+  padding: var(--space-1) 0;  /* 4px top/bottom, 0 left/right */
+}
+
+/* 👆 DRAG HANDLE: Makes the header draggable */
+.amx-drag-handle {
+  cursor: move;  /* Show "move" cursor (4 arrows) */
+  -webkit-app-region: drag;  /* Allow dragging window */
+  user-select: none;  /* Can't select text while dragging */
+}
+
+/* ============================================
+   ICON BUTTONS - Tools, Settings, Camera, etc.
+   Small square buttons with icons in the header
    
-   CUSTOMIZATION:
-   - Larger buttons: Increase width/height (32px → 40px)
-   - Colored background: Add background color
-   - Different shape: Change border-radius (50% = circle, 8px = rounded square)
-   - Icon color: Change color value
+   See UI_CUSTOMIZATION_GUIDE.md for detailed instructions
    ============================================ */
 .amx-icon-btn {
-  background: transparent;  /* No background (see-through) */
-  border: 1px solid var(--stroke);  /* Hairline border */
-  border-radius: var(--r-pill);  /* Rounded (10px) */
-  /* TIP: Use 50% for perfect circles, or match other radii */
+  /* 🎨 APPEARANCE */
+  background: rgba(255, 255, 255, 0.1);  /* 10% white (subtle background) */
+  border: 1px solid rgba(255, 255, 255, 0.3);  /* 30% white border */
+  border-radius: var(--radius-sm);  /* 8px rounded corners */
   
-  width: 32px;   /* Button width */
-  height: 32px;  /* Button height (same = square/circle) */
+  /* 📏 SIZE */
+  width: var(--button-lg);  /* 44px (large for easy clicking) */
+  height: var(--button-lg);  /* 44px (square) */
   
-  /* Layout - centers the icon */
-  display: flex;
-  align-items: center;      /* Vertical center */
-  justify-content: center;  /* Horizontal center */
+  /* 📦 LAYOUT: Center the icon */
+  display: flex;  /* Use flexbox */
+  align-items: center;  /* Center vertically */
+  justify-content: center;  /* Center horizontally */
   
-  color: var(--text-muted);  /* Icon color (64% white = subtle) */
-  /* TIP: Use var(--text) for brighter icons, or var(--accent) for colored */
+  /* 🎨 ICON COLOR */
+  color: rgba(255, 255, 255, 0.85);  /* 85% white (light but not too bright) */
   
-  cursor: pointer;  /* Hand cursor on hover */
-  transition: all var(--transition);  /* Smooth animations */
-  -webkit-app-region: no-drag;  /* Buttons are clickable, not draggable */
-  flex-shrink: 0;  /* Don't shrink when space is tight */
+  /* 👆 INTERACTION */
+  cursor: pointer;  /* Show hand cursor */
+  transition: all var(--duration-micro) var(--ease-base);  /* Smooth animations */
+  -webkit-app-region: no-drag;  /* Don't drag window when clicking button */
+  flex-shrink: 0;  /* Don't shrink if space is tight */
 }
 
-/* When button is focused (keyboard navigation) */
+/* 👆 HOVER STATE: When mouse is over button */
+.amx-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.2);  /* 20% white (brighter) */
+  color: rgba(255, 255, 255, 1);  /* 100% white (fully bright icon) */
+  border-color: var(--accent);  /* Teal border */
+}
+
+/* ⌨️ FOCUS STATE: When button is selected via keyboard */
 .amx-icon-btn:focus-visible {
   outline: 0;  /* Remove default outline */
-  box-shadow: 0 0 0 2px var(--accent);  /* Add colored ring */
-  /* This shows a blue ring when navigating with Tab key */
+  box-shadow: 0 0 0 2px var(--accent);  /* Teal glow */
+  outline-offset: 2px;  /* 2px space */
 }
 
-/* When button is clicked/pressed */
+/* 👆 ACTIVE STATE: When button is being clicked */
 .amx-icon-btn:active {
-  transform: scale(0.95);  /* Shrink to 95% size */
-  /* This creates a "press down" effect when clicking */
-  /* TIP: Change to 0.90 for more dramatic press effect */
+  transform: scale(0.95);  /* Shrink to 95% (press effect) */
 }
 
 /* Thoughts stream area */
 .amx-thoughts {
   flex: 1;
   overflow-y: auto;
-  font-size: 12.5px;
+  font-size: var(--text-caption-size);  /* 13px */
   opacity: 0.9;
-  margin: 4px 0;
+  margin: var(--space-1) 0;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  scrollbar-color: var(--border) transparent;
 }
 
 .amx-thoughts::-webkit-scrollbar {
@@ -612,8 +751,8 @@
 }
 
 .amx-thoughts::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
+  background: var(--border);
+  border-radius: var(--radius-sm);
 }
 
 /* Empty state */
@@ -632,8 +771,9 @@
 }
 
 .amx-empty-text {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: var(--text-body-size);
+  color: var(--muted);
+  opacity: 0.7;
 }
 
 /* Message bubbles */
@@ -645,27 +785,27 @@
 .amx-message-label {
   display: block;
   font-size: 11px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.5);
-  margin-bottom: 4px;
+  font-weight: var(--weight-semibold);
+  color: rgba(255, 255, 255, 0.7);  /* Light text for glass background */
+  margin-bottom: var(--space-1);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--tracking-wide);
 }
 
 .amx-thought-label {
   display: block;
   font-size: 11px;
-  font-weight: 600;
-  color: rgba(138, 166, 255, 0.7);
-  margin-bottom: 4px;
-  letter-spacing: 0.5px;
+  font-weight: var(--weight-semibold);
+  color: var(--accent);  /* Teal accent color - already good contrast */
+  margin-bottom: var(--space-1);
+  letter-spacing: var(--tracking-wide);
 }
 
 .amx-message-content {
-  padding: 8px 12px;
-  border-radius: 10px;
-  line-height: 1.5;
-  font-size: 13px;
+  padding: var(--space-2) var(--space-3);  /* 8px 12px */
+  border-radius: var(--radius-md);
+  line-height: var(--text-body-lh);
+  font-size: var(--text-caption-size);
 }
 
 /* ============================================
@@ -678,14 +818,15 @@
    - Larger text: Modify font-size in .amx-message-content
    ============================================ */
 .amx-message-user .amx-message-content {
-  background: var(--bubble);  /* Semi-transparent background (82% opacity) */
-  border: 1px solid var(--stroke);  /* Hairline border */
-  color: var(--text);  /* Text color (94% white) */
-  border-radius: var(--r-el);  /* Rounded corners (12px) */
-  box-shadow: 
-    0 6px 18px rgba(0, 0, 0, 0.22),  /* Soft outer shadow */
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);  /* Subtle inner highlight */
-  /* TIP: Increase outer shadow blur (18px → 24px) for softer look */
+  background: rgba(255, 255, 255, 0.95);  /* Nearly opaque white for readability */
+  backdrop-filter: blur(10px);  /* Slight blur for depth */
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  color: var(--text);  /* Dark text */
+  border-radius: var(--radius-md);  /* 12px */
+  box-shadow: var(--shadow-sm);
+  font-size: var(--text-body-size);  /* 16px */
+  line-height: var(--text-body-lh);  /* 1.5 */
 }
 
 /* ============================================
@@ -695,13 +836,16 @@
    Same styling as user messages for consistency
    ============================================ */
 .amx-message-agent .amx-message-content {
-  background: var(--bubble);
-  border: 1px solid var(--stroke);
-  color: var(--text);
-  border-radius: var(--r-el);
-  box-shadow: 
-    0 6px 18px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.95);  /* Nearly opaque white for readability */
+  backdrop-filter: blur(10px);  /* Slight blur for depth */
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);  /* Teal left rule for scannability */
+  color: var(--text);  /* Dark text */
+  border-radius: var(--radius-md);  /* 12px */
+  box-shadow: var(--shadow-sm);
+  font-size: var(--text-body-size);  /* 16px */
+  line-height: var(--text-body-lh);  /* 1.5 */
 }
 
 /* ============================================
@@ -714,13 +858,12 @@
    - Different style: Remove italic
    ============================================ */
 .amx-message-thought .amx-message-content {
-  background: hsla(220, 14%, 18%, 0.60);  /* More transparent than regular bubbles */
-  border: 1px dashed var(--stroke);  /* Dashed border (not solid) */
-  color: var(--text-muted);  /* Muted text (64% white) */
-  font-style: italic;  /* Italicized text */
-  font-size: 12px;  /* Smaller text */
-  opacity: 0.75;  /* 75% visible (subtle) */
-  /* TIP: This makes system messages less prominent than chat */
+  background: var(--subsurface);  /* Light gray */
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  font-style: italic;
+  font-size: var(--text-caption-size);  /* 13px */
+  opacity: 0.85;
 }
 
 /* Debug message */
@@ -754,8 +897,8 @@
 
 .amx-message-error .amx-message-content {
   background: rgba(255, 50, 50, 0.15);
-  border-left: 2px solid rgba(255, 100, 100, 0.5);
-  color: rgba(255, 200, 200, 0.95);
+  border: 1px solid rgba(255, 100, 100, 0.5);
+  color: rgba(0, 0, 0, 0.95);
   font-size: 12px;
 }
 /* Thinking indicator */
@@ -767,7 +910,7 @@
   background: rgba(138, 166, 255, 0.1);
   border: 1px solid rgba(138, 166, 255, 0.2);
   border-radius: 10px;
-  color: rgba(138, 166, 255, 0.9);
+  color: rgba(0, 0, 0, 0.9);
   font-size: 12px;
   margin-bottom: 12px;
   animation: pulse 2s ease-in-out infinite;
@@ -864,7 +1007,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .amx-send {
@@ -1020,23 +1163,25 @@
 }
 
 .amx-btn-primary {
-  background: linear-gradient(135deg, #7aa2ff, #a8ffcf);
+  background: var(--accent);
   border: none;
-  border-radius: 8px;
-  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-4);
   color: #fff;
-  font-size: 13px;
+  font-size: var(--text-body-size);
   cursor: pointer;
-  transition: all 0.15s ease;
-  font-weight: 600;
+  transition: all var(--duration-micro) var(--ease-base);
+  font-weight: var(--weight-semibold);
 }
 
 .amx-btn-primary:hover {
+  background: var(--accent-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(122, 162, 255, 0.4);
+  box-shadow: var(--shadow-md);
 }
 
 .amx-btn-primary:active {
+  background: var(--accent-press);
   transform: scale(0.96);
 }
 
@@ -1243,11 +1388,11 @@
 
 /* Accessibility: Reduced transparency mode */
 @media (prefers-reduced-transparency: reduce) {
-  .amx-pill,
+  .amx-mini,
+  .amx-bar,
   .amx-card {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    background: #202229;
   }
   
   .amx-root.amx-card::before {

@@ -210,14 +210,17 @@ class TelemetryService {
           'X-API-Key': this.apiKey,
           'Content-Type': 'application/json'
         },
-        timeout: 5000 // 5 second timeout
+        timeout: 5000, // 5 second timeout
+        validateStatus: (status) => {
+          // Accept any status code - we don't want to throw on 401/500
+          return true;
+        }
       }).catch(() => {
         // Silently fail - don't interrupt user experience
-        console.debug('Telemetry send failed (non-critical)');
+        // Don't log to avoid console spam in development
       });
     } catch (error) {
-      // Silently fail
-      console.debug('Telemetry batch failed:', error);
+      // Silently fail - telemetry is optional
     }
   }
 
