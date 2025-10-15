@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld('electron', {
     // Profile
     getProfile: () => ipcRenderer.invoke('memory:get-profile'),
     updateProfile: (updates) => ipcRenderer.invoke('memory:update-profile', updates),
-    setName: (name) => ipcRenderer.invoke('memory:set-name', name),
+    setName: (name) => ipcRenderer.invoke('memory:set-name', { name }),
     incrementInteraction: () => ipcRenderer.invoke('memory:increment-interaction'),
     
     // Facts

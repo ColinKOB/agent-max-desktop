@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Glass Effect Test</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .glass-test {
+      width: 200px;
+      height: 200px;
+      background: rgba(255, 255, 255, 0.01);
+      backdrop-filter: saturate(200%) blur(50px);
+      -webkit-backdrop-filter: saturate(200%) blur(50px);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-family: system-ui;
+      font-weight: 600;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="glass-test">
+    GLASS TEST
+  </div>
+  
+  <script>
+    // Log computed styles
+    const el = document.querySelector('.glass-test');
+    const styles = window.getComputedStyle(el);
+    console.log('Computed styles:', {
+      background: styles.background,
+      backdropFilter: styles.backdropFilter,
+      webkitBackdropFilter: styles.webkitBackdropFilter,
+    });
+    
+    // Test support
+    console.log('backdrop-filter support:', CSS.supports('backdrop-filter', 'blur(10px)'));
+    console.log('-webkit-backdrop-filter support:', CSS.supports('-webkit-backdrop-filter', 'blur(10px)'));
+  </script>
+</body>
+</html>

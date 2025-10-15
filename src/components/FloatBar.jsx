@@ -770,9 +770,16 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
 
   const handleWelcomeComplete = async () => {
     try {
+      // Validate and trim data before saving
+      const trimmedName = welcomeData.name?.trim();
+      if (!trimmedName || trimmedName.length === 0) {
+        toast.error('Please enter your name');
+        return;
+      }
+      
       if (window.electron?.memory) {
-        console.log('Saving onboarding data:', welcomeData);
-        await window.electron.memory.setName(welcomeData.name);
+        console.log('Saving onboarding data:', { ...welcomeData, name: trimmedName });
+        await window.electron.memory.setName(trimmedName);
         await window.electron.memory.setPreference('role', welcomeData.role, 'work');
         await window.electron.memory.setPreference('primary_use', welcomeData.primaryUse, 'work');
         await window.electron.memory.setPreference('work_style', welcomeData.workStyle, 'work');
@@ -784,8 +791,8 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         return;
       }
       
-      toast.success(`Welcome, ${welcomeData.name}`);
-      onWelcomeComplete(welcomeData);
+      toast.success(`Welcome, ${trimmedName}!`);
+      onWelcomeComplete({ ...welcomeData, name: trimmedName });
     } catch (error) {
       console.error('Failed to save onboarding:', error);
       toast.error(`Failed to save preferences: ${error.message}`);

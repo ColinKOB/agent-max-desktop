@@ -185,6 +185,13 @@
   --glass-border: rgba(255, 255, 255, 0.4); /* Bright border for glass edge */
   --glass-inner-border: rgba(255, 255, 255, 0.9); /* Inner highlight */
   --glass-shadow: rgba(0, 0, 0, 0.15); /* Slightly stronger shadow for depth */
+  --glass-blur-strong: 28px;      /* Default blur for liquid glass */
+  --glass-saturation: 1.65;       /* Richer colors through the glass */
+  --glass-tint-a: rgba(82, 146, 255, 0.18);   /* Cool blue tint */
+  --glass-tint-b: rgba(122, 83, 255, 0.16);   /* Violet tint */
+  --glass-tint-c: rgba(255, 163, 102, 0.12);  /* Warm accent tint */
+  --glass-highlight: rgba(255, 255, 255, 0.45); /* Wet highlight top spot */
+  --glass-base: rgba(255, 255, 255, 0.12);     /* Base translucent fill */
 }
 
 /* ==========================================

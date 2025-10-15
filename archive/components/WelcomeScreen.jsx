@@ -26,10 +26,17 @@ export default function WelcomeScreen({ onComplete }) {
 
   const handleComplete = async () => {
     try {
+      // Validate and trim name before saving
+      const trimmedName = formData.name?.trim();
+      if (!trimmedName || trimmedName.length === 0) {
+        toast.error('Please enter your name');
+        return;
+      }
+      
       // Save to local memory
       if (window.electron?.memory) {
         // Set name
-        await window.electron.memory.setName(formData.name);
+        await window.electron.memory.setName(trimmedName);
         
         // Set preferences
         await window.electron.memory.setPreference('role', formData.role, 'work');
@@ -41,7 +48,7 @@ export default function WelcomeScreen({ onComplete }) {
       }
 
       toast.success('Welcome to Agent Max! 🎉');
-      onComplete(formData);
+      onComplete({ ...formData, name: trimmedName });
     } catch (error) {
       console.error('Failed to save onboarding data:', error);
       toast.error('Failed to save preferences');
