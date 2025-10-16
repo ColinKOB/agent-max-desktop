@@ -48,6 +48,10 @@
   --transition: var(--duration-base) var(--ease-base);
 }
 
+.amx-mini::before {
+  background: transparent;
+}
+
 /* ============================================
    BASE STYLES - Foundation for the entire app
    These styles apply to the root HTML elements
@@ -376,7 +380,11 @@
   background: var(--glass-surface, rgba(255, 255, 255, 0.2));
   backdrop-filter: var(--glass-filter, blur(6px));
   -webkit-backdrop-filter: var(--glass-filter, blur(6px));
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.38), inset 0 -1px rgba(255, 255, 255, 0.22);
+  box-shadow: var(
+    --glass-shadow-ring,
+    inset 0 1px rgba(255, 255, 255, 0.38),
+    inset 0 -1px rgba(255, 255, 255, 0.22)
+  );
   pointer-events: none;
   z-index: 0;
 }
@@ -393,23 +401,18 @@
   display: flex;
   align-items: center;      /* Vertical centering */
   justify-content: center;  /* Horizontal centering */
-  
-  /* Appearance - revived liquid glass */
-  --glass-surface:
-    radial-gradient(135% 150% at 32% -18%, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.08) 52%, rgba(255, 255, 255, 0) 70%),
-    linear-gradient(145deg, rgba(82, 146, 255, 0.28), rgba(122, 83, 255, 0.2), rgba(255, 163, 102, 0.14)),
-    rgba(255, 255, 255, 0.22);
+
+  /* Pure blur surface (no fill/gradient) */
+  --glass-surface: transparent;
   --glass-filter: blur(22px) saturate(1.4);
-  --glass-shadow-ring:
-    inset 0 1px rgba(255, 255, 255, 0.35),
-    inset 0 -1px rgba(255, 255, 255, 0.18);
-  
+  --glass-shadow-ring: none;
+
   cursor: pointer;
   transition: all var(--duration-base) var(--ease-base);
-  
+
   padding: var(--space-3);  /* 12px */
   margin: 0;
-  
+
   overflow: hidden;
   pointer-events: all;
   user-select: none;
