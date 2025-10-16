@@ -256,13 +256,13 @@ Error handling, accessibility, edge cases.
 
 ---
 
-### **Phase 3: Power Features** (Days 5-7)
+### **Phase 3: Power Features** ✅ COMPLETE (Oct 16, 2025 - 3 hours)
 
-#### ✅ **3.1 Conversation Quick Switcher**
+#### ✅ **3.1 Conversation Quick Switcher** ✅ COMPLETE
 **Time:** 4-5 hours  
 **Impact:** MEDIUM (power user feature)
 
-- [ ] **Cmd/Ctrl+K shortcut**
+- [x] **Cmd/Ctrl+K shortcut** ✅ SHIPPED
   - Opens modal overlay
   - Shows recent conversations (last 20)
   - Title: First user message (truncated)
@@ -282,11 +282,11 @@ Error handling, accessibility, edge cases.
 
 ---
 
-#### ✅ **3.2 In-Conversation Search**
+#### ✅ **3.2 In-Conversation Search** ✅ COMPLETE
 **Time:** 3-4 hours  
 **Impact:** MEDIUM (find past messages)
 
-- [ ] **Search UI**
+- [x] **Search UI** ✅ SHIPPED
   - Trigger: Cmd/Ctrl+F
   - UI: Compact search bar at top of thoughts
   - Show: Hit count "3 of 12"

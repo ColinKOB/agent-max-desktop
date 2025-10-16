@@ -582,9 +582,9 @@
   gap: var(--space-3);  /* 12px */
   padding: 0 var(--space-3) 0 var(--space-5);  /* 0 12px 0 24px */
   
-  /* Appearance - liquid glass bar */
+  /* Appearance - smoked glass bar */
   --glass-surface:
-    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.4) 40%, rgba(255, 255, 255, 0) 85%);
+    radial-gradient(circle at 50% 50%, rgba(16, 20, 32, 0.46) 0%, rgba(16, 20, 32, 0.46) 45%, rgba(16, 20, 32, 0) 90%);
   --glass-filter: blur(32px) saturate(1.45);
   --glass-shadow-ring:
     inset 0 1px rgba(255, 255, 255, 0.35),
@@ -607,7 +607,7 @@
   background: transparent;
   border: none;
   outline: none;
-  color: rgba(16, 18, 30, 0.92);  /* Dark ink on bright glass */
+  color: rgba(255, 255, 255, 0.92);  /* Bright ink on smoked glass */
   font-size: var(--text-body-size);  /* 16px */
   font-weight: var(--weight-regular);  /* 400 */
   letter-spacing: var(--tracking-normal);
@@ -615,7 +615,7 @@
 }
 
 .amx-bar-input::placeholder {
-  color: rgba(16, 18, 30, 0.45);  /* Subtle placeholder */
+  color: rgba(255, 255, 255, 0.6);  /* Subtle placeholder */
   font-weight: var(--weight-regular);
 }
 
