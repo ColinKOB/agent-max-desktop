@@ -5,7 +5,7 @@ import useStore from './store/useStore';
 import { healthAPI, profileAPI } from './services/api';
 import apiConfigManager from './config/apiConfig';
 
-function App() {
+function App({ windowMode = 'single' }) {
   const { setApiConnected, setProfile, setGreeting } = useStore();
   const [showWelcome, setShowWelcome] = useState(null); // null = checking, true = show, false = hide
   const [isLoading, setIsLoading] = useState(true);
@@ -133,6 +133,7 @@ function App() {
         showWelcome={showWelcome}
         onWelcomeComplete={handleWelcomeComplete}
         isLoading={isLoading}
+        windowMode={windowMode}
       />
       <Toaster
         position="bottom-right"

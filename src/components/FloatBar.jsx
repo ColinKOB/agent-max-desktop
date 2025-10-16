@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Camera,
   Send,
@@ -23,10 +23,20 @@ import responseCache from '../services/responseCache';
 import ToolsPanel from '../pages/ToolsPanel';
 import { generateConversationSummary } from '../services/conversationSummary';
 
-export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) {
-  const [isOpen, setIsOpen] = useState(false); // Card mode (full chat with conversation)
-  const [isMini, setIsMini] = useState(true); // Mini square mode (68x68)
-  const [isBar, setIsBar] = useState(false); // Horizontal bar mode (240x68)
+export default function FloatBar({
+  showWelcome,
+  onWelcomeComplete,
+  isLoading,
+  windowMode = 'single',
+  autoSend = true,
+}) {
+  const isCardWindow = windowMode === 'card';
+  const isPillWindow = windowMode === 'pill';
+  const isSingleWindow = windowMode === 'single';
+  const suggestionsEnabled = isSingleWindow;
+  const [isOpen, setIsOpen] = useState(() => (isCardWindow ? true : false));
+  const [isMini, setIsMini] = useState(() => (isCardWindow ? false : true));
+  const [isBar, setIsBar] = useState(false);
   const [thoughts, setThoughts] = useState([]);
   const [progress, setProgress] = useState(0);
   const [currentCommand, setCurrentCommand] = useState('');
@@ -43,7 +53,13 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   });
   const inputRef = useRef(null);
   const thoughtsEndRef = useRef(null);
+  const windowIdRef = useRef(`${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
+  const channelRef = useRef(null);
+  const skipBroadcastRef = useRef(false);
+  const latestStateRef = useRef({ signature: null, payload: null });
+  const isEditingMessageRef = useRef(false);
   const { profile, addToHistory } = useStore();
+  const [isMessageFocused, setIsMessageFocused] = useState(false);
 
   // Simple connection status check (can be enhanced later)
   const [isConnected, setIsConnected] = useState(true);
@@ -137,8 +153,222 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     return words.join(' ') + (reasoning.split(' ').length > 5 ? '...' : '');
   };
 
+  const showCardWindow = useCallback(async () => {
+    setIsBar(false);
+    setIsMini(false);
+    setIsOpen(true);
+
+    if (isPillWindow && window.electron?.showCardWindow) {
+      try {
+        await window.electron.showCardWindow();
+      } catch (error) {
+        console.error('[FloatBar] Failed to open card window:', error);
+      }
+    }
+
+    if (channelRef.current) {
+      channelRef.current.postMessage({
+        type: 'window:mode',
+        source: windowIdRef.current,
+        mode: 'card',
+      });
+    }
+  }, [isPillWindow]);
+
+  const showPillWindow = useCallback(async () => {
+    if (isCardWindow && window.electron?.showPillWindow) {
+      try {
+        await window.electron.showPillWindow();
+      } catch (error) {
+        console.error('[FloatBar] Failed to return to pill window:', error);
+      }
+
+      if (channelRef.current) {
+        channelRef.current.postMessage({
+          type: 'window:mode',
+          source: windowIdRef.current,
+          mode: 'pill',
+        });
+      }
+      return;
+    }
+
+    setIsOpen(false);
+    setIsBar(false);
+    setIsMini(true);
+
+    if (channelRef.current) {
+      channelRef.current.postMessage({
+        type: 'window:mode',
+        source: windowIdRef.current,
+        mode: 'pill',
+      });
+    }
+  }, [isCardWindow]);
+
+  const buildSharedState = useCallback(() => {
+    return {
+      profile,
+      thoughts,
+      progress,
+      currentCommand,
+      isThinking,
+      similarGoals,
+      showSuggestions,
+      message,
+      isStreaming,
+      isConnected,
+      screenshotData,
+      welcomeData,
+      welcomeStep,
+      isLoading,
+    };
+  }, [
+    profile,
+    thoughts,
+    progress,
+    currentCommand,
+    isThinking,
+    similarGoals,
+    showSuggestions,
+    message,
+    isStreaming,
+    isConnected,
+    screenshotData,
+    welcomeData,
+    welcomeStep,
+    isLoading,
+  ]);
+
+  const broadcastState = useCallback(
+    (source = windowIdRef.current) => {
+      if (!channelRef.current || skipBroadcastRef.current) {
+        return;
+      }
+
+      const payload = buildSharedState();
+      const signature = JSON.stringify(payload);
+
+      if (latestStateRef.current.signature === signature) {
+        return;
+      }
+
+      latestStateRef.current = { signature, payload };
+
+      channelRef.current.postMessage({
+        type: 'state:update',
+        source,
+        state: payload,
+      });
+    },
+    [buildSharedState]
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('BroadcastChannel' in window)) {
+      return;
+    }
+
+    const channel = new BroadcastChannel('agent-max-floatbar');
+    channelRef.current = channel;
+
+    channel.onmessage = (event) => {
+      const { type, state, source } = event.data || {};
+
+      if (source === windowIdRef.current) {
+        return;
+      }
+
+      if (type === 'state:request') {
+        broadcastState();
+        return;
+      }
+
+      if (type !== 'state:update') {
+        return;
+      }
+
+      skipBroadcastRef.current = true;
+      try {
+        if (state.profile) {
+          useStore.setState({ profile: state.profile });
+        }
+        if (Array.isArray(state.thoughts)) {
+          setThoughts(state.thoughts);
+        }
+        if (typeof state.progress === 'number') {
+          setProgress(state.progress);
+        }
+        if (typeof state.currentCommand === 'string') {
+          setCurrentCommand(state.currentCommand);
+        }
+        setIsThinking(Boolean(state.isThinking));
+        if (Array.isArray(state.similarGoals)) {
+          setSimilarGoals(state.similarGoals);
+        }
+        setShowSuggestions(Boolean(state.showSuggestions));
+        if (typeof state.message === 'string' && !isEditingMessageRef.current) {
+          setMessage(state.message);
+        }
+        setIsStreaming(Boolean(state.isStreaming));
+        setIsConnected(Boolean(state.isConnected));
+        setScreenshotData(state.screenshotData || null);
+        if (state.welcomeData) {
+          setWelcomeData({
+            name: state.welcomeData.name || '',
+            role: state.welcomeData.role || '',
+            primaryUse: state.welcomeData.primaryUse || '',
+            workStyle: state.welcomeData.workStyle || '',
+          });
+        }
+        if (typeof state.welcomeStep === 'number') {
+          setWelcomeStep(state.welcomeStep);
+        }
+
+        const signature = JSON.stringify(state);
+        latestStateRef.current = { signature, payload: state };
+      } finally {
+        skipBroadcastRef.current = false;
+      }
+    };
+
+    channel.postMessage({ type: 'state:announce', source: windowIdRef.current });
+
+    if (isCardWindow) {
+      channel.postMessage({ type: 'state:request', source: windowIdRef.current });
+    }
+
+    return () => {
+      channel.close();
+      channelRef.current = null;
+    };
+  }, [broadcastState, isCardWindow]);
+
+  useEffect(() => {
+    if (!channelRef.current || skipBroadcastRef.current) {
+      return;
+    }
+
+    broadcastState();
+  }, [broadcastState]);
+
+  useEffect(() => {
+    if (isCardWindow) {
+      setIsOpen(true);
+      setIsMini(false);
+      setIsBar(false);
+    } else if (isPillWindow) {
+      setIsOpen(false);
+      setIsBar(false);
+      setIsMini(true);
+    }
+  }, [isCardWindow, isPillWindow]);
+
   // Window resize handler
   useEffect(() => {
+    if (isCardWindow) {
+      return;
+    }
     let cancelled = false;
     let rafId;
 
@@ -188,11 +418,14 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         window.cancelAnimationFrame(rafId);
       }
     };
-  }, [isOpen, isBar, isMini]);
+  }, [isOpen, isBar, isMini, isCardWindow]);
 
   // Keep window on screen (boundary checking)
   // Only adjusts position, not size - runs periodically to catch manual drags
   useEffect(() => {
+    if (isCardWindow) {
+      return;
+    }
     const checkBoundaries = async () => {
       if (
         window.electron?.getBounds &&
@@ -262,6 +495,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           setTimeout(() => inputRef.current?.focus(), 100);
         } else if (isBar) {
           setIsBar(false);
+          setIsMini(false);
           setIsOpen(true);
         } else {
           setIsOpen(false);
@@ -271,14 +505,12 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       }
       // Escape to collapse to mini
       if (e.key === 'Escape') {
-        setIsOpen(false);
-        setIsBar(false);
-        setIsMini(true);
+        showPillWindow();
       }
     }
     window.addEventListener('keydown', onHotkey);
     return () => window.removeEventListener('keydown', onHotkey);
-  }, [isOpen, isBar, isMini]);
+  }, [isMini, isBar, showCardWindow, showPillWindow]);
 
   // SSE streaming (placeholder - connect to your backend)
   useEffect(() => {
@@ -358,7 +590,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     // Add user message to UI
     setThoughts((prev) => [...prev, { type: 'user', content: userMessage }]);
     setMessage('');
-    setIsThinking(true);
+    isEditingMessageRef.current = false;
     setProgress(0);
 
     try {
@@ -409,35 +641,36 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         return; // Exit early - no API call needed!
       }
 
+      if (!autoSend) {
+        setProgress(0);
+        toast.success('Message captured (auto-send disabled)');
+        return;
+      }
+
       // Import services
       const memoryService = (await import('../services/memory')).default;
       const { chatAPI } = await import('../services/api');
 
-      // Initialize if needed
       if (!memoryService.initialized) {
         await memoryService.initialize();
       }
 
-      // 🔥 SAVE USER MESSAGE TO MEMORY (for conversation history)
       await memoryService.addMessage('user', userMessage);
 
-      // Show thinking indicator
+      setIsThinking(true);
       setProgress(20);
       const thinkingMsg = screenshotData ? 'Looking at your screenshot...' : 'Thinking...';
       setThoughts((prev) => [...prev, { type: 'thought', content: thinkingMsg }]);
 
-      // Build user context (now includes recent messages!)
       setProgress(40);
       const userContext = await memoryService.buildContextForAPI();
 
-      // 🔥 SEMANTIC CONTEXT: If we have high-similarity past conversations, include them
       if (similarGoals.length > 0 && similarGoals[0].similarity >= 0.7) {
         const topMatch = similarGoals[0];
         console.log(
           `[Semantic] High similarity (${(topMatch.similarity * 100).toFixed(0)}%) - Adding context`
         );
 
-        // Add semantic context to user_context
         userContext.semantic_context = {
           similar_question: topMatch.goal,
           similarity_score: topMatch.similarity,
@@ -446,7 +679,6 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         };
       }
 
-      // Send to autonomous API with streaming for real-time updates
       setProgress(60);
       let allSteps = [];
       let finalResponse = '';
@@ -455,14 +687,11 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
       let currentStepThought = null;
 
       await chatAPI.sendMessageStream(userMessage, userContext, screenshotData, (event) => {
-        // Handle different event types
         if (event.message) {
-          // Thinking event
           if (!currentStepThought) {
             currentStepThought = { type: 'thought', content: event.message };
             setThoughts((prev) => [...prev, currentStepThought]);
           } else {
-            // Update existing thought
             currentStepThought.content = event.message;
             setThoughts((prev) => {
               const newThoughts = [...prev];
@@ -471,7 +700,6 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
             });
           }
         } else if (event.step_number !== undefined) {
-          // Step event - show the step in real-time!
           const stepText = `Step ${event.step_number}: ${event.reasoning}`;
           setThoughts((prev) => [
             ...prev,
@@ -483,33 +711,28 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           ]);
           allSteps.push(event);
           currentStepThought = null;
-          setProgress(60 + event.step_number * 5); // Increment progress
+          setProgress(60 + event.step_number * 5);
         } else if (event.final_response) {
-          // Done event
           finalResponse = event.final_response;
           allSteps = event.steps || allSteps;
           factsExtracted = event.facts_extracted;
           executionTime = event.execution_time;
           setProgress(100);
         } else if (event.error) {
-          // Error event
           throw new Error(event.error);
         }
       });
 
-      setIsConnected(true); // Mark as connected on successful response
+      setIsConnected(true);
 
       const aiResponse = finalResponse || 'No response';
 
-      // 🔥 SAVE AI RESPONSE TO MEMORY (for conversation history)
       await memoryService.addMessage('assistant', aiResponse);
 
-      // 🔥 EXTRACT AND SAVE FACTS if provided by backend
       if (factsExtracted && Object.keys(factsExtracted).length > 0) {
         const facts = factsExtracted;
         console.log('[Memory] Facts extracted by backend:', facts);
 
-        // Save each category of facts
         let factCount = 0;
         for (const [category, data] of Object.entries(facts)) {
           if (data && typeof data === 'object') {
@@ -532,10 +755,8 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         }
       }
 
-      // Add AI response to UI with streaming effect
       setIsStreaming(true);
 
-      // Add placeholder for streaming response
       const responseIndex = thoughts.length;
       setThoughts((prev) => [
         ...prev,
@@ -545,11 +766,9 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         },
       ]);
 
-      // Stream the response word-by-word
       await streamText(aiResponse, (partial) => {
         setThoughts((prev) => {
           const newThoughts = [...prev];
-          // Update the last thought (the placeholder we added)
           if (newThoughts.length > 0) {
             newThoughts[newThoughts.length - 1] = {
               type: 'agent',
@@ -562,7 +781,8 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
 
       setIsStreaming(false);
 
-      // 📊 LOG TELEMETRY (async, non-blocking)
+      setIsThinking(false);
+
       try {
         const executionTimeMs = executionTime ? Math.round(executionTime * 1000) : null;
 
@@ -585,11 +805,9 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         });
         console.log('[Telemetry] Interaction logged successfully');
       } catch (telemetryError) {
-        // Never let telemetry break the user experience
         console.warn('[Telemetry] Failed to log (non-critical):', telemetryError);
       }
 
-      // 💾 SAVE TO CACHE (for instant future responses)
       try {
         responseCache.cacheResponse(userMessage, aiResponse, {
           success: true,
@@ -599,12 +817,9 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         });
         console.log('[Cache] Response saved to cache');
       } catch (cacheError) {
-        // Never let cache break the user experience
         console.warn('[Cache] Failed to save (non-critical):', cacheError);
       }
 
-      // Steps are now shown in real-time via streaming!
-      // Show execution summary
       const summaryInfo = [];
       if (executionTime) {
         summaryInfo.push(`Completed in ${executionTime.toFixed(1)}s`);
@@ -626,7 +841,6 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
         ]);
       }
 
-      // Clear screenshot after sending
       if (screenshotData) {
         setScreenshotData(null);
         console.log('[FloatBar] Screenshot sent and cleared');
@@ -885,6 +1099,12 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
 
   // Fetch similar goals as user types (debounced)
   useEffect(() => {
+    if (!suggestionsEnabled || !isMessageFocused) {
+      setSimilarGoals([]);
+      setShowSuggestions(false);
+      return;
+    }
+
     if (!message || message.trim().length < 3) {
       setSimilarGoals([]);
       setShowSuggestions(false);
@@ -911,7 +1131,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
     }, 800); // Wait 800ms after user stops typing
 
     return () => clearTimeout(timer);
-  }, [message]);
+  }, [message, isMessageFocused, suggestionsEnabled]);
 
   // Debug: Log computed styles for glassmorphism
   useEffect(() => {
@@ -939,7 +1159,6 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           setIsMini(false);
           setIsBar(true);
           setIsOpen(false);
-          // Auto-focus the input field immediately
           requestAnimationFrame(() => {
             inputRef.current?.focus();
           });
@@ -970,11 +1189,18 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onFocus={() => {
+            isEditingMessageRef.current = true;
+            setIsMessageFocused(true);
             // Expand to full chat if there's conversation
             if (thoughts.length > 0) {
               setIsBar(false);
+              setIsMini(false);
               setIsOpen(true);
             }
+          }}
+          onBlur={() => {
+            isEditingMessageRef.current = false;
+            setIsMessageFocused(false);
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && message.trim()) {
@@ -982,6 +1208,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
               setShowSuggestions(false);
               // Send and expand to full chat
               setIsBar(false);
+              setIsMini(false);
               setIsOpen(true);
               handleSendMessage();
             }
@@ -1044,10 +1271,8 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
             <button
               className="amx-icon-btn"
               onClick={() => {
-                console.log('[FloatBar] Card minimize clicked: Going to mini');
-                setIsOpen(false);
-                setIsBar(false);
-                setIsMini(true);
+                console.log('[FloatBar] Card minimize clicked: returning to pill window');
+                showPillWindow();
               }}
               title="Minimize (Esc)"
             >
@@ -1266,6 +1491,14 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
             onKeyDown={handleKeyDown}
             maxLength={2000}
             disabled={isThinking}
+            onFocus={() => {
+              isEditingMessageRef.current = true;
+              setIsMessageFocused(true);
+            }}
+            onBlur={() => {
+              isEditingMessageRef.current = false;
+              setIsMessageFocused(false);
+            }}
           />
           <button
             className="amx-send"

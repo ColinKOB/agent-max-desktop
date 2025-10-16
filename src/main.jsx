@@ -6,12 +6,17 @@ import SettingsApp from './pages/SettingsApp.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import './styles/globals.css';
 
+const PillApp = () => <App windowMode="pill" />;
+const CardApp = () => <App windowMode="card" />;
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
       <HashRouter>
         <Routes>
           <Route path="/" element={<App />} />
+          <Route path="/pill" element={<PillApp />} />
+          <Route path="/card" element={<CardApp />} />
           <Route path="/settings" element={<SettingsApp />} />
         </Routes>
       </HashRouter>

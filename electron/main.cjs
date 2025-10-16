@@ -15,6 +15,7 @@ const LocalMemoryManager = require('./memory-manager.cjs');
 const IPCValidator = require('./ipc-validator.cjs');
 
 let mainWindow;
+let cardWindow;
 let settingsWindow;
 let ffmpegProcess;
 let memoryManager;
@@ -91,16 +92,113 @@ function createWindow() {
   });
 
   if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:5173');
-    // Optionally open DevTools, positioned to the side
-    // mainWindow.webContents.openDevTools({ mode: 'detach' });
+    mainWindow.loadURL('http://localhost:5173/#/pill');
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'), { hash: '/pill' });
   }
 
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+}
+
+function ensureCardWindow() {
+  if (cardWindow && !cardWindow.isDestroyed()) {
+    return cardWindow;
+  }
+
+  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+  const margin = 16;
+
+  cardWindow = new BrowserWindow({
+    width: 360,
+    height: 520,
+    x: screenWidth - 360 - margin,
+    y: margin,
+    minWidth: 360,
+    minHeight: 520,
+    maxWidth: 360,
+    maxHeight: 520,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: false,
+    show: false,
+    backgroundColor: '#00000000',
+    title: 'Agent Max – Card',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.cjs'),
+      webSecurity: process.env.NODE_ENV !== 'development',
+      sandbox: true,
+      allowRunningInsecureContent: false,
+    },
+  });
+
+  cardWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  cardWindow.setAlwaysOnTop(true, 'floating', 1);
+  cardWindow.setWindowButtonVisibility(false);
+
+  if (process.env.NODE_ENV === 'development') {
+    cardWindow.loadURL('http://localhost:5173/#/card');
+  } else {
+    cardWindow.loadFile(path.join(__dirname, '../dist/index.html'), { hash: '/card' });
+  }
+
+  cardWindow.on('close', (event) => {
+    if (!app.isQuitting) {
+      event.preventDefault();
+      showPillWindow();
+    }
+  });
+
+  cardWindow.on('closed', () => {
+    cardWindow = null;
+  });
+
+  return cardWindow;
+}
+
+function showCardWindow() {
+  if (!mainWindow) {
+    createWindow();
+  }
+  const activeCardWindow = ensureCardWindow();
+
+  const pillBounds = mainWindow.getBounds();
+  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+
+  const targetX = Math.min(Math.max(pillBounds.x + pillBounds.width - 360, 0), screenWidth - 360);
+  const targetY = Math.min(Math.max(pillBounds.y, 0), screenHeight - 520);
+
+  activeCardWindow.setPosition(targetX, targetY);
+  activeCardWindow.show();
+  activeCardWindow.focus();
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.hide();
+  }
+}
+
+function showPillWindow() {
+  if (!mainWindow) {
+    createWindow();
+  }
+
+  if (cardWindow && !cardWindow.isDestroyed()) {
+    const cardBounds = cardWindow.getBounds();
+    const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+    const targetX = Math.min(Math.max(cardBounds.x + cardBounds.width - 68, 0), screenWidth - 68);
+    const targetY = Math.min(Math.max(cardBounds.y, 0), screenHeight - 68);
+    mainWindow.setPosition(targetX, targetY);
+
+    cardWindow.hide();
+  }
+
+  mainWindow.show();
+  mainWindow.focus();
 }
 
 app.whenReady().then(() => {
@@ -213,6 +311,16 @@ ipcMain.handle('get-app-version', () => {
 
 ipcMain.handle('get-app-path', () => {
   return app.getPath('userData');
+});
+
+ipcMain.handle('window:show-card', () => {
+  showCardWindow();
+  return { success: true };
+});
+
+ipcMain.handle('window:show-pill', () => {
+  showPillWindow();
+  return { success: true };
 });
 
 // Window resize for expand/collapse

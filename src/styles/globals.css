@@ -308,6 +308,17 @@
   background: none !important;
 }
 
+.amx-root::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(19, 25, 40, 0.46), rgba(22, 27, 42, 0.22));
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: -2;
+}
+
 /* No gradient backdrop - clean black */
 .amx-root.amx-card::before {
   display: none;
@@ -538,7 +549,7 @@
   --glass-surface:
     linear-gradient(135deg, rgba(82, 146, 255, 0.24), rgba(122, 83, 255, 0.18), rgba(255, 163, 102, 0.12)),
     rgba(255, 255, 255, 0.24);
-  --glass-filter: blur(24px) saturate(1.38);
+  --glass-filter: blur(32px) saturate(1.45);
   --glass-shadow-ring:
     inset 0 1px rgba(255, 255, 255, 0.35),
     inset 0 -1px rgba(255, 255, 255, 0.18);
@@ -658,10 +669,10 @@
   
   /* Appearance - liquid glass composition */
   --glass-surface:
-    radial-gradient(190% 240% at 25% -12%, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.09) 58%, rgba(255, 255, 255, 0) 78%),
-    linear-gradient(150deg, rgba(82, 146, 255, 0.31), rgba(122, 83, 255, 0.22), rgba(255, 163, 102, 0.16)),
-    rgba(255, 255, 255, 0.24);
-  --glass-filter: blur(30px) saturate(1.46);
+    radial-gradient(190% 240% at 25% -12%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 58%, rgba(255, 255, 255, 0) 78%),
+    linear-gradient(150deg, rgba(82, 146, 255, 0.16), rgba(122, 83, 255, 0.12), rgba(255, 163, 102, 0.06)),
+    rgba(255, 255, 255, 0.08);
+  --glass-filter: blur(14px) saturate(1.25);
   --glass-shadow-ring:
     inset 0 1px rgba(255, 255, 255, 0.35),
     inset 0 -1px rgba(255, 255, 255, 0.18);

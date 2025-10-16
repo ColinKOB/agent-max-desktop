@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('electron', {
   resizeWindow: (width, height) => ipcRenderer.invoke('resize-window', { width, height }),
   switchToFloatbar: () => ipcRenderer.invoke('switch-to-floatbar'),
   getScreenSize: () => ipcRenderer.invoke('get-screen-size'),
+  showCardWindow: () => ipcRenderer.invoke('window:show-card'),
+  showPillWindow: () => ipcRenderer.invoke('window:show-pill'),
   executeCommand: (command) => ipcRenderer.invoke('execute-command', { command }),
   copyToClipboard: (text) => ipcRenderer.invoke('copy-to-clipboard', text),
   takeScreenshot: () => ipcRenderer.invoke('take-screenshot'),
