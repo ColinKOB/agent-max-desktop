@@ -1,6 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('electron', {\n  // Desktop Features\n  showNotification: (data) => ipcRenderer.invoke('show-notification', data),\n  
+contextBridge.exposeInMainWorld('electron', {
+  // Desktop Features
+  showNotification: (data) => ipcRenderer.invoke('show-notification', data),
+  
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   getAppPath: () => ipcRenderer.invoke('get-app-path'),
   resizeWindow: (width, height) => ipcRenderer.invoke('resize-window', { width, height }),
