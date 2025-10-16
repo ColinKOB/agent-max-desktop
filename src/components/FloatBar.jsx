@@ -55,6 +55,7 @@ export default function FloatBar({
     workStyle: '',
   });
   const inputRef = useRef(null);
+  const textareaRef = useRef(null);
   const thoughtsEndRef = useRef(null);
   const windowIdRef = useRef(`${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
   const channelRef = useRef(null);
@@ -79,16 +80,46 @@ export default function FloatBar({
   useEffect(() => {
     const sessionId = 'current'; // TODO: Get actual session ID
     setDraftSessionId(sessionId);
-    const draft = localStorage.getItem(`draft:${sessionId}`);
+    const draft = localStorage.getItem(`amx:draft:${sessionId}`);
     if (draft) {
       setMessage(draft);
       console.log('[UX] Draft restored');
       telemetry.logInteraction({
         event: 'composer.draft_restored',
         data: { length: draft.length },
+        metadata: { ux_schema: 'v1' },
       });
     }
-  }, []);
+
+    // UX Phase 2: Restore last mode per position (if pill window)
+    if (isPillWindow && window.electron?.getBounds) {
+      window.electron.getBounds().then((bounds) => {
+        const posKey = `amx:mode.last:${Math.round(bounds.x / 100)},${Math.round(bounds.y / 100)}`;
+        const lastMode = localStorage.getItem(posKey);
+        if (lastMode) {
+          console.log(`[UX] Restoring last mode: ${lastMode}`);
+          telemetry.logInteraction({
+            event: 'mode.resumed_last',
+            data: { mode: lastMode, resumed: true },
+            metadata: { ux_schema: 'v1' },
+          });
+          // Apply mode based on stored value
+          if (lastMode === 'bar') {
+            setIsMini(false);
+            setIsBar(true);
+          } else if (lastMode === 'card') {
+            showCardWindow();
+          }
+        } else {
+          telemetry.logInteraction({
+            event: 'mode.resumed_last',
+            data: { resumed: false },
+            metadata: { ux_schema: 'v1' },
+          });
+        }
+      }).catch((e) => console.error('[UX] Failed to get bounds:', e));
+    }
+  }, [isPillWindow]);
 
   // Autosave draft (debounced)
   useEffect(() => {
@@ -608,6 +639,17 @@ export default function FloatBar({
           const sizeKB = Math.round(screenshot.size / 1024);
           console.log(`[FloatBar] Screenshot attached (${sizeKB}KB)`);
           toast.success(`Screenshot attached (${sizeKB}KB)`);
+          
+          // UX Phase 2: Auto-expand to Card on attachment
+          if (!isOpen && !isCardWindow) {
+            console.log('[UX] Auto-expanding to Card (attachment)');
+            showCardWindow();
+            telemetry.logInteraction({
+              event: 'mode.auto_expand_reason',
+              data: { reason: 'attachment' },
+              metadata: { ux_schema: 'v1' },
+            });
+          }
         }
       } else {
         toast.error('Screenshot feature not available');
@@ -1668,7 +1710,7 @@ export default function FloatBar({
                   }
                   // Clear draft
                   if (draftSessionId) {
-                    localStorage.removeItem(`draft:${draftSessionId}`);
+                    localStorage.removeItem(`amx:draft:${draftSessionId}`);
                   }
                   handleSendMessage();
                 }
