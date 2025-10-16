@@ -146,7 +146,7 @@ Error handling, accessibility, edge cases.
 
 ---
 
-### **Phase 2: Core Flows** 🚧 IN PROGRESS (Days 2-4)
+### **Phase 2: Core Flows** ✅ COMPLETE (Oct 16, 2025 - Single Day)
 
 #### ✅ **2.1 Mode Switching Logic** ✅ COMPLETE (Day 1)
 **Time:** 3-4 hours  
@@ -199,18 +199,18 @@ Error handling, accessibility, edge cases.
 
 ---
 
-#### ✅ **2.3 Collapsible Thoughts**
+#### ✅ **2.3 Collapsible Thoughts** ✅ COMPLETE (Day 1)
 **Time:** 2 hours  
 **Impact:** MEDIUM (cleaner chat view)
 
-- [ ] **Auto-collapse after completion**
+- [x] **Auto-collapse after completion** ✅ SHIPPED
   - Current: Thoughts always visible
   - New: Show during streaming, collapse after complete
   - UI: "Show steps (8)" toggle
   - Store: Per-message preference
   - Telemetry: `thoughts.toggled: 'expand'/'collapse'`
 
-- [ ] **Per-step timings**
+- [x] **Per-step timings** ✅ SHIPPED
   - Show duration next to each step
   - Format: "Step 1: Analyzing (0.3s)"
   - Calculate: diff between step timestamps
