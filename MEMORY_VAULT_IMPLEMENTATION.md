@@ -134,22 +134,31 @@
 - [x] exportKeyBackup() - Password-protected export
 - [x] importKeyBackup() - Restore from backup
 
-### 1.5 Migration Script ⏳ IN PROGRESS
+### 1.5 Migration Script ✅ COMPLETE
 
 **File:** `electron/migrate-to-vault.cjs`
 
 **Steps:**
-- [ ] Load existing profile.json
-- [ ] Load existing facts.json
-- [ ] Load existing conversations.json
-- [ ] Load existing preferences.json
-- [ ] Create identity in vault
-- [ ] Migrate facts with provenance
-- [ ] Migrate sessions + messages
-- [ ] Migrate preferences as facts
-- [ ] Backup old JSONs
-- [ ] Verify data integrity
-- [ ] Switch to vault
+- [x] Load existing profile.json (with decryption)
+- [x] Load existing facts.json (with decryption)
+- [x] Load existing conversations.json (with decryption)
+- [x] Load existing preferences.json (with decryption)
+- [x] Create identity in vault
+- [x] Migrate facts with provenance (6 facts)
+- [x] Migrate sessions + messages (2 sessions, 6 messages)
+- [x] Migrate preferences as facts (3 preferences)
+- [x] Backup old JSONs (to memories.backup/)
+- [x] Verify data integrity (counts match)
+- [x] Switch to vault (automatic)
+
+**Test Results:**
+- ✅ Profile migrated with name
+- ✅ 6 facts migrated (personal, location, preference, work)
+- ✅ 2 sessions migrated
+- ✅ 6 messages migrated
+- ✅ 3 preferences migrated (including booleans)
+- ✅ Backup created successfully
+- ✅ Data integrity verified
 
 ### 1.6 Testing Checklist ✅ COMPLETE
 
@@ -458,9 +467,16 @@
 - ✅ Phase 3: Provenance & decay (built into vault)
 
 **In Progress:**
-- ⏳ Phase 1.5: Migration script
+- Nothing! Phase 1 is complete 🎉
 
-**Remaining:**
-- ⏸️ Phase 2: Context Selector
-- ⏸️ Phase 4: Memory Manager UI
-- ⏸️ Phase 5: Rollback mechanisms
+**Next Steps:**
+- 🔜 Phase 2: Context Selector (hybrid retrieval, token budgeting)
+- 🔜 Phase 4: Memory Manager UI (facts list, consent controls)
+- 🔜 Phase 5: Integration & rollback (wire into main app)
+
+**Phase 1 Complete:**
+- ✅ Core vault (SQLite + encryption)
+- ✅ Keychain integration (OS-level key storage)
+- ✅ Migration script (JSON → Vault)
+- ✅ Testing (15/15 core tests + migration test)
+- ✅ Provenance & decay (fact lifecycle management)
