@@ -1383,6 +1383,217 @@
   background: rgba(0, 0, 0, 0.12);
 }
 
+/* ============================================
+   UX IMPROVEMENTS - Search & Quick Switcher
+   ============================================ */
+
+/* Search bar */
+.amx-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.98);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(10px);
+  animation: slideIn 0.2s ease-out;
+}
+
+.amx-search-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text);
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.amx-search-input:focus {
+  border-color: var(--accent);
+  background: #FFFFFF;
+}
+
+.amx-search-count {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.amx-search-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.amx-search-nav-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: var(--accent);
+}
+
+.amx-search-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.amx-search-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.amx-search-close-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: rgba(239, 68, 68, 0.9);
+}
+
+/* Search highlighting */
+.amx-search-match {
+  background: rgba(255, 235, 59, 0.2);
+  border-left: 3px solid rgba(255, 235, 59, 0.6);
+}
+
+.amx-search-current {
+  background: rgba(255, 235, 59, 0.4);
+  border-left: 3px solid rgba(255, 193, 7, 1);
+  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.3);
+}
+
+/* Modal overlay */
+.amx-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Quick switcher */
+.amx-quick-switcher {
+  width: 560px;
+  max-height: 600px;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 16px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.24);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.2s ease-out;
+}
+
+.amx-quick-switcher-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.amx-quick-switcher-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.amx-quick-switcher-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.amx-quick-switcher-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text);
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.amx-quick-switcher-input:focus {
+  border-color: var(--accent);
+  background: #FFFFFF;
+}
+
+.amx-quick-switcher-list {
+  overflow-y: auto;
+  max-height: 400px;
+  padding: 8px;
+}
+
+.amx-quick-switcher-item {
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-bottom: 4px;
+}
+
+.amx-quick-switcher-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.amx-quick-switcher-item.selected {
+  background: rgba(15, 181, 174, 0.1);
+  border-left: 3px solid var(--accent);
+}
+
+.amx-quick-switcher-item-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.amx-quick-switcher-item-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.amx-quick-switcher-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 /* Compose area */
 .amx-compose {
   display: flex;

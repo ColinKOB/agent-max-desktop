@@ -1039,15 +1039,18 @@ export default function FloatBar({
       scrollToSearchResult(0);
     }
   };
-  \n  const scrollToSearchResult = (resultIdx) => {
+
+  const scrollToSearchResult = (resultIdx) => {
     if (resultIdx < 0 || resultIdx >= searchResults.length) return;
-    \n    const messageIdx = searchResults[resultIdx].index;
+
+    const messageIdx = searchResults[resultIdx].index;
     const messageEl = document.querySelector(`[data-message-idx="${messageIdx}"]`);
     if (messageEl) {
       messageEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
-  \n  const nextSearchResult = () => {
+
+  const nextSearchResult = () => {
     if (searchResults.length === 0) return;
     const nextIdx = (currentSearchIndex + 1) % searchResults.length;
     setCurrentSearchIndex(nextIdx);
@@ -1058,7 +1061,8 @@ export default function FloatBar({
       metadata: { ux_schema: 'v1' },
     });
   };
-  \n  const prevSearchResult = () => {
+
+  const prevSearchResult = () => {
     if (searchResults.length === 0) return;
     const prevIdx = currentSearchIndex === 0 ? searchResults.length - 1 : currentSearchIndex - 1;
     setCurrentSearchIndex(prevIdx);
@@ -1069,14 +1073,16 @@ export default function FloatBar({
       metadata: { ux_schema: 'v1' },
     });
   };
-  \n  // UX Phase 3: Quick switcher logic
+
+  // UX Phase 3: Quick switcher logic
   const loadConversations = async () => {
     try {
       const memoryService = (await import('../services/memory')).default;
       if (!memoryService.initialized) {
         await memoryService.initialize();
       }
-      \n      // Get last 20 sessions (placeholder - implement getAllSessions in memory service)
+
+      // Get last 20 sessions (placeholder - implement getAllSessions in memory service)
       // For now, create mock data
       setConversations([
         {
@@ -1091,16 +1097,19 @@ export default function FloatBar({
       setConversations([]);
     }
   };
-  \n  const selectConversation = (conv) => {
+
+  const selectConversation = (conv) => {
     console.log('[Switcher] Selected:', conv.id);
     setShowSwitcher(false);
     setSwitcherQuery('');
-    \n    telemetry.logInteraction({
+
+    telemetry.logInteraction({
       event: 'conv.switcher_used',
       data: { conversation_id: conv.id },
       metadata: { ux_schema: 'v1' },
     });
-    \n    // TODO: Load conversation messages
+
+    // TODO: Load conversation messages
     toast.info('Loading conversation...');
   };
 
