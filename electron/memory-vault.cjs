@@ -66,8 +66,12 @@ class MemoryVault {
       this.db.pragma('foreign_keys = ON'); // Enforce constraints
       
       console.log('✓ Database opened:', this.vaultPath);
+
+      // Create schema FIRST (creates meta table)
+      this._createSchema();
+      console.log('✓ Schema initialized');
       
-      // Run integrity check on boot
+      // THEN run integrity check (needs meta table)
       const integrityResult = this.db.pragma('integrity_check');
       if (integrityResult.length > 0 && integrityResult[0].integrity_check !== 'ok') {
         console.error('⚠️  Database integrity check failed:', integrityResult);
@@ -78,10 +82,6 @@ class MemoryVault {
         console.log('✓ Database integrity OK');
         this._setMeta('last_integrity_check', new Date().toISOString());
       }
-
-      // Create schema
-      this._createSchema();
-      console.log('✓ Schema initialized');
 
       // Store identity_id in meta table (if not exists)
       const storedId = this._getMeta('identity_id');
