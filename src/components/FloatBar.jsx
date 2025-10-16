@@ -1184,6 +1184,8 @@ export default function FloatBar({
       return;
     }
     
+    const originalMessage = message || thoughts[thoughts.length - 2]?.content || '';
+    
     console.log('[UX] Continue clicked, partial length:', partialResponse.length);
     
     telemetry.logInteraction({
@@ -1192,13 +1194,95 @@ export default function FloatBar({
       metadata: { ux_schema: 'v1' },
     });
     
-    // Reset stopped state
+    // Reset stopped state and start continuation
     setIsStopped(false);
-    setPartialResponse('');
+    setIsThinking(true);
+    setThinkingStatus('thinking');
     
-    // TODO: Implement actual continuation logic
-    // This would involve sending the partial response as context
-    toast.info('Continue not yet implemented');
+    try {
+      // Get API configuration
+      const apiConfigManager = (await import('../config/apiConfig')).default;
+      const { baseURL } = apiConfigManager.getConfig();
+      const apiKey = apiConfigManager.getApiKey();
+      
+      // Call continue endpoint
+      const response = await fetch(`${baseURL}/api/v2/chat/streaming/continue`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey || '',
+        },
+        body: JSON.stringify({
+          partial_response: partialResponse,
+          original_message: originalMessage,
+          conversation_id: draftSessionId,
+          max_tokens: 1024,
+          temperature: 0.7
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      setThinkingStatus('answering');
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let continuedText = partialResponse; // Start from partial
+      
+      // Update the last thought with continuation
+      const lastThoughtIndex = thoughts.length - 1;
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // Keep incomplete line
+        
+        for (const line of lines) {
+          if (line.startsWith('data:')) {
+            const data = line.substring(5).trim();
+            if (data && data !== '[DONE]') {
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.choices && parsed.choices[0]?.delta?.content) {
+                  continuedText += parsed.choices[0].delta.content;
+                  
+                  // Update the last thought
+                  setThoughts(prev => {
+                    const newThoughts = [...prev];
+                    newThoughts[lastThoughtIndex] = {
+                      ...newThoughts[lastThoughtIndex],
+                      content: continuedText
+                    };
+                    return newThoughts;
+                  });
+                }
+              } catch (e) {
+                console.error('Failed to parse continue SSE:', e);
+              }
+            }
+          }
+        }
+      }
+      
+      // Clear partial response after successful continuation
+      setPartialResponse('');
+      setIsThinking(false);
+      setThinkingStatus('');
+      
+      toast.success('Continuation complete');
+      
+    } catch (error) {
+      console.error('[Continue] Error:', error);
+      setIsThinking(false);
+      setThinkingStatus('');
+      toast.error(`Failed to continue: ${error.message}`);
+    }
   };
 
   const handleSendMessage = async () => {
