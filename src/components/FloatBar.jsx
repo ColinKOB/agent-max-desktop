@@ -58,6 +58,8 @@ export default function FloatBar({
   const [focusedMessageIndex, setFocusedMessageIndex] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [deletedMessage, setDeletedMessage] = useState(null);
+  const [originalPrompts, setOriginalPrompts] = useState({}); // Track original prompts for regenerate
+  const [showForkDialog, setShowForkDialog] = useState(null); // Fork confirmation dialog
   
   // UX Phase 2: Collapsible thoughts
   const [collapsedMessages, setCollapsedMessages] = useState(new Set());
@@ -80,6 +82,9 @@ export default function FloatBar({
   const [switcherQuery, setSwitcherQuery] = useState('');
   const [conversations, setConversations] = useState([]);
   const [selectedConvIndex, setSelectedConvIndex] = useState(0);
+  
+  // UX: Keyboard shortcut reference
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [screenshotData, setScreenshotData] = useState(null); // Store base64 screenshot
   const [welcomeStep, setWelcomeStep] = useState(1);
   const [welcomeData, setWelcomeData] = useState({
@@ -112,17 +117,35 @@ export default function FloatBar({
 
   // Load draft on mount
   useEffect(() => {
-    const sessionId = 'current'; // TODO: Get actual session ID
+    // Generate or retrieve session ID
+    let sessionId = localStorage.getItem('amx:current_session_id');
+    if (!sessionId) {
+      sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      localStorage.setItem('amx:current_session_id', sessionId);
+    }
     setDraftSessionId(sessionId);
-    const draft = localStorage.getItem(`amx:draft:${sessionId}`);
-    if (draft) {
-      setMessage(draft);
-      console.log('[UX] Draft restored');
-      telemetry.logInteraction({
-        event: 'composer.draft_restored',
-        data: { length: draft.length },
-        metadata: { ux_schema: 'v1' },
-      });
+    const draftData = localStorage.getItem(`amx:draft:${sessionId}`);
+    if (draftData) {
+      try {
+        const draft = JSON.parse(draftData);
+        setMessage(draft.text || '');
+        if (draft.screenshot) {
+          setScreenshotData(draft.screenshot);
+        }
+        console.log('[UX] Draft restored (text + attachments)');
+        telemetry.logInteraction({
+          event: 'composer.draft_restored',
+          data: { 
+            length: (draft.text || '').length,
+            has_attachment: !!draft.screenshot 
+          },
+          metadata: { ux_schema: 'v1' },
+        });
+      } catch (e) {
+        // Fallback for old plain-text drafts
+        setMessage(draftData);
+        console.log('[UX] Draft restored (legacy format)');
+      }
     }
 
     // UX Phase 2: Restore last mode per position (if pill window)
@@ -157,14 +180,21 @@ export default function FloatBar({
 
   // Autosave draft (debounced)
   useEffect(() => {
-    if (!draftSessionId || !message) return;
+    if (!draftSessionId) return;
+    if (!message && !screenshotData) return;
     
     const timer = setTimeout(() => {
-      localStorage.setItem(`amx:draft:${draftSessionId}`, message);
+      const draftData = {
+        text: message,
+        screenshot: screenshotData,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(`amx:draft:${draftSessionId}`, JSON.stringify(draftData));
+      console.log('[UX] Draft autosaved (text + attachments)');
     }, 500); // 500ms debounce
 
     return () => clearTimeout(timer);
-  }, [message, draftSessionId]);
+  }, [message, screenshotData, draftSessionId]);
   
   // UX Phase 2: Auto-expand on multiline (debounced to avoid flicker)
   // IME protection: Don't auto-expand while composing
@@ -717,6 +747,17 @@ export default function FloatBar({
         });
       }
       
+      // ?: Open keyboard shortcuts reference
+      if (e.key === '?' && !showSearch && !showSwitcher && !showForkDialog && !e.target.matches('input, textarea')) {
+        e.preventDefault();
+        setShowShortcuts(true);
+        telemetry.logInteraction({
+          event: 'shortcuts.opened',
+          data: {},
+          metadata: { ux_schema: 'v1' },
+        });
+      }
+      
       // Message actions (only if a message is focused)
       if (focusedMessageIndex !== null) {
         const message = thoughts[focusedMessageIndex];
@@ -902,55 +943,65 @@ export default function FloatBar({
       return;
     }
     
-    const userPrompt = thoughts[userPromptIndex].content;
-    console.log('[UX] Regenerating from prompt:', userPrompt);
+    const userMsg = thoughts[userPromptIndex];
     
-    // Remove the assistant message
-    setThoughts(prev => prev.filter((_, i) => i !== index));
+    // Use original prompt if available, otherwise current content
+    const originalPrompt = originalPrompts[userPromptIndex] || userMsg.content;
     
-    // Set the prompt and trigger send
-    setMessage(userPrompt);
+    // Remove everything after user message and regenerate
+    setThoughts(prev => prev.slice(0, userPromptIndex + 1));
+    setMessage(originalPrompt);
     
     telemetry.logInteraction({
       event: 'msg.action',
-      data: { type: 'regenerate', message_index: index },
-      metadata: { ux_schema: 'v1' },
+      data: { 
+        action: 'regenerate', 
+        message_id: index,
+        used_original: !!originalPrompts[userPromptIndex]
+      },
+      metadata: { ux_schema: 'v1', conversation_id: draftSessionId },
     });
     
-    // Auto-send
-    setTimeout(() => handleSendMessage(), 100);
+    // Auto-send to regenerate
+    setTimeout(() => {
+      handleSendMessage();
+    }, 100);
   };
   
-  const handleEditMessage = (message, index, fork = false) => {
-    if (message.type !== 'user') return;
+  const handleEdit = (idx) => {
+    const thought = thoughts[idx];
+    if (thought.type !== 'user') return;
     
-    if (fork) {
+    setMessage(thought.content);
+    setShowForkDialog(idx);
+    inputRef.current?.focus();
+    
+    telemetry.logInteraction({
+      event: 'msg.action',
+      data: { action: 'edit', message_id: idx },
+      metadata: { ux_schema: 'v1', conversation_id: draftSessionId },
+    });
+  };
+  
+  const handleForkDecision = (idx, shouldFork) => {
+    setShowForkDialog(null);
+    
+    if (shouldFork) {
       // Fork: Create new branch from this point
-      console.log('[UX] Forking from message', index);
-      setThoughts(prev => prev.slice(0, index + 1));
       telemetry.logInteraction({
         event: 'thread.forked',
-        data: { from_index: index, fork: true },
-        metadata: { ux_schema: 'v1' },
+        data: { from_message: idx, forked: true },
+        metadata: { ux_schema: 'v1', conversation_id: draftSessionId },
       });
-      toast.success('Forked conversation');
+      toast.success('Conversation forked - new branch created');
+      // In future: create actual new session ID
     } else {
-      // Edit in place
-      console.log('[UX] Editing message in place', index);
-      telemetry.logInteraction({
-        event: 'msg.action',
-        data: { type: 'edit', message_index: index, fork: false },
-        metadata: { ux_schema: 'v1' },
-      });
+      // Edit in place: remove everything after this message
+      setThoughts(prev => prev.slice(0, idx));
+      toast.success('Editing in place - history removed');
     }
-    
-    // Load into composer
-    setMessage(message.content);
-    
-    // Focus input
-    setTimeout(() => inputRef.current?.focus(), 100);
   };
-  
+
   const handleDeleteMessage = (index) => {
     // Show confirmation
     setShowDeleteConfirm(index);
@@ -958,9 +1009,10 @@ export default function FloatBar({
   
   const confirmDeleteMessage = (index) => {
     const deleted = thoughts[index];
+    const scrollPosition = thoughtsEndRef.current?.parentElement?.scrollTop || 0;
     
-    // Save for undo
-    setDeletedMessage({ message: deleted, index });
+    // Save for undo (including scroll position)
+    setDeletedMessage({ message: deleted, index, scrollPosition });
     
     // Remove message
     setThoughts(prev => prev.filter((_, i) => i !== index));
@@ -972,20 +1024,33 @@ export default function FloatBar({
           <span>Message deleted</span>
           <button
             onClick={() => {
-              // Restore message
-              setThoughts(prev => {
-                const newThoughts = [...prev];
-                newThoughts.splice(index, 0, deleted);
-                return newThoughts;
-              });
-              setDeletedMessage(null);
-              toast.dismiss(t.id);
-              toast.success('Message restored');
-              telemetry.logInteraction({
-                event: 'msg.undo_delete',
-                data: { message_index: index },
-                metadata: { ux_schema: 'v1' },
-              });
+              const handleUndoDelete = () => {
+                if (deletedMessage) {
+                  // Restore message at original index
+                  setThoughts(prev => {
+                    const newThoughts = [...prev];
+                    newThoughts.splice(deletedMessage.index, 0, deletedMessage.message);
+                    return newThoughts;
+                  });
+                  
+                  // Restore scroll position
+                  if (deletedMessage.scrollPosition && thoughtsEndRef.current?.parentElement) {
+                    setTimeout(() => {
+                      thoughtsEndRef.current.parentElement.scrollTop = deletedMessage.scrollPosition;
+                    }, 50);
+                  }
+                  
+                  setDeletedMessage(null);
+                  toast.dismiss(t.id);
+                  toast.success('Message restored');
+                  telemetry.logInteraction({
+                    event: 'msg.undo_delete',
+                    data: { message_index: index },
+                    metadata: { ux_schema: 'v1' },
+                  });
+                }
+              };
+              handleUndoDelete();
             }}
             className="px-2 py-1 bg-white/20 rounded text-sm hover:bg-white/30"
           >
@@ -1565,12 +1630,15 @@ export default function FloatBar({
     }
   };
   const handleResetConversation = async () => {
-    // UX: Save state for undo
+    // UX: Save state for undo (including scroll position)
+    const scrollPosition = thoughtsEndRef.current?.parentElement?.scrollTop || 0;
     const savedState = {
       thoughts: [...thoughts],
       progress,
       currentCommand,
       message,
+      screenshot: screenshotData,
+      scrollPosition,
     };
     
     // Generate summary before clearing if there are thoughts
@@ -1591,15 +1659,29 @@ export default function FloatBar({
               <span>Conversation cleared</span>
               <button
                 onClick={() => {
-                  // Restore state
-                  setThoughts(savedState.thoughts);
-                  setProgress(savedState.progress);
-                  setCurrentCommand(savedState.currentCommand);
-                  setMessage(savedState.message);
-                  setClearedConversation(null);
-                  toast.dismiss(t.id);
-                  toast.success('Conversation restored');
-                  telemetry.logInteraction({ event: 'conv.undo_clear', data: {} });
+                  const handleUndoClear = () => {
+                    if (clearedConversation) {
+                      setThoughts(clearedConversation.thoughts);
+                      setMessage(clearedConversation.message);
+                      setScreenshotData(clearedConversation.screenshot);
+                      
+                      // Restore scroll position
+                      if (clearedConversation.scrollPosition && thoughtsEndRef.current?.parentElement) {
+                        setTimeout(() => {
+                          thoughtsEndRef.current.parentElement.scrollTop = clearedConversation.scrollPosition;
+                        }, 50);
+                      }
+                      
+                      setClearedConversation(null);
+                      toast.dismiss(t.id);
+                      toast.success('Conversation restored');
+                      telemetry.logInteraction({
+                        event: 'conv.undo_clear',
+                        data: {},
+                      });
+                    }
+                  };
+                  handleUndoClear();
                 }}
                 className="px-2 py-1 bg-white/20 rounded text-sm hover:bg-white/30"
               >
@@ -2493,6 +2575,144 @@ export default function FloatBar({
               <button onClick={confirmRunCommand} className="amx-btn-primary">
                 Run Command
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* UX: Fork Confirmation Dialog */}
+      {showForkDialog !== null && (
+        <div className="amx-modal-overlay" onClick={() => setShowForkDialog(null)}>
+          <div className="amx-fork-dialog" onClick={(e) => e.stopPropagation()}>
+            <h3>Edit Message</h3>
+            <p>How would you like to proceed?</p>
+            <div className="amx-fork-actions">
+              <button
+                className="amx-fork-btn amx-fork-edit"
+                onClick={() => handleForkDecision(showForkDialog, false)}
+              >
+                <span>✏️</span>
+                <div>
+                  <strong>Edit in Place</strong>
+                  <small>Remove history after this message</small>
+                </div>
+              </button>
+              <button
+                className="amx-fork-btn amx-fork-fork"
+                onClick={() => handleForkDecision(showForkDialog, true)}
+              >
+                <span>🌿</span>
+                <div>
+                  <strong>Fork Conversation</strong>
+                  <small>Create new branch from here</small>
+                </div>
+              </button>
+            </div>
+            <button
+              className="amx-dialog-cancel"
+              onClick={() => setShowForkDialog(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* UX: Keyboard Shortcuts Reference */}
+      {showShortcuts && (
+        <div className="amx-modal-overlay" onClick={() => setShowShortcuts(false)}>
+          <div className="amx-shortcuts-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="amx-shortcuts-header">
+              <h3>⌨️ Keyboard Shortcuts</h3>
+              <button
+                className="amx-icon-btn"
+                onClick={() => setShowShortcuts(false)}
+                title="Close (Esc)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="amx-shortcuts-sections">
+              <div className="amx-shortcuts-section">
+                <h4>Global</h4>
+                <div className="amx-shortcut-item">
+                  <span className="amx-shortcut-keys"><kbd>Cmd/Ctrl</kbd>+<kbd>F</kbd></span>
+                  <span className="amx-shortcut-desc">Open search</span>
+                </div>
+                <div className="amx-shortcut-item">
+                  <span className="amx-shortcut-keys"><kbd>Cmd/Ctrl</kbd>+<kbd>K</kbd></span>
+                  <span className="amx-shortcut-desc">Quick switcher</span>
+                </div>
+                <div className="amx-shortcut-item">
+                  <span className="amx-shortcut-keys"><kbd>Cmd/Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>C</kbd></span>
+                  <span className="amx-shortcut-desc">Toggle mode</span>
+                </div>
+                <div className="amx-shortcut-item">
+                  <span className="amx-shortcut-keys"><kbd>Esc</kbd></span>
+                  <span className="amx-shortcut-desc">Back out / Close</span>
+                </div>
+                <div className="amx-shortcut-item">
+                  <span className="amx-shortcut-keys"><kbd>?</kbd></span>
+                  <span className="amx-shortcut-desc">Show this help</span>
+                </div>
+              </div>
+              
+              <div className="amx-shortcuts-section">
+                <h4>Composer</h4>
+                <div className="amx-shortcut-item">
+                  <span className="amx-shortcut-keys"><kbd>Enter</kbd></span>
+                  <span className="amx-shortcut-desc">Send message</span>
+                </div>
+                <div className="amx-shortcut-item">
+                  <span className="amx-shortcut-keys"><kbd>Shift</kbd>+<kbd>Enter</kbd></span>
+                  <span className="amx-shortcut-desc">New line</span>
+                </div>
+              </div>
+              
+              <div className="amx-shortcuts-section">
+                <h4>Message Actions</h4>
+                <div className="amx-shortcut-item">
+                  <span className="amx-shortcut-keys"><kbd>C</kbd></span>
+                  <span className="amx-shortcut-desc">Copy focused message</span>
+                </div>
+                <div className="amx-shortcut-item">
+                  <span className="amx-shortcut-keys"><kbd>R</kbd></span>
+                  <span className="amx-shortcut-desc">Regenerate response</span>
+                </div>
+                <div className="amx-shortcut-item">
+                  <span className="amx-shortcut-keys"><kbd>E</kbd></span>
+                  <span className="amx-shortcut-desc">Edit message</span>
+                </div>
+                <div className="amx-shortcut-item">
+                  <span className="amx-shortcut-keys"><kbd>Backspace</kbd></span>
+                  <span className="amx-shortcut-desc">Delete message</span>
+                </div>
+              </div>
+              
+              <div className="amx-shortcuts-section">
+                <h4>Search</h4>
+                <div className="amx-shortcut-item">
+                  <span className="amx-shortcut-keys"><kbd>Enter</kbd></span>
+                  <span className="amx-shortcut-desc">Next result</span>
+                </div>
+                <div className="amx-shortcut-item">
+                  <span className="amx-shortcut-keys"><kbd>Shift</kbd>+<kbd>Enter</kbd></span>
+                  <span className="amx-shortcut-desc">Previous result</span>
+                </div>
+              </div>
+              
+              <div className="amx-shortcuts-section">
+                <h4>Quick Switcher</h4>
+                <div className="amx-shortcut-item">
+                  <span className="amx-shortcut-keys"><kbd>↑</kbd> / <kbd>↓</kbd></span>
+                  <span className="amx-shortcut-desc">Navigate list</span>
+                </div>
+                <div className="amx-shortcut-item">
+                  <span className="amx-shortcut-keys"><kbd>Enter</kbd></span>
+                  <span className="amx-shortcut-desc">Select conversation</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
