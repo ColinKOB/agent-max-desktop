@@ -1005,6 +1005,105 @@ export default function FloatBar({
     });
   };
 
+  // UX Phase 3: Search logic
+  const performSearch = (query) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setCurrentSearchIndex(0);
+      return;
+    }
+    
+    const lowerQuery = query.toLowerCase();
+    const results = thoughts
+      .map((thought, idx) => ({
+        index: idx,
+        content: thought.content,
+        type: thought.type,
+      }))
+      .filter(r => 
+        (r.type === 'user' || r.type === 'agent') && 
+        r.content.toLowerCase().includes(lowerQuery)
+      );
+    
+    setSearchResults(results);
+    setCurrentSearchIndex(results.length > 0 ? 0 : -1);
+    
+    telemetry.logInteraction({
+      event: 'conv.search_query',
+      data: { query_length: query.length, hit_count: results.length },
+      metadata: { ux_schema: 'v1', conversation_id: draftSessionId },
+    });
+    
+    // Scroll to first result
+    if (results.length > 0) {
+      scrollToSearchResult(0);
+    }
+  };
+  \n  const scrollToSearchResult = (resultIdx) => {
+    if (resultIdx < 0 || resultIdx >= searchResults.length) return;
+    \n    const messageIdx = searchResults[resultIdx].index;
+    const messageEl = document.querySelector(`[data-message-idx="${messageIdx}"]`);
+    if (messageEl) {
+      messageEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+  \n  const nextSearchResult = () => {
+    if (searchResults.length === 0) return;
+    const nextIdx = (currentSearchIndex + 1) % searchResults.length;
+    setCurrentSearchIndex(nextIdx);
+    scrollToSearchResult(nextIdx);
+    telemetry.logInteraction({
+      event: 'conv.search_nav',
+      data: { direction: 'next' },
+      metadata: { ux_schema: 'v1' },
+    });
+  };
+  \n  const prevSearchResult = () => {
+    if (searchResults.length === 0) return;
+    const prevIdx = currentSearchIndex === 0 ? searchResults.length - 1 : currentSearchIndex - 1;
+    setCurrentSearchIndex(prevIdx);
+    scrollToSearchResult(prevIdx);
+    telemetry.logInteraction({
+      event: 'conv.search_nav',
+      data: { direction: 'prev' },
+      metadata: { ux_schema: 'v1' },
+    });
+  };
+  \n  // UX Phase 3: Quick switcher logic
+  const loadConversations = async () => {
+    try {
+      const memoryService = (await import('../services/memory')).default;
+      if (!memoryService.initialized) {
+        await memoryService.initialize();
+      }
+      \n      // Get last 20 sessions (placeholder - implement getAllSessions in memory service)
+      // For now, create mock data
+      setConversations([
+        {
+          id: 'current',
+          title: 'Current conversation',
+          messageCount: thoughts.length,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    } catch (error) {
+      console.error('[Switcher] Failed to load conversations:', error);
+      setConversations([]);
+    }
+  };
+  \n  const selectConversation = (conv) => {
+    console.log('[Switcher] Selected:', conv.id);
+    setShowSwitcher(false);
+    setSwitcherQuery('');
+    \n    telemetry.logInteraction({
+      event: 'conv.switcher_used',
+      data: { conversation_id: conv.id },
+      metadata: { ux_schema: 'v1' },
+    });
+    \n    // TODO: Load conversation messages
+    toast.info('Loading conversation...');
+  };
+
   const handleContinue = async () => {
     if (!partialResponse) {
       toast.error('No partial response to continue from');
