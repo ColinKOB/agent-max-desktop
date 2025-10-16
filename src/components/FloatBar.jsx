@@ -68,6 +68,18 @@ export default function FloatBar({
   
   // IME protection
   const [isComposing, setIsComposing] = useState(false);
+  
+  // UX Phase 3: In-conversation search
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+  
+  // UX Phase 3: Quick switcher
+  const [showSwitcher, setShowSwitcher] = useState(false);
+  const [switcherQuery, setSwitcherQuery] = useState('');
+  const [conversations, setConversations] = useState([]);
+  const [selectedConvIndex, setSelectedConvIndex] = useState(0);
   const [screenshotData, setScreenshotData] = useState(null); // Store base64 screenshot
   const [welcomeStep, setWelcomeStep] = useState(1);
   const [welcomeData, setWelcomeData] = useState({
@@ -654,6 +666,20 @@ export default function FloatBar({
       
       // Escape to collapse
       if (e.key === 'Escape') {
+        // Close search if open
+        if (showSearch) {
+          setShowSearch(false);
+          setSearchQuery('');
+          setSearchResults([]);
+          return;
+        }
+        // Close switcher if open
+        if (showSwitcher) {
+          setShowSwitcher(false);
+          setSwitcherQuery('');
+          setSelectedConvIndex(0);
+          return;
+        }
         // Close delete confirm if open
         if (showDeleteConfirm !== null) {
           setShowDeleteConfirm(null);
@@ -666,6 +692,29 @@ export default function FloatBar({
           return;
         }
         showPillWindow();
+      }
+      
+      // Cmd/Ctrl+F: Open search
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f' && !e.shiftKey) {
+        e.preventDefault();
+        setShowSearch(true);
+        telemetry.logInteraction({
+          event: 'conv.search_opened',
+          data: {},
+          metadata: { ux_schema: 'v1', conversation_id: draftSessionId },
+        });
+      }
+      
+      // Cmd/Ctrl+K: Open quick switcher
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && !showSearch) {
+        e.preventDefault();
+        setShowSwitcher(true);
+        loadConversations();
+        telemetry.logInteraction({
+          event: 'conv.switcher_opened',
+          data: {},
+          metadata: { ux_schema: 'v1' },
+        });
       }
       
       // Message actions (only if a message is focused)
