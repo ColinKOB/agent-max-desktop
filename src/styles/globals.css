@@ -906,6 +906,29 @@
   letter-spacing: var(--tracking-wide);
 }
 
+/* Collapsible thought pill */
+.amx-thought-collapsed {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: rgba(15, 181, 174, 0.1);
+  border: 1px solid rgba(15, 181, 174, 0.3);
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-bottom: 8px;
+}
+
+.amx-thought-collapsed:hover {
+  background: rgba(15, 181, 174, 0.15);
+  border-color: rgba(15, 181, 174, 0.5);
+  transform: scale(1.02);
+}
+
 .amx-message-content {
   padding: var(--space-2) var(--space-3);  /* 8px 12px */
   border-radius: var(--radius-md);

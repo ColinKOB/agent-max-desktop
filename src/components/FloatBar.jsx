@@ -58,6 +58,16 @@ export default function FloatBar({
   const [focusedMessageIndex, setFocusedMessageIndex] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [deletedMessage, setDeletedMessage] = useState(null);
+  
+  // UX Phase 2: Collapsible thoughts
+  const [collapsedMessages, setCollapsedMessages] = useState(new Set());
+  const [messageTimings, setMessageTimings] = useState({});
+  const [generationStartTime, setGenerationStartTime] = useState(null);
+  const [firstTokenTime, setFirstTokenTime] = useState(null);
+  const [isHoveringSteps, setIsHoveringSteps] = useState(null);
+  
+  // IME protection
+  const [isComposing, setIsComposing] = useState(false);
   const [screenshotData, setScreenshotData] = useState(null); // Store base64 screenshot
   const [welcomeStep, setWelcomeStep] = useState(1);
   const [welcomeData, setWelcomeData] = useState({
@@ -145,12 +155,13 @@ export default function FloatBar({
   }, [message, draftSessionId]);
   
   // UX Phase 2: Auto-expand on multiline (debounced to avoid flicker)
+  // IME protection: Don't auto-expand while composing
   useEffect(() => {
-    if (!isBar || !textareaRef.current) return;
+    if (!isBar || !textareaRef.current || isComposing) return;
     
     const timer = setTimeout(() => {
       const el = textareaRef.current;
-      if (el && el.scrollHeight > el.clientHeight + 4) {
+      if (el && el.scrollHeight > el.clientHeight + 4 && !isComposing) {
         // Multi-line detected
         console.log('[UX] Auto-expanding to Card (multiline)');
         if (!isCardWindow) {
@@ -158,14 +169,14 @@ export default function FloatBar({
           telemetry.logInteraction({
             event: 'mode.auto_expand_reason',
             data: { reason: 'multiline' },
-            metadata: { ux_schema: 'v1' },
+            metadata: { ux_schema: 'v1', conversation_id: draftSessionId, mode: 'bar' },
           });
         }
       }
     }, 80); // 80ms debounce to wait for font load
     
     return () => clearTimeout(timer);
-  }, [message, isBar, isCardWindow]);
+  }, [message, isBar, isCardWindow, isComposing]);
   
   // UX Phase 2: Save mode preference per position on mode change
   useEffect(() => {
@@ -648,6 +659,12 @@ export default function FloatBar({
           setShowDeleteConfirm(null);
           return;
         }
+        // Don't delete draft on Esc if composer has content
+        if (message.trim().length > 0) {
+          // Just blur the input, don't back out
+          document.activeElement?.blur();
+          return;
+        }
         showPillWindow();
       }
       
@@ -765,7 +782,39 @@ export default function FloatBar({
       setThinkingStatus('');
       setProgress(0);
       setStopStartTime(null);
-      setIsStopped(true);
+      
+      // UX: Auto-collapse thoughts after short delay
+      const generationDuration = Date.now() - (generationStartTime || Date.now());
+      const currentMessageIndex = thoughts.length - 1;
+      
+      // Short replies (<5s) collapse immediately
+      if (generationDuration < 5000) {
+        setCollapsedMessages(prev => new Set([...prev, currentMessageIndex]));
+      } else {
+        // Long replies: auto-collapse after 500ms unless hovering
+        setTimeout(() => {
+          if (isHoveringSteps !== currentMessageIndex) {
+            setCollapsedMessages(prev => new Set([...prev, currentMessageIndex]));
+            telemetry.logInteraction({
+              event: 'thoughts.auto_collapsed',
+              data: { step_count: allSteps?.length || 0, total_ms: generationDuration },
+              metadata: { ux_schema: 'v1', conversation_id: draftSessionId },
+            });
+          }
+        }, 500);
+      }
+      
+      // Store timing for this message
+      setMessageTimings(prev => ({
+        ...prev,
+        [currentMessageIndex]: {
+          started_at: generationStartTime,
+          first_token_at: firstTokenTime,
+          completed_at: Date.now(),
+          duration_ms: generationDuration,
+          steps: allSteps || [],
+        },
+      }));
       
       telemetry.logInteraction({
         event: 'gen.stop_clicked',
@@ -1026,6 +1075,11 @@ export default function FloatBar({
       setPartialResponse('');
       setStopStartTime(Date.now());
       
+      // UX: Track generation timing for collapsible thoughts
+      const genStartTime = Date.now();
+      setGenerationStartTime(genStartTime);
+      setFirstTokenTime(null);
+      
       // Create abort controller for this generation
       abortControllerRef.current = new AbortController();
       
@@ -1075,6 +1129,21 @@ export default function FloatBar({
       await chatAPI.sendMessageStream(userMessage, userContext, screenshotData, (event) => {
         // UX: Switch to "Answering" on first token
         if (event.message && thinkingStatus !== 'answering') {
+          // Track first token time for TTFT
+          if (!firstTokenTime) {
+            const ttft = Date.now() - genStartTime;
+            setFirstTokenTime(Date.now());
+            telemetry.logInteraction({
+              event: 'ux.ttft_ms',
+              data: { ttft_ms_client: ttft },
+              metadata: { 
+                ux_schema: 'v1',
+                conversation_id: draftSessionId,
+                mode: isOpen ? 'card' : isBar ? 'bar' : 'pill'
+              },
+            });
+          }
+          
           setThinkingStatus('answering');
           setThoughts((prev) => {
             const newThoughts = [...prev];
@@ -1893,7 +1962,35 @@ export default function FloatBar({
                   >
                     {thought.type === 'user' && <div className="amx-message-label">YOU</div>}
                     {thought.type === 'agent' && <div className="amx-message-label">AGENT MAX</div>}
-                    {thought.type === 'thought' && <div className="amx-thought-label">THINKING</div>}
+                    {thought.type === 'thought' && !collapsedMessages.has(idx) && <div className="amx-thought-label">THINKING</div>}
+                    
+                    {/* UX Phase 2: Collapsible thoughts */}
+                    {thought.type === 'thought' && collapsedMessages.has(idx) && messageTimings[idx] && (
+                      <button
+                        className="amx-thought-collapsed"
+                        onClick={() => {
+                          setCollapsedMessages(prev => {
+                            const next = new Set(prev);
+                            next.delete(idx);
+                            return next;
+                          });
+                          telemetry.logInteraction({
+                            event: 'thoughts.toggled',
+                            data: { 
+                              action: 'expand', 
+                              step_count: messageTimings[idx].steps?.length || 0,
+                              total_ms: messageTimings[idx].duration_ms 
+                            },
+                            metadata: { ux_schema: 'v1', conversation_id: draftSessionId },
+                          });
+                        }}
+                        onMouseEnter={() => setIsHoveringSteps(idx)}
+                        onMouseLeave={() => setIsHoveringSteps(null)}
+                      >
+                        Show steps ({messageTimings[idx].steps?.length || 0}) · {(messageTimings[idx].duration_ms / 1000).toFixed(1)}s
+                      </button>
+                    )}
+                    
                     {thought.type === 'debug' && <div className="amx-debug-label">DEBUG</div>}
                     {thought.type === 'error' && <div className="amx-error-label">ERROR</div>}
                     
@@ -2037,6 +2134,8 @@ export default function FloatBar({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
+              onCompositionStart={() => setIsComposing(true)}
+              onCompositionEnd={() => setIsComposing(false)}
               maxLength={2000}
               disabled={isThinking}
               onFocus={() => {
