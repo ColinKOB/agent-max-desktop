@@ -49,27 +49,27 @@ Error handling, accessibility, edge cases.
 
 ---
 
-### **Phase 1: Immediate Wins** (Start Today)
+### **Phase 1: Immediate Wins** ✅ COMPLETE (Oct 16, 2025)
 
-#### ✅ **1.1 Composer Improvements**
+#### ✅ **1.1 Composer Improvements** 
 **Time:** 2-3 hours  
 **Impact:** HIGH (used every interaction)
 
-- [ ] **Always-visible send button**
+- [x] **Always-visible send button** ✅ SHIPPED
   - Location: FloatBar.jsx, input section
   - Behavior: Disabled when input is empty/whitespace
   - State: `const canSend = message.trim().length > 0`
   - Visual: Grayed when disabled, teal when ready
   - Telemetry: `composer.send_clicked`
 
-- [ ] **Clear Enter vs Shift+Enter behavior**
+- [x] **Clear Enter vs Shift+Enter behavior** ✅ SHIPPED
   - Already working but needs visual hint
   - Add inline hint: "Press Enter to send · Shift+Enter for newline"
   - Show only on first 3 focuses, then hide forever
   - Store: `localStorage.getItem('composer.hint_dismissed')`
   - Telemetry: `onboarding.hint_dismissed`
 
-- [ ] **Draft autosave**
+- [x] **Draft autosave** ✅ SHIPPED
   - Location: FloatBar.jsx, message state
   - Save on every change with debounce (500ms)
   - Key: `draft:${sessionId}`
@@ -83,18 +83,18 @@ Error handling, accessibility, edge cases.
 
 ---
 
-#### ✅ **1.2 Progressive Status States**
+#### ✅ **1.2 Progressive Status States** ✅ COMPLETE
 **Time:** 1-2 hours  
 **Impact:** HIGH (improves perceived speed)
 
-- [ ] **State progression**
+- [x] **State progression** ✅ SHIPPED
   - Current: Generic "Thinking..."
   - New: "Connecting..." → "Thinking..." → "Answering..."
   - Timing: Connecting (0-150ms), Thinking (150ms-first token), Answering (streaming)
   - Location: FloatBar.jsx, `setIsThinking` areas
   - Telemetry: `gen.state_durations` with timestamps
 
-- [ ] **Immediate echo**
+- [x] **Immediate echo** ✅ SHIPPED (already working)
   - Already works - user message appears instantly
   - Verify no delays in `setThoughts` call
 
@@ -103,11 +103,11 @@ Error handling, accessibility, edge cases.
 
 ---
 
-#### ✅ **1.3 Attachment Chips**
+#### ✅ **1.3 Attachment Chips** ✅ COMPLETE
 **Time:** 1-2 hours  
 **Impact:** MEDIUM (better screenshot UX)
 
-- [ ] **Screenshot attachment chip**
+- [x] **Screenshot attachment chip** ✅ SHIPPED
   - Current: Screenshot just stored in state
   - New: Show compact chip below input
   - Content: "📷 Screenshot (245 KB) [×]"
@@ -121,11 +121,11 @@ Error handling, accessibility, edge cases.
 
 ---
 
-#### ✅ **1.4 Undo for Destructive Actions**
+#### ✅ **1.4 Undo for Destructive Actions** ✅ COMPLETE
 **Time:** 2 hours  
 **Impact:** HIGH (builds user trust)
 
-- [ ] **Undo after clear conversation**
+- [x] **Undo after clear conversation** ✅ SHIPPED
   - Current: `handleResetConversation` clears immediately
   - New: Show inline banner "Conversation cleared · Undo"
   - Timer: 5 seconds
@@ -133,7 +133,7 @@ Error handling, accessibility, edge cases.
   - Location: FloatBar.jsx line 932
   - Telemetry: `conv.cleared`, `conv.undo_clear`
 
-- [ ] **Undo after fact save**
+- [ ] **Undo after fact save** (deferred to Phase 3 - needs deleteFact method)
   - Already has toast, needs undo button
   - Toast duration: 5s instead of 3s
   - Add "Undo" button to toast

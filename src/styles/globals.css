@@ -323,6 +323,10 @@
   z-index: -2;
 }
 
+.amx-root.amx-mini::after {
+  display: none;
+}
+
 /* No gradient backdrop - clean black */
 .amx-root.amx-card::before {
   display: none;
@@ -350,6 +354,24 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
   background: none;
+}
+
+.amx-mini {
+  --glass-surface: transparent;
+  --glass-filter: blur(22px) saturate(1.4);
+  --glass-shadow-ring: none;
+}
+
+.amx-bar,
+.amx-card {
+  --glass-surface:
+    radial-gradient(190% 240% at 25% -12%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 58%, rgba(255, 255, 255, 0) 78%),
+    linear-gradient(150deg, rgba(82, 146, 255, 0.16), rgba(122, 83, 255, 0.12), rgba(255, 163, 102, 0.06)),
+    rgba(255, 255, 255, 0.08);
+  --glass-filter: blur(14px) saturate(1.25);
+  --glass-shadow-ring:
+    inset 0 1px rgba(255, 255, 255, 0.35),
+    inset 0 -1px rgba(255, 255, 255, 0.18);
 }
 
 .amx-transitioning::before {
