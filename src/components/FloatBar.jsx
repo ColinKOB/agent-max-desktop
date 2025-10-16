@@ -1747,7 +1747,7 @@ export default function FloatBar({
   // Active: Card mode
   return (
     <div className={`amx-root amx-card ${isTransitioning ? 'amx-transitioning' : ''}`}>
-      <div className="amx-panel">
+      <div className="amx-panel">{/* Main card panel */}
         {/* Header with drag handle */}
         <div className="amx-header amx-drag-handle">
           <div className="flex items-center gap-2">
@@ -2297,3 +2297,5 @@ export default function FloatBar({
     </div>
   );
 }
+
+export default FloatBar;
