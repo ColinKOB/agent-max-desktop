@@ -620,8 +620,8 @@
 }
 
 .amx-bar-input:focus {
-  outline: 2px solid rgba(122, 162, 255, 0.4);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: none;
 }
 
 .amx-bar-minimize-btn {
