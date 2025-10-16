@@ -4,7 +4,7 @@
  */
 
 const { app } = require('electron');
-const Sentry = require('@sentry/electron');
+const Sentry = require('@sentry/electron/main');
 const log = require('electron-log');
 
 let initialized = false;

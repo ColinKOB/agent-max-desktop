@@ -13,9 +13,11 @@ const {
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const isDev = require('electron-is-dev');
 const { spawn } = require('child_process');
 const os = require('os');
+
+// Simple dev check instead of electron-is-dev
+const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 const LocalMemoryManager = require('./memory-manager.cjs');
 const IPCValidator = require('./ipc-validator.cjs');
 const { createApplicationMenu } = require('./menu.cjs');
