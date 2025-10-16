@@ -657,7 +657,7 @@ class MemoryVault {
       identity: this.getIdentity(),
       facts: this.getAllFacts(),
       sessions: this.getAllSessions(100),
-      metadata: this.db.prepare('SELECT * FROM vault_metadata').all(),
+      metadata: this.db.prepare('SELECT * FROM meta').all(),
       exported_at: new Date().toISOString(),
     };
   }
