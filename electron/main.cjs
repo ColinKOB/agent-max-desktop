@@ -54,7 +54,7 @@ function createWindow() {
     backgroundColor: '#00000000',
     show: false,
     title: 'Agent Max',
-    hasShadow: true,
+    hasShadow: false,  // Disabled - shadows on transparent windows cause compositor artifacts during resize
   });
 
   // Make window visible on all workspaces/desktops
@@ -225,7 +225,21 @@ ipcMain.handle(
         const beforeBounds = mainWindow.getBounds();
         console.log('[Electron] Before resize:', beforeBounds);
 
-        mainWindow.setSize(width, height);
+        // TEST 2: HIDE DURING RESIZE (currently disabled)
+        // Uncomment these lines if hasShadow:false doesn't fix ghosting
+        // const wasVisible = mainWindow.isVisible();
+        // if (wasVisible) {
+        //   mainWindow.setOpacity(0); // Hide window
+        // }
+
+        mainWindow.setSize(width, height, false); // false = no animation (instant)
+
+        // TEST 2: RESTORE VISIBILITY (currently disabled)
+        // if (wasVisible) {
+        //   setTimeout(() => {
+        //     mainWindow.setOpacity(1); // Fade back in
+        //   }, 16); // Wait one frame
+        // }
 
         // Check actual size after resize
         setTimeout(() => {

@@ -55,6 +55,8 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   // Streaming state for fake streaming effect
   const [isStreaming, setIsStreaming] = useState(false);
 
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
   // Tools panel
   const [showToolsPanel, setShowToolsPanel] = useState(false);
 
@@ -137,30 +139,55 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
 
   // Window resize handler
   useEffect(() => {
-    const resizeWindow = async () => {
-      if (window.electron?.resizeWindow) {
-        if (isOpen) {
-          // Full card mode with conversation
-          console.log('[FloatBar] Resizing to CARD mode: 360x520');
-          await window.electron.resizeWindow(360, 520);
-        } else if (isBar) {
-          // Horizontal bar mode (same height as mini square)
-          console.log('[FloatBar] Resizing to BAR mode: 320x68');
-          await window.electron.resizeWindow(320, 68);
-        } else if (isMini) {
-          // Mini square mode
-          console.log('[FloatBar] Resizing to MINI mode: 68x68');
-          await window.electron.resizeWindow(68, 68);
-        }
+    let cancelled = false;
+    let rafId;
 
-        // Debug: Check actual window size after resize
-        if (window.electron?.getBounds) {
-          const bounds = await window.electron.getBounds();
-          console.log('[FloatBar] Actual window bounds after resize:', bounds);
+    const finishTransition = () => {
+      rafId = window.requestAnimationFrame(() => {
+        if (!cancelled) {
+          setIsTransitioning(false);
         }
+      });
+    };
+
+    const resizeWindow = async () => {
+      setIsTransitioning(true);
+
+      try {
+        if (window.electron?.resizeWindow) {
+          if (isOpen) {
+            // Full card mode with conversation
+            console.log('[FloatBar] Resizing to CARD mode: 360x520');
+            await window.electron.resizeWindow(360, 520);
+          } else if (isBar) {
+            // Horizontal bar mode (same height as mini square)
+            console.log('[FloatBar] Resizing to BAR mode: 320x68');
+            await window.electron.resizeWindow(320, 68);
+          } else if (isMini) {
+            // Mini square mode
+            console.log('[FloatBar] Resizing to MINI mode: 68x68');
+            await window.electron.resizeWindow(68, 68);
+          }
+
+          // Debug: Check actual window size after resize
+          if (window.electron?.getBounds) {
+            const bounds = await window.electron.getBounds();
+            console.log('[FloatBar] Actual window bounds after resize:', bounds);
+          }
+        }
+      } finally {
+        finishTransition();
       }
     };
+
     resizeWindow();
+
+    return () => {
+      cancelled = true;
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
   }, [isOpen, isBar, isMini]);
 
   // Keep window on screen (boundary checking)
@@ -905,7 +932,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   if (isMini) {
     return (
       <div
-        className="amx-root amx-mini amx-mini-draggable"
+        className={`amx-root amx-mini amx-mini-draggable ${isTransitioning ? 'amx-transitioning' : ''}`}
         onClick={(e) => {
           // Click logo to expand
           console.log('[FloatBar] Mini clicked: Opening to bar mode');
@@ -935,7 +962,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
   // Horizontal bar mode - input bar (same height as mini)
   if (isBar) {
     return (
-      <div className="amx-root amx-bar">
+      <div className={`amx-root amx-bar ${isTransitioning ? 'amx-transitioning' : ''}`}>
         <input
           ref={inputRef}
           className="amx-bar-input"
@@ -977,7 +1004,7 @@ export default function FloatBar({ showWelcome, onWelcomeComplete, isLoading }) 
 
   // Active: Card mode
   return (
-    <div className="amx-root amx-card">
+    <div className={`amx-root amx-card ${isTransitioning ? 'amx-transitioning' : ''}`}>
       <div className="amx-panel">
         {/* Header with drag handle */}
         <div className="amx-header amx-drag-handle">

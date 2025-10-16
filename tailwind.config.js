@@ -62,10 +62,10 @@ export default {
         brand: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
       },
       boxShadow: {
-        'brand-sm': '0 2px 8px rgba(11, 18, 32, 0.08)',
-        'brand-md': '0 4px 12px rgba(11, 18, 32, 0.10)',
-        'brand-lg': '0 8px 24px rgba(11, 18, 32, 0.16)',
-        'brand-xl': '0 10px 40px rgba(11, 18, 32, 0.12)',
+        'brand-sm': 'none',
+        'brand-md': 'none',
+        'brand-lg': 'none',
+        'brand-xl': 'none',
       },
       animation: {
         'fade-in': 'fadeIn 200ms cubic-bezier(0.2, 0.8, 0.2, 1)',

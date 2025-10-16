@@ -17,7 +17,7 @@
   backdrop-filter: blur(20px);
   border-radius: 24px;
   padding: 3rem;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: none;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -36,7 +36,7 @@
   border-radius: 20px;
   margin-bottom: 1.5rem;
   color: white;
-  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+  box-shadow: none;
 }
 
 .welcome-title {
@@ -73,7 +73,7 @@
 
 .progress-dot.active {
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.5);
+  box-shadow: none;
 }
 
 .welcome-steps {
@@ -140,7 +140,8 @@
 .welcome-input:focus {
   border-color: #6366f1;
   background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+  outline: 2px solid rgba(99, 102, 241, 0.4);
+  outline-offset: 2px;
 }
 
 .welcome-input::placeholder {
@@ -174,7 +175,6 @@
 .option-button.selected {
   background: rgba(99, 102, 241, 0.2);
   border-color: #6366f1;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
 }
 
 .option-list {
@@ -202,7 +202,6 @@
 .option-card.selected {
   background: rgba(99, 102, 241, 0.2);
   border-color: #6366f1;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
 }
 
 .option-card-title {
@@ -241,12 +240,10 @@
 .nav-button.primary {
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   color: white;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
 }
 
 .nav-button.primary:hover:not(.disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
 }
 
 .nav-button.primary.disabled {

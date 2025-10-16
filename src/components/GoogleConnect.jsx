@@ -340,7 +340,6 @@ export function GoogleConnect() {
         .service-card:hover {
           border-color: #3b82f6;
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
         }
 
         .connect-button {
@@ -362,7 +361,6 @@ export function GoogleConnect() {
 
         .connect-button:hover:not(:disabled) {
           transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
         }
 
         .connect-button:disabled {
@@ -411,12 +409,11 @@ export function GoogleConnect() {
           padding: 1rem;
           background: white;
           border-radius: 8px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
           transition: all 0.2s;
         }
 
         .service-item:hover {
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+          transform: translateY(-1px);
         }
 
         .service-info {

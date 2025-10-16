@@ -103,20 +103,12 @@
      Light theme shadows (subtle)
      ========================================== */
   
-  /* Small elevation (hover states) */
-  --shadow-sm: 0 2px 8px rgba(11, 18, 32, 0.08);
-  
-  /* Medium elevation (cards, buttons) */
-  --shadow-md: 0 4px 12px rgba(11, 18, 32, 0.12);
-  
-  /* Large elevation (modals, dropdowns) - stronger for glass */
-  --shadow-lg: 0 8px 24px rgba(11, 18, 32, 0.20);
-  
-  /* Extra large (main window) - stronger for glass */
-  --shadow-xl: 0 12px 48px rgba(11, 18, 32, 0.18);
-  
-  /* Inner glow/highlight */
-  --shadow-inner: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  /* Disable elevation shadows */
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-xl: none;
+  --shadow-inner: none;
   
   /* ==========================================
      ANIMATION & MOTION
@@ -184,7 +176,7 @@
   --glass-opacity: 0.5;          /* Mostly see-through (50% transparent) */
   --glass-border: rgba(255, 255, 255, 0.4); /* Bright border for glass edge */
   --glass-inner-border: rgba(255, 255, 255, 0.9); /* Inner highlight */
-  --glass-shadow: rgba(0, 0, 0, 0.15); /* Slightly stronger shadow for depth */
+  --glass-shadow: none;
   --glass-blur-strong: 28px;      /* Default blur for liquid glass */
   --glass-saturation: 1.65;       /* Richer colors through the glass */
   --glass-tint-a: rgba(82, 146, 255, 0.18);   /* Cool blue tint */

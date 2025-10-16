@@ -124,7 +124,6 @@
   .btn-primary:hover:not(:disabled) {
     background: var(--accent-hover);  /* Slightly darker teal */
     transform: translateY(-1px);  /* Lift up 1px */
-    box-shadow: var(--shadow-md);  /* Add shadow for depth */
   }
   
   /* 👆 ACTIVE STATE: When button is being clicked */
@@ -198,15 +197,14 @@
   }
   
   /* 🃏 CARD: Container with shadow and rounded corners */
-  .card {
-    border-radius: var(--radius-md);  /* 12px rounded corners */
-    box-shadow: var(--shadow-sm);  /* Subtle shadow */
-    padding: var(--space-4);  /* 16px padding inside */
-  }
-  
+.card {
+  border-radius: var(--radius-md);  /* 12px rounded corners */
+  padding: var(--space-4);  /* 16px padding inside */
+}
+
   /* 👆 CARD HOVER: Lift card slightly on hover */
   .card:hover {
-    box-shadow: var(--shadow-md);  /* Bigger shadow */
+    transform: translateY(-1px);
   }
   
   /* ✏️ TEXT INPUT: For typing text (like search boxes, forms) */
@@ -228,10 +226,10 @@
   }
   
   /* 👆 FOCUS STATE: When user clicks into input field */
-  .input:focus {
-    outline: none;  /* Remove default browser outline */
+.input:focus {
+    outline: 2px solid rgba(15, 181, 174, 0.4);  /* Accessible focus ring */
+    outline-offset: 2px;
     border-color: var(--accent);  /* Teal border */
-    box-shadow: 0 0 0 2px rgba(15, 181, 174, 0.1);  /* Subtle teal glow */
   }
   
   /* 💬 PLACEHOLDER: Gray text shown when input is empty */
@@ -339,6 +337,24 @@
   background: none;
 }
 
+.amx-transitioning::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: transparent;
+  z-index: 2;
+}
+
+/* TEST 3: Disable backdrop-filter during resize (currently not applied) */
+/* To enable: Add 'amx-no-blur' class alongside 'amx-transitioning' in FloatBar.jsx */
+.amx-no-blur.amx-mini::before,
+.amx-no-blur.amx-bar::before,
+.amx-no-blur.amx-card::before {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 .amx-mini::before,
 .amx-bar::before,
 .amx-card::before {
@@ -347,9 +363,9 @@
   inset: 0;
   border-radius: inherit;
   background: var(--glass-surface, rgba(255, 255, 255, 0.2));
-  backdrop-filter: var(--glass-filter, none);
-  -webkit-backdrop-filter: var(--glass-filter, none);
-  box-shadow: var(--glass-shadow-ring, none);
+  backdrop-filter: var(--glass-filter, blur(6px));
+  -webkit-backdrop-filter: var(--glass-filter, blur(6px));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.38), inset 0 -1px rgba(255, 255, 255, 0.22);
   pointer-events: none;
   z-index: 0;
 }
@@ -374,8 +390,8 @@
     rgba(255, 255, 255, 0.22);
   --glass-filter: blur(22px) saturate(1.4);
   --glass-shadow-ring:
-    inset 0 1px 0 rgba(255, 255, 255, 0.65),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.18);
+    inset 0 1px rgba(255, 255, 255, 0.35),
+    inset 0 -1px rgba(255, 255, 255, 0.18);
   
   cursor: pointer;
   transition: all var(--duration-base) var(--ease-base);
@@ -520,13 +536,12 @@
   
   /* Appearance - liquid glass bar */
   --glass-surface:
-    radial-gradient(150% 210% at 20% -22%, rgba(255, 255, 255, 0.33) 0%, rgba(255, 255, 255, 0.08) 58%, rgba(255, 255, 255, 0) 75%),
-    linear-gradient(145deg, rgba(82, 146, 255, 0.28), rgba(122, 83, 255, 0.2), rgba(255, 163, 102, 0.14)),
-    rgba(255, 255, 255, 0.22);
-  --glass-filter: blur(26px) saturate(1.42);
+    linear-gradient(135deg, rgba(82, 146, 255, 0.24), rgba(122, 83, 255, 0.18), rgba(255, 163, 102, 0.12)),
+    rgba(255, 255, 255, 0.24);
+  --glass-filter: blur(24px) saturate(1.38);
   --glass-shadow-ring:
-    inset 0 1px 0 rgba(255, 255, 255, 0.62),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+    inset 0 1px rgba(255, 255, 255, 0.35),
+    inset 0 -1px rgba(255, 255, 255, 0.18);
   
   transition: all var(--duration-base) var(--ease-base);
 }
@@ -558,8 +573,8 @@
 }
 
 .amx-bar-input:focus {
-  outline: 0;
-  box-shadow: none;
+  outline: 2px solid rgba(122, 162, 255, 0.4);
+  outline-offset: 2px;
 }
 
 .amx-bar-minimize-btn {
@@ -606,11 +621,7 @@
   border: 1px solid rgba(255, 255, 255, 0.6);
   color: rgba(60, 64, 78, 0.9);  /* Dark icon on glass */
   cursor: pointer;
-  
-  /* Soft depth + rim light */
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.08),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.6);
+  box-shadow: none;
   
   transition: all var(--duration-fast) var(--ease-base);
   -webkit-app-region: no-drag;  /* Can click buttons (don't drag) */
@@ -622,17 +633,11 @@
     rgba(255, 255, 255, 0.40)
   );
   border-color: rgba(255, 255, 255, 0.7);
-  box-shadow:
-    0 6px 16px rgba(0, 0, 0, 0.12),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.7);
   transform: translateY(-1px);  /* Lift up */
 }
 
 .amx-icon-btn:active {
   transform: translateY(0) scale(0.98);  /* Press down */
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.08),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.6);
 }
 
 /* ============================================
@@ -658,8 +663,8 @@
     rgba(255, 255, 255, 0.24);
   --glass-filter: blur(30px) saturate(1.46);
   --glass-shadow-ring:
-    inset 0 1px 0 rgba(255, 255, 255, 0.62),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+    inset 0 1px rgba(255, 255, 255, 0.35),
+    inset 0 -1px rgba(255, 255, 255, 0.18);
   
   overflow: hidden;
   transition: all var(--duration-base) var(--ease-base);
@@ -704,9 +709,7 @@
   /* Nested blur + rim light */
   backdrop-filter: blur(8px) saturate(1.2);
   -webkit-backdrop-filter: blur(8px) saturate(1.2);
-  box-shadow:
-    0 6px 18px rgba(0, 0, 0, 0.08),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.6);
+  box-shadow: none;
   
   transition: all var(--duration-base) var(--ease-base);
   -webkit-app-region: no-drag;
@@ -717,17 +720,14 @@
 }
 
 .amx-input:focus {
-  outline: 0;
+  outline: 2px solid rgba(122, 162, 255, 0.45);
+  outline-offset: 2px;
   background:
     linear-gradient(to bottom, 
       rgba(255, 255, 255, 0.98), 
       rgba(255, 255, 255, 0.82)
     );
   border-color: rgba(122, 162, 255, 0.6);
-  box-shadow:
-    0 0 0 2px rgba(15, 181, 174, 0.2),
-    0 8px 22px rgba(0, 0, 0, 0.12),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.7);
   transform: translateY(-1px);
 }
 
@@ -874,7 +874,7 @@
   border: 1px solid var(--border);
   color: var(--text);  /* Dark text */
   border-radius: var(--radius-md);  /* 12px */
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   font-size: var(--text-body-size);  /* 16px */
   line-height: var(--text-body-lh);  /* 1.5 */
 }
@@ -893,7 +893,7 @@
   border-left: 2px solid var(--accent);  /* Teal left rule for scannability */
   color: var(--text);  /* Dark text */
   border-radius: var(--radius-md);  /* 12px */
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   font-size: var(--text-body-size);  /* 16px */
   line-height: var(--text-body-lh);  /* 1.5 */
 }
@@ -1160,7 +1160,6 @@
   border-radius: 16px;
   padding: 20px;
   max-width: 320px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   animation: slideIn 0.2s ease-out;
 }
 
@@ -1227,7 +1226,6 @@
 .amx-btn-primary:hover {
   background: var(--accent-hover);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
 }
 
 .amx-btn-primary:active {
@@ -1307,7 +1305,8 @@
 .amx-welcome-input:focus {
   background: rgba(255, 255, 255, 0.94);
   border-color: rgba(122, 162, 255, 0.7);
-  box-shadow: 0 0 0 3px rgba(122, 162, 255, 0.28);
+  outline: 2px solid rgba(122, 162, 255, 0.4);
+  outline-offset: 2px;
 }
 
 .amx-welcome-input::placeholder {
