@@ -819,7 +819,21 @@ export default function FloatBar({
                 factCount++;
               } catch (error) {
                 console.error(`[Memory] ✗ Failed to save fact ${category}.${key}:`, error);
+              }
+            }
+          }
+        }
+
+        if (factCount > 0) {
+          toast.success(`Learned ${factCount} new thing${factCount > 1 ? 's' : ''} about you!`, {
+            duration: 3000,
+          });
+        }
       }
+
+      setIsStreaming(true);
+
+      const responseIndex = thoughts.length;
       setThoughts((prev) => [
         ...prev,
         {
