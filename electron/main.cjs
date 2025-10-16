@@ -3,19 +3,26 @@ const {
   BrowserWindow,
   ipcMain,
   screen,
+  Tray,
+  Menu,
+  globalShortcut,
+  Notification,
   shell,
   clipboard,
   desktopCapturer,
 } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
 const fs = require('fs');
+const isDev = require('electron-is-dev');
+const { spawn } = require('child_process');
 const os = require('os');
 const LocalMemoryManager = require('./memory-manager.cjs');
 const IPCValidator = require('./ipc-validator.cjs');
 
 let mainWindow;
-let cardWindow;
+let memoryVault;
+const windows = new Map();
+let tray = null;
 let settingsWindow;
 let ffmpegProcess;
 let memoryManager;
