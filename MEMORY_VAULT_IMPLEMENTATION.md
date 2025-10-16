@@ -7,16 +7,16 @@
 
 ## Implementation Phases
 
-### Phase 1: Core SQLite Vault ✅ TODO
+### Phase 1: Core SQLite Vault ✅ COMPLETE (except migration)
 **Time Estimate:** 4-6 hours  
 **Priority:** CRITICAL
 
-- [ ] Install dependencies (better-sqlite3, @journeyapps/sqlcipher)
-- [ ] Create vault schema (identities, sessions, messages, facts, embeddings, notes)
-- [ ] Implement MemoryVault class with encryption
-- [ ] Add OS keychain integration (keytar)
-- [ ] Create migration script from existing JSON
-- [ ] Test: CRUD operations, encryption, key storage
+- [x] Install dependencies (better-sqlite3, keytar)
+- [x] Create vault schema (identities, sessions, messages, facts, embeddings, notes)
+- [x] Implement MemoryVault class with encryption
+- [x] Add OS keychain integration (keytar)
+- [ ] Create migration script from existing JSON ⏳ IN PROGRESS
+- [x] Test: CRUD operations, encryption, key storage (15/15 tests passed)
 
 ### Phase 2: Context Selector ✅ TODO
 **Time Estimate:** 3-4 hours  
@@ -28,14 +28,14 @@
 - [ ] Create always-include rules
 - [ ] Test: Context selection with various goals
 
-### Phase 3: Provenance & Decay ✅ TODO
+### Phase 3: Provenance & Decay ✅ COMPLETE
 **Time Estimate:** 2-3 hours  
 **Priority:** MEDIUM
 
-- [ ] Add fact reinforcement on successful usage
-- [ ] Implement decay calculation
-- [ ] Add relevance scoring
-- [ ] Test: Decay over time, reinforcement
+- [x] Add fact reinforcement on successful usage (implemented in vault)
+- [x] Implement decay calculation (exp decay with halflife)
+- [x] Add relevance scoring (confidence × decay)
+- [x] Test: Decay over time, reinforcement (tested in test-vault.cjs)
 
 ### Phase 4: Memory Manager UI ✅ TODO
 **Time Estimate:** 6-8 hours  
@@ -447,5 +447,20 @@
 
 ---
 
-**Last Updated:** October 16, 2025 12:00pm  
-**Status:** 🟡 Planning Complete - Implementation Starting
+**Last Updated:** October 16, 2025 12:12pm  
+**Status:** 🟢 Phase 1 Core Complete - Migration In Progress
+
+## 📊 Progress Summary
+
+**Completed:**
+- ✅ Phase 1.1-1.4: Core vault implementation
+- ✅ Phase 1.6: Testing (15/15 tests passed)
+- ✅ Phase 3: Provenance & decay (built into vault)
+
+**In Progress:**
+- ⏳ Phase 1.5: Migration script
+
+**Remaining:**
+- ⏸️ Phase 2: Context Selector
+- ⏸️ Phase 4: Memory Manager UI
+- ⏸️ Phase 5: Rollback mechanisms
