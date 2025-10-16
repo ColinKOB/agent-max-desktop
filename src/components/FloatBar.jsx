@@ -52,6 +52,12 @@ export default function FloatBar({
   const [partialResponse, setPartialResponse] = useState('');
   const [stopStartTime, setStopStartTime] = useState(null);
   const abortControllerRef = useRef(null);
+  
+  // UX Phase 2: Message actions
+  const [hoveredMessageIndex, setHoveredMessageIndex] = useState(null);
+  const [focusedMessageIndex, setFocusedMessageIndex] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [deletedMessage, setDeletedMessage] = useState(null);
   const [screenshotData, setScreenshotData] = useState(null); // Store base64 screenshot
   const [welcomeStep, setWelcomeStep] = useState(1);
   const [welcomeData, setWelcomeData] = useState({
@@ -613,9 +619,10 @@ export default function FloatBar({
     return () => clearInterval(interval);
   }, [isOpen, isBar, isMini]);
 
-  // Keyboard shortcut: Cmd+Alt+C (Mac) / Ctrl+Alt+C (Win/Linux)
+  // Keyboard shortcuts
   useEffect(() => {
     function onHotkey(e) {
+      // Mode toggle: Cmd+Alt+C (Mac) / Ctrl+Alt+C (Win/Linux)
       if ((e.metaKey || e.ctrlKey) && e.altKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
         // Toggle through states: mini -> bar -> card
@@ -633,14 +640,50 @@ export default function FloatBar({
           setIsMini(true);
         }
       }
-      // Escape to collapse to mini
+      
+      // Escape to collapse
       if (e.key === 'Escape') {
+        // Close delete confirm if open
+        if (showDeleteConfirm !== null) {
+          setShowDeleteConfirm(null);
+          return;
+        }
         showPillWindow();
+      }
+      
+      // Message actions (only if a message is focused)
+      if (focusedMessageIndex !== null) {
+        const message = thoughts[focusedMessageIndex];
+        
+        // C: Copy
+        if (e.key.toLowerCase() === 'c' && !e.metaKey && !e.ctrlKey) {
+          e.preventDefault();
+          handleCopyMessage(message, focusedMessageIndex);
+        }
+        
+        // R: Regenerate (assistant messages only)
+        if (e.key.toLowerCase() === 'r' && message.type === 'agent') {
+          e.preventDefault();
+          handleRegenerateMessage(focusedMessageIndex);
+        }
+        
+        // E: Edit (user messages only)
+        if (e.key.toLowerCase() === 'e' && message.type === 'user') {
+          e.preventDefault();
+          // Show fork dialog in real implementation
+          handleEditMessage(message, focusedMessageIndex, false);
+        }
+        
+        // Backspace: Delete (with confirm)
+        if (e.key === 'Backspace' && !e.target.matches('input, textarea')) {
+          e.preventDefault();
+          handleDeleteMessage(focusedMessageIndex);
+        }
       }
     }
     window.addEventListener('keydown', onHotkey);
     return () => window.removeEventListener('keydown', onHotkey);
-  }, [isMini, isBar, showCardWindow, showPillWindow]);
+  }, [isMini, isBar, showCardWindow, showPillWindow, focusedMessageIndex, thoughts, showDeleteConfirm]);}
 
   // SSE streaming (placeholder - connect to your backend)
   useEffect(() => {
@@ -734,6 +777,136 @@ export default function FloatBar({
     }
   };
   
+  // UX Phase 2: Message actions
+  const handleCopyMessage = (message, index) => {
+    const text = message.content || message.text || '';
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard');
+    telemetry.logInteraction({
+      event: 'msg.action',
+      data: { type: 'copy', message_index: index },
+      metadata: { ux_schema: 'v1' },
+    });
+  };
+  
+  const handleRegenerateMessage = async (index) => {
+    // Find the last user message before this assistant message
+    let userPromptIndex = -1;
+    for (let i = index - 1; i >= 0; i--) {
+      if (thoughts[i].type === 'user') {
+        userPromptIndex = i;
+        break;
+      }
+    }
+    
+    if (userPromptIndex === -1) {
+      toast.error('Cannot find original prompt');
+      return;
+    }
+    
+    const userPrompt = thoughts[userPromptIndex].content;
+    console.log('[UX] Regenerating from prompt:', userPrompt);
+    
+    // Remove the assistant message
+    setThoughts(prev => prev.filter((_, i) => i !== index));
+    
+    // Set the prompt and trigger send
+    setMessage(userPrompt);
+    
+    telemetry.logInteraction({
+      event: 'msg.action',
+      data: { type: 'regenerate', message_index: index },
+      metadata: { ux_schema: 'v1' },
+    });
+    
+    // Auto-send
+    setTimeout(() => handleSendMessage(), 100);
+  };
+  
+  const handleEditMessage = (message, index, fork = false) => {
+    if (message.type !== 'user') return;
+    
+    if (fork) {
+      // Fork: Create new branch from this point
+      console.log('[UX] Forking from message', index);
+      setThoughts(prev => prev.slice(0, index + 1));
+      telemetry.logInteraction({
+        event: 'thread.forked',
+        data: { from_index: index, fork: true },
+        metadata: { ux_schema: 'v1' },
+      });
+      toast.success('Forked conversation');
+    } else {
+      // Edit in place
+      console.log('[UX] Editing message in place', index);
+      telemetry.logInteraction({
+        event: 'msg.action',
+        data: { type: 'edit', message_index: index, fork: false },
+        metadata: { ux_schema: 'v1' },
+      });
+    }
+    
+    // Load into composer
+    setMessage(message.content);
+    
+    // Focus input
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+  
+  const handleDeleteMessage = (index) => {
+    // Show confirmation
+    setShowDeleteConfirm(index);
+  };
+  
+  const confirmDeleteMessage = (index) => {
+    const deleted = thoughts[index];
+    
+    // Save for undo
+    setDeletedMessage({ message: deleted, index });
+    
+    // Remove message
+    setThoughts(prev => prev.filter((_, i) => i !== index));
+    
+    // Show undo toast
+    toast.success(
+      (t) => (
+        <div className="flex items-center gap-2">
+          <span>Message deleted</span>
+          <button
+            onClick={() => {
+              // Restore message
+              setThoughts(prev => {
+                const newThoughts = [...prev];
+                newThoughts.splice(index, 0, deleted);
+                return newThoughts;
+              });
+              setDeletedMessage(null);
+              toast.dismiss(t.id);
+              toast.success('Message restored');
+              telemetry.logInteraction({
+                event: 'msg.undo_delete',
+                data: { message_index: index },
+                metadata: { ux_schema: 'v1' },
+              });
+            }}
+            className="px-2 py-1 bg-white/20 rounded text-sm hover:bg-white/30"
+          >
+            Undo
+          </button>
+        </div>
+      ),
+      { duration: 5000 }
+    );
+    
+    setShowDeleteConfirm(null);
+    
+    telemetry.logInteraction({
+      event: 'msg.action',
+      data: { type: 'delete', message_index: index },
+      metadata: { ux_schema: 'v1' },
+    });
+  };
+
   const handleContinue = async () => {
     if (!partialResponse) {
       toast.error('No partial response to continue from');
@@ -1705,12 +1878,26 @@ export default function FloatBar({
             </div>
           ) : (
             <>
-              {thoughts.map((thought, i) => (
-                <div key={i} className={`amx-message amx-message-${thought.type}`}>
-                  {thought.type === 'user' && <span className="amx-message-label">You</span>}
-                  {thought.type === 'agent' && <span className="amx-message-label">Agent Max</span>}
-                  {thought.type === 'thought' && (
-                    <span className="amx-thought-label">Thinking</span>
+              {thoughts.map((thought, idx) => {
+                const isHovered = hoveredMessageIndex === idx;
+                const isFocused = focusedMessageIndex === idx;
+                return (
+                  <div
+                    key={idx}
+                    className={`amx-message amx-message-${thought.type} ${
+                      isHovered ? 'hovered' : ''
+                    } ${isFocused ? 'focused' : ''}`}
+                  >
+                    {thought.type === 'user' && <span className="amx-message-label">You</span>}
+                    {thought.type === 'agent' && <span className="amx-message-label">Agent Max</span>}
+                    {thought.type === 'thought' && (
+                      <span className="amx-thought-label">Thinking</span>
+                    )}
+                    {thought.type === 'debug' && <span className="amx-debug-label">Debug Info</span>}
+                    {thought.type === 'error' && <span className="amx-error-label">Error</span>}
+                    <div className="amx-message-content" style={{ whiteSpace: 'pre-wrap' }}>
+                      {renderMessageWithLinks(thought.content)}
+                    </div>
                   )}
                   {thought.type === 'debug' && <span className="amx-debug-label">Debug Info</span>}
                   {thought.type === 'error' && <span className="amx-error-label">Error</span>}

@@ -866,6 +866,20 @@
 .amx-message {
   margin-bottom: 12px;
   animation: slideIn 0.2s ease-out;
+  position: relative;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.amx-message:focus {
+  outline: 2px solid rgba(15, 181, 174, 0.4);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
+.amx-message-focused {
+  outline: 2px solid rgba(15, 181, 174, 0.3);
+  outline-offset: 2px;
 }
 
 .amx-message-label {
@@ -1224,6 +1238,109 @@
 
 .amx-continue-btn:active {
   transform: scale(0.98);
+}
+
+/* ============================================
+   UX IMPROVEMENTS - Message Actions
+   ============================================ */
+
+/* Message actions toolbar */
+.amx-message-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.amx-message-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.amx-message-action:hover {
+  background: rgba(0, 0, 0, 0.08);
+  transform: scale(1.05);
+}
+
+.amx-message-action:active {
+  transform: scale(0.95);
+}
+
+.amx-message-action-danger {
+  color: rgba(239, 68, 68, 0.9);
+}
+
+.amx-message-action-danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Delete confirmation */
+.amx-delete-confirm {
+  position: absolute;
+  top: -45px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 11;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: slideIn 0.2s ease-out;
+  min-width: 200px;
+}
+
+.amx-delete-confirm span {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.amx-delete-confirm-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.amx-delete-confirm-yes {
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+}
+
+.amx-delete-confirm-yes:hover {
+  background: rgba(220, 38, 38, 1);
+}
+
+.amx-delete-confirm-no {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text);
+}
+
+.amx-delete-confirm-no:hover {
+  background: rgba(0, 0, 0, 0.12);
 }
 
 /* Compose area */
