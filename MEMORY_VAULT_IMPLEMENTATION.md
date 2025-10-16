@@ -18,15 +18,24 @@
 - [ ] Create migration script from existing JSON ⏳ IN PROGRESS
 - [x] Test: CRUD operations, encryption, key storage (15/15 tests passed)
 
-### Phase 2: Context Selector ✅ TODO
+### Phase 2: Context Selector ✅ COMPLETE
 **Time Estimate:** 3-4 hours  
 **Priority:** HIGH
 
-- [ ] Implement hybrid retrieval (semantic + keyword)
-- [ ] Add token budgeting
-- [ ] Implement policy filtering (PII, consent)
-- [ ] Create always-include rules
-- [ ] Test: Context selection with various goals
+- [x] Implement hybrid retrieval (semantic + keyword)
+- [x] Add token budgeting (greedy packing algorithm)
+- [x] Implement policy filtering (PII, consent)
+- [x] Create always-include rules (priority >= 0.95)
+- [x] Test: Context selection with various goals (7/7 tests passed)
+
+**Test Results:**
+- ✅ Weather query → Location fact selected
+- ✅ Code question → Python preference selected
+- ✅ PII filtering (respects max level)
+- ✅ Consent filtering (excludes never_upload)
+- ✅ Token budgeting (stays under limit)
+- ✅ API formatting (profile, facts, prefs, messages)
+- ✅ Deterministic results (same input = same output)
 
 ### Phase 3: Provenance & Decay ✅ COMPLETE
 **Time Estimate:** 2-3 hours  
@@ -467,16 +476,25 @@
 - ✅ Phase 3: Provenance & decay (built into vault)
 
 **In Progress:**
-- Nothing! Phase 1 is complete 🎉
+- Nothing! Phase 1 & 2 complete 🎉
 
 **Next Steps:**
-- 🔜 Phase 2: Context Selector (hybrid retrieval, token budgeting)
 - 🔜 Phase 4: Memory Manager UI (facts list, consent controls)
-- 🔜 Phase 5: Integration & rollback (wire into main app)
+- 🔜 Phase 5: Integration (wire into main app, replace old system)
 
-**Phase 1 Complete:**
-- ✅ Core vault (SQLite + encryption)
-- ✅ Keychain integration (OS-level key storage)
+**Completed Phases:**
+
+**Phase 1 - Core Vault:**
+- ✅ SQLite schema + indexes + FTS5
+- ✅ OS keychain integration
 - ✅ Migration script (JSON → Vault)
-- ✅ Testing (15/15 core tests + migration test)
-- ✅ Provenance & decay (fact lifecycle management)
+- ✅ Provenance & decay
+- ✅ 15/15 core tests + migration test
+
+**Phase 2 - Context Selector:**
+- ✅ Hybrid retrieval (semantic + keyword)
+- ✅ Token budgeting (greedy packing)
+- ✅ Policy filtering (PII + consent)
+- ✅ Always-include rules
+- ✅ 7/7 selection tests passed
+- ✅ Deterministic output
