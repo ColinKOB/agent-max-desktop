@@ -1176,6 +1176,56 @@
   color: rgba(0, 0, 0, 0.3);
 }
 
+/* Stop button */
+.amx-stop-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.9);
+  border: none;
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.amx-stop-btn:hover {
+  background: rgba(220, 38, 38, 1);
+  transform: translateY(-1px);
+}
+
+.amx-stop-btn:active {
+  transform: scale(0.98);
+}
+
+/* Continue button */
+.amx-continue-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.9);
+  border: none;
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.amx-continue-btn:hover {
+  background: rgba(37, 99, 235, 1);
+  transform: translateY(-1px);
+}
+
+.amx-continue-btn:active {
+  transform: scale(0.98);
+}
+
 /* Compose area */
 .amx-compose {
   display: flex;

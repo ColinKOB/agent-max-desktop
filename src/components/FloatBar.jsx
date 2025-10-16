@@ -46,6 +46,12 @@ export default function FloatBar({
   const [thinkingStatus, setThinkingStatus] = useState(''); // 'connecting', 'thinking', 'answering'
   const [clearedConversation, setClearedConversation] = useState(null); // For undo
   const [undoTimer, setUndoTimer] = useState(null);
+  
+  // UX Phase 2: Stop/Continue flow
+  const [isStopped, setIsStopped] = useState(false);
+  const [partialResponse, setPartialResponse] = useState('');
+  const [stopStartTime, setStopStartTime] = useState(null);
+  const abortControllerRef = useRef(null);
   const [screenshotData, setScreenshotData] = useState(null); // Store base64 screenshot
   const [welcomeStep, setWelcomeStep] = useState(1);
   const [welcomeData, setWelcomeData] = useState({
@@ -126,11 +132,55 @@ export default function FloatBar({
     if (!draftSessionId || !message) return;
     
     const timer = setTimeout(() => {
-      localStorage.setItem(`draft:${draftSessionId}`, message);
+      localStorage.setItem(`amx:draft:${draftSessionId}`, message);
     }, 500); // 500ms debounce
 
     return () => clearTimeout(timer);
   }, [message, draftSessionId]);
+  
+  // UX Phase 2: Auto-expand on multiline (debounced to avoid flicker)
+  useEffect(() => {
+    if (!isBar || !textareaRef.current) return;
+    
+    const timer = setTimeout(() => {
+      const el = textareaRef.current;
+      if (el && el.scrollHeight > el.clientHeight + 4) {
+        // Multi-line detected
+        console.log('[UX] Auto-expanding to Card (multiline)');
+        if (!isCardWindow) {
+          showCardWindow();
+          telemetry.logInteraction({
+            event: 'mode.auto_expand_reason',
+            data: { reason: 'multiline' },
+            metadata: { ux_schema: 'v1' },
+          });
+        }
+      }
+    }, 80); // 80ms debounce to wait for font load
+    
+    return () => clearTimeout(timer);
+  }, [message, isBar, isCardWindow]);
+  
+  // UX Phase 2: Save mode preference per position on mode change
+  useEffect(() => {
+    if (!isPillWindow || isCardWindow) return;
+    
+    const saveMode = async () => {
+      if (window.electron?.getBounds) {
+        try {
+          const bounds = await window.electron.getBounds();
+          const posKey = `amx:mode.last:${Math.round(bounds.x / 100)},${Math.round(bounds.y / 100)}`;
+          const currentMode = isOpen ? 'card' : isBar ? 'bar' : 'pill';
+          localStorage.setItem(posKey, currentMode);
+          console.log(`[UX] Saved mode: ${currentMode} for position`);
+        } catch (e) {
+          console.error('[UX] Failed to save mode:', e);
+        }
+      }
+    };
+    
+    saveMode();
+  }, [isOpen, isBar, isMini, isPillWindow, isCardWindow]);
 
   // Show hint on focus
   useEffect(() => {
@@ -660,6 +710,53 @@ export default function FloatBar({
     }
   };
 
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      const elapsed = stopStartTime ? Date.now() - stopStartTime : 0;
+      console.log('[UX] Stop clicked, elapsed:', elapsed);
+      
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      
+      setIsThinking(false);
+      setThinkingStatus('');
+      setProgress(0);
+      setStopStartTime(null);
+      setIsStopped(true);
+      
+      telemetry.logInteraction({
+        event: 'gen.stop_clicked',
+        data: { elapsed_ms: elapsed },
+        metadata: { ux_schema: 'v1' },
+      });
+      
+      toast.success('Generation stopped');
+    }
+  };
+  
+  const handleContinue = async () => {
+    if (!partialResponse) {
+      toast.error('No partial response to continue from');
+      return;
+    }
+    
+    console.log('[UX] Continue clicked, partial length:', partialResponse.length);
+    
+    telemetry.logInteraction({
+      event: 'gen.continue_clicked',
+      data: { continuation_length: partialResponse.length },
+      metadata: { ux_schema: 'v1' },
+    });
+    
+    // Reset stopped state
+    setIsStopped(false);
+    setPartialResponse('');
+    
+    // TODO: Implement actual continuation logic
+    // This would involve sending the partial response as context
+    toast.info('Continue not yet implemented');
+  };
+
   const handleSendMessage = async () => {
     const trimmedMessage = message.trim();
 
@@ -752,6 +849,13 @@ export default function FloatBar({
       setIsThinking(true);
       setThinkingStatus('connecting');
       setProgress(10);
+      setIsStopped(false);
+      setPartialResponse('');
+      setStopStartTime(Date.now());
+      
+      // Create abort controller for this generation
+      abortControllerRef.current = new AbortController();
+      
       setThoughts((prev) => [...prev, { type: 'thought', content: 'Connecting...' }]);
 
       // After 150ms → Thinking
@@ -792,6 +896,9 @@ export default function FloatBar({
       let executionTime = 0;
       let currentStepThought = null;
 
+      // Track partial response for stop/continue
+      let currentPartial = '';
+      
       await chatAPI.sendMessageStream(userMessage, userContext, screenshotData, (event) => {
         // UX: Switch to "Answering" on first token
         if (event.message && thinkingStatus !== 'answering') {
@@ -832,6 +939,7 @@ export default function FloatBar({
           setProgress(60 + event.step_number * 5);
         } else if (event.final_response) {
           finalResponse = event.final_response;
+          currentPartial = event.final_response;
           allSteps = event.steps || allSteps;
           factsExtracted = event.facts_extracted;
           executionTime = event.execution_time;
@@ -968,8 +1076,18 @@ export default function FloatBar({
       setProgress(0);
     } catch (error) {
       console.error('[FloatBar] Message send error:', error);
+      
+      // Check if this was an abort (user clicked Stop)
+      if (error.name === 'AbortError' || error.message?.includes('abort')) {
+        console.log('[UX] Generation aborted by user');
+        // Don't show error toast for intentional stops
+        return;
+      }
+      
       setIsThinking(false);
       setProgress(0);
+      setStopStartTime(null);
+      abortControllerRef.current = null;
 
       // 📊 LOG ERROR TO TELEMETRY
       try {
@@ -1695,31 +1813,50 @@ export default function FloatBar({
             >
               <Camera className="w-4 h-4" />
             </button>
-            <button
-              className="amx-send-btn"
-              onClick={() => {
-                if (message.trim()) {
-                  // Dismiss hint after first send
-                  if (!hintDismissed) {
-                    localStorage.setItem('composer.hint_dismissed', 'true');
-                    setHintDismissed(true);
-                    telemetry.logInteraction({
-                      event: 'onboarding.hint_dismissed',
-                      data: {},
-                    });
+            {/* UX Phase 2: Stop/Continue buttons */}
+            {isThinking ? (
+              <button
+                className="amx-stop-btn"
+                onClick={handleStop}
+                title="Stop generation"
+              >
+                <div className="w-3 h-3 bg-current rounded-sm" />
+              </button>
+            ) : isStopped ? (
+              <button
+                className="amx-continue-btn"
+                onClick={handleContinue}
+                title="Continue from here"
+              >
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                className="amx-send-btn"
+                onClick={() => {
+                  if (message.trim()) {
+                    // Dismiss hint after first send
+                    if (!hintDismissed) {
+                      localStorage.setItem('composer.hint_dismissed', 'true');
+                      setHintDismissed(true);
+                      telemetry.logInteraction({
+                        event: 'onboarding.hint_dismissed',
+                        data: {},
+                      });
+                    }
+                    // Clear draft
+                    if (draftSessionId) {
+                      localStorage.removeItem(`amx:draft:${draftSessionId}`);
+                    }
+                    handleSendMessage();
                   }
-                  // Clear draft
-                  if (draftSessionId) {
-                    localStorage.removeItem(`amx:draft:${draftSessionId}`);
-                  }
-                  handleSendMessage();
-                }
-              }}
-              title="Send message"
-              disabled={isThinking || !message.trim()}
-            >
-              <Send className="w-4 h-4" />
-            </button>
+                }}
+                title="Send message"
+                disabled={!message.trim()}
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 
