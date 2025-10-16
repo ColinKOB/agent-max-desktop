@@ -18,29 +18,29 @@
 
 ## 📊 **UX KPIs (Baseline → Target)**
 
-| Metric | Current | Target | Measurement |
-|--------|---------|--------|-------------|
-| **Time to First Token (TTFT)** | ~2-3s | <1.5s (p95) | `ux.ttft_ms` |
-| **Abort Rate** | Unknown | <8% | `ux.abort_clicked / total_gens` |
-| **Retry Success Rate** | Unknown | >85% | `error.retry_success / error.retry_total` |
-| **Search Usage** | 0% (not built) | >20% WAU | `conv.search_query / active_users` |
-| **Memory Undo Usage** | Unknown | >15% of saves | `memory.undo / memory.saved` |
-| **Mode Resume** | Unknown | >60% | `mode.resumed_last / mode.opened` |
+| Metric | Current | Target | Measurement | Status |
+|--------|---------|--------|-------------|--------|
+| **Time to First Token (TTFT)** | ~2-3s | <1.5s (p95) | `ux.ttft_ms` | ✅ Tracking |
+| **Abort Rate** | Unknown | <8% | `gen.stop_clicked / total_gens` | ✅ Tracking |
+| **Search Usage** | 0% | >20% WAU | `conv.search_query / active_users` | ✅ Tracking |
+| **Switcher Usage** | 0% | >15% WAU | `conv.switcher_used / active_users` | ✅ Tracking |
+| **Mode Resume** | Unknown | >60% | `mode.resumed_last / mode.opened` | ✅ Tracking |
+| **Message Actions** | 0% | >30% WAU | `msg.action / active_users` | ✅ Tracking |
 
 ---
 
 ## 🚀 **Implementation Phases**
 
-### **Phase 1: Immediate Wins** (1-2 days)
+### **Phase 1: Immediate Wins** ✅ COMPLETE (Oct 16, 2025 - Day 1)
 Items that require minimal changes but have high impact.
 
-### **Phase 2: Core Flows** (3-4 days)
+### **Phase 2: Core Flows** ✅ COMPLETE (Oct 16, 2025 - Day 1)
 Essential behavioral improvements to main user journeys.
 
-### **Phase 3: Power Features** (2-3 days)
+### **Phase 3: Power Features** ✅ COMPLETE (Oct 16, 2025 - 3 hours)
 Advanced functionality for engaged users.
 
-### **Phase 4: Polish & Resilience** (1-2 days)
+### **Phase 4: Polish & Resilience** (TBD)
 Error handling, accessibility, edge cases.
 
 ---

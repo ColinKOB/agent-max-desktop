@@ -584,8 +584,7 @@
   
   /* Appearance - liquid glass bar */
   --glass-surface:
-    linear-gradient(135deg, rgba(82, 146, 255, 0.24), rgba(122, 83, 255, 0.18), rgba(255, 163, 102, 0.12)),
-    rgba(255, 255, 255, 0.24);
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.4) 40%, rgba(255, 255, 255, 0) 85%);
   --glass-filter: blur(32px) saturate(1.45);
   --glass-shadow-ring:
     inset 0 1px rgba(255, 255, 255, 0.35),
