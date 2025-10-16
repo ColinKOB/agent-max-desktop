@@ -43,6 +43,9 @@ export default function FloatBar({
   const [message, setMessage] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  const [thinkingStatus, setThinkingStatus] = useState(''); // 'connecting', 'thinking', 'answering'
+  const [clearedConversation, setClearedConversation] = useState(null); // For undo
+  const [undoTimer, setUndoTimer] = useState(null);
   const [screenshotData, setScreenshotData] = useState(null); // Store base64 screenshot
   const [welcomeStep, setWelcomeStep] = useState(1);
   const [welcomeData, setWelcomeData] = useState({
@@ -60,6 +63,52 @@ export default function FloatBar({
   const isEditingMessageRef = useRef(false);
   const { profile, addToHistory } = useStore();
   const [isMessageFocused, setIsMessageFocused] = useState(false);
+
+  // UX: Draft autosave
+  const [draftSessionId, setDraftSessionId] = useState(null);
+  const [showInputHint, setShowInputHint] = useState(false);
+  const [hintDismissed, setHintDismissed] = useState(false);
+
+  // Load hint dismiss state
+  useEffect(() => {
+    const dismissed = localStorage.getItem('composer.hint_dismissed');
+    setHintDismissed(dismissed === 'true');
+  }, []);
+
+  // Load draft on mount
+  useEffect(() => {
+    const sessionId = 'current'; // TODO: Get actual session ID
+    setDraftSessionId(sessionId);
+    const draft = localStorage.getItem(`draft:${sessionId}`);
+    if (draft) {
+      setMessage(draft);
+      console.log('[UX] Draft restored');
+      telemetry.logInteraction({
+        event: 'composer.draft_restored',
+        data: { length: draft.length },
+      });
+    }
+  }, []);
+
+  // Autosave draft (debounced)
+  useEffect(() => {
+    if (!draftSessionId || !message) return;
+    
+    const timer = setTimeout(() => {
+      localStorage.setItem(`draft:${draftSessionId}`, message);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [message, draftSessionId]);
+
+  // Show hint on focus
+  useEffect(() => {
+    if (isMessageFocused && !hintDismissed && message.length === 0) {
+      setShowInputHint(true);
+    } else {
+      setShowInputHint(false);
+    }
+  }, [isMessageFocused, hintDismissed, message]);
 
   // Simple connection status check (can be enhanced later)
   const [isConnected, setIsConnected] = useState(true);
@@ -657,10 +706,25 @@ export default function FloatBar({
 
       await memoryService.addMessage('user', userMessage);
 
+      // UX: Progressive status states
       setIsThinking(true);
-      setProgress(20);
-      const thinkingMsg = screenshotData ? 'Looking at your screenshot...' : 'Thinking...';
-      setThoughts((prev) => [...prev, { type: 'thought', content: thinkingMsg }]);
+      setThinkingStatus('connecting');
+      setProgress(10);
+      setThoughts((prev) => [...prev, { type: 'thought', content: 'Connecting...' }]);
+
+      // After 150ms → Thinking
+      setTimeout(() => {
+        setThinkingStatus('thinking');
+        setProgress(20);
+        const thinkingMsg = screenshotData ? 'Looking at your screenshot...' : 'Thinking...';
+        setThoughts((prev) => {
+          const newThoughts = [...prev];
+          if (newThoughts.length > 0 && newThoughts[newThoughts.length - 1].type === 'thought') {
+            newThoughts[newThoughts.length - 1].content = thinkingMsg;
+          }
+          return newThoughts;
+        });
+      }, 150);
 
       setProgress(40);
       const userContext = await memoryService.buildContextForAPI();
@@ -687,6 +751,18 @@ export default function FloatBar({
       let currentStepThought = null;
 
       await chatAPI.sendMessageStream(userMessage, userContext, screenshotData, (event) => {
+        // UX: Switch to "Answering" on first token
+        if (event.message && thinkingStatus !== 'answering') {
+          setThinkingStatus('answering');
+          setThoughts((prev) => {
+            const newThoughts = [...prev];
+            if (newThoughts.length > 0 && newThoughts[newThoughts.length - 1].type === 'thought') {
+              newThoughts[newThoughts.length - 1].content = 'Answering...';
+            }
+            return newThoughts;
+          });
+        }
+        
         if (event.message) {
           if (!currentStepThought) {
             currentStepThought = { type: 'thought', content: event.message };
@@ -743,21 +819,7 @@ export default function FloatBar({
                 factCount++;
               } catch (error) {
                 console.error(`[Memory] ✗ Failed to save fact ${category}.${key}:`, error);
-              }
-            }
-          }
-        }
-
-        if (factCount > 0) {
-          toast.success(`Learned ${factCount} new thing${factCount > 1 ? 's' : ''} about you!`, {
-            duration: 3000,
-          });
-        }
       }
-
-      setIsStreaming(true);
-
-      const responseIndex = thoughts.length;
       setThoughts((prev) => [
         ...prev,
         {
@@ -930,6 +992,14 @@ export default function FloatBar({
     }
   };
   const handleResetConversation = async () => {
+    // UX: Save state for undo
+    const savedState = {
+      thoughts: [...thoughts],
+      progress,
+      currentCommand,
+      message,
+    };
+    
     // Generate summary before clearing if there are thoughts
     if (thoughts.length > 0) {
       try {
@@ -939,7 +1009,35 @@ export default function FloatBar({
 
         // Add to history
         addToHistory(summary, thoughts);
-        toast.success(`Saved: "${summary}"`);
+        
+        // UX: Show undo option
+        setClearedConversation(savedState);
+        toast.success(
+          (t) => (
+            <div className="flex items-center gap-2">
+              <span>Conversation cleared</span>
+              <button
+                onClick={() => {
+                  // Restore state
+                  setThoughts(savedState.thoughts);
+                  setProgress(savedState.progress);
+                  setCurrentCommand(savedState.currentCommand);
+                  setMessage(savedState.message);
+                  setClearedConversation(null);
+                  toast.dismiss(t.id);
+                  toast.success('Conversation restored');
+                  telemetry.logInteraction({ event: 'conv.undo_clear', data: {} });
+                }}
+                className="px-2 py-1 bg-white/20 rounded text-sm hover:bg-white/30"
+              >
+                Undo
+              </button>
+            </div>
+          ),
+          { duration: 5000 }
+        );
+        
+        telemetry.logInteraction({ event: 'conv.cleared', data: { message_count: thoughts.length } });
       } catch (error) {
         console.error('[FloatBar] Failed to generate summary:', error);
         // Still clear the conversation even if summary fails
@@ -952,6 +1050,7 @@ export default function FloatBar({
     setCurrentCommand('');
     setMessage('');
     setIsThinking(false);
+    setThinkingStatus('');
   };
 
   const handleRunCommand = () => {
@@ -1483,46 +1582,89 @@ export default function FloatBar({
 
         {/* Message compose */}
         <div className="amx-compose">
-          <input
-            className="amx-input"
-            placeholder="Chat with Max"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            maxLength={2000}
-            disabled={isThinking}
-            onFocus={() => {
-              isEditingMessageRef.current = true;
-              setIsMessageFocused(true);
-            }}
-            onBlur={() => {
-              isEditingMessageRef.current = false;
-              setIsMessageFocused(false);
-            }}
-          />
-          <button
-            className="amx-send"
-            onClick={handleScreenshot}
-            title="Take Screenshot"
-            disabled={isThinking}
-            style={{ position: 'relative' }}
-          >
-            <Camera className="w-4 h-4" />
-            {screenshotData && (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: '-4px',
-                  right: '-4px',
-                  width: '12px',
-                  height: '12px',
-                  borderRadius: '50%',
-                  background: '#7aa2ff',
-                  border: '2px solid rgba(28, 28, 32, 0.95)',
+          {/* Attachment chip */}
+          {screenshotData && (
+            <div className="amx-attachment-chip">
+              <Camera className="w-3 h-3" />
+              <span className="amx-attachment-text">
+                Screenshot ({Math.round(screenshotData.length / 1024)}KB)
+              </span>
+              <button
+                className="amx-attachment-remove"
+                onClick={() => {
+                  setScreenshotData(null);
+                  console.log('[UX] Attachment removed');
+                  telemetry.logInteraction({
+                    event: 'composer.attachment_removed',
+                    data: { type: 'screenshot' },
+                  });
                 }}
-              />
-            )}
-          </button>
+                title="Remove"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          {/* Input hint */}
+          {showInputHint && (
+            <div className="amx-input-hint">
+              Press Enter to send · Shift+Enter for newline
+            </div>
+          )}
+
+          <div className="amx-input-row">
+            <input
+              className="amx-input"
+              placeholder="Ask anything..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              maxLength={2000}
+              disabled={isThinking}
+              onFocus={() => {
+                isEditingMessageRef.current = true;
+                setIsMessageFocused(true);
+              }}
+              onBlur={() => {
+                isEditingMessageRef.current = false;
+                setIsMessageFocused(false);
+              }}
+            />
+            <button
+              className="amx-icon-btn"
+              onClick={handleScreenshot}
+              title="Take Screenshot"
+              disabled={isThinking}
+            >
+              <Camera className="w-4 h-4" />
+            </button>
+            <button
+              className="amx-send-btn"
+              onClick={() => {
+                if (message.trim()) {
+                  // Dismiss hint after first send
+                  if (!hintDismissed) {
+                    localStorage.setItem('composer.hint_dismissed', 'true');
+                    setHintDismissed(true);
+                    telemetry.logInteraction({
+                      event: 'onboarding.hint_dismissed',
+                      data: {},
+                    });
+                  }
+                  // Clear draft
+                  if (draftSessionId) {
+                    localStorage.removeItem(`draft:${draftSessionId}`);
+                  }
+                  handleSendMessage();
+                }
+              }}
+              title="Send message"
+              disabled={isThinking || !message.trim()}
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Semantic suggestions */}
