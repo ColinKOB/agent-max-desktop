@@ -1945,6 +1945,67 @@ export default function FloatBar({
         </div>
         {/* Thoughts stream / Welcome screen */}
         <div className="amx-thoughts" role="status" aria-live="polite">
+          {/* UX Phase 3: Search bar */}
+          {showSearch && (
+            <div className="amx-search-bar">
+              <Search className="w-4 h-4 text-gray-500" />
+              <input
+                type="text"
+                className="amx-search-input"
+                placeholder="Search messages..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  performSearch(e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    nextSearchResult();
+                  } else if (e.key === 'Enter' && e.shiftKey) {
+                    e.preventDefault();
+                    prevSearchResult();
+                  }
+                }}
+                autoFocus
+              />
+              {searchResults.length > 0 && (
+                <span className="amx-search-count">
+                  {currentSearchIndex + 1} of {searchResults.length}
+                </span>
+              )}
+              {searchResults.length === 0 && searchQuery && (
+                <span className="amx-search-count text-gray-400">No matches</span>
+              )}
+              <button
+                className="amx-search-nav-btn"
+                onClick={prevSearchResult}
+                disabled={searchResults.length === 0}
+                title="Previous (Shift+Enter)"
+              >
+                <ChevronUp className="w-4 h-4" />
+              </button>
+              <button
+                className="amx-search-nav-btn"
+                onClick={nextSearchResult}
+                disabled={searchResults.length === 0}
+                title="Next (Enter)"
+              >
+                <ChevronDown className="w-4 h-4" />
+              </button>
+              <button
+                className="amx-search-close-btn"
+                onClick={() => {
+                  setShowSearch(false);
+                  setSearchQuery('');
+                  setSearchResults([]);
+                }}
+                title="Close (Esc)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
           {showWelcome ? (
             <div className="amx-welcome">
               <div className="amx-welcome-header">
@@ -2098,10 +2159,16 @@ export default function FloatBar({
               {thoughts.map((thought, idx) => {
                 const isHovered = hoveredMessageIndex === idx;
                 const isFocused = focusedMessageIndex === idx;
+                // Check if this message is a search result
+                const isSearchResult = searchResults.some(r => r.index === idx);
+                const isCurrentSearchResult = searchResults.length > 0 && 
+                  searchResults[currentSearchIndex]?.index === idx;
+                
                 return (
                   <div
                     key={idx}
-                    className={`amx-message amx-message-${thought.type} ${isFocused ? 'amx-message-focused' : ''}`}
+                    data-message-idx={idx}
+                    className={`amx-message amx-message-${thought.type} ${isFocused ? 'amx-message-focused' : ''} ${isCurrentSearchResult ? 'amx-search-current' : isSearchResult ? 'amx-search-match' : ''}`}
                     onMouseEnter={() => setHoveredMessageIndex(idx)}
                     onMouseLeave={() => setHoveredMessageIndex(null)}
                     onFocus={() => setFocusedMessageIndex(idx)}
@@ -2417,6 +2484,75 @@ export default function FloatBar({
               <button onClick={confirmRunCommand} className="amx-btn-primary">
                 Run Command
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* UX Phase 3: Quick Switcher Modal */}
+      {showSwitcher && (
+        <div className="amx-modal-overlay" onClick={() => setShowSwitcher(false)}>
+          <div className="amx-quick-switcher" onClick={(e) => e.stopPropagation()}>
+            <div className="amx-quick-switcher-header">
+              <h3>Quick Switcher</h3>
+              <button
+                className="amx-icon-btn"
+                onClick={() => setShowSwitcher(false)}
+                title="Close (Esc)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="amx-quick-switcher-search">
+              <Search className="w-4 h-4 text-gray-500" />
+              <input
+                type="text"
+                className="amx-quick-switcher-input"
+                placeholder="Search conversations..."
+                value={switcherQuery}
+                onChange={(e) => setSwitcherQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setSelectedConvIndex(prev => 
+                      Math.min(prev + 1, conversations.filter(c => 
+                        c.title.toLowerCase().includes(switcherQuery.toLowerCase())
+                      ).length - 1)
+                    );
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setSelectedConvIndex(prev => Math.max(prev - 1, 0));
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const filtered = conversations.filter(c => 
+                      c.title.toLowerCase().includes(switcherQuery.toLowerCase())
+                    );
+                    if (filtered[selectedConvIndex]) {
+                      selectConversation(filtered[selectedConvIndex]);
+                    }
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+            <div className="amx-quick-switcher-list">
+              {conversations
+                .filter(c => c.title.toLowerCase().includes(switcherQuery.toLowerCase()))
+                .map((conv, idx) => (
+                  <div
+                    key={conv.id}
+                    className={`amx-quick-switcher-item ${idx === selectedConvIndex ? 'selected' : ''}`}
+                    onClick={() => selectConversation(conv)}
+                  >
+                    <div className="amx-quick-switcher-item-title">{conv.title}</div>
+                    <div className="amx-quick-switcher-item-meta">
+                      {conv.messageCount} messages · {new Date(conv.timestamp).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))}
+              {conversations.filter(c => c.title.toLowerCase().includes(switcherQuery.toLowerCase())).length === 0 && (
+                <div className="amx-quick-switcher-empty">No conversations found</div>
+              )}
             </div>
           </div>
         </div>
