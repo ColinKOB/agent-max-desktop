@@ -58,9 +58,26 @@ class MemoryVault {
 
       // Open database
       this.db = new Database(this.vaultPath, { verbose: null });
+      
+      // Set critical PRAGMAs
       this.db.pragma('journal_mode = WAL'); // Better concurrency
+      this.db.pragma('synchronous = NORMAL'); // Balance safety/speed (FULL for migrations)
+      this.db.pragma('busy_timeout = 5000'); // Wait up to 5s on lock
       this.db.pragma('foreign_keys = ON'); // Enforce constraints
+      
       console.log('✓ Database opened:', this.vaultPath);
+      
+      // Run integrity check on boot
+      const integrityResult = this.db.pragma('integrity_check');
+      if (integrityResult.length > 0 && integrityResult[0].integrity_check !== 'ok') {
+        console.error('⚠️  Database integrity check failed:', integrityResult);
+        this._setMeta('integrity_failed', '1');
+        this._setMeta('integrity_error', JSON.stringify(integrityResult));
+        throw new Error('Database integrity check failed');
+      } else {
+        console.log('✓ Database integrity OK');
+        this._setMeta('last_integrity_check', new Date().toISOString());
+      }
 
       // Create schema
       this._createSchema();
@@ -505,6 +522,16 @@ class MemoryVault {
   reinforceFacts(factIds) {
     if (!factIds || factIds.length === 0) return;
 
+    // Cap at 25 facts per call (prevent runaway writes)
+    const MAX_REINFORCEMENTS = 25;
+    if (factIds.length > MAX_REINFORCEMENTS) {
+      console.warn(`⚠️  Capping reinforcement to ${MAX_REINFORCEMENTS} facts (${factIds.length} requested)`);
+      factIds = factIds.slice(0, MAX_REINFORCEMENTS);
+    }
+
+    // De-duplicate IDs (idempotency)
+    const uniqueIds = [...new Set(factIds)];
+
     // Use transaction for atomic operation
     const updateStmt = this.db.prepare(
       `UPDATE facts 
@@ -519,7 +546,9 @@ class MemoryVault {
       }
     });
 
-    reinforceMany(factIds);
+    reinforceMany(uniqueIds);
+    
+    console.log(`✓ Reinforced ${uniqueIds.length} facts`);
   }
 
   /**
@@ -542,15 +571,49 @@ class MemoryVault {
   // ============================================
 
   /**
-   * Full-text search in messages
+   * Search messages by content (fallback: LIKE since content is encrypted)
+   * Note: FTS disabled for encrypted content - this is a simple fallback
+   * For production: decrypt and search in memory or use session FTS
    */
   searchMessages(query, limit = 10) {
+    // Since messages are encrypted, we can't FTS them
+    // Fallback: search in decrypted content (slower but safe)
+    const allMessages = this.db
+      .prepare(
+        `
+      SELECT * FROM messages 
+      WHERE session_id IN (
+        SELECT id FROM sessions WHERE identity_id = ?
+      )
+      ORDER BY created_at DESC
+      LIMIT 100
+    `
+      )
+      .all(this.currentIdentityId);
+
+    // Decrypt and filter
+    const queryLower = query.toLowerCase();
+    const results = allMessages
+      .map((msg) => ({
+        ...msg,
+        content: this._decryptField(msg.content),
+      }))
+      .filter((msg) => msg.content.toLowerCase().includes(queryLower))
+      .slice(0, limit);
+
+    return results;
+  }
+
+  /**
+   * Search sessions by title/goal (uses FTS - safe, not encrypted)
+   */
+  searchSessions(query, limit = 10) {
     return this.db
       .prepare(
         `
-      SELECT m.* FROM messages m
-      JOIN messages_fts fts ON m.rowid = fts.rowid
-      WHERE messages_fts MATCH ?
+      SELECT s.* FROM sessions s
+      JOIN sessions_fts fts ON s.rowid = fts.rowid
+      WHERE sessions_fts MATCH ?
       ORDER BY rank
       LIMIT ?
     `

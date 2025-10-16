@@ -96,46 +96,35 @@ CREATE INDEX IF NOT EXISTS idx_notes_identity ON notes(identity_id);
 CREATE INDEX IF NOT EXISTS idx_notes_kind ON notes(kind);
 CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created_at DESC);
 
--- Full-text search (optional, for hybrid retrieval)
-CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
-  content,
-  content=messages,
+-- Full-text search - DISABLED for encrypted content
+-- FTS only on non-PII metadata (session titles, not message content)
+-- Messages and notes content is encrypted, so we can't FTS it safely
+-- Future: add FTS on session.title and session.goal only
+
+-- Session FTS (safe - non-encrypted metadata only)
+CREATE VIRTUAL TABLE IF NOT EXISTS sessions_fts USING fts5(
+  title,
+  goal,
+  content=sessions,
   content_rowid=rowid
 );
 
--- Triggers to keep FTS in sync with messages
-CREATE TRIGGER IF NOT EXISTS messages_ai AFTER INSERT ON messages BEGIN
-  INSERT INTO messages_fts(rowid, content) VALUES (new.rowid, new.content);
+-- Triggers for sessions FTS (safe metadata only)
+CREATE TRIGGER IF NOT EXISTS sessions_ai AFTER INSERT ON sessions BEGIN
+  INSERT INTO sessions_fts(rowid, title, goal) 
+  VALUES (new.rowid, COALESCE(new.title, ''), COALESCE(new.goal, ''));
 END;
 
-CREATE TRIGGER IF NOT EXISTS messages_ad AFTER DELETE ON messages BEGIN
-  INSERT INTO messages_fts(messages_fts, rowid, content) VALUES('delete', old.rowid, old.content);
+CREATE TRIGGER IF NOT EXISTS sessions_ad AFTER DELETE ON sessions BEGIN
+  INSERT INTO sessions_fts(sessions_fts, rowid, title, goal) 
+  VALUES('delete', old.rowid, old.title, old.goal);
 END;
 
-CREATE TRIGGER IF NOT EXISTS messages_au AFTER UPDATE ON messages BEGIN
-  INSERT INTO messages_fts(messages_fts, rowid, content) VALUES('delete', old.rowid, old.content);
-  INSERT INTO messages_fts(rowid, content) VALUES (new.rowid, new.content);
-END;
-
--- Notes FTS
-CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
-  text,
-  content=notes,
-  content_rowid=rowid
-);
-
--- Triggers for notes FTS
-CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
-  INSERT INTO notes_fts(rowid, text) VALUES (new.rowid, new.text);
-END;
-
-CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
-  INSERT INTO notes_fts(notes_fts, rowid, text) VALUES('delete', old.rowid, old.text);
-END;
-
-CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
-  INSERT INTO notes_fts(notes_fts, rowid, text) VALUES('delete', old.rowid, old.text);
-  INSERT INTO notes_fts(rowid, text) VALUES (new.rowid, new.text);
+CREATE TRIGGER IF NOT EXISTS sessions_au AFTER UPDATE ON sessions BEGIN
+  INSERT INTO sessions_fts(sessions_fts, rowid, title, goal) 
+  VALUES('delete', old.rowid, old.title, old.goal);
+  INSERT INTO sessions_fts(rowid, title, goal) 
+  VALUES (new.rowid, new.title, new.goal);
 END;
 
 -- Metadata table for vault state and configuration

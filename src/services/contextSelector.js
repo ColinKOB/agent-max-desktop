@@ -56,16 +56,30 @@ class ContextSelector {
 
     // Step 4: Separate always-include from ranked
     const alwaysInclude = filtered.filter((s) => s.priority >= this.alwaysIncludeThreshold);
-    const ranked = filtered
-      .filter((s) => s.priority < this.alwaysIncludeThreshold)
-      .sort((a, b) => b.score - a.score);
+    const ranked = filtered.filter((s) => s.priority < this.alwaysIncludeThreshold);
 
-    // Step 5: Pack to budget
-    const selected = this._packToBudget([...alwaysInclude, ...ranked], tokenBudget);
+    // Step 5: Stable sort (deterministic tie-breaking)
+    const sortedRanked = this._stableSort(ranked);
 
-    console.log(`[Context Selector] Selected ${selected.length} slices (${this._totalTokens(selected)}/${tokenBudget} tokens)`);
+    // Step 6: Pack to budget
+    const selected = this._packToBudget([...alwaysInclude, ...sortedRanked], tokenBudget);
 
-    return selected;
+    // Step 7: Compute deterministic hash
+    const contextHash = this._computeHash(selected);
+    const totalTokens = this._totalTokens(selected);
+
+    console.log(`[Context Selector] Selected ${selected.length} slices (${totalTokens}/${tokenBudget} tokens, hash: ${contextHash})`);
+
+    return {
+      slices: selected,
+      meta: {
+        version: this.version,
+        hash: contextHash,
+        totalTokens,
+        goal,
+        timestamp: new Date().toISOString(),
+      },
+    };
   }
 
   /**

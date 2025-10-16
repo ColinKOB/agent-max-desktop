@@ -23,6 +23,33 @@ function sanitize(str) {
 class SecureVaultIPCHandlers {
   constructor(vault) {
     this.vault = vault;
+    
+    // Rate limiting state
+    this.rateLimits = new Map(); // method -> { count, resetTime }
+  }
+
+  /**
+   * Rate limit check
+   * @param {string} method - IPC method name
+   * @param {number} maxCalls - Max calls per window
+   * @param {number} windowMs - Time window in ms
+   */
+  _checkRateLimit(method, maxCalls, windowMs) {
+    const now = Date.now();
+    const state = this.rateLimits.get(method);
+
+    if (!state || now > state.resetTime) {
+      // New window
+      this.rateLimits.set(method, { count: 1, resetTime: now + windowMs });
+      return true;
+    }
+
+    if (state.count >= maxCalls) {
+      return false; // Rate limited
+    }
+
+    state.count++;
+    return true;
   }
 
   /**
@@ -256,6 +283,11 @@ class SecureVaultIPCHandlers {
     // ============================================
 
     ipcMain.handle('vault:build-context', async (e, { goal, tokenBudget = 1200 }) => {
+      // Rate limit: 3 calls per second
+      if (!this._checkRateLimit('build-context', 3, 1000)) {
+        return err('rate_limited');
+      }
+
       // Validate goal
       if (!goal || typeof goal !== 'string') return err('bad_args');
       if (goal.length > 2000) return err('goal_too_long');
@@ -265,19 +297,24 @@ class SecureVaultIPCHandlers {
       if (tokenBudget < 100) return err('budget_too_low');
 
       try {
-        // This will be implemented by wiring contextSelector
-        // For now, return basic context
+        // Basic context (will be replaced with full contextSelector)
         const facts = this.vault.getAllFacts();
-        const messages = this.vault.getRecentMessages(6);
+        const messages = this.vault.getRecentMessages(6); // Cap at 6
 
         // Filter by PII and consent
         const filtered = facts.filter(
           (f) => f.pii_level <= 2 && f.consent_scope !== 'never_upload'
         );
 
+        // Cap messages to 6 (server will also enforce)
+        const cappedMessages = messages.slice(-6);
+
+        // Log redacted (no content, only metadata)
+        console.log(`[Context] goal_length=${goal.length}, facts=${filtered.length}, messages=${cappedMessages.length}, budget=${tokenBudget}`);
+
         return ok({
           facts: filtered.slice(0, 10),
-          messages: messages.slice(-5),
+          messages: cappedMessages,
           meta: {
             selector_version: '1',
             total_facts: facts.length,
@@ -285,6 +322,7 @@ class SecureVaultIPCHandlers {
           },
         });
       } catch (error) {
+        console.error('[Context] Error:', error.message); // Don't log full error
         return err('context_build_failed');
       }
     });
@@ -295,7 +333,7 @@ class SecureVaultIPCHandlers {
 
     ipcMain.handle('vault:reinforce', async (e, { factIds }) => {
       if (!Array.isArray(factIds)) return err('bad_args');
-      if (factIds.length > 50) return err('too_many_facts');
+      if (factIds.length > 25) return err('too_many_facts'); // Reduced from 50
 
       // Validate all IDs are strings
       if (!factIds.every((id) => typeof id === 'string')) {
@@ -303,9 +341,15 @@ class SecureVaultIPCHandlers {
       }
 
       try {
+        // Vault will cap at 25 and de-duplicate
         this.vault.reinforceFacts(factIds);
+        
+        // Log redacted (only count)
+        console.log(`[Reinforce] count=${factIds.length}`);
+        
         return ok({ reinforced: factIds.length });
       } catch (error) {
+        console.error('[Reinforce] Error:', error.message);
         return err('reinforce_failed');
       }
     });
