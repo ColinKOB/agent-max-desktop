@@ -8,7 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const MemoryVault = require('./memory-vault.cjs');
 const VaultMigration = require('./migrate-to-vault.cjs');
-const VaultIPCHandlers = require('./vault-ipc-handlers.cjs');
+const SecureVaultIPCHandlers = require('./vault-ipc-handlers-secure.cjs');
 
 class VaultIntegration {
   constructor() {
@@ -43,8 +43,8 @@ class VaultIntegration {
       this.vault = new MemoryVault();
       await this.vault.initialize();
 
-      // Register IPC handlers
-      this.ipcHandlers = new VaultIPCHandlers(this.vault);
+      // Register secure IPC handlers
+      this.ipcHandlers = new SecureVaultIPCHandlers(this.vault);
       this.ipcHandlers.register();
 
       console.log('✅ Memory Vault initialized successfully\n');
@@ -89,7 +89,7 @@ class VaultIntegration {
   }
 
   /**
-   * Run migration from old system to vault
+   * Run migration from old system to vault (atomic with transaction)
    */
   async _runMigration() {
     console.log('\n🔄 Starting automatic migration...\n');
@@ -102,15 +102,35 @@ class VaultIntegration {
         console.log('✅ Migration completed successfully');
         this.migrated = true;
         this._logMigration(result);
+
+        // Mark migration complete in meta table
+        const vault = new MemoryVault();
+        await vault.initialize();
+        vault._setMeta('migration_complete', '1');
+        vault._setMeta('migrated_at', new Date().toISOString());
+        vault.close();
+
         return true;
       } else {
         console.error('❌ Migration failed:', result.error);
         this._logError('Migration failed', new Error(result.error));
+
+        // Clean up failed migration
+        if (fs.existsSync(this.vaultPath)) {
+          fs.unlinkSync(this.vaultPath);
+        }
+
         return false;
       }
     } catch (error) {
       console.error('❌ Migration error:', error);
       this._logError('Migration error', error);
+
+      // Clean up failed migration
+      if (fs.existsSync(this.vaultPath)) {
+        fs.unlinkSync(this.vaultPath);
+      }
+
       return false;
     }
   }

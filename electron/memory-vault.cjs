@@ -31,16 +31,30 @@ class MemoryVault {
 
   /**
    * Initialize the vault
-   * - Generate/retrieve encryption key
+   * - Generate/retrieve encryption key AND identity_id from keychain
    * - Open database
    * - Create schema
-   * - Load or create default identity
+   * - Store identity_id in meta table
    */
   async initialize() {
     try {
+      // Get/generate identity_id from keychain (single source of truth)
+      let identityId = await this.keychain.getIdentityId();
+      if (!identityId) {
+        identityId = uuidv4();
+        await this.keychain.storeIdentityId(identityId);
+        console.log('✓ Generated new identity ID');
+      } else {
+        console.log('✓ Retrieved existing identity ID');
+      }
+      this.currentIdentityId = identityId;
+
       // Get encryption key from keychain
       this.encryptionKey = await this.keychain.initialize();
       console.log('✓ Encryption key ready');
+
+      // Convert hex key to Buffer for encryption
+      this.encryptionKeyBuffer = Buffer.from(this.encryptionKey, 'hex');
 
       // Open database
       this.db = new Database(this.vaultPath, { verbose: null });
@@ -52,9 +66,18 @@ class MemoryVault {
       this._createSchema();
       console.log('✓ Schema initialized');
 
-      // Load or create default identity
-      this.currentIdentityId = this._loadOrCreateIdentity();
-      console.log('✓ Identity loaded:', this.currentIdentityId);
+      // Store identity_id in meta table (if not exists)
+      const storedId = this._getMeta('identity_id');
+      if (!storedId) {
+        this._setMeta('identity_id', this.currentIdentityId);
+      } else if (storedId !== this.currentIdentityId) {
+        console.warn('⚠️  Identity ID mismatch - using keychain version');
+        this._setMeta('identity_id', this.currentIdentityId);
+      }
+
+      // Load or create identity record
+      this._ensureIdentity();
+      console.log('✓ Identity ensured:', this.currentIdentityId.slice(-6));
 
       return true;
     } catch (error) {
@@ -72,62 +95,79 @@ class MemoryVault {
   }
 
   /**
-   * Load existing identity or create a new one
+   * Ensure identity exists in identities table
    */
-  _loadOrCreateIdentity() {
-    const existing = this.db.prepare('SELECT id FROM identities ORDER BY created_at DESC LIMIT 1').get();
+  _ensureIdentity() {
+    const existing = this.db.prepare('SELECT id FROM identities WHERE id = ?').get(this.currentIdentityId);
 
-    if (existing) {
-      return existing.id;
+    if (!existing) {
+      this.db
+        .prepare('INSERT INTO identities (id, display_name) VALUES (?, ?)')
+        .run(this.currentIdentityId, null);
     }
-
-    // Create new identity
-    const id = uuidv4();
-    this.db
-      .prepare(
-        `
-      INSERT INTO identities (id, display_name)
-      VALUES (?, ?)
-    `
-      )
-      .run(id, null);
-
-    return id;
   }
 
   /**
-   * Encrypt sensitive data before storing
+   * Get meta value
    */
-  _encrypt(text) {
+  _getMeta(key) {
+    const row = this.db.prepare('SELECT value FROM meta WHERE key = ?').get(key);
+    return row ? row.value : null;
+  }
+
+  /**
+   * Set meta value
+   */
+  _setMeta(key, value) {
+    this.db
+      .prepare(
+        `INSERT INTO meta (key, value, updated_at) 
+         VALUES (?, ?, datetime('now'))
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
+      )
+      .run(key, String(value));
+  }
+
+  /**
+   * Get all meta as object
+   */
+  _getAllMeta() {
+    const rows = this.db.prepare('SELECT key, value FROM meta').all();
+    const meta = {};
+    for (const row of rows) {
+      meta[row.key] = row.value;
+    }
+    return meta;
+  }
+
+  /**
+   * Encrypt field (field-level encryption, not whole-record)
+   */
+  _encryptField(text) {
     if (!text) return null;
 
     const iv = crypto.randomBytes(16);
-    const key = Buffer.from(this.encryptionKey, 'hex');
-    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    const cipher = crypto.createCipheriv('aes-256-cbc', this.encryptionKeyBuffer, iv);
+    let encrypted = cipher.update(text, 'utf8', 'base64');
+    encrypted += cipher.final('base64');
 
-    let encrypted = cipher.update(text, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-
-    return JSON.stringify({
-      iv: iv.toString('hex'),
-      data: encrypted,
-    });
+    // Store as "iv:data" for easy parsing
+    return `${iv.toString('base64')}:${encrypted}`;
   }
 
   /**
-   * Decrypt sensitive data
+   * Decrypt field
    */
-  _decrypt(encrypted) {
+  _decryptField(encrypted) {
     if (!encrypted) return null;
+    if (!encrypted.includes(':')) return encrypted; // Not encrypted (migration case)
 
     try {
-      const { iv, data } = JSON.parse(encrypted);
-      const key = Buffer.from(this.encryptionKey, 'hex');
-      const decipher = crypto.createDecipheriv('aes-256-cbc', key, Buffer.from(iv, 'hex'));
-
-      let decrypted = decipher.update(data, 'hex', 'utf8');
+      const [ivStr, data] = encrypted.split(':');
+      const iv = Buffer.from(ivStr, 'base64');
+      const decipher = crypto.createDecipheriv('aes-256-cbc', this.encryptionKeyBuffer, iv);
+      let decrypted = decipher.update(data, 'base64', 'utf8');
       decrypted += decipher.final('utf8');
-
       return decrypted;
     } catch (error) {
       console.error('Decryption error:', error);
@@ -249,6 +289,9 @@ class MemoryVault {
 
     const id = uuidv4();
 
+    // Encrypt message content (field-level encryption)
+    const encryptedContent = this._encryptField(content);
+
     this.db
       .prepare(
         `
@@ -256,7 +299,7 @@ class MemoryVault {
       VALUES (?, ?, ?, ?)
     `
       )
-      .run(id, sid, role, content);
+      .run(id, sid, role, encryptedContent);
 
     return id;
   }
@@ -268,7 +311,7 @@ class MemoryVault {
       return [];
     }
 
-    return this.db
+    const messages = this.db
       .prepare(
         `
       SELECT * FROM messages 
@@ -279,10 +322,16 @@ class MemoryVault {
       )
       .all(sid, count)
       .reverse(); // Oldest first
+
+    // Decrypt message content
+    return messages.map((msg) => ({
+      ...msg,
+      content: this._decryptField(msg.content),
+    }));
   }
 
   getAllMessagesForSession(sessionId) {
-    return this.db
+    const messages = this.db
       .prepare(
         `
       SELECT * FROM messages 
@@ -291,6 +340,12 @@ class MemoryVault {
     `
       )
       .all(sessionId);
+
+    // Decrypt message content
+    return messages.map((msg) => ({
+      ...msg,
+      content: this._decryptField(msg.content),
+    }));
   }
 
   // ============================================
@@ -307,6 +362,9 @@ class MemoryVault {
     } = options;
 
     const id = uuidv4();
+
+    // Encrypt fact value (field-level encryption)
+    const encryptedObject = this._encryptField(object);
 
     // UPSERT: Insert or replace if exists
     this.db
@@ -331,7 +389,7 @@ class MemoryVault {
         this.currentIdentityId,
         category,
         predicate,
-        object,
+        encryptedObject,
         confidence,
         pii_level,
         consent_scope,
@@ -343,7 +401,7 @@ class MemoryVault {
   }
 
   getFact(category, predicate) {
-    return this.db
+    const fact = this.db
       .prepare(
         `
       SELECT * FROM facts 
@@ -351,11 +409,18 @@ class MemoryVault {
     `
       )
       .get(this.currentIdentityId, category, predicate);
+
+    if (fact) {
+      fact.object = this._decryptField(fact.object);
+    }
+    return fact;
   }
 
   getAllFacts(category = null) {
+    let facts;
+    
     if (category) {
-      return this.db
+      facts = this.db
         .prepare(
           `
         SELECT * FROM facts 
@@ -364,21 +429,30 @@ class MemoryVault {
       `
         )
         .all(this.currentIdentityId, category);
+    } else {
+      facts = this.db
+        .prepare(
+          `
+        SELECT * FROM facts 
+        WHERE identity_id = ?
+        ORDER BY category, confidence DESC
+      `
+        )
+        .all(this.currentIdentityId);
     }
 
-    return this.db
-      .prepare(
-        `
-      SELECT * FROM facts 
-      WHERE identity_id = ?
-      ORDER BY category, confidence DESC
-    `
-      )
-      .all(this.currentIdentityId);
+    // Decrypt fact values
+    return facts.map((f) => ({
+      ...f,
+      object: this._decryptField(f.object),
+    }));
   }
 
   updateFact(id, updates) {
     const { object, confidence, consent_scope, pii_level } = updates;
+
+    // Encrypt object if provided
+    const encryptedObject = object ? this._encryptField(object) : null;
 
     this.db
       .prepare(
@@ -392,9 +466,13 @@ class MemoryVault {
       WHERE id = ?
     `
       )
-      .run(object, confidence, consent_scope, pii_level, id);
+      .run(encryptedObject, confidence, consent_scope, pii_level, id);
 
-    return this.db.prepare('SELECT * FROM facts WHERE id = ?').get(id);
+    const fact = this.db.prepare('SELECT * FROM facts WHERE id = ?').get(id);
+    if (fact) {
+      fact.object = this._decryptField(fact.object);
+    }
+    return fact;
   }
 
   deleteFact(id) {
@@ -418,6 +496,30 @@ class MemoryVault {
     `
       )
       .run(id);
+  }
+
+  /**
+   * Reinforce multiple facts (after successful use)
+   * @param {string[]} factIds - Array of fact IDs to reinforce
+   */
+  reinforceFacts(factIds) {
+    if (!factIds || factIds.length === 0) return;
+
+    // Use transaction for atomic operation
+    const updateStmt = this.db.prepare(
+      `UPDATE facts 
+       SET last_reinforced_at = datetime('now'),
+           confidence = MIN(1.0, confidence * 1.05)
+       WHERE id = ?`
+    );
+
+    const reinforceMany = this.db.transaction((ids) => {
+      for (const id of ids) {
+        updateStmt.run(id);
+      }
+    });
+
+    reinforceMany(factIds);
   }
 
   /**

@@ -138,14 +138,16 @@ CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
   INSERT INTO notes_fts(rowid, text) VALUES (new.rowid, new.text);
 END;
 
--- Metadata table for schema version and migrations
-CREATE TABLE IF NOT EXISTS vault_metadata (
+-- Metadata table for vault state and configuration
+CREATE TABLE IF NOT EXISTS meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Insert initial metadata
-INSERT OR IGNORE INTO vault_metadata (key, value) VALUES ('schema_version', '1.0');
-INSERT OR IGNORE INTO vault_metadata (key, value) VALUES ('created_at', datetime('now'));
-INSERT OR IGNORE INTO vault_metadata (key, value) VALUES ('encryption_version', '1');
+INSERT OR IGNORE INTO meta (key, value) VALUES ('schema_version', '1.0');
+INSERT OR IGNORE INTO meta (key, value) VALUES ('created_at', datetime('now'));
+INSERT OR IGNORE INTO meta (key, value) VALUES ('encryption_mode', 'field-level');
+INSERT OR IGNORE INTO meta (key, value) VALUES ('selector_version', '1');
+INSERT OR IGNORE INTO meta (key, value) VALUES ('migration_complete', '0');

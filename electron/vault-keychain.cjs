@@ -7,12 +7,14 @@ const keytar = require('keytar');
 const crypto = require('crypto');
 
 const SERVICE_NAME = 'agent-max-desktop';
-const ACCOUNT_NAME = 'vault-encryption-key';
+const ACCOUNT_NAME_KEY = 'vault-encryption-key';
+const ACCOUNT_NAME_IDENTITY = 'vault-identity-id';
 
 class VaultKeychain {
   constructor() {
     this.serviceName = SERVICE_NAME;
-    this.accountName = ACCOUNT_NAME;
+    this.accountNameKey = ACCOUNT_NAME_KEY;
+    this.accountNameIdentity = ACCOUNT_NAME_IDENTITY;
   }
 
   /**
@@ -28,7 +30,7 @@ class VaultKeychain {
    */
   async storeKey(key) {
     try {
-      await keytar.setPassword(this.serviceName, this.accountName, key);
+      await keytar.setPassword(this.serviceName, this.accountNameKey, key);
       console.log('✓ Encryption key stored in OS keychain');
       return true;
     } catch (error) {
@@ -43,13 +45,42 @@ class VaultKeychain {
    */
   async retrieveKey() {
     try {
-      const key = await keytar.getPassword(this.serviceName, this.accountName);
+      const key = await keytar.getPassword(this.serviceName, this.accountNameKey);
       if (key) {
         console.log('✓ Encryption key retrieved from OS keychain');
       }
       return key;
     } catch (error) {
       console.error('Failed to retrieve key from keychain:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Store identity_id in OS keychain
+   * @param {string} identityId - UUID for this user
+   */
+  async storeIdentityId(identityId) {
+    try {
+      await keytar.setPassword(this.serviceName, this.accountNameIdentity, identityId);
+      console.log('✓ Identity ID stored in OS keychain');
+      return true;
+    } catch (error) {
+      console.error('Failed to store identity ID:', error);
+      throw new Error(`Identity storage failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Retrieve identity_id from OS keychain
+   * @returns {string|null} - UUID or null if not found
+   */
+  async getIdentityId() {
+    try {
+      const id = await keytar.getPassword(this.serviceName, this.accountNameIdentity);
+      return id;
+    } catch (error) {
+      console.error('Failed to retrieve identity ID:', error);
       return null;
     }
   }
