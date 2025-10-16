@@ -2297,5 +2297,3 @@ export default function FloatBar({
     </div>
   );
 }
-
-export default FloatBar;

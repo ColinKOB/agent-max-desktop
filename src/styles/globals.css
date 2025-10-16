@@ -392,7 +392,19 @@
   -webkit-backdrop-filter: none !important;
 }
 
-.amx-mini::before,
+.amx-mini::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: transparent;
+  backdrop-filter: var(--glass-filter, blur(22px));
+  -webkit-backdrop-filter: var(--glass-filter, blur(22px));
+  box-shadow: none;
+  pointer-events: none;
+  z-index: 0;
+}
+
 .amx-bar::before,
 .amx-card::before {
   content: '';
