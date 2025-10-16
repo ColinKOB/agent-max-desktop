@@ -332,6 +332,38 @@ class ContextSelector {
   }
 
   /**
+   * Compute deterministic hash of context
+   */
+  _computeHash(slices) {
+    // Deterministic: sort by ID first to ensure stable order
+    const sorted = [...slices].sort((a, b) => a.id.localeCompare(b.id));
+    const stable = sorted.map(s => `${s.id}:${s.text.slice(0, 20)}`).join('|');
+    
+    // Real SHA-256 (not demo hash)
+    const crypto = require('crypto');
+    return crypto.createHash('sha256').update(stable, 'utf8').digest('hex').slice(0, 12);
+  }
+
+  /**
+   * Stable sort with deterministic tie-breaking
+   * Sort by: priority DESC, updated_at DESC, id ASC
+   */
+  _stableSort(slices) {
+    return slices.sort((a, b) => {
+      // 1. Priority DESC
+      if (a.priority !== b.priority) return b.priority - a.priority;
+      
+      // 2. Updated_at DESC (or created_at if no updated)
+      const aTime = a.updated_at || a.created_at || '';
+      const bTime = b.updated_at || b.created_at || '';
+      if (aTime !== bTime) return bTime.localeCompare(aTime);
+      
+      // 3. ID ASC (deterministic tie-break)
+      return a.id.localeCompare(b.id);
+    });
+  }
+
+  /**
    * Format selected context for API
    */
   formatForAPI(slices) {
