@@ -700,7 +700,7 @@ export default function FloatBar({
     }
     window.addEventListener('keydown', onHotkey);
     return () => window.removeEventListener('keydown', onHotkey);
-  }, [isMini, isBar, showCardWindow, showPillWindow, focusedMessageIndex, thoughts, showDeleteConfirm]);}
+  }, [isMini, isBar, showCardWindow, showPillWindow, focusedMessageIndex, thoughts, showDeleteConfirm]);
 
   // SSE streaming (placeholder - connect to your backend)
   useEffect(() => {
