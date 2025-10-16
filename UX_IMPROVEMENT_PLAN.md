@@ -146,25 +146,25 @@ Error handling, accessibility, edge cases.
 
 ---
 
-### **Phase 2: Core Flows** (Days 2-4)
+### **Phase 2: Core Flows** 🚧 IN PROGRESS (Days 2-4)
 
-#### ✅ **2.1 Mode Switching Logic**
+#### ✅ **2.1 Mode Switching Logic** ✅ COMPLETE (Day 1)
 **Time:** 3-4 hours  
 **Impact:** HIGH (core interaction model)
 
-- [ ] **Auto-expand to Card on attachment**
+- [x] **Auto-expand to Card on attachment** ✅ SHIPPED (Day 1)
   - Current: Manual expand required
   - New: Attaching screenshot auto-opens Card
   - Trigger: `setScreenshotData` + `setIsOpen(true)`
   - Telemetry: `mode.auto_expand_reason: 'attachment'`
 
-- [ ] **Auto-expand on multi-line**
+- [x] **Auto-expand on multi-line** ✅ SHIPPED (Day 1)
   - Trigger: Input height > 1 line
   - Detection: Track textarea scrollHeight
   - Expand: Bar → Card automatically
   - Telemetry: `mode.auto_expand_reason: 'multiline'`
 
-- [ ] **Remember last mode per position**
+- [x] **Remember last mode per position** ✅ SHIPPED (Day 1)
   - Store: `localStorage.getItem('mode.last:${x},${y}')`
   - Restore: On window open, check storage
   - Save: On mode change
@@ -176,18 +176,18 @@ Error handling, accessibility, edge cases.
 
 ---
 
-#### ✅ **2.2 Stop/Continue Flow**
+#### ✅ **2.2 Stop/Continue Flow** ✅ COMPLETE (Day 1)
 **Time:** 2-3 hours  
 **Impact:** MEDIUM (user control during generation)
 
-- [ ] **Stop button during generation**
+- [x] **Stop button during generation** ✅ SHIPPED (Day 1)
   - Current: No way to stop
   - New: Prominent "Stop" button appears while streaming
   - Position: Replace send button during generation
   - Action: Abort fetch, mark as stopped
   - Telemetry: `gen.stop_clicked`
 
-- [ ] **Continue button after stop**
+- [x] **Continue button after stop** ✅ SHIPPED (Day 1)
   - Current: N/A
   - New: "Continue from here" button after stop
   - Action: Resume generation with existing context + partial response
@@ -221,29 +221,29 @@ Error handling, accessibility, edge cases.
 
 ---
 
-#### ✅ **2.4 Message Actions**
+#### ✅ **2.4 Message Actions** ✅ COMPLETE (Day 1)
 **Time:** 4-5 hours  
 **Impact:** HIGH (user control over conversation)
 
-- [ ] **Copy message**
+- [x] **Copy message** ✅ SHIPPED (Day 1)
   - Trigger: Hover shows actions OR keyboard C
   - Action: Copy message.content to clipboard
   - Feedback: Toast "Copied"
   - Telemetry: `msg.action: 'copy'`
 
-- [ ] **Regenerate response**
+- [x] **Regenerate response** ✅ SHIPPED (Day 1)
   - Trigger: Hover on assistant message OR keyboard R
   - Action: Re-send last user message
   - Clear: Current assistant response
   - Telemetry: `msg.action: 'regenerate'`
 
-- [ ] **Edit user message**
+- [x] **Edit user message** ✅ SHIPPED (Day 1)
   - Trigger: Hover on user message OR keyboard E
   - Action: Load into composer
   - Options: "Edit in place" OR "Fork from here"
   - Telemetry: `msg.action: 'edit'`, `thread.forked: true/false`
 
-- [ ] **Delete message**
+- [x] **Delete message** ✅ SHIPPED (Day 1)
   - Trigger: Hover OR keyboard Backspace+confirm
   - Action: Remove from thoughts array
   - Undo: 5s to restore

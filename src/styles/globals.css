@@ -707,7 +707,12 @@
 }
 
 @supports not (backdrop-filter: blur(1px)) {
-  .amx-mini,
+  .amx-mini {
+    --glass-filter: none;
+    --glass-surface: transparent;
+    --glass-shadow-ring: none;
+  }
+
   .amx-bar,
   .amx-card {
     --glass-filter: none;
