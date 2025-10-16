@@ -325,7 +325,14 @@ class MemoryVault {
     const sid = sessionId || this.currentSessionId;
 
     if (!sid) {
-      return [];
+      // Get vault metadata
+      const metadata = this.db
+        .prepare(
+          `
+        SELECT * FROM meta
+      `
+        )
+        .all();
     }
 
     const messages = this.db
