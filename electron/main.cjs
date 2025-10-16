@@ -18,6 +18,9 @@ const { spawn } = require('child_process');
 const os = require('os');
 const LocalMemoryManager = require('./memory-manager.cjs');
 const IPCValidator = require('./ipc-validator.cjs');
+const { createApplicationMenu } = require('./menu.cjs');
+const { setupAutoUpdater, checkForUpdates } = require('./updater.cjs');
+const { setupCrashReporter, captureError } = require('./crash-reporter.cjs');
 
 let mainWindow;
 let memoryVault;
@@ -209,12 +212,19 @@ function showPillWindow() {
 }
 
 app.whenReady().then(() => {
+  // Initialize crash reporter first (to catch any startup errors)
+  setupCrashReporter();
+  
   // Initialize memory manager
   memoryManager = new LocalMemoryManager();
   console.log('✓ Memory manager initialized');
   console.log('  Storage location:', memoryManager.getMemoryLocation());
 
   createWindow();
+  
+  // Initialize desktop features
+  createApplicationMenu(mainWindow);
+  setupAutoUpdater(mainWindow);
 });
 
 app.on('window-all-closed', () => {
@@ -515,6 +525,17 @@ ipcMain.handle(
 ipcMain.handle('open-settings', () => {
   createSettingsWindow();
   return { success: true };
+});
+
+// Check for updates (manual trigger)
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    const result = await checkForUpdates();
+    return { success: true, result };
+  } catch (error) {
+    captureError(error, { context: 'manual-update-check' });
+    return { success: false, error: error.message };
+  }
 });
 
 // ============================================
