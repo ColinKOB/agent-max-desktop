@@ -74,12 +74,12 @@ This roadmap covers both the **frontend** (agent-max-desktop) and **backend** (A
 - [ ] Migration progress display (if applicable) - Future
 
 #### 2.5 Desktop Features
-- [ ] System tray integration - Pending
-- [ ] Global hotkey (show/hide app) - Pending
-- [ ] Native notifications (task complete) - Pending
-- [ ] Menu bar (File, Edit, View, Help) - Pending
-- [ ] Auto-updater integration - Pending
-- [ ] Crash reporter - Pending
+- [x] System tray integration - Complete (Cmd+click to show/hide)
+- [x] Global hotkey (show/hide app) - Complete (Cmd+Shift+M)
+- [x] Native notifications (task complete) - Complete (IPC ready)
+- [ ] Menu bar (File, Edit, View, Help) - Optional (v2.1)
+- [ ] Auto-updater integration - Optional (v2.1)
+- [ ] Crash reporter - Optional (v2.1)
 
 **Design System:** Tailwind CSS + shadcn/ui components  
 **Icons:** Lucide React  
