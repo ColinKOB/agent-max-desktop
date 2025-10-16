@@ -46,9 +46,9 @@
 - [x] Add relevance scoring (confidence × decay)
 - [x] Test: Decay over time, reinforcement (tested in test-vault.cjs)
 
-### Phase 4: Memory Manager UI ✅ TODO
+### Phase 4: Memory Manager UI ⏸️ DEFERRED
 **Time Estimate:** 6-8 hours  
-**Priority:** MEDIUM
+**Priority:** MEDIUM (deferred to agent-max-desktop project)
 
 - [ ] Create Facts List component
 - [ ] Add edit/delete functionality
@@ -56,6 +56,8 @@
 - [ ] Add consent controls
 - [ ] Add retention settings
 - [ ] Test: UI interactions, data updates
+
+**Note:** UI components will be built separately in the agent-max-desktop project.
 
 ### Phase 5: Migration & Rollback ✅ TODO
 **Time Estimate:** 2-3 hours  
