@@ -1884,28 +1884,84 @@ export default function FloatBar({
                 return (
                   <div
                     key={idx}
-                    className={`amx-message amx-message-${thought.type} ${
-                      isHovered ? 'hovered' : ''
-                    } ${isFocused ? 'focused' : ''}`}
+                    className={`amx-message amx-message-${thought.type} ${isFocused ? 'amx-message-focused' : ''}`}
+                    onMouseEnter={() => setHoveredMessageIndex(idx)}
+                    onMouseLeave={() => setHoveredMessageIndex(null)}
+                    onFocus={() => setFocusedMessageIndex(idx)}
+                    onBlur={() => setFocusedMessageIndex(null)}
+                    tabIndex={0}
                   >
-                    {thought.type === 'user' && <span className="amx-message-label">You</span>}
-                    {thought.type === 'agent' && <span className="amx-message-label">Agent Max</span>}
-                    {thought.type === 'thought' && (
-                      <span className="amx-thought-label">Thinking</span>
+                    {thought.type === 'user' && <div className="amx-message-label">YOU</div>}
+                    {thought.type === 'agent' && <div className="amx-message-label">AGENT MAX</div>}
+                    {thought.type === 'thought' && <div className="amx-thought-label">THINKING</div>}
+                    {thought.type === 'debug' && <div className="amx-debug-label">DEBUG</div>}
+                    {thought.type === 'error' && <div className="amx-error-label">ERROR</div>}
+                    
+                    {/* UX Phase 2: Message actions */}
+                    {(isHovered || isFocused) && (thought.type === 'user' || thought.type === 'agent') && (
+                      <div className="amx-message-actions">
+                        <button
+                          className="amx-message-action"
+                          onClick={() => handleCopyMessage(thought, idx)}
+                          title="Copy (C)"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                        {thought.type === 'agent' && (
+                          <button
+                            className="amx-message-action"
+                            onClick={() => handleRegenerateMessage(idx)}
+                            title="Regenerate (R)"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                          </button>
+                        )}
+                        {thought.type === 'user' && (
+                          <button
+                            className="amx-message-action"
+                            onClick={() => handleEditMessage(thought, idx, false)}
+                            title="Edit (E)"
+                          >
+                            <span className="text-xs font-semibold">Edit</span>
+                          </button>
+                        )}
+                        <button
+                          className="amx-message-action amx-message-action-danger"
+                          onClick={() => handleDeleteMessage(idx)}
+                          title="Delete (Backspace)"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     )}
-                    {thought.type === 'debug' && <span className="amx-debug-label">Debug Info</span>}
-                    {thought.type === 'error' && <span className="amx-error-label">Error</span>}
-                    <div className="amx-message-content" style={{ whiteSpace: 'pre-wrap' }}>
+                    
+                    {/* Delete confirmation */}
+                    {showDeleteConfirm === idx && (
+                      <div className="amx-delete-confirm">
+                        <span>Delete this message?</span>
+                        <div className="flex gap-2">
+                          <button
+                            className="amx-delete-confirm-btn amx-delete-confirm-yes"
+                            onClick={() => confirmDeleteMessage(idx)}
+                          >
+                            Delete
+                          </button>
+                          <button
+                            className="amx-delete-confirm-btn amx-delete-confirm-no"
+                            onClick={() => setShowDeleteConfirm(null)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="amx-message-content">
                       {renderMessageWithLinks(thought.content)}
                     </div>
-                  )}
-                  {thought.type === 'debug' && <span className="amx-debug-label">Debug Info</span>}
-                  {thought.type === 'error' && <span className="amx-error-label">Error</span>}
-                  <div className="amx-message-content" style={{ whiteSpace: 'pre-wrap' }}>
-                    {renderMessageWithLinks(thought.content)}
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {isThinking && (
                 <div className="amx-thinking-indicator">
                   <Loader2 className="w-4 h-4 animate-spin" />
