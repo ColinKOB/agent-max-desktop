@@ -2199,3 +2199,69 @@
     display: none;
   }
 }
+
+/* ============================================
+   TOOLS PANEL - Glass Design System
+   Matches chat card aesthetic with liquid glass
+   ============================================ */
+
+/* Tools card container - liquid glass like amx-card */
+.amx-tools-card {
+  border-radius: 18px;
+  overflow: hidden;
+  
+  /* Liquid glass composition matching chat cards */
+  background:
+    radial-gradient(190% 240% at 25% -12%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 58%, rgba(255, 255, 255, 0) 78%),
+    linear-gradient(150deg, rgba(82, 146, 255, 0.16), rgba(122, 83, 255, 0.12), rgba(255, 163, 102, 0.06)),
+    rgba(255, 255, 255, 0.08);
+  
+  backdrop-filter: blur(14px) saturate(1.25);
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+  
+  /* Rim lighting and depth */
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.35),
+    inset 0 -1px rgba(255, 255, 255, 0.18),
+    0 20px 60px rgba(0, 0, 0, 0.4);
+  
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Tools header - subtle glass */
+.amx-tools-header {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Close button with glass effect */
+.amx-close-btn {
+  background: transparent;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.amx-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* Scrollbar styling for glass panels */
+.amx-tools-card ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.amx-tools-card ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.amx-tools-card ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.amx-tools-card ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
