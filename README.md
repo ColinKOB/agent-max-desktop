@@ -41,7 +41,7 @@ npm run dev
 - **Mode Memory** - Resumes preferred mode per screen corner
 - **IME Protection** - Proper Asian language input handling
 
-See [RELEASE_NOTES_v2.0.md](RELEASE_NOTES_v2.0.md) for full details.
+See [RELEASE_NOTES_v2.0.md](docs/RELEASE_NOTES_v2.0.md) for full details.
 
 ---
 
@@ -62,15 +62,21 @@ See [RELEASE_NOTES_v2.0.md](RELEASE_NOTES_v2.0.md) for full details.
 
 ## 📚 Documentation
 
-- **[Release Notes](RELEASE_NOTES_v2.0.md)** - What's new in v2.0
-- **[Ship Checklist](SHIP_CHECKLIST.md)** - Deployment guide
-- **[Implementation Summary](IMPLEMENTATION_SUMMARY.md)** - Technical deep dive
-- **[UX Plan](UX_IMPROVEMENT_PLAN.md)** - Full feature roadmap
+**📖 [Complete Documentation Index](docs/README.md)** - Navigate all 100+ documentation files organized by category
 
-### Phase Documentation
-- **[Phase 1 Complete](PHASE1_COMPLETE.md)** - Immediate wins
-- **[Phase 2 Complete](PHASE2_COMPLETE.md)** - Core flows
-- **[Phase 3 Complete](PHASE3_COMPLETE.md)** - Power features
+### Quick Links
+- **[Release Notes](docs/RELEASE_NOTES_v2.0.md)** - What's new in v2.0
+- **[Ship Checklist](docs/SHIP_CHECKLIST.md)** - Deployment guide
+- **[Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md)** - Technical deep dive
+- **[UX Plan](docs/design/UX_IMPROVEMENT_PLAN.md)** - Full feature roadmap
+
+### Documentation Categories
+- **[Guides](docs/guides/)** - Installation, building, deployment, and integration guides
+- **[Architecture](docs/architecture/)** - Technical architecture and system design
+- **[Design](docs/design/)** - UI/UX design, brand guidelines, and glass effects
+- **[Phases](docs/phases/)** - Development phases and milestone completions
+- **[Fixes](docs/fixes/)** - Bug fixes and debugging reports
+- **[Testing](docs/testing/)** - Test reports, plans, and instructions
 
 ---
 
@@ -108,7 +114,7 @@ All events include \`ux_schema: 'v1'\` for future-proof metrics.
 - Conversation Management
 - Performance (TTFT)
 
-See [UX_IMPROVEMENT_PLAN.md](UX_IMPROVEMENT_PLAN.md) for full event list.
+See [UX_IMPROVEMENT_PLAN.md](docs/design/UX_IMPROVEMENT_PLAN.md) for full event list.
 
 ---
 
@@ -162,7 +168,7 @@ npm test
 
 ## 🤝 Contributing
 
-1. Read the [UX Improvement Plan](UX_IMPROVEMENT_PLAN.md)
+1. Read the [UX Improvement Plan](docs/design/UX_IMPROVEMENT_PLAN.md)
 2. Check existing issues/PRs
 3. Follow the existing code style
 4. Add telemetry for new features
@@ -194,6 +200,6 @@ Built with discipline. Shipped with confidence.
 
 ---
 
-**Questions?** See [SHIP_CHECKLIST.md](SHIP_CHECKLIST.md) for support info.
+**Questions?** See [SHIP_CHECKLIST.md](docs/SHIP_CHECKLIST.md) for support info.
 
 **Feedback?** We'd love to hear what you think about search, switcher, and message actions!
