@@ -25,6 +25,14 @@
     "test:jest:coverage": "jest --coverage",
     "lint": "eslint . --ext .js,.jsx,.cjs",
     "lint:fix": "eslint . --ext .js,.jsx,.cjs --fix",
+    "stylelint": "stylelint \"src/**/*.css\"",
+    "stylelint:fix": "stylelint \"src/**/*.css\" --fix",
+    "test:a11y": "node scripts/test-a11y.js",
+    "test:vr": "node scripts/test-visual-regression.js",
+    "test:perf": "node scripts/test-performance.js",
+    "test:glass-fallbacks": "node scripts/test-glass-fallbacks.js",
+    "test:screenshot": "node scripts/test-screenshot.js",
+    "ui:preview": "open test-glass-ui.html",
     "format": "prettier --write \"**/*.{js,jsx,cjs,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{js,jsx,cjs,json,css,md}\""
   },
@@ -120,9 +128,14 @@
     "jsdom": "^27.0.0",
     "postcss": "^8.4.32",
     "prettier": "^3.6.2",
+    "stylelint": "^16.1.0",
+    "stylelint-config-standard": "^36.0.0",
     "tailwindcss": "^3.4.0",
     "vite": "^5.0.8",
     "vitest": "^1.0.4",
-    "wait-on": "^7.2.0"
+    "wait-on": "^7.2.0",
+    "@axe-core/playwright": "^4.8.3",
+    "playwright": "^1.40.1",
+    "puppeteer": "^21.6.1"
   }
 }

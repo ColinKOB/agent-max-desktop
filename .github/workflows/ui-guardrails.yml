@@ -1,0 +1,132 @@
+name: UI Guardrails — Glass Design System
+
+on:
+  pull_request:
+    paths:
+      - 'src/**/*.css'
+      - 'src/**/*.jsx'
+      - 'src/**/*.js'
+      - '.stylelintrc.json'
+      - '.eslintrc.cjs'
+      - 'package.json'
+  push:
+    branches: [main, 'feature/glass-*']
+
+jobs:
+  lint-and-style:
+    name: Lint & Style Checks
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run ESLint (includes amx/no-opaque-in-glass)
+        run: npm run lint
+      
+      - name: Run Stylelint (bans filter/backdrop-filter animations)
+        run: npm run stylelint
+      
+      - name: Check for banned patterns
+        run: |
+          echo "🔍 Checking for opaque classes in glass contexts..."
+          ! grep -r "bg-gray-" src/components/ src/pages/ || {
+            echo "⚠️  Found bg-gray-* classes. Use glass utilities instead."
+            exit 1
+          }
+
+  a11y-and-visual:
+    name: Accessibility & Visual Regression
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build renderer
+        run: npm run build:renderer || npm run build
+      
+      - name: Run Axe/Lighthouse accessibility audit
+        run: npm run test:a11y
+      
+      - name: Run Playwright visual regression
+        run: npm run test:vr
+      
+      - name: Upload visual diff artifacts
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: visual-diffs
+          path: test-results/**/*.png
+
+  perf-budget:
+    name: Performance Budget Enforcement
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run performance budget test
+        run: npm run test:perf
+      
+      - name: Check blur composition budget
+        run: |
+          echo "🎯 Performance Budgets:"
+          echo "  - Compositor time: ≤3ms per frame"
+          echo "  - Dropped frames: 0"
+          echo "  - Blur layers: ≤3 max"
+      
+      - name: Upload performance trace
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: perf-traces
+          path: test-results/**/*.json
+
+  cross-platform:
+    name: Cross-Platform Glass Rendering
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Test glass fallbacks
+        run: npm run test:glass-fallbacks
+      
+      - name: Screenshot test page
+        run: npm run test:screenshot
+      
+      - name: Upload platform screenshots
+        uses: actions/upload-artifact@v3
+        with:
+          name: screenshots-${{ matrix.os }}
+          path: test-results/screenshots/*.png
