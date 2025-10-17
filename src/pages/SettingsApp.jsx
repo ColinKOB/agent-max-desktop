@@ -21,9 +21,11 @@ export default function SettingsApp() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-950">
-      {/* Header */}
-      <div className="bg-gray-900 border-b border-gray-800 p-4 flex items-center justify-between flex-shrink-0">
+    <>
+      <div id="backdrop"></div>
+      <div className="main-ui h-screen flex flex-col bg-gray-950">
+        {/* Header */}
+        <div className="bg-gray-900 border-b border-gray-800 p-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
           <h1 className="text-xl font-bold text-gray-100">Agent Max Settings</h1>
 
@@ -78,6 +80,7 @@ export default function SettingsApp() {
             </div>
           ))}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
