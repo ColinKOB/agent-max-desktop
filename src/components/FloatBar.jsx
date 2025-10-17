@@ -71,6 +71,18 @@ export default function FloatBar({
   // IME protection
   const [isComposing, setIsComposing] = useState(false);
   
+  // Temporary debug aid: auto-expand pill window once for console inspection
+  const forcedPillExpandRef = useRef(false);
+
+  useEffect(() => {
+    if (!isPillWindow || forcedPillExpandRef.current) return;
+    forcedPillExpandRef.current = true;
+
+    setIsMini(false);
+    setIsBar(true);
+    setIsOpen(false);
+  }, [isPillWindow, setIsMini, setIsBar, setIsOpen]);
+
   // UX Phase 3: In-conversation search
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');

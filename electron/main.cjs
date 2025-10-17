@@ -52,7 +52,7 @@ function createWindow() {
     frame: false,
     transparent: true,
     alwaysOnTop: true,
-    resizable: false, // Non-resizable pill
+    resizable: true, // TEMP: allow manual resizing for debugging
     skipTaskbar: false,
     webPreferences: {
       nodeIntegration: false,
@@ -79,6 +79,9 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    if (process.env.NODE_ENV === 'development') {
+      mainWindow.webContents.openDevTools({ mode: 'detach' });
+    }
   });
 
   // Add Content Security Policy

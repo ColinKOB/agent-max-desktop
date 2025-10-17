@@ -13,11 +13,50 @@
  * @param {boolean} defaultValue - Default if not set
  * @returns {boolean}
  */
+const getEnvValue = (key) => {
+  // Prefer process.env when available (main process / preload)
+  if (typeof process !== 'undefined' && process?.env && key in process.env) {
+    return process.env[key];
+  }
+
+  // Fallback to Vite-style import.meta.env (renderer)
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    if (key in import.meta.env) {
+      return import.meta.env[key];
+    }
+
+    const viteKey = `VITE_${key}`;
+    if (viteKey in import.meta.env) {
+      return import.meta.env[viteKey];
+    }
+  }
+
+  return undefined;
+};
+
 const getEnvFlag = (key, defaultValue = false) => {
-  const value = process.env[key];
+  const value = getEnvValue(key);
   if (value === undefined) return defaultValue;
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
   return value === '1' || value === 'true';
 };
+
+const getEnvMode = () => {
+  const fromProcess = typeof process !== 'undefined' ? process?.env?.NODE_ENV : undefined;
+  if (fromProcess) return fromProcess;
+
+  if (typeof import.meta !== 'undefined' && import.meta.env?.MODE) {
+    return import.meta.env.MODE;
+  }
+
+  return undefined;
+};
+
+const isDevelopmentMode = () => getEnvMode() === 'development';
 
 /**
  * Feature Flags Configuration
@@ -59,7 +98,7 @@ const flags = {
    * Development: Show feature flag toggle UI in settings
    * @type {boolean}
    */
-  GLASS_DEV_TOGGLE: getEnvFlag('GLASS_DEV_TOGGLE', process.env.NODE_ENV === 'development'),
+  GLASS_DEV_TOGGLE: getEnvFlag('GLASS_DEV_TOGGLE', isDevelopmentMode()),
 };
 
 /**
@@ -94,7 +133,7 @@ export function isGlassEnabled(feature) {
  * @param {boolean} value - New value
  */
 export function setGlassFlag(feature, value) {
-  if (process.env.NODE_ENV !== 'development') {
+  if (!isDevelopmentMode()) {
     console.warn('[FeatureFlags] Runtime flag changes only allowed in development');
     return;
   }
@@ -134,7 +173,7 @@ export function getGlassClass(feature, glassClass, fallbackClass = '') {
 export { flags };
 
 // Log flag state on load (dev only)
-if (process.env.NODE_ENV === 'development') {
+if (isDevelopmentMode()) {
   console.group('[FeatureFlags] Glass UI Configuration');
   console.table(runtimeFlags);
   console.groupEnd();
