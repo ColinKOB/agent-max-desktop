@@ -72,6 +72,32 @@ git diff main..feature/glass-profile-card src/components/ProfileCard.jsx
 
 ---
 
+### Commit 5: `eb444a5` — Phase A1: Settings Appearance ✅
+**Title:** feat(glass): Phase A1 - Settings Appearance with flags + telemetry  
+**Branch:** `feature/glass-settings-appearance`  
+**Files:** 3 files changed, 721 insertions(+), 42 deletions(-)
+
+**Key Deliverables:**
+- `src/utils/telemetry.js` (NEW - 155 lines)
+- `src/pages/Settings.jsx` (Modified - Appearance section only)
+- `GLASS_UI_EVIDENCE.md` (NEW - this file)
+
+**Scope (Limited):**
+- ✅ Settings wrapper → `.amx-settings-app` / `.amx-settings-container`
+- ✅ Appearance panel → `.amx-settings-panel`
+- ✅ Theme toggle buttons → Glass styling
+- ✅ Feature flag → `GLASS_SETTINGS` (default: false)
+- ✅ Telemetry → `logGlassRendered()` on mount
+- ❌ Other sections unchanged (API, Screen Control, etc.)
+
+**Verification:**
+```bash
+git show eb444a5 --stat
+git diff d083cfe..eb444a5 src/pages/Settings.jsx
+```
+
+---
+
 ## ✅ Pre-Merge Verification (ProfileCard)
 
 ### 1. Grep Check: No Opaque Classes
