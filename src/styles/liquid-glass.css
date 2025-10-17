@@ -1,0 +1,327 @@
+/**
+ * Liquid Glass Design System
+ * DOM-driven glass stack with controllable depth
+ * 
+ * Architecture:
+ * - Single viewport backdrop (filter: blur once)
+ * - Cards use backdrop-filter to sample backdrop
+ * - Tint + rim + noise for visual richness
+ */
+
+/* ========================================
+   1. CSS Custom Properties
+   ======================================== */
+
+:root {
+  /* Blur radii */
+  --blur-card: 18px;
+  --blur-nested: 10px;
+  --blur-heavy: 12px;
+  
+  /* Saturation */
+  --sat: 1.2;
+  
+  /* Base layers */
+  --base: rgba(255, 255, 255, 0.12);
+  --base-nested: rgba(255, 255, 255, 0.08);
+  
+  /* Strokes */
+  --stroke: rgba(255, 255, 255, 0.10);
+  --stroke-nested: rgba(255, 255, 255, 0.12);
+  
+  /* Rim light */
+  --rim: rgba(255, 255, 255, 0.35);
+  
+  /* Shadows */
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.15);
+  
+  /* Text colors */
+  --text-heading: rgba(255, 255, 255, 0.95);
+  --text-body: rgba(255, 255, 255, 0.92);
+  --text-muted: rgba(255, 255, 255, 0.65);
+  --text-subtle: rgba(255, 255, 255, 0.45);
+}
+
+/* ========================================
+   2. Viewport Backdrop Layer
+   ======================================== */
+
+#backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  
+  /* Wallpaper proxy: tint + gentle gradients */
+  background:
+    radial-gradient(140% 180% at 15% -20%, #9bb2ff33 0%, transparent 60%),
+    linear-gradient(180deg, #0b0c10, #0b0c10);
+  
+  /* Heavy blur once (not per card) */
+  filter: blur(28px) saturate(1.2);
+  
+  /* Keep on compositor */
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Main UI layer */
+.main-ui {
+  position: relative;
+  z-index: 1;
+}
+
+/* ========================================
+   3. Noise Texture (Data URI)
+   ======================================== */
+
+.amx-noise {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 2 2'><rect width='2' height='2' fill='rgba(0,0,0,0)'/><rect x='0' y='0' width='1' height='1' fill='rgba(255,255,255,0.015)'/><rect x='1' y='1' width='1' height='1' fill='rgba(255,255,255,0.015)'/></svg>");
+  background-size: 32px 32px;
+}
+
+/* ========================================
+   4. Primary Liquid Glass Surface
+   ======================================== */
+
+.amx-liquid {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  
+  /* Multi-layer background for depth */
+  background:
+    radial-gradient(160% 200% at 25% -20%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 60%, rgba(255, 255, 255, 0) 80%),
+    linear-gradient(150deg, rgba(110, 145, 255, 0.12), rgba(144, 92, 255, 0.10), rgba(255, 165, 110, 0.05)),
+    var(--base);
+  
+  /* Sample the viewport backdrop */
+  backdrop-filter: saturate(var(--sat)) blur(var(--blur-card));
+  -webkit-backdrop-filter: saturate(var(--sat)) blur(var(--blur-card));
+  
+  /* Hairline border */
+  border: 1px solid var(--stroke);
+  
+  /* Depth shadow */
+  box-shadow: var(--shadow);
+  
+  /* Smooth animations (no filter) */
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+/* Rim light (top edge glow) */
+.amx-liquid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(to bottom, var(--rim), rgba(255, 255, 255, 0) 42%);
+  opacity: 1;
+}
+
+/* Noise overlay (soft-light blend) */
+.amx-liquid.amx-noise::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: inherit;
+  opacity: 0.6;
+  mix-blend-mode: soft-light;
+}
+
+/* ========================================
+   5. Nested Glass Surfaces
+   ======================================== */
+
+.amx-liquid-nested {
+  border-radius: 14px;
+  background: var(--base-nested);
+  backdrop-filter: blur(var(--blur-nested));
+  -webkit-backdrop-filter: blur(var(--blur-nested));
+  border: 1px solid var(--stroke-nested);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+/* Hover states */
+.amx-liquid-nested:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+/* ========================================
+   6. Typography
+   ======================================== */
+
+.amx-heading {
+  color: var(--text-heading);
+  font-weight: 700;
+}
+
+.amx-body {
+  color: var(--text-body);
+}
+
+.amx-muted {
+  color: var(--text-muted);
+}
+
+.amx-subtle {
+  color: var(--text-subtle);
+}
+
+/* ========================================
+   7. Focus Rings (Visible on Glass)
+   ======================================== */
+
+:where(button, [role='button'], input, select, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.75);
+  outline-offset: 2px;
+  transition: outline 0.12s ease;
+}
+
+/* ========================================
+   8. Motion Discipline
+   ======================================== */
+
+/* Never animate filters (causes compositor thrashing) */
+* {
+  transition-property: opacity, transform, color, background-color, border-color, box-shadow;
+  transition-duration: 0.12s;
+  transition-timing-function: ease;
+}
+
+/* Explicit reset for filter/backdrop-filter */
+*:not(#backdrop) {
+  transition-property: opacity, transform, color, background-color, border-color, box-shadow !important;
+}
+
+/* ========================================
+   9. Reduced Transparency Fallback
+   ======================================== */
+
+@media (prefers-reduced-transparency: reduce) {
+  #backdrop {
+    filter: none;
+    background: #0b0c10;
+  }
+  
+  .amx-liquid,
+  .amx-liquid-nested {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: none;
+  }
+  
+  /* Speed up animations */
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* ========================================
+   10. Force Opaque Mode (Windows/Linux)
+   ======================================== */
+
+html.force-opaque #backdrop {
+  display: none;
+}
+
+html.force-opaque .amx-liquid,
+html.force-opaque .amx-liquid-nested {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+html.force-opaque .amx-heading,
+html.force-opaque .amx-body {
+  color: rgba(0, 0, 0, 0.95);
+}
+
+html.force-opaque .amx-muted {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+/* ========================================
+   11. Utility Classes
+   ======================================== */
+
+/* Sizing */
+.amx-liquid-sm {
+  border-radius: 14px;
+}
+
+.amx-liquid-lg {
+  border-radius: 24px;
+}
+
+/* Padding presets */
+.amx-p-card {
+  padding: 1rem;
+}
+
+.amx-p-panel {
+  padding: 1.5rem;
+}
+
+/* Interactive states */
+.amx-interactive {
+  cursor: pointer;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.amx-interactive:hover {
+  transform: translateY(-2px);
+}
+
+.amx-interactive:active {
+  transform: translateY(0);
+}
+
+/* Disabled state */
+.amx-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ========================================
+   12. Layout Helpers
+   ======================================== */
+
+/* Full-height glass container */
+.amx-container-full {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Centered glass card */
+.amx-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+/* ========================================
+   13. Performance Hints
+   ======================================== */
+
+/* Compositor hints for smooth animations */
+.amx-liquid,
+.amx-liquid-nested {
+  will-change: transform;
+}
+
+/* Remove will-change after animation */
+.amx-liquid:not(:hover),
+.amx-liquid-nested:not(:hover) {
+  will-change: auto;
+}

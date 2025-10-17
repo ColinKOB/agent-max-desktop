@@ -5,6 +5,7 @@ import App from './App.jsx';
 import SettingsApp from './pages/SettingsApp.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import './styles/globals.css';
+import './styles/liquid-glass.css';
 
 const PillApp = () => <App windowMode="pill" />;
 const CardApp = () => <App windowMode="card" />;

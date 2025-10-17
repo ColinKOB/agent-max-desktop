@@ -143,62 +143,55 @@ export default function Settings() {
   };
 
   return (
-    <div className={useGlass ? 'amx-settings-app' : 'p-6 max-w-4xl mx-auto'}>
-      <div className={useGlass ? 'amx-settings-container' : ''}>
-        <h1 className={useGlass ? 'amx-settings-title' : 'text-2xl font-bold text-gray-100 mb-6'}>Settings</h1>
+    <div className={useGlass ? 'p-6 max-w-4xl mx-auto' : 'p-6 max-w-4xl mx-auto'}>
+      <h1 className={useGlass ? 'amx-heading text-2xl mb-6' : 'text-2xl font-bold text-gray-100 mb-6'}>Settings</h1>
 
-        {/* Theme Settings */}
-        <div className={useGlass ? 'amx-settings-panel' : 'card mb-6'}>
-          <div className={useGlass ? 'amx-panel-header' : 'flex items-center space-x-2 mb-4'}>
-            {theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-            <h2 className={useGlass ? '' : 'text-lg font-bold text-gray-100'}>Appearance</h2>
-          </div>
+      {/* Theme Settings */}
+      <div className={useGlass ? 'amx-liquid amx-noise amx-p-panel mb-6' : 'card mb-6'}>
+        <div className="flex items-center space-x-2 mb-4">
+          {theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+          <h2 className={useGlass ? 'amx-heading text-lg' : 'text-lg font-bold text-gray-100'}>Appearance</h2>
+        </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className={useGlass ? 'amx-settings-label' : 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'}>
-                Theme
-              </label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setTheme('light')}
-                  className={useGlass
-                    ? `flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
-                        theme === 'light'
-                          ? 'border-white/40 bg-white/15'
-                          : 'border-white/15 bg-white/5'
-                      }`
-                    : `flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
-                        theme === 'light'
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                          : 'border-gray-200 dark:border-gray-700'
-                      }`
-                  }
-                  style={useGlass ? { color: 'rgba(255,255,255,0.95)' } : {}}
-                >
-                  <Sun className="w-6 h-6 mx-auto mb-1" />
-                  <span className="text-sm font-medium">Light</span>
-                </button>
-                <button
-                  onClick={() => setTheme('dark')}
-                  className={useGlass
-                    ? `flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
-                        theme === 'dark'
-                          ? 'border-white/40 bg-white/15'
-                          : 'border-white/15 bg-white/5'
-                      }`
-                    : `flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
-                        theme === 'dark'
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                          : 'border-gray-200 dark:border-gray-700'
-                      }`
-                  }
-                  style={useGlass ? { color: 'rgba(255,255,255,0.95)' } : {}}
-                >
-                  <Moon className="w-6 h-6 mx-auto mb-1" />
-                  <span className="text-sm font-medium">Dark</span>
-                </button>
-              </div>
+        <div className="space-y-4">
+          <div>
+            <label className={useGlass ? 'amx-body block text-sm font-medium mb-2' : 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'}>
+              Theme
+            </label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setTheme('light')}
+                className={useGlass
+                  ? `amx-liquid-nested flex-1 px-4 py-3 flex flex-col items-center ${
+                      theme === 'light' ? 'ring-2 ring-white/40' : ''
+                    }`
+                  : `flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
+                      theme === 'light'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-700'
+                    }`
+                }
+              >
+                <Sun className={useGlass ? 'w-6 h-6 mb-1 amx-body' : 'w-6 h-6 mb-1'} />
+                <span className={useGlass ? 'text-sm font-medium amx-body' : 'text-sm font-medium'}>Light</span>
+              </button>
+              <button
+                onClick={() => setTheme('dark')}
+                className={useGlass
+                  ? `amx-liquid-nested flex-1 px-4 py-3 flex flex-col items-center ${
+                      theme === 'dark' ? 'ring-2 ring-white/40' : ''
+                    }`
+                  : `flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
+                      theme === 'dark'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-700'
+                    }`
+                }
+              >
+                <Moon className={useGlass ? 'w-6 h-6 mb-1 amx-body' : 'w-6 h-6 mb-1'} />
+                <span className={useGlass ? 'text-sm font-medium amx-body' : 'text-sm font-medium'}>Dark</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -484,7 +477,6 @@ export default function Settings() {
             Built with Electron, React, and TailwindCSS
           </p>
         </div>
-      </div>
       </div>
     </div>
   );
