@@ -481,6 +481,8 @@
   width: 36px;   /* Logo width */
   height: 36px;  /* Logo height (same as width = square) */
   object-fit: contain;  /* Scales image to fit without distortion */
+  -webkit-app-region: no-drag;  /* Allow clicking logo to expand */
+  cursor: pointer;  /* Show pointer cursor */
   user-select: none;  /* Prevents selecting the image */
   -webkit-user-drag: none;  /* Prevents dragging the image itself */
   pointer-events: auto;  /* Allows clicking the logo */
@@ -507,6 +509,8 @@
   /* Position in bottom-left corner */
   position: absolute;
   bottom: 8px;  /* 8px from bottom edge */
+  -webkit-app-region: drag;  /* Drag handle is for dragging */
+  pointer-events: auto;  /* Allow interaction */
   left: 8px;    /* 8px from left edge */
   
   /* Size of the entire grid */

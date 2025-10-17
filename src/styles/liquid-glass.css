@@ -66,10 +66,11 @@
   will-change: transform;
 }
 
-/* Main UI layer */
+/* Main UI layer (Settings window only) */
 .main-ui {
   position: relative;
   z-index: 1;
+  min-height: 100vh;
 }
 
 /* ========================================
