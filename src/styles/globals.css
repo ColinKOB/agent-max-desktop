@@ -397,10 +397,13 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: transparent;
+  /* Light glass tint for visibility */
+  background: rgba(255, 255, 255, 0.12);
   backdrop-filter: var(--glass-filter, blur(22px));
   -webkit-backdrop-filter: var(--glass-filter, blur(22px));
-  box-shadow: none;
+  /* Subtle border for definition */
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   pointer-events: none;
   z-index: 0;
 }
