@@ -34,9 +34,37 @@ export default function FloatBar({
   const isPillWindow = windowMode === 'pill';
   const isSingleWindow = windowMode === 'single';
   const suggestionsEnabled = isSingleWindow;
-  const [isOpen, setIsOpen] = useState(() => (isCardWindow ? true : false));
-  const [isMini, setIsMini] = useState(() => (isCardWindow ? false : true));
-  const [isBar, setIsBar] = useState(false);
+  const [isOpenState, setIsOpenState] = useState(() => (isCardWindow ? true : false));
+  const [isMiniState, setIsMiniState] = useState(() => (isCardWindow ? false : true));
+  const [isBarState, setIsBarState] = useState(false);
+
+  const isOpen = isPillWindow ? false : isOpenState;
+  const isMini = isPillWindow ? true : isMiniState;
+  const isBar = isPillWindow ? false : isBarState;
+
+  const setIsOpen = useCallback(
+    (value) => {
+      if (isPillWindow) return;
+      setIsOpenState(value);
+    },
+    [isPillWindow]
+  );
+
+  const setIsMini = useCallback(
+    (value) => {
+      if (isPillWindow) return;
+      setIsMiniState(value);
+    },
+    [isPillWindow]
+  );
+
+  const setIsBar = useCallback(
+    (value) => {
+      if (isPillWindow) return;
+      setIsBarState(value);
+    },
+    [isPillWindow]
+  );
   const [thoughts, setThoughts] = useState([]);
   const [progress, setProgress] = useState(0);
   const [currentCommand, setCurrentCommand] = useState('');
@@ -591,13 +619,13 @@ export default function FloatBar({
             console.log('[FloatBar] Resizing to CARD mode: 360x520');
             await window.electron.resizeWindow(360, 520);
           } else if (isBar) {
-            // Horizontal bar mode (same height as mini square)
-            console.log('[FloatBar] Resizing to BAR mode: 320x68');
-            await window.electron.resizeWindow(320, 68);
+            // Horizontal bar mode
+            console.log('[FloatBar] Resizing to BAR mode: 320x80');
+            await window.electron.resizeWindow(320, 80);
           } else if (isMini) {
             // Mini square mode
-            console.log('[FloatBar] Resizing to MINI mode: 68x68');
-            await window.electron.resizeWindow(68, 68);
+            console.log('[FloatBar] Resizing to MINI mode: 80x80');
+            await window.electron.resizeWindow(80, 80);
           }
 
           // Debug: Check actual window size after resize
@@ -640,8 +668,9 @@ export default function FloatBar({
           let { x, y, width, height } = bounds;
           let changed = false;
 
-          // Ensure window doesn't go off-screen (with 10px margin)
-          const margin = 10;
+          // Ensure window doesn't go off-screen (with 12px margin)
+          const margin = 12;
+          const isPillOnly = isMini && !isBar && !isOpen;
 
           // Right edge
           if (x + width > screenSize.width - margin) {
@@ -662,6 +691,20 @@ export default function FloatBar({
           if (y < margin) {
             y = margin;
             changed = true;
+          }
+
+          // When only the pill is visible, snap horizontally to nearest screen edge
+          if (isPillOnly) {
+            const leftTarget = margin;
+            const rightLimit = screenSize.width - width - margin;
+            const rightTarget = rightLimit < margin ? margin : rightLimit;
+            const shouldSnapRight = Math.abs(x - rightTarget) < Math.abs(x - leftTarget);
+            const targetX = shouldSnapRight ? rightTarget : leftTarget;
+
+            if (Math.abs(targetX - x) > 1) {
+              x = targetX;
+              changed = true;
+            }
           }
 
           // Only update position if needed (preserve width/height)

@@ -65,8 +65,18 @@ contextBridge.exposeInMainWorld('electron', {
     getStats: () => ipcRenderer.invoke('memory:get-stats'),
     getLocation: () => ipcRenderer.invoke('memory:get-location'),
 
-    // Testing
-    testPreferences: () => ipcRenderer.invoke('memory:test-preferences'),
+    // Telemetry (legacy support)
+    telemetry: {
+      record: (eventType, data) => ipcRenderer.invoke('telemetry:record', { eventType, data }),
+    },
+
+    // Autonomous execution
+    autonomous: {
+      execute: (stepId, action, policy) => 
+        ipcRenderer.invoke('autonomous:execute', { stepId, action, policy }),
+      getStatus: (conversationId) => 
+        ipcRenderer.invoke('autonomous:getStatus', { conversationId }),
+    },
   },
 });
 

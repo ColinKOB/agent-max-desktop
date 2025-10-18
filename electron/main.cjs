@@ -23,6 +23,7 @@ const IPCValidator = require('./ipc-validator.cjs');
 const { createApplicationMenu } = require('./menu.cjs');
 const { setupAutoUpdater, checkForUpdates } = require('./updater.cjs');
 const { setupCrashReporter, captureError } = require('./crash-reporter.cjs');
+const autonomousIPC = require('./autonomousIPC.cjs');
 
 let mainWindow;
 let memoryVault;
@@ -35,9 +36,9 @@ let memoryManager;
 function createWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
 
-  // Initial size: mini square mode (68x68)
-  const windowWidth = 68;
-  const windowHeight = 68;
+  // Initial size: fixed pill mode (80x80)
+  const windowWidth = 80;
+  const windowHeight = 80;
   const margin = 16;
 
   mainWindow = new BrowserWindow({
@@ -45,14 +46,14 @@ function createWindow() {
     height: windowHeight,
     x: screenWidth - windowWidth - margin,
     y: margin,
-    minWidth: 68, // Mini square
-    minHeight: 68,
-    maxWidth: 360, // Full card width
-    maxHeight: 520, // Full card height
+    minWidth: 80,
+    minHeight: 80,
+    maxWidth: 360,
+    maxHeight: 520,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
-    resizable: true, // TEMP: allow manual resizing for debugging
+    resizable: false,
     skipTaskbar: false,
     webPreferences: {
       nodeIntegration: false,
@@ -205,8 +206,8 @@ function showPillWindow() {
   if (cardWindow && !cardWindow.isDestroyed()) {
     const cardBounds = cardWindow.getBounds();
     const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-    const targetX = Math.min(Math.max(cardBounds.x + cardBounds.width - 68, 0), screenWidth - 68);
-    const targetY = Math.min(Math.max(cardBounds.y, 0), screenHeight - 68);
+    const targetX = Math.min(Math.max(cardBounds.x + cardBounds.width - 80, 0), screenWidth - 80);
+    const targetY = Math.min(Math.max(cardBounds.y, 0), screenHeight - 80);
     mainWindow.setPosition(targetX, targetY);
 
     cardWindow.hide();
@@ -219,6 +220,9 @@ function showPillWindow() {
 app.whenReady().then(() => {
   // Initialize crash reporter first (to catch any startup errors)
   setupCrashReporter();
+  
+  // Register autonomous IPC handlers
+  autonomousIPC.register();
   
   // Initialize memory manager
   memoryManager = new LocalMemoryManager();
@@ -353,6 +357,11 @@ ipcMain.handle(
   IPCValidator.createValidatedHandler(
     (event, { width, height }) => {
       if (mainWindow) {
+        if (width < 80) width = 80;
+        if (height < 80) height = 80;
+        if (width > 360) width = 360;
+        if (height > 520) height = 520;
+        mainWindow.setResizable(width > 80 || height > 80);
         console.log(`[Electron] Resizing window to ${width}x${height}`);
         const beforeBounds = mainWindow.getBounds();
         console.log('[Electron] Before resize:', beforeBounds);
@@ -422,14 +431,16 @@ ipcMain.handle(
 ipcMain.handle('switch-to-floatbar', () => {
   if (mainWindow) {
     const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize;
-    const windowWidth = 360;
+    const windowWidth = 80;
     const windowHeight = 80;
     const margin = 16;
 
     mainWindow.setSize(windowWidth, windowHeight);
     mainWindow.setPosition(screenWidth - windowWidth - margin, margin);
     mainWindow.setAlwaysOnTop(true, 'floating', 1);
-    mainWindow.setMaximumSize(windowWidth, 9999); // Allow vertical expansion
+    mainWindow.setMinimumSize(80, 80);
+    mainWindow.setMaximumSize(360, 520);
+    mainWindow.setResizable(false);
   }
 });
 
