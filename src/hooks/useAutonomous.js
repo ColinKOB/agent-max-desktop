@@ -72,13 +72,13 @@ export function useAutonomous() {
         setCurrentAction(actionData);
         setStatus('running');
         
-        // Add to steps list
+        // Add to steps list immediately (real-time update)
         setSteps(prev => [...prev, {
           stepId: actionData.stepId,
           seq: actionData.seq,
           action: actionData.action,
           policy: actionData.policy,
-          status: 'executing',
+          status: 'running', // Changed from 'executing' to match StepCard component
           startedAt: new Date().toISOString()
         }]);
 
@@ -100,13 +100,15 @@ export function useAutonomous() {
           // Acknowledge step after successful result send (for resume capability)
           wsRef.current.acknowledgeStep(actionData.stepId, actionData.conversationId);
           
-          // Update step status
+          // Update step status with evidence (including screenshots)
           setSteps(prev => prev.map(step => 
             step.stepId === actionData.stepId
               ? {
                   ...step,
                   status: executionResult.success ? 'success' : 'failed',
                   result: executionResult.result,
+                  evidence: executionResult.result?.evidence,
+                  screenshot: executionResult.result?.evidence?.screenshot,
                   completedAt: new Date().toISOString()
                 }
               : step

@@ -5,6 +5,39 @@
  */
 import { useState } from 'react';
 
+// Add keyframe animations as a string to inject into the page
+const animations = `
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.85;
+      transform: scale(0.995);
+    }
+  }
+  
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
+
+// Inject animations into page (only once)
+if (typeof document !== 'undefined' && !document.getElementById('step-card-animations')) {
+  const style = document.createElement('style');
+  style.id = 'step-card-animations';
+  style.textContent = animations;
+  document.head.appendChild(style);
+}
+
 export function AutonomousStepCard({ 
   stepNumber,
   actionType,
@@ -54,7 +87,10 @@ export function AutonomousStepCard({
         backgroundColor: '#ffffff',
         border: `2px solid ${getStatusColor()}`,
         borderRadius: '8px',
-        marginBottom: '8px'
+        marginBottom: '8px',
+        animation: status === 'running' 
+          ? 'pulse 2s ease-in-out infinite, fadeInUp 0.3s ease-out' 
+          : 'fadeInUp 0.3s ease-out'
       }}>
         {/* Header */}
         <div style={{

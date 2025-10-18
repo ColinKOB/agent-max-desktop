@@ -9,6 +9,7 @@ import { useAutonomous } from '../hooks/useAutonomous';
 import { UsageIndicator } from './UsageIndicator';
 import { AutonomousProgress } from './AutonomousProgress';
 import { AutonomousStepCard } from './AutonomousStepCard';
+import { ConsentDialog } from './ConsentDialog';
 
 export function AutonomousTest() {
   const { 
@@ -24,6 +25,26 @@ export function AutonomousTest() {
   } = useAutonomous();
 
   const [goal, setGoal] = useState('Test autonomous execution with 3 steps');
+  const [isPaused, setIsPaused] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+  const [consentCache, setConsentCache] = useState({});
+
+  // Define risky action types
+  const riskyActions = [
+    'file_delete',
+    'system_command',
+    'database_delete',
+    'database_update',
+    'network_request_delete',
+    'network_request_put',
+    'write_file'
+  ];
+
+  const isRiskyAction = (actionType) => {
+    return riskyActions.some(risky => 
+      actionType?.toLowerCase().includes(risky.toLowerCase())
+    );
+  };
 
   const handleConnect = async () => {
     try {
@@ -35,10 +56,30 @@ export function AutonomousTest() {
 
   const handleStart = async () => {
     try {
+      setIsPaused(false);
       await startConversation(goal);
     } catch (err) {
       console.error('Failed to start conversation:', err);
     }
+  };
+
+  const handlePause = () => {
+    // Toggle pause state
+    setIsPaused(!isPaused);
+    
+    if (!isPaused) {
+      console.log('[AutonomousTest] Pausing execution...');
+      // Note: Currently just UI feedback - backend pause support can be added later
+    } else {
+      console.log('[AutonomousTest] Resuming execution...');
+    }
+  };
+
+  const handleStop = () => {
+    console.log('[AutonomousTest] Stopping execution...');
+    // Disconnect WebSocket to stop execution
+    disconnect();
+    setIsPaused(false);
   };
 
   const getStatusColor = () => {
@@ -77,12 +118,13 @@ export function AutonomousTest() {
       {/* Connection Status */}
       <div style={{
         padding: '16px',
-        backgroundColor: connected ? '#d1fae5' : '#fee2e2',
+        backgroundColor: connected ? '#d1fae5' : (status === 'connecting' ? '#dbeafe' : '#fee2e2'),
         borderRadius: '8px',
         marginBottom: '20px'
       }}>
-        <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
-          Connection Status: {connected ? '🟢 Connected' : '🔴 Disconnected'}
+        <div style={{ fontWeight: 'bold', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {status === 'connecting' && <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span>}
+          Connection Status: {connected ? '🟢 Connected' : (status === 'connecting' ? '🔵 Connecting...' : '🔴 Disconnected')}
         </div>
         <div style={{ fontSize: '14px', color: '#6b7280' }}>
           Execution Status: {getStatusEmoji()} {status}
@@ -98,9 +140,11 @@ export function AutonomousTest() {
       {status !== 'idle' && steps.length > 0 && (
         <div style={{ marginBottom: '20px' }}>
           <AutonomousProgress
-            currentStep={steps.filter(s => s.status === 'complete').length}
+            currentStep={steps.filter(s => s.status === 'success').length}
             totalSteps={steps.length}
-            status={status}
+            status={isPaused ? 'paused' : status}
+            onPause={status === 'running' || isPaused ? handlePause : null}
+            onStop={status === 'running' ? handleStop : null}
           />
         </div>
       )}
@@ -196,6 +240,35 @@ export function AutonomousTest() {
         )}
       </div>
 
+      {/* Consent Dialog */}
+      {pendingAction && (
+        <ConsentDialog
+          action={pendingAction.action}
+          isRisky={isRiskyAction(pendingAction.action?.type)}
+          onApprove={(remember) => {
+            if (remember) {
+              setConsentCache(prev => ({
+                ...prev,
+                [pendingAction.action.type]: 'approved'
+              }));
+            }
+            setPendingAction(null);
+            console.log('[ConsentDialog] Action approved:', pendingAction.action.type);
+          }}
+          onDeny={(remember) => {
+            if (remember) {
+              setConsentCache(prev => ({
+                ...prev,
+                [pendingAction.action.type]: 'denied'
+              }));
+            }
+            setPendingAction(null);
+            console.log('[ConsentDialog] Action denied:', pendingAction.action.type);
+            // TODO: Send denial to backend
+          }}
+        />
+      )}
+
       {/* Current Action */}
       {currentAction && (
         <div style={{
@@ -251,73 +324,17 @@ export function AutonomousTest() {
             No steps yet. Connect and start a conversation.
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {steps.map((step) => (
-              <div
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {steps.map((step, index) => (
+              <AutonomousStepCard
                 key={step.stepId}
-                style={{
-                  padding: '16px',
-                  backgroundColor: 
-                    step.status === 'success' ? '#d1fae5' :
-                    step.status === 'failed' ? '#fee2e2' :
-                    '#f3f4f6',
-                  borderRadius: '8px',
-                  border: '1px solid #e5e7eb'
-                }}
-              >
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '8px'
-                }}>
-                  <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
-                    {step.status === 'success' ? '✅' :
-                     step.status === 'failed' ? '❌' :
-                     '⏳'} Step {step.seq}
-                  </div>
-                  <div style={{ 
-                    fontSize: '12px',
-                    padding: '4px 8px',
-                    backgroundColor: 
-                      step.status === 'success' ? '#10b981' :
-                      step.status === 'failed' ? '#ef4444' :
-                      '#f59e0b',
-                    color: 'white',
-                    borderRadius: '4px',
-                    fontWeight: '500'
-                  }}>
-                    {step.status}
-                  </div>
-                </div>
-                
-                <div style={{ fontSize: '14px', marginBottom: '4px' }}>
-                  <strong>Action:</strong> {step.action.type}
-                </div>
-                
-                {step.action.args && Object.keys(step.action.args).length > 0 && (
-                  <div style={{ 
-                    fontSize: '12px', 
-                    color: '#6b7280',
-                    marginTop: '8px',
-                    padding: '8px',
-                    backgroundColor: 'rgba(255,255,255,0.5)',
-                    borderRadius: '4px',
-                    fontFamily: 'monospace'
-                  }}>
-                    {JSON.stringify(step.action.args, null, 2)}
-                  </div>
-                )}
-                {step.completedAt && (
-                  <div style={{ 
-                    fontSize: '11px', 
-                    color: '#9ca3af',
-                    marginTop: '8px'
-                  }}>
-                    Completed: {new Date(step.completedAt).toLocaleTimeString()}
-                  </div>
-                )}
-              </div>
+                stepNumber={index + 1}
+                actionType={step.action?.type || 'unknown'}
+                actionArgs={step.action?.args}
+                status={step.status || 'pending'}
+                screenshot={step.evidence?.screenshot || step.screenshot}
+                error={step.error}
+              />
             ))}
           </div>
         )}
