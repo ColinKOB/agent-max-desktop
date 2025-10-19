@@ -327,11 +327,6 @@
   display: none;
 }
 
-/* No gradient backdrop - clean black */
-.amx-root.amx-card::before {
-  display: none;
-}
-
 /* ============================================
    MINI PILL MODE (68x68px)
    The collapsed state - small square with logo
@@ -840,7 +835,10 @@
   /* 🔤 TEXT STYLE */
   font-weight: var(--weight-semibold);  /* 600 (semi-bold) */
   font-size: var(--text-title-size);  /* 22px */
-  color: rgba(16, 18, 30, 0.95);  /* Dark ink color */
+  color: rgba(255, 255, 255, 0.92);  /* Bright ink color */
+  text-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.35),
+    0 0 8px rgba(70, 130, 255, 0.3);
   letter-spacing: var(--tracking-tight);  /* -0.2px (tighter letters) */
   
   /* 📏 SPACING */
