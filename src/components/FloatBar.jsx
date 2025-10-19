@@ -2041,6 +2041,14 @@ export default function FloatBar({
     }
   }, [isMini]);
 
+  useEffect(() => {
+    if (isBar) {
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+    }
+  }, [isBar]);
+
   // Mini square mode - fully collapsed
   if (isMini) {
     return (

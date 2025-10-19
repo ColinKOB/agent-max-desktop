@@ -48,6 +48,7 @@
   --transition: var(--duration-base) var(--ease-base);
 }
 
+/* Force legacy builds to keep the pill surface neutral when no tint is desired */
 .amx-mini::before {
   background: transparent;
 }
@@ -352,6 +353,7 @@
 }
 
 .amx-mini {
+  /* Mini pill is pure blur—no fill—to reveal desktop wallpaper underneath */
   --glass-surface: transparent;
   --glass-filter: blur(22px) saturate(1.4);
   --glass-shadow-ring: none;
@@ -359,6 +361,7 @@
 
 .amx-bar,
 .amx-card {
+  /* Bar/card share same multitone tint so transitions look seamless */
   --glass-surface:
     radial-gradient(190% 240% at 25% -12%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 58%, rgba(255, 255, 255, 0) 78%),
     linear-gradient(150deg, rgba(82, 146, 255, 0.16), rgba(122, 83, 255, 0.12), rgba(255, 163, 102, 0.06)),
@@ -442,6 +445,7 @@
   --glass-filter: blur(22px) saturate(1.4);
   --glass-shadow-ring: none;
 
+  /* Users drag anywhere inside pill, so cursor + UX hints reflect that */
   cursor: pointer;
   transition: all var(--duration-base) var(--ease-base);
 
@@ -469,6 +473,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .amx-mini:hover {
+    /* Do not add hover glow—pill should stay discreet on desktop */
     transform: none;
     box-shadow: none;
   }
@@ -602,6 +607,7 @@
   padding: 0 var(--space-3) 0 var(--space-5);  /* 0 12px 0 24px */
   
   /* Appearance - smoked glass bar */
+  /* Surface gradients mimic macOS quick note aesthetic */
   --glass-surface:
     radial-gradient(circle at 50% 50%, rgba(16, 20, 32, 0.16) 0%, rgba(16, 20, 32, 0.14) 56%, rgba(16, 20, 32, 0) 97%);
   --glass-filter: blur(32px) saturate(1.45);
@@ -626,6 +632,7 @@
   background: transparent;
   border: none;
   outline: none;
+  /* Retain legacy bright ink so returning users recognise interaction */
   color: rgba(255, 255, 255, 0.92);  /* Bright ink on smoked glass */
   font-size: var(--text-body-size);  /* 16px */
   font-weight: var(--weight-regular);  /* 400 */
@@ -639,6 +646,7 @@
 }
 
 .amx-bar-input:focus {
+  /* Avoid default focus ring to keep bar minimal; card focus handles accessibility */
   outline: none;
   box-shadow: none;
 }
@@ -660,6 +668,7 @@
 }
 
 .amx-bar-minimize-btn:hover {
+  /* Lift effect reassures user that tap target is interactive */
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(255, 255, 255, 0.8));
   color: rgba(16, 18, 30, 0.97);
   border-color: rgba(255, 255, 255, 0.96);
@@ -671,67 +680,62 @@
 }
 
 .amx-icon-btn {
-  display: flex;  /* Flexbox for centering icon */
-  align-items: center;  /* Center icon vertically */
-  justify-content: center;  /* Center icon horizontally */
-  width: var(--button-md);  /* 36px width */
-  height: var(--button-md);  /* 36px height */
-  border-radius: var(--radius-pill);  /* Full circle */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--amx-button-size);
+  height: var(--amx-button-size);
+  border-radius: var(--amx-radius-sm);
   
-  /* Glass pill with shine */
-  background:
-    linear-gradient(to bottom, 
-      rgba(255, 255, 255, 0.9), 
-      rgba(255, 255, 255, 0.75)
-    );
-  
-  border: 1px solid rgba(255, 255, 255, 0.94);
-  color: rgba(60, 64, 78, 0.98);  /* Dark icon on glass */
+  /* Clean minimal button */
+  background: transparent;
+  border: none;
+  /* Idle icons reuse primary text tone and rely on opacity for hierarchy */
+  color: var(--amx-text);
+  opacity: 0.68;
   cursor: pointer;
-  box-shadow: none;
   
   transition: all var(--duration-fast) var(--ease-base);
-  -webkit-app-region: no-drag;  /* Can click buttons (don't drag) */
+  -webkit-app-region: no-drag;
+}
+
+.amx-icon-btn svg {
+  width: var(--amx-icon-md);
+  height: var(--amx-icon-md);
 }
 
 .amx-icon-btn:hover {
-  background: linear-gradient(to bottom, 
-    rgba(255, 255, 255, 0.96), 
-    rgba(255, 255, 255, 0.84)
-  );
-  border-color: rgba(255, 255, 255, 0.98);
-  transform: translateY(-1px);  /* Lift up */
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .amx-icon-btn:active {
-  transform: translateY(0) scale(0.98);  /* Press down */
+  transform: scale(0.95);
 }
 
 /* ============================================
-   CARD MODE - Proper Glassmorphism Implementation
-   Based on Apple's liquid glass aesthetic
+   CARD MODE - Professional Light UI (V2)
+   Clean, content-first design
    
-   Key elements:
-   - Layered wet highlights (radial gradient)
-   - Color tints (cool blue → violet → warm orange)
-   - Semi-transparent base (28%)
-   - Strong backdrop blur + saturation
-   - Rim lighting (border + inset shadow)
-   - Depth shadow
+   Architecture:
+   - Container: white background, elevation shadow, rounded border
+   - Header (glass chrome): 56px, title + icon buttons
+   - Messages (flat content): white surface, readable typography
+   - Composer (glass chrome): 64px, textarea + controls
    ============================================ */
 .amx-card {
   display: flex;
   flex-direction: column;
   
-  /* Appearance - liquid glass composition */
-  --glass-surface:
-    radial-gradient(190% 240% at 25% -12%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 58%, rgba(255, 255, 255, 0) 78%),
-    linear-gradient(150deg, rgba(82, 146, 255, 0.16), rgba(122, 83, 255, 0.12), rgba(255, 163, 102, 0.06)),
-    rgba(255, 255, 255, 0.08);
-  --glass-filter: blur(14px) saturate(1.25);
-  --glass-shadow-ring:
-    inset 0 1px rgba(255, 255, 255, 0.35),
-    inset 0 -1px rgba(255, 255, 255, 0.18);
+  /* Light professional container */
+  background: var(--amx-surface);
+  border: 1px solid var(--amx-border);
+  box-shadow: var(--amx-shadow);
+  
+  /* Remove glass effects from card root */
+  --glass-surface: transparent;
+  --glass-filter: none;
+  --glass-shadow-ring: none;
   
   overflow: hidden;
   transition: all var(--duration-base) var(--ease-base);
@@ -805,44 +809,42 @@
 
 /* ============================================
    PANEL CONTAINER - Main content area
-   This is the container inside the glass window
+   Flat white content surface (no glass)
    ============================================ */
 .amx-panel {
-  /* 📦 LAYOUT: Stack items vertically */
-  display: flex;  /* Use flexbox */
-  flex-direction: column;  /* Stack items top to bottom */
-  gap: var(--space-2);  /* 8px space between items */
-  
-  /* 📏 SPACING */
-  padding: var(--space-3);  /* 12px padding inside */
-  height: 100%;  /* Fill entire window height */
-  
-  /* 🎨 TEXT COLOR: Rich dark ink for clarity */
-  color: rgba(30, 35, 55, 0.95);
-  background: none !important;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  /* Use white base so message bubbles sit on a neutral reading surface */
+  background: var(--amx-surface);
+  /* Inherit primary text color so nested elements default to readable ink */
+  color: var(--amx-text);
 }
 
 /* ============================================
-   HEADER - Top bar with "Hi, Colin" and buttons
-   This is the draggable title bar at the top
+   HEADER - Glass chrome bar (56px)
+   Title + icon buttons
    ============================================ */
 .amx-header {
-  /* 📦 LAYOUT: Space items left and right */
-  display: flex;  /* Use flexbox */
-  align-items: center;  /* Center vertically */
-  justify-content: space-between;  /* Push items to edges */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   
-  /* 🔤 TEXT STYLE */
-  font-weight: var(--weight-semibold);  /* 600 (semi-bold) */
-  font-size: var(--text-title-size);  /* 22px */
-  color: rgba(255, 255, 255, 0.92);  /* Bright ink color */
-  text-shadow:
-    0 1px 4px rgba(0, 0, 0, 0.35),
-    0 0 8px rgba(70, 130, 255, 0.3);
-  letter-spacing: var(--tracking-tight);  /* -0.2px (tighter letters) */
+  /* Match product spec: chrome stays 56px tall for consistent drag target */
+  height: var(--amx-header-height);
+  padding: 0 var(--amx-space-4);
   
-  /* 📏 SPACING */
-  padding: var(--space-1) 0;  /* 4px top/bottom, 0 left/right */
+  /* Subtle glass effect for chrome only */
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--amx-border);
+  
+  /* Typography */
+  font-size: var(--amx-text-18);
+  font-weight: var(--weight-semibold);
+  color: var(--amx-text);
+  letter-spacing: var(--tracking-tight);
 }
 
 /* 👆 DRAG HANDLE: Makes the header draggable */
@@ -856,19 +858,21 @@
    ICON BUTTONS - Glassmorphism style (defined above)
    ============================================ */
 
-/* Thoughts stream area */
+/* Thoughts/Messages stream area */
 .amx-thoughts {
   flex: 1;
   overflow-y: auto;
-  font-size: var(--text-caption-size);  /* 13px */
-  opacity: 0.9;
-  margin: var(--space-1) 0;
+  /* Internal padding keeps conversation bubbles away from chrome edges */
+  padding: var(--amx-space-4);
+  font-size: var(--amx-text-14);
+  color: var(--amx-text);
   scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  scrollbar-color: var(--amx-border) transparent;
 }
 
 .amx-thoughts::-webkit-scrollbar {
   width: 6px;
+  /* Compact scrollbar mirrors Electron floating-window styling */
 }
 
 .amx-thoughts::-webkit-scrollbar-track {
@@ -876,8 +880,8 @@
 }
 
 .amx-thoughts::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: var(--radius-sm);
+  background: var(--amx-border);
+  border-radius: var(--amx-radius-sm);
 }
 
 /* Empty state */
@@ -887,23 +891,25 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  opacity: 0.5;
+  /* Muted palette keeps empty state secondary to primary actions */
+  color: var(--amx-text-muted);
 }
 
 .amx-empty-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
+  font-size: var(--amx-text-24);
+  margin-bottom: var(--amx-space-3);
+  opacity: 0.4;
 }
 
 .amx-empty-text {
-  font-size: var(--text-body-size);
-  color: var(--muted);
-  opacity: 0.7;
+  font-size: var(--amx-text-14);
+  color: var(--amx-text-muted);
 }
 
 /* Message bubbles */
 .amx-message {
-  margin-bottom: 12px;
+  margin-bottom: var(--amx-space-2);
+  /* Lightweight entrance animation keeps transcript lively without jank */
   animation: slideIn 0.2s ease-out;
   position: relative;
   outline: none;
@@ -911,24 +917,26 @@
 }
 
 .amx-message:focus {
-  outline: 2px solid rgba(15, 181, 174, 0.4);
+  /* Keyboard users get accent-colored focus halo */
+  outline: 2px solid var(--amx-accent);
   outline-offset: 2px;
-  border-radius: var(--radius-md);
+  border-radius: var(--amx-radius-md);
 }
 
 .amx-message-focused {
-  outline: 2px solid rgba(15, 181, 174, 0.3);
+  outline: 2px solid var(--amx-accent);
   outline-offset: 2px;
 }
 
 .amx-message-label {
   display: block;
-  font-size: 11px;
-  font-weight: var(--weight-semibold);
-  color: rgba(16, 18, 30, 0.55);  /* Subtle ink */
-  margin-bottom: var(--space-1);
+  font-size: var(--amx-text-12);
+  font-weight: var(--weight-medium);
+  color: var(--amx-text-muted);
+  margin-bottom: var(--amx-space-1);
   text-transform: uppercase;
   letter-spacing: var(--tracking-wide);
+  opacity: 0.6;
 }
 
 .amx-thought-label {
@@ -964,68 +972,51 @@
 }
 
 .amx-message-content {
-  padding: var(--space-2) var(--space-3);  /* 8px 12px */
-  border-radius: var(--radius-md);
-  line-height: var(--text-body-lh);
-  font-size: var(--text-caption-size);
+  padding: var(--amx-space-3);
+  border-radius: var(--amx-radius-md);
+  line-height: 1.5;
+  font-size: var(--amx-text-14);
+  /* Limit width so long responses remain readable inside tall card */
+  max-width: 640px;
 }
 
 /* ============================================
    CHAT BUBBLES - User Messages
-   Messages you send to the AI
-   
-   CUSTOMIZATION:
-   - Different color: Change --bubble variable
-   - More contrast: Increase --bubble opacity
-   - Larger text: Modify font-size in .amx-message-content
+   Light gray background for distinction
    ============================================ */
 .amx-message-user .amx-message-content {
-  background: rgba(255, 255, 255, 0.95);  /* Nearly opaque white for readability */
-  backdrop-filter: blur(10px);  /* Slight blur for depth */
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--border);
-  color: var(--text);  /* Dark text */
-  border-radius: var(--radius-md);  /* 12px */
+  background: var(--amx-surface-subtle);
+  border: 1px solid var(--amx-border);
+  /* Gentle contrast keeps user voice distinct without heavy color */
+  color: var(--amx-text);
   box-shadow: none;
-  font-size: var(--text-body-size);  /* 16px */
-  line-height: var(--text-body-lh);  /* 1.5 */
 }
 
 /* ============================================
    CHAT BUBBLES - AI/Agent Messages
-   Responses from the AI
-   
-   Same styling as user messages for consistency
+   White background with subtle left accent
    ============================================ */
 .amx-message-agent .amx-message-content {
-  background: rgba(255, 255, 255, 0.95);  /* Nearly opaque white for readability */
-  backdrop-filter: blur(10px);  /* Slight blur for depth */
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--border);
-  border-left: 2px solid var(--accent);  /* Teal left rule for scannability */
-  color: var(--text);  /* Dark text */
-  border-radius: var(--radius-md);  /* 12px */
+  background: var(--amx-surface);
+  border: 1px solid var(--amx-border);
+  border-left: 2px solid var(--amx-accent);
+  /* Accent rail anchors brand color while keeping body copy neutral */
+  color: var(--amx-text);
   box-shadow: none;
-  font-size: var(--text-body-size);  /* 16px */
-  line-height: var(--text-body-lh);  /* 1.5 */
 }
 
 /* ============================================
    THOUGHT/DEBUG MESSAGES
    System messages showing AI thinking process
-   
-   CUSTOMIZATION:
-   - More visible: Increase opacity (0.75 → 0.9)
-   - Solid border: Change 'dashed' to 'solid'
-   - Different style: Remove italic
    ============================================ */
 .amx-message-thought .amx-message-content {
-  background: var(--subsurface);  /* Light gray */
-  border: 1px dashed var(--border);
-  color: var(--muted);
+  background: var(--amx-surface-subtle);
+  border: 1px dashed var(--amx-border);
+  /* Dashed outline signals diagnostic content separate from chat */
+  color: var(--amx-text-muted);
   font-style: italic;
-  font-size: var(--text-caption-size);  /* 13px */
-  opacity: 0.85;
+  font-size: var(--amx-text-12);
+  opacity: 0.9;
 }
 
 /* Debug message */
@@ -1063,6 +1054,82 @@
   color: rgba(0, 0, 0, 0.95);
   font-size: 12px;
 }
+/* ============================================
+   COMPOSER - Glass chrome footer (64px)
+   Input area with textarea + controls
+   ============================================ */
+.amx-composer {
+  display: flex;
+  align-items: center;
+  gap: var(--amx-space-2);
+  min-height: var(--amx-composer-height);
+  padding: var(--amx-space-3) var(--amx-space-4);
+  
+  /* Subtle glass effect for chrome */
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--amx-border);
+  
+  -webkit-app-region: no-drag;
+}
+
+.amx-composer textarea {
+  flex: 1;
+  min-height: 36px;
+  max-height: 120px;
+  padding: var(--amx-space-2) var(--amx-space-3);
+  
+  /* Clean input styling */
+  background: var(--amx-surface);
+  border: 1px solid var(--amx-border);
+  border-radius: var(--amx-radius-md);
+  
+  font-size: var(--amx-text-14);
+  color: var(--amx-text);
+  line-height: 1.5;
+  
+  resize: none;
+  outline: none;
+  transition: all var(--duration-fast) var(--ease-base);
+}
+
+.amx-composer textarea::placeholder {
+  color: var(--amx-text-muted);
+}
+
+.amx-composer textarea:focus {
+  border-color: var(--amx-accent);
+  outline: 2px solid var(--amx-accent);
+  outline-offset: -1px;
+  opacity: 0.6;
+}
+
+.amx-composer-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--amx-radius-md);
+  
+  background: var(--amx-accent);
+  border: none;
+  color: white;
+  cursor: pointer;
+  
+  transition: all var(--duration-fast) var(--ease-base);
+}
+
+.amx-composer-btn:hover {
+  background: var(--amx-accent-hover);
+  transform: translateY(-1px);
+}
+
+.amx-composer-btn:active {
+  transform: scale(0.95);
+}
+
 /* Thinking indicator */
 .amx-thinking-indicator {
   display: flex;
@@ -1199,10 +1266,10 @@
 /* Input hint */
 .amx-input-hint {
   font-size: 11px;
-  color: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.75);
   margin-bottom: 6px;
   padding: 4px 8px;
-  background: rgba(122, 162, 255, 0.08);
+  background: rgba(0, 0, 0, 0.35);
   border-radius: 6px;
   animation: fadeIn 0.2s ease-out;
 }

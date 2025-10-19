@@ -15,221 +15,254 @@
    ======================================== */
 :root {
   /* Glass Base Colors */
-  --liquid-glass-bg: 255 255 255;
-  --liquid-glass-alpha: 0.28;
-  --liquid-glass-border: 255 255 255;
+  /* RGB values without alpha for use with rgba() syntax */
+  --liquid-glass-bg: 255 255 255; /* Pure white base for light mode glass */
+  --liquid-glass-alpha: 0.28; /* 28% opacity—translucent enough to see through */
+  --liquid-glass-border: 255 255 255; /* White borders to create rim light effect */
   
   /* Text Colors - High Contrast */
-  --liquid-ink-primary: 16 18 30;
-  --liquid-ink-secondary: 60 64 78;
+  /* RGB values ensure WCAG AA compliance on glass surfaces */
+  --liquid-ink-primary: 16 18 30; /* Nearly black for maximum readability */
+  --liquid-ink-secondary: 60 64 78; /* Softer gray for secondary text */
   
   /* Tint Colors for Gradients */
-  --liquid-tint-blue: 82 146 255;
-  --liquid-tint-violet: 122 83 255;
-  --liquid-tint-orange: 255 163 102;
+  /* RGB values for accent overlays—these create subtle color washes */
+  --liquid-tint-blue: 82 146 255; /* Cool blue accent mimics iOS system blue */
+  --liquid-tint-violet: 122 83 255; /* Purple adds depth to gradients */
+  --liquid-tint-orange: 255 163 102; /* Warm orange creates contrast */
   
   /* Effects */
-  --liquid-blur: 28px;
-  --liquid-blur-heavy: 40px;
-  --liquid-blur-light: 14px;
-  --liquid-saturation: 1.6;
+  /* Backdrop blur creates the frosted glass illusion */
+  --liquid-blur: 28px; /* Standard blur for main surfaces */
+  --liquid-blur-heavy: 40px; /* Extra blur for elevated cards */
+  --liquid-blur-light: 14px; /* Subtle blur for nested elements */
+  --liquid-saturation: 1.6; /* 160% saturation enriches colors seen through glass */
   
   /* Border Radius */
-  --liquid-radius-xl: 24px;
-  --liquid-radius-lg: 18px;
-  --liquid-radius-md: 12px;
-  --liquid-radius-sm: 8px;
+  /* Apple's design language favors generous rounding for soft, friendly shapes */
+  --liquid-radius-xl: 24px; /* Large cards and panels */
+  --liquid-radius-lg: 18px; /* Medium cards */
+  --liquid-radius-md: 12px; /* Buttons and inputs */
+  --liquid-radius-sm: 8px; /* Small chips and tags */
   
   /* Shadows */
-  --liquid-shadow-xl: 0 25px 50px -12px rgba(0 0 0 / 0.25);
-  --liquid-shadow-lg: 0 20px 25px -5px rgba(0 0 0 / 0.1);
-  --liquid-shadow-md: 0 10px 15px -3px rgba(0 0 0 / 0.1);
-  --liquid-shadow-sm: 0 4px 6px -1px rgba(0 0 0 / 0.1);
+  /* Multi-layer shadows create depth and elevation hierarchy */
+  --liquid-shadow-xl: 0 25px 50px -12px rgba(0 0 0 / 0.25); /* Floating modals */
+  --liquid-shadow-lg: 0 20px 25px -5px rgba(0 0 0 / 0.1); /* Elevated cards */
+  --liquid-shadow-md: 0 10px 15px -3px rgba(0 0 0 / 0.1); /* Standard cards */
+  --liquid-shadow-sm: 0 4px 6px -1px rgba(0 0 0 / 0.1); /* Buttons and chips */
   
   /* Shine Gradient */
+  /* Diagonal gradient simulates light reflection on wet glass */
   --liquid-shine: linear-gradient(
-    to bottom right,
-    rgba(255, 255, 255, 0.35) 0%,
-    rgba(255, 255, 255, 0.18) 40%,
-    rgba(255, 255, 255, 0.08) 60%,
-    rgba(255, 255, 255, 0) 100%
+    to bottom right, /* Top-left to bottom-right creates natural light angle */
+    rgba(255, 255, 255, 0.35) 0%, /* Bright highlight at top-left corner */
+    rgba(255, 255, 255, 0.18) 40%, /* Mid-tone transition */
+    rgba(255, 255, 255, 0.08) 60%, /* Fades to subtle */
+    rgba(255, 255, 255, 0) 100% /* Fully transparent at bottom-right */
   );
   
   /* Animations */
-  --liquid-transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --liquid-spring: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  /* Timing functions create fluid, natural motion */
+  --liquid-transition: 150ms cubic-bezier(0.4, 0, 0.2, 1); /* Fast ease-out for micro-interactions */
+  --liquid-spring: cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Bouncy spring for playful entrances */
 }
 
 /* ========================================
    LIQUID GLASS CARD
    ======================================== */
 .liquid-glass {
-  position: relative;
-  border-radius: var(--liquid-radius-xl);
-  overflow: hidden;
+  position: relative; /* Required for absolute-positioned shine layer */
+  border-radius: var(--liquid-radius-xl); /* Soft 24px corners */
+  overflow: hidden; /* Clips child elements to rounded bounds */
   
   /* Multi-layer glass effect */
+  /* Stacks three gradients top-to-bottom to create depth */
   background:
+    /* Layer 1: Top-left spotlight creates directional light source */
     radial-gradient(
-      1600px 900px at 10% -30%,
-      rgba(255, 255, 255, 0.65) 0%,
-      rgba(255, 255, 255, 0) 60%
+      1600px 900px at 10% -30%, /* Huge ellipse positioned top-left */
+      rgba(255, 255, 255, 0.65) 0%, /* Bright white at center */
+      rgba(255, 255, 255, 0) 60% /* Fades to transparent at edges */
     ),
+    /* Layer 2: Diagonal color gradient adds warmth and dimension */
     linear-gradient(
-      to bottom right,
-      rgba(var(--liquid-tint-blue) / 0.10),
-      rgba(var(--liquid-tint-violet) / 0.08),
-      rgba(var(--liquid-tint-orange) / 0.05)
+      to bottom right, /* Top-left blue → bottom-right orange */
+      rgba(var(--liquid-tint-blue) / 0.10), /* Blue tint at top */
+      rgba(var(--liquid-tint-violet) / 0.08), /* Violet in middle */
+      rgba(var(--liquid-tint-orange) / 0.05) /* Orange at bottom */
     ),
+    /* Layer 3: Base translucent white gives glass its core color */
     rgba(var(--liquid-glass-bg) / var(--liquid-glass-alpha));
   
   /* Backdrop filter for true glass effect */
+  /* Blurs background content behind element for frosted look */
   backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturation));
-  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturation));
+  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturation)); /* Safari */
   
   /* Border with rim light */
+  /* Semi-transparent white border mimics light catching glass edge */
   border: 1px solid rgba(var(--liquid-glass-border) / 0.55);
   
   /* Depth shadow */
+  /* Combines outer drop shadow with inner rim highlight */
   box-shadow:
-    var(--liquid-shadow-lg),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.35);
+    var(--liquid-shadow-lg), /* Outer shadow lifts card off surface */
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.35); /* Inner glow strengthens edge */
   
   /* Smooth animations */
+  /* All properties animate for fluid state changes */
   transition: all var(--liquid-transition);
 }
 
 /* Wet highlight layer */
+/* Overlay gradient simulates light reflection on wet glass surface */
 .liquid-glass-highlight {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: var(--liquid-shine);
-  opacity: 0.8;
-  mix-blend-mode: overlay;
+  position: absolute; /* Positioned over parent card */
+  inset: 0; /* Covers entire card */
+  pointer-events: none; /* Allows clicks to pass through to card */
+  background: var(--liquid-shine); /* Diagonal white gradient */
+  opacity: 0.8; /* Subtle enough to see card content underneath */
+  mix-blend-mode: overlay; /* Blends with card colors for natural look */
 }
 
 /* Size variants */
+/* Predefined padding scales for common card sizes */
 .liquid-glass-sm {
-  padding: 16px;
-  border-radius: var(--liquid-radius-lg);
+  padding: 16px; /* Compact cards for tight layouts */
+  border-radius: var(--liquid-radius-lg); /* Slightly smaller radius */
 }
 
 .liquid-glass-md {
-  padding: 24px;
-  border-radius: var(--liquid-radius-xl);
+  padding: 24px; /* Standard card size */
+  border-radius: var(--liquid-radius-xl); /* Default 24px radius */
 }
 
 .liquid-glass-lg {
-  padding: 32px;
-  border-radius: 28px;
+  padding: 32px; /* Large cards with breathing room */
+  border-radius: 28px; /* Extra-large radius for hero cards */
 }
 
 /* Variant: Subtle */
+/* Lower-opacity glass for nested or secondary surfaces */
 .liquid-glass-subtle {
+  /* Simpler two-layer background keeps it lightweight */
   background:
-    var(--liquid-shine),
-    rgba(255, 255, 255, 0.28);
-  backdrop-filter: blur(var(--liquid-blur-light));
-  -webkit-backdrop-filter: blur(var(--liquid-blur-light));
+    var(--liquid-shine), /* Shine layer for wet look */
+    rgba(255, 255, 255, 0.28); /* Modest translucency */
+  backdrop-filter: blur(var(--liquid-blur-light)); /* Reduced blur (14px) */
+  -webkit-backdrop-filter: blur(var(--liquid-blur-light)); /* Safari */
 }
 
 /* Variant: Nested */
+/* Lighter glass for cards inside other glass surfaces */
 .liquid-glass-nested {
-  background: rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(var(--liquid-blur-light));
-  -webkit-backdrop-filter: blur(var(--liquid-blur-light));
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: var(--liquid-radius-md);
+  background: rgba(255, 255, 255, 0.18); /* Even more translucent */
+  backdrop-filter: blur(var(--liquid-blur-light)); /* Light blur avoids over-processing */
+  -webkit-backdrop-filter: blur(var(--liquid-blur-light)); /* Safari */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* Slightly stronger border for definition */
+  border-radius: var(--liquid-radius-md); /* Smaller 12px radius */
 }
 
 /* Variant: Elevated */
+/* Premium glass for modals and floating panels */
 .liquid-glass-elevated {
+  /* Triple-layer background for maximum depth */
   background:
+    /* Intense spotlight positioned off top-left for dramatic lighting */
     radial-gradient(
-      1200px 800px at -20% -40%,
-      rgba(255, 255, 255, 0.75) 0%,
-      rgba(255, 255, 255, 0) 60%
+      1200px 800px at -20% -40%, /* Large gradient starting outside bounds */
+      rgba(255, 255, 255, 0.75) 0%, /* Brightest white highlight */
+      rgba(255, 255, 255, 0) 60% /* Smooth fade to transparent */
     ),
-    var(--liquid-shine),
-    rgba(255, 255, 255, 0.35);
-  backdrop-filter: blur(var(--liquid-blur-heavy));
-  -webkit-backdrop-filter: blur(var(--liquid-blur-heavy));
-  box-shadow: var(--liquid-shadow-xl);
+    var(--liquid-shine), /* Wet reflection layer */
+    rgba(255, 255, 255, 0.35); /* Stronger base opacity for prominence */
+  backdrop-filter: blur(var(--liquid-blur-heavy)); /* Heavy 40px blur for max frosting */
+  -webkit-backdrop-filter: blur(var(--liquid-blur-heavy)); /* Safari */
+  box-shadow: var(--liquid-shadow-xl); /* Extra-large shadow floats card high */
 }
 
 /* Interactive state */
+/* Adds hover and press effects for clickable glass surfaces */
 .liquid-glass-interactive {
-  cursor: pointer;
+  cursor: pointer; /* Show hand cursor to indicate clickability */
 }
 
 .liquid-glass-interactive:hover {
-  transform: translateY(-2px) scale(1.01);
+  /* Lift and slightly scale card on hover for responsive feedback */
+  transform: translateY(-2px) scale(1.01); /* Lifts 2px up, grows 1% */
   box-shadow:
-    var(--liquid-shadow-xl),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.5);
+    var(--liquid-shadow-xl), /* Stronger shadow emphasizes lift */
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.5); /* Brighter rim light */
 }
 
 .liquid-glass-interactive:active {
-  transform: translateY(0) scale(0.99);
+  /* Press down effect when clicked */
+  transform: translateY(0) scale(0.99); /* Returns to original height, shrinks 1% */
 }
 
 /* ========================================
    LIQUID GOO EFFECT
+   Animated blobs that merge using SVG goo filter
    ======================================== */
 .liquid-glass-goo {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  filter: url(#liquid-goo);
+  position: absolute; /* Overlay on parent card */
+  inset: 0; /* Fills entire card */
+  overflow: hidden; /* Clips blobs to card bounds */
+  pointer-events: none; /* Decorative layer—allows clicks through */
+  filter: url(#liquid-goo); /* References SVG <filter> for goo merge effect */
 }
 
 .blob {
-  position: absolute;
-  width: 150px;
+  /* Individual animated bubble */
+  position: absolute; /* Positioned within goo container */
+  width: 150px; /* Base size for blob */
   height: 150px;
-  border-radius: 50%;
+  border-radius: 50%; /* Perfect circle */
+  /* Radial gradient creates 3D sphere illusion */
   background: radial-gradient(
-    circle at 30% 30%,
-    rgba(255, 255, 255, 0.9),
-    rgba(255, 255, 255, 0.25)
+    circle at 30% 30%, /* Highlight at top-left simulates light source */
+    rgba(255, 255, 255, 0.9), /* Bright center */
+    rgba(255, 255, 255, 0.25) /* Darker edges */
   );
-  mix-blend-mode: screen;
-  animation: liquid-float 15s ease-in-out infinite;
+  mix-blend-mode: screen; /* Blend mode allows blobs to merge visually */
+  animation: liquid-float 15s ease-in-out infinite; /* Slow floating motion */
 }
 
 .blob-1 {
-  left: 10%;
+  left: 10%; /* Positioned near top-left */
   top: 10%;
-  animation-delay: 0s;
+  animation-delay: 0s; /* Starts immediately */
 }
 
 .blob-2 {
-  left: 40%;
+  left: 40%; /* Center-left position */
   top: 30%;
-  animation-delay: 2s;
-  width: 120px;
+  animation-delay: 2s; /* Staggered start creates organic motion */
+  width: 120px; /* Slightly smaller than blob-1 */
   height: 120px;
 }
 
 .blob-3 {
-  right: 10%;
+  right: 10%; /* Positioned bottom-right */
   bottom: 10%;
-  animation-delay: 4s;
-  width: 180px;
+  animation-delay: 4s; /* Further staggered for varied timing */
+  width: 180px; /* Largest blob for visual hierarchy */
   height: 180px;
 }
 
 @keyframes liquid-float {
+  /* Organic floating animation with scale changes */
   0%, 100% {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1); /* Start and end at origin */
   }
   33% {
-    transform: translate3d(30px, -30px, 0) scale(1.1);
+    /* First movement: drift up-right and grow */
+    transform: translate3d(30px, -30px, 0) scale(1.1); /* Moves right 30px, up 30px, grows 10% */
   }
   66% {
-    transform: translate3d(-20px, 20px, 0) scale(0.9);
+    /* Second movement: drift down-left and shrink */
+    transform: translate3d(-20px, 20px, 0) scale(0.9); /* Moves left 20px, down 20px, shrinks 10% */
   }
 }
 
@@ -237,264 +270,298 @@
    LIQUID BUTTONS
    ======================================== */
 .liquid-btn {
-  position: relative;
-  padding: 12px 24px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 0.2px;
-  transition: all var(--liquid-transition);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  -webkit-app-region: no-drag;
+  /* Base button with pill shape and glass effect */
+  position: relative; /* Needed for internal pseudo-elements */
+  padding: 12px 24px; /* Comfortable hit target */
+  border-radius: 999px; /* Full pill shape (any value >= height/2) */
+  font-weight: 600; /* Semibold for clarity */
+  font-size: 14px; /* Readable at standard viewing distance */
+  letter-spacing: 0.2px; /* Slight tracking improves readability */
+  transition: all var(--liquid-transition); /* Smooth state changes */
+  cursor: pointer; /* Hand cursor indicates interactivity */
+  display: inline-flex; /* Flexbox aligns icon + text */
+  align-items: center; /* Vertical centering */
+  gap: 8px; /* Space between icon and label */
+  -webkit-app-region: no-drag; /* Prevents button from dragging Electron window */
 }
 
 /* Primary button - Glowing glass */
+/* Highest emphasis for main actions */
 .liquid-btn-primary {
+  /* Vertical gradient creates glossy, dimensional look */
   background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.75),
-    rgba(255, 255, 255, 0.55)
+    to bottom, /* Top-to-bottom gradient */
+    rgba(255, 255, 255, 0.75), /* Brighter at top (light source above) */
+    rgba(255, 255, 255, 0.55) /* Slightly darker at bottom */
   );
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  color: rgb(var(--liquid-ink-primary));
+  border: 1px solid rgba(255, 255, 255, 0.6); /* Defined edge */
+  color: rgb(var(--liquid-ink-primary)); /* High-contrast dark text */
+  /* Dual shadow: outer drop shadow + inner rim highlight */
   box-shadow:
-    0 6px 18px rgba(0, 0, 0, 0.08),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.6);
+    0 6px 18px rgba(0, 0, 0, 0.08), /* Soft elevation shadow */
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.6); /* Inner glow */
 }
 
 .liquid-btn-primary:hover {
-  transform: translateY(-1px);
+  transform: translateY(-1px); /* Lifts button 1px on hover */
+  /* Brighter gradient on hover for responsive feedback */
   background: linear-gradient(
     to bottom,
-    rgba(255, 255, 255, 0.85),
-    rgba(255, 255, 255, 0.65)
+    rgba(255, 255, 255, 0.85), /* Even brighter at top */
+    rgba(255, 255, 255, 0.65) /* Lighter at bottom */
   );
+  /* Stronger shadow emphasizes lift */
   box-shadow:
-    0 10px 22px rgba(0, 0, 0, 0.12),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.7);
+    0 10px 22px rgba(0, 0, 0, 0.12), /* Deeper drop shadow */
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.7); /* Brighter rim */
 }
 
 .liquid-btn-primary:active {
-  transform: translateY(0);
+  transform: translateY(0); /* Returns to original position when pressed */
 }
 
 /* Secondary button - Subtle glass */
+/* Medium emphasis for secondary actions */
 .liquid-btn-secondary {
+  /* Lower opacity gradient for subtler appearance */
   background: linear-gradient(
     to bottom,
-    rgba(255, 255, 255, 0.45),
-    rgba(255, 255, 255, 0.30)
+    rgba(255, 255, 255, 0.45), /* Moderately translucent top */
+    rgba(255, 255, 255, 0.30) /* More translucent bottom */
   );
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  color: rgb(var(--liquid-ink-primary));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.4); /* Softer border */
+  color: rgb(var(--liquid-ink-primary)); /* Same dark text */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Lighter shadow */
 }
 
 .liquid-btn-secondary:hover {
-  transform: translateY(-1px);
+  transform: translateY(-1px); /* Same lift on hover */
+  /* Slightly brighter gradient on hover */
   background: linear-gradient(
     to bottom,
-    rgba(255, 255, 255, 0.55),
-    rgba(255, 255, 255, 0.40)
+    rgba(255, 255, 255, 0.55), /* Boost opacity at top */
+    rgba(255, 255, 255, 0.40) /* Boost opacity at bottom */
   );
 }
 
 /* Ghost button - Minimal glass */
+/* Lowest emphasis for tertiary actions */
 .liquid-btn-ghost {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgb(var(--liquid-ink-primary));
+  background: rgba(255, 255, 255, 0.1); /* Barely visible background */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* Faint border */
+  color: rgb(var(--liquid-ink-primary)); /* Text provides primary visibility */
 }
 
 .liquid-btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.2); /* Doubles opacity on hover */
+  border-color: rgba(255, 255, 255, 0.3); /* Slightly more defined border */
 }
 
 /* Pill button - Ultra glossy */
+/* Premium variant with maximum shine and depth */
 .liquid-btn-pill {
+  /* Nearly opaque gradient for bold, glossy appearance */
   background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.9),
-    rgba(255, 255, 255, 0.7)
+    180deg, /* Vertical gradient (same as 'to bottom') */
+    rgba(255, 255, 255, 0.9), /* Almost solid white at top */
+    rgba(255, 255, 255, 0.7) /* Still quite opaque at bottom */
   );
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  color: rgb(var(--liquid-ink-primary));
+  border: 1px solid rgba(255, 255, 255, 0.8); /* Strong border definition */
+  color: rgb(var(--liquid-ink-primary)); /* Dark text on light button */
+  /* Heavy shadows create prominent 3D effect */
   box-shadow:
-    0 8px 20px rgba(0, 0, 0, 0.1),
-    inset 0 1px 2px rgba(255, 255, 255, 0.9);
+    0 8px 20px rgba(0, 0, 0, 0.1), /* Pronounced drop shadow */
+    inset 0 1px 2px rgba(255, 255, 255, 0.9); /* Top inner highlight simulates gloss */
 }
 
 .liquid-btn-pill:hover {
-  transform: translateY(-2px) scale(1.05);
+  transform: translateY(-2px) scale(1.05); /* Lifts 2px and grows 5% for playful bounce */
+  /* Enhanced shadows on hover */
   box-shadow:
-    0 12px 24px rgba(0, 0, 0, 0.15),
-    inset 0 1px 2px rgba(255, 255, 255, 1);
+    0 12px 24px rgba(0, 0, 0, 0.15), /* Deeper shadow */
+    inset 0 1px 2px rgba(255, 255, 255, 1); /* Fully opaque inner highlight */
 }
 
 /* Button sizes */
+/* Three predefined sizes for common use cases */
 .liquid-btn-sm {
-  padding: 8px 16px;
-  font-size: 13px;
+  padding: 8px 16px; /* Compact for tight spaces */
+  font-size: 13px; /* Smaller text */
 }
 
 .liquid-btn-md {
-  padding: 12px 24px;
-  font-size: 14px;
+  padding: 12px 24px; /* Default balanced size */
+  font-size: 14px; /* Standard readable size */
 }
 
 .liquid-btn-lg {
-  padding: 16px 32px;
-  font-size: 16px;
+  padding: 16px 32px; /* Large for hero CTAs */
+  font-size: 16px; /* Larger text for emphasis */
 }
 
 /* Button loading state */
+/* Spinner icon for async actions */
 .liquid-btn-spinner {
-  width: 16px;
+  width: 16px; /* Small enough to fit inline with text */
   height: 16px;
-  animation: spin 1s linear infinite;
+  animation: spin 1s linear infinite; /* Continuous rotation */
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from { transform: rotate(0deg); } /* Start at 0° */
+  to { transform: rotate(360deg); } /* Full rotation */
 }
 
 /* Button disabled state */
+/* Visual indicator that button is inactive */
 .liquid-btn-disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  opacity: 0.5; /* Faded appearance */
+  cursor: not-allowed; /* Shows 'prohibited' cursor */
 }
 
 /* ========================================
    LIQUID INPUT
    ======================================== */
 .liquid-input {
-  width: 100%;
-  padding: 12px 16px;
-  border-radius: var(--liquid-radius-md);
+  /* Glass text input with frosted background */
+  width: 100%; /* Fill container width */
+  padding: 12px 16px; /* Comfortable typing area */
+  border-radius: var(--liquid-radius-md); /* 12px rounded corners */
+  /* Glossy gradient background */
   background: linear-gradient(
     to bottom,
-    rgba(255, 255, 255, 0.92),
-    rgba(255, 255, 255, 0.78)
+    rgba(255, 255, 255, 0.92), /* Nearly opaque white at top */
+    rgba(255, 255, 255, 0.78) /* Slightly more translucent at bottom */
   );
-  border: 1px solid rgba(255, 255, 255, 0.82);
-  color: rgb(var(--liquid-ink-primary));
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  backdrop-filter: blur(8px) saturate(1.2);
-  -webkit-backdrop-filter: blur(8px) saturate(1.2);
-  transition: all var(--liquid-transition);
-  -webkit-app-region: no-drag;
+  border: 1px solid rgba(255, 255, 255, 0.82); /* Strong white border */
+  color: rgb(var(--liquid-ink-primary)); /* Dark text for readability */
+  font-size: 14px; /* Comfortable reading size */
+  font-weight: 500; /* Medium weight for clarity */
+  letter-spacing: 0.02em; /* Slight tracking improves legibility */
+  backdrop-filter: blur(8px) saturate(1.2); /* Light blur with color boost */
+  -webkit-backdrop-filter: blur(8px) saturate(1.2); /* Safari */
+  transition: all var(--liquid-transition); /* Smooth focus transitions */
+  -webkit-app-region: no-drag; /* Prevent window drag */
 }
 
 .liquid-input::placeholder {
-  color: rgba(var(--liquid-ink-secondary) / 0.7);
+  color: rgba(var(--liquid-ink-secondary) / 0.7); /* Muted gray placeholder */
 }
 
 .liquid-input:focus {
-  outline: 2px solid rgba(var(--liquid-tint-blue) / 0.45);
-  outline-offset: 2px;
+  /* Enhanced appearance when input is active */
+  outline: 2px solid rgba(var(--liquid-tint-blue) / 0.45); /* Blue focus ring */
+  outline-offset: 2px; /* Space between border and outline */
+  /* Brighter background on focus */
   background: linear-gradient(
     to bottom,
-    rgba(255, 255, 255, 0.98),
-    rgba(255, 255, 255, 0.82)
+    rgba(255, 255, 255, 0.98), /* Almost solid white */
+    rgba(255, 255, 255, 0.82) /* Lighter bottom */
   );
-  border-color: rgba(var(--liquid-tint-blue) / 0.6);
-  transform: translateY(-1px);
+  border-color: rgba(var(--liquid-tint-blue) / 0.6); /* Blue border accent */
+  transform: translateY(-1px); /* Subtle lift for feedback */
 }
 
 .liquid-input-error {
-  border-color: rgba(239, 68, 68, 0.6);
+  /* Error state styling */
+  border-color: rgba(239, 68, 68, 0.6); /* Red border indicates validation error */
 }
 
 .liquid-input-error:focus {
-  outline-color: rgba(239, 68, 68, 0.45);
-  border-color: rgba(239, 68, 68, 0.8);
+  /* Red focus ring for error state */
+  outline-color: rgba(239, 68, 68, 0.45); /* Red outline */
+  border-color: rgba(239, 68, 68, 0.8); /* Stronger red border */
 }
 
 /* ========================================
    LIQUID SURFACE - Main App Container
    ======================================== */
 .liquid-surface {
-  position: relative;
-  min-height: 100vh;
-  overflow: hidden;
+  /* Main app container with subtle gradient background */
+  position: relative; /* Establishes stacking context */
+  min-height: 100vh; /* Always fills viewport height */
+  overflow: hidden; /* Prevents scrollbars from animated gradients */
+  /* Soft blue-tinted gradient creates depth */
   background: linear-gradient(
-    135deg,
-    rgba(240, 245, 255, 0.95),
-    rgba(248, 250, 255, 0.95)
+    135deg, /* Diagonal angle adds dimension */
+    rgba(240, 245, 255, 0.95), /* Light blue-white top-left */
+    rgba(248, 250, 255, 0.95) /* Lighter blue-white bottom-right */
   );
 }
 
 /* Animated gradients */
+/* Decorative gradient blobs that drift across background */
 .liquid-surface-gradients {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.6;
+  position: absolute; /* Overlay on surface */
+  inset: 0; /* Cover entire surface */
+  pointer-events: none; /* Decorative only—clicks pass through */
+  opacity: 0.6; /* Subtle so they don't distract from content */
 }
 
 .gradient-1,
 .gradient-2,
 .gradient-3 {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(100px);
-  animation: liquid-drift 20s ease-in-out infinite;
+  /* Shared styles for all gradient blobs */
+  position: absolute; /* Positioned within surface */
+  border-radius: 50%; /* Circular blobs */
+  filter: blur(100px); /* Heavy blur creates soft glow */
+  animation: liquid-drift 20s ease-in-out infinite; /* Slow drift animation */
 }
 
 .gradient-1 {
+  /* Large blue blob in top-left */
   width: 600px;
   height: 600px;
+  /* Radial gradient fades from color to transparent */
   background: radial-gradient(
     circle,
-    rgba(var(--liquid-tint-blue) / 0.3),
-    transparent
+    rgba(var(--liquid-tint-blue) / 0.3), /* Blue at center */
+    transparent /* Fades to invisible at edges */
   );
-  top: -200px;
+  top: -200px; /* Positioned partially off-screen */
   left: -200px;
 }
 
 .gradient-2 {
+  /* Medium violet blob in bottom-right */
   width: 500px;
   height: 500px;
   background: radial-gradient(
     circle,
-    rgba(var(--liquid-tint-violet) / 0.25),
+    rgba(var(--liquid-tint-violet) / 0.25), /* Violet at center */
     transparent
   );
-  bottom: -150px;
+  bottom: -150px; /* Positioned partially off-screen */
   right: -150px;
-  animation-delay: 5s;
+  animation-delay: 5s; /* Starts 5s after page load for staggered motion */
 }
 
 .gradient-3 {
+  /* Small orange blob centered */
   width: 400px;
   height: 400px;
   background: radial-gradient(
     circle,
-    rgba(var(--liquid-tint-orange) / 0.2),
+    rgba(var(--liquid-tint-orange) / 0.2), /* Orange at center */
     transparent
   );
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  animation-delay: 10s;
+  top: 50%; /* Centered vertically */
+  left: 50%; /* Centered horizontally */
+  transform: translate(-50%, -50%); /* Offset by half its size to truly center */
+  animation-delay: 10s; /* Starts 10s after page load */
 }
 
 @keyframes liquid-drift {
+  /* Slow organic drift with scale changes */
   0%, 100% {
-    transform: translate(0, 0) scale(1);
+    transform: translate(0, 0) scale(1); /* Start and end at original position */
   }
   33% {
+    /* First waypoint: drift up-right and grow */
     transform: translate(50px, -50px) scale(1.1);
   }
   66% {
+    /* Second waypoint: drift down-left and shrink */
     transform: translate(-50px, 50px) scale(0.9);
   }
 }
@@ -503,61 +570,69 @@
    LIQUID PANEL
    ======================================== */
 .liquid-panel {
+  /* Full-height panel container for app content */
   display: flex;
-  flex-direction: column;
-  height: 100%;
-  position: relative;
+  flex-direction: column; /* Stack header, content, footer vertically */
+  height: 100%; /* Fill parent container */
+  position: relative; /* Stacking context for background layer */
 }
 
 .liquid-panel-bg {
-  position: absolute;
-  inset: 0;
+  /* Subtle gradient overlay on panel background */
+  position: absolute; /* Positioned behind content */
+  inset: 0; /* Fill entire panel */
+  /* Very subtle top-to-bottom fade */
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.02),
-    rgba(255, 255, 255, 0)
+    rgba(255, 255, 255, 0.02), /* Barely visible white at top */
+    rgba(255, 255, 255, 0) /* Fully transparent at bottom */
   );
-  pointer-events: none;
+  pointer-events: none; /* Decorative—doesn't block clicks */
 }
 
 .liquid-panel-header {
-  padding: 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(var(--liquid-blur-light));
-  -webkit-backdrop-filter: blur(var(--liquid-blur-light));
-  background: rgba(255, 255, 255, 0.05);
+  /* Top section with light glass chrome */
+  padding: 24px; /* Generous padding for breathing room */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* Subtle divider */
+  backdrop-filter: blur(var(--liquid-blur-light)); /* Light 14px blur */
+  -webkit-backdrop-filter: blur(var(--liquid-blur-light)); /* Safari */
+  background: rgba(255, 255, 255, 0.05); /* Barely tinted background */
 }
 
 .liquid-panel-content {
-  flex: 1;
-  padding: 24px;
-  overflow-y: auto;
-  position: relative;
+  /* Scrollable main content area */
+  flex: 1; /* Grows to fill available space */
+  padding: 24px; /* Consistent padding with header */
+  overflow-y: auto; /* Scrolls if content exceeds height */
+  position: relative; /* Stacking context */
 }
 
 .liquid-panel-footer {
-  padding: 16px 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(var(--liquid-blur-light));
-  -webkit-backdrop-filter: blur(var(--liquid-blur-light));
-  background: rgba(255, 255, 255, 0.05);
+  /* Bottom section with light glass chrome */
+  padding: 16px 24px; /* Slightly less vertical padding than header */
+  border-top: 1px solid rgba(255, 255, 255, 0.1); /* Top divider */
+  backdrop-filter: blur(var(--liquid-blur-light)); /* Matches header blur */
+  -webkit-backdrop-filter: blur(var(--liquid-blur-light)); /* Safari */
+  background: rgba(255, 255, 255, 0.05); /* Matches header tint */
 }
 
 /* ========================================
    LIQUID ANIMATIONS
    ======================================== */
 .liquid-glass-animate {
+  /* Apply bouncy entrance animation to glass elements */
   animation: liquid-entrance 0.6s var(--liquid-spring) forwards;
 }
 
 @keyframes liquid-entrance {
+  /* Fade in while scaling up and sliding up */
   from {
-    opacity: 0;
-    transform: scale(0.95) translateY(10px);
+    opacity: 0; /* Start invisible */
+    transform: scale(0.95) translateY(10px); /* Start 5% smaller and 10px down */
   }
   to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
+    opacity: 1; /* Fully visible */
+    transform: scale(1) translateY(0); /* Full size at original position */
   }
 }
 
@@ -565,52 +640,60 @@
    LIQUID GLOW EFFECT
    ======================================== */
 .liquid-glass-glow {
+  /* Adds colored glow effect around glass element */
   box-shadow:
-    var(--liquid-shadow-lg),
-    0 0 60px rgba(var(--liquid-tint-blue) / 0.15),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.5);
+    var(--liquid-shadow-lg), /* Standard drop shadow */
+    0 0 60px rgba(var(--liquid-tint-blue) / 0.15), /* Blue glow halo */
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.5); /* Inner rim light */
 }
 
 .liquid-glass-glow:hover {
+  /* Intensify glow on hover */
   box-shadow:
-    var(--liquid-shadow-xl),
-    0 0 80px rgba(var(--liquid-tint-blue) / 0.25),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.6);
+    var(--liquid-shadow-xl), /* Deeper drop shadow */
+    0 0 80px rgba(var(--liquid-tint-blue) / 0.25), /* Brighter, larger glow */
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.6); /* Brighter rim */
 }
 
 /* ========================================
    DARK MODE OVERRIDES
    ======================================== */
 @media (prefers-color-scheme: dark) {
+  /* Dark mode overrides */
+  /* Automatically adapts when system is in dark mode */
   :root {
-    --liquid-glass-alpha: 0.12;
-    --liquid-ink-primary: 255 255 255;
-    --liquid-ink-secondary: 200 200 210;
+    --liquid-glass-alpha: 0.12; /* Lower opacity for dark surfaces */
+    --liquid-ink-primary: 255 255 255; /* White text for dark mode */
+    --liquid-ink-secondary: 200 200 210; /* Light gray secondary text */
   }
   
   .liquid-glass {
+    /* Dark glass with reduced white tints */
     background:
+      /* Dimmer spotlight */
       radial-gradient(
         1600px 900px at 10% -30%,
-        rgba(255, 255, 255, 0.12) 0%,
+        rgba(255, 255, 255, 0.12) 0%, /* Much dimmer white highlight */
         rgba(255, 255, 255, 0) 60%
       ),
+      /* Same color gradient but lower opacity */
       linear-gradient(
         to bottom right,
-        rgba(var(--liquid-tint-blue) / 0.08),
-        rgba(var(--liquid-tint-violet) / 0.06),
-        rgba(var(--liquid-tint-orange) / 0.04)
+        rgba(var(--liquid-tint-blue) / 0.08), /* Subdued blue */
+        rgba(var(--liquid-tint-violet) / 0.06), /* Subdued violet */
+        rgba(var(--liquid-tint-orange) / 0.04) /* Subdued orange */
       ),
-      rgba(10, 10, 15, 0.4);
+      rgba(10, 10, 15, 0.4); /* Dark base instead of white */
     
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.12); /* Dim border */
   }
   
   .liquid-surface {
+    /* Dark background gradient */
     background: linear-gradient(
       135deg,
-      rgba(5, 5, 10, 0.95),
-      rgba(10, 10, 20, 0.95)
+      rgba(5, 5, 10, 0.95), /* Very dark blue-black */
+      rgba(10, 10, 20, 0.95) /* Slightly lighter dark */
     );
   }
 }

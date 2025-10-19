@@ -169,6 +169,27 @@ export function NoSearchResultsEmpty({ searchTerm, onClear }) {
   );
 }
 
+// Alias for backward compatibility
+export function NoResultsEmpty({ onReset }) {
+  return (
+    <EmptyState
+      emoji="🔍"
+      title="No results found"
+      description="No items match your criteria. Try adjusting your filters or search terms."
+      action={
+        onReset && (
+          <button
+            onClick={onReset}
+            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
+          >
+            Reset Filters
+          </button>
+        )
+      }
+    />
+  );
+}
+
 export function NoDataEmpty({ dataType = 'data' }) {
   return (
     <EmptyState

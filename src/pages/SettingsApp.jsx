@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { Settings as SettingsIcon, History, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Settings from './Settings';
+import SettingsPremium from './SettingsPremium';
 import ConversationHistory from '../components/ConversationHistory';
 
 export default function SettingsApp() {
   const [activeTab, setActiveTab] = useState('settings');
 
   const tabs = [
-    { id: 'settings', label: 'Settings', icon: SettingsIcon, component: Settings },
+    { id: 'settings', label: 'Settings', icon: SettingsIcon, component: SettingsPremium },
     { id: 'history', label: 'History', icon: History, component: ConversationHistory },
   ];
 

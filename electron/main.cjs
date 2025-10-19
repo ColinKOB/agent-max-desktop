@@ -92,9 +92,9 @@ function createWindow() {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' http://localhost:5173; " +
+            "script-src 'self' 'unsafe-inline' http://localhost:5173 https://js.stripe.com; " +
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-            "font-src 'self' https://fonts.gstatic.com; " +
+            "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
             "img-src 'self' data: https: blob:; " +
             "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://accounts.google.com https://www.googleapis.com; " +
             "frame-src 'none'; " +
@@ -304,9 +304,9 @@ function createSettingsWindow() {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' http://localhost:5173; " +
+            "script-src 'self' 'unsafe-inline' http://localhost:5173 https://js.stripe.com; " +
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-            "font-src 'self' https://fonts.gstatic.com; " +
+            "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
             "img-src 'self' data: https: blob:; " +
             "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://accounts.google.com https://www.googleapis.com; " +
             "frame-src 'none'; " +

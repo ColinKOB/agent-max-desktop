@@ -6,7 +6,15 @@ import { createLogger } from './logger';
 import { toast } from 'react-hot-toast';
 
 const logger = createLogger('API');
-logger.info('Initializing with config manager...');
+
+// DEMO MODE - Set to true to use mock data and disable API calls
+const DEMO_MODE = false; // Changed to false - connecting to real backend
+
+if (DEMO_MODE) {
+  logger.info('🎨 Running in DEMO MODE - Using mock data instead of real API');
+} else {
+  logger.info('🔌 Connecting to Agent Max backend API...');
+}
 
 // Get initial configuration
 const initialConfig = apiConfigManager.getConfig();

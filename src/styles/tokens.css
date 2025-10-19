@@ -4,6 +4,72 @@
  * 
  * Usage: Import this file FIRST in globals.css
  * All components should reference these variables, never hardcode values.
+ * 
+ * ========================================
+ * QUICK CUSTOMIZATION GUIDE
+ * Copy these snippets into :root below to customize
+ * ========================================
+ * 
+ * CHANGE PRIMARY ACCENT COLOR
+ *   --accent → #FF6B35  [Orange]
+ *   --accent → #6366F1  [Indigo]
+ *   --accent-hover → Darken by 6%
+ *   --accent-press → Darken by 10%
+ *
+ * CHANGE BACKGROUND TONES
+ *   --bg → #FAFBFC  [Lighter]
+ *   --surface → #F8F9FA  [Off-white]
+ *   --subsurface → #EAEDF0  [Slightly darker]
+ *
+ * ADJUST TEXT CONTRAST
+ *   --text → #000000  [Pure black]
+ *   --muted → #6B7280  [Lighter gray]
+ *
+ * INCREASE SPACING (AIRIER LAYOUT)
+ *   --space-2 → 10px
+ *   --space-4 → 20px
+ *   --space-5 → 28px
+ *
+ * DECREASE SPACING (COMPACT LAYOUT)
+ *   --space-2 → 6px
+ *   --space-4 → 12px
+ *   --space-5 → 18px
+ *
+ * CHANGE BORDER RADIUS (SOFTER)
+ *   --radius-sm → 12px
+ *   --radius-md → 16px
+ *   --radius-lg → 20px
+ *
+ * SHARPER CORNERS
+ *   --radius-sm → 4px
+ *   --radius-md → 6px
+ *   --radius-lg → 8px
+ *
+ * ADJUST GLASS BLUR STRENGTH
+ *   --blur-amount → 28px  [More frosted]
+ *   --blur-amount → 12px  [More clear]
+ *
+ * CHANGE GLASS OPACITY
+ *   --glass-opacity → 0.3  [More transparent]
+ *   --glass-opacity → 0.7  [More solid]
+ *
+ * INCREASE ANIMATION SPEED
+ *   --duration-micro → 100ms
+ *   --duration-base → 150ms
+ *
+ * DECREASE ANIMATION SPEED
+ *   --duration-micro → 200ms
+ *   --duration-base → 300ms
+ *
+ * LARGER TYPE SCALE
+ *   --text-body-size → 18px
+ *   --text-caption-size → 15px
+ *
+ * SMALLER TYPE SCALE
+ *   --text-body-size → 14px
+ *   --text-caption-size → 11px
+ *
+ * ========================================
  */
 
 :root {
@@ -13,26 +79,31 @@
      ========================================== */
   
   /* Backgrounds */
-  --bg: #F7F9FB;              /* Main background */
-  --surface: #FFFFFF;         /* Cards, panels, primary surface */
-  --subsurface: #F1F4F8;      /* Secondary surface, subtle distinction */
+  /* Light, neutral surfaces that provide comfortable reading environments */
+  --bg: #F7F9FB;              /* Main background - very light blue-gray */
+  --surface: #FFFFFF;         /* Cards, panels, primary surface - pure white */
+  --subsurface: #F1F4F8;      /* Secondary surface - slightly darker than main bg */
   
   /* Borders & Dividers */
-  --border: #E5EAF0;          /* Standard border color */
+  /* Subtle lines that separate content without being distracting */
+  --border: #E5EAF0;          /* Standard border color - light gray with hint of blue */
   
   /* Text */
-  --text: #0B1220;            /* Primary text (dark) */
-  --muted: #49566A;           /* Secondary text, labels */
+  /* High-contrast text colors ensure readability on light backgrounds */
+  --text: #0B1220;            /* Primary text - nearly black with slight blue tint */
+  --muted: #49566A;           /* Secondary text - medium gray for labels and metadata */
   
   /* Accent & Interactive */
-  --accent: #0FB5AE;          /* Primary teal accent */
-  --accent-hover: #0AA099;    /* Hover state (6% darker) */
-  --accent-press: #099188;    /* Active/pressed state (10% darker) */
+  /* Brand teal color used for buttons, links, and interactive elements */
+  --accent: #0FB5AE;          /* Primary teal accent - brand color */
+  --accent-hover: #0AA099;    /* Hover state - 6% darker for subtle feedback */
+  --accent-press: #099188;    /* Active/pressed state - 10% darker for clear press */
   
   /* Status Colors */
-  --danger: #D13B3B;          /* Errors, destructive actions */
-  --warning: #B86E00;         /* Warnings, caution */
-  --success: #1D966A;         /* Success states, confirmations */
+  /* Semantic colors that communicate system states */
+  --danger: #D13B3B;          /* Errors, destructive actions - red */
+  --warning: #B86E00;         /* Warnings, caution - orange */
+  --success: #1D966A;         /* Success states, confirmations - green */
   
   /* ==========================================
      SPACING - 8-Point Grid
@@ -40,25 +111,25 @@
      Base unit: 8px
      ========================================== */
   
-  --space-0: 0;
-  --space-1: 4px;    /* Tight spacing only (half unit) */
-  --space-2: 8px;    /* Base unit */
-  --space-3: 12px;   /* 1.5× base */
-  --space-4: 16px;   /* 2× base */
-  --space-5: 24px;   /* 3× base */
-  --space-6: 32px;   /* 4× base */
-  --space-7: 40px;   /* 5× base */
-  --space-8: 48px;   /* 6× base (for headers) */
+  --space-0: 0;      /* No spacing */
+  --space-1: 4px;    /* Tight spacing only - half unit for label-to-input gaps */
+  --space-2: 8px;    /* Base unit - minimum comfortable spacing */
+  --space-3: 12px;   /* 1.5× base - section internal padding */
+  --space-4: 16px;   /* 2× base - standard card padding */
+  --space-5: 24px;   /* 3× base - large gaps between sections */
+  --space-6: 32px;   /* 4× base - generous component separation */
+  --space-7: 40px;   /* 5× base - extra breathing room */
+  --space-8: 48px;   /* 6× base - hero sections and headers */
   
   /* ==========================================
      BORDER RADIUS
      Following brand guide section 2.2
      ========================================== */
   
-  --radius-sm: 8px;     /* Small elements, pills, tags */
-  --radius-md: 12px;    /* Standard buttons, inputs, cards */
-  --radius-lg: 16px;    /* Large panels, windows */
-  --radius-pill: 999px; /* Circular elements */
+  --radius-sm: 8px;     /* Small elements - pills, tags, chips */
+  --radius-md: 12px;    /* Standard elements - buttons, inputs, small cards */
+  --radius-lg: 16px;    /* Large elements - panels, windows, hero cards */
+  --radius-pill: 999px; /* Circular elements - any value >= height/2 creates circle */
   
   /* ==========================================
      TYPOGRAPHY
@@ -74,29 +145,33 @@
                "Courier New", monospace;
   
   /* Font Sizes */
-  --text-display-size: 28px;    /* Large headings */
-  --text-title-size: 22px;      /* Section titles */
-  --text-body-size: 16px;       /* Primary body text */
-  --text-caption-size: 13px;    /* Small text, labels */
-  --text-mono-size: 13px;       /* Code blocks */
+  /* Carefully calibrated scale for hierarchy and readability */
+  --text-display-size: 28px;    /* Large headings - hero text */
+  --text-title-size: 22px;      /* Section titles - page headings */
+  --text-body-size: 16px;       /* Primary body text - comfortable reading */
+  --text-caption-size: 13px;    /* Small text - labels, metadata */
+  --text-mono-size: 13px;       /* Code blocks - monospace code */
   
   /* Line Heights */
-  --text-display-lh: 1.2;       /* Tight for headings */
-  --text-title-lh: 1.3;         /* Slightly tight */
-  --text-body-lh: 1.5;          /* Readable body text */
-  --text-caption-lh: 1.4;       /* Compact small text */
-  --text-mono-lh: 1.6;          /* Spacious for code */
+  /* Optimized for each font size to maximize readability */
+  --text-display-lh: 1.2;       /* Tight for headings - prevents excessive vertical space */
+  --text-title-lh: 1.3;         /* Slightly tight - balances density and breathing room */
+  --text-body-lh: 1.5;          /* Readable body text - industry standard for paragraphs */
+  --text-caption-lh: 1.4;       /* Compact small text - maintains readability at small size */
+  --text-mono-lh: 1.6;          /* Spacious for code - makes code blocks scannable */
   
   /* Font Weights */
-  --weight-regular: 400;
-  --weight-medium: 500;
-  --weight-semibold: 600;
-  --weight-bold: 700;
+  /* Semantic weight names map to numeric font-weight values */
+  --weight-regular: 400;  /* Normal text - majority of content */
+  --weight-medium: 500;   /* Slightly emphasized - labels, nav */
+  --weight-semibold: 600; /* Strong emphasis - buttons, headings */
+  --weight-bold: 700;     /* Maximum emphasis - rarely used */
   
   /* Letter Spacing */
-  --tracking-tight: -0.2px;     /* Headings ≥22px */
-  --tracking-normal: 0;
-  --tracking-wide: 0.5px;       /* All caps labels */
+  /* Tracking adjustments improve legibility at different sizes */
+  --tracking-tight: -0.2px;     /* Headings ≥22px - prevents sprawl */
+  --tracking-normal: 0;         /* Body text - no adjustment needed */
+  --tracking-wide: 0.5px;       /* All caps labels - improves readability */
   
   /* ==========================================
      SHADOWS & ELEVATION
@@ -104,11 +179,12 @@
      ========================================== */
   
   /* Disable elevation shadows */
-  --shadow-sm: none;
-  --shadow-md: none;
-  --shadow-lg: none;
-  --shadow-xl: none;
-  --shadow-inner: none;
+  /* Light mode uses borders instead of shadows for cleaner aesthetic */
+  --shadow-sm: none;    /* Small shadow disabled */
+  --shadow-md: none;    /* Medium shadow disabled */
+  --shadow-lg: none;    /* Large shadow disabled */
+  --shadow-xl: none;    /* Extra large shadow disabled */
+  --shadow-inner: none; /* Inset shadow disabled */
   
   /* ==========================================
      ANIMATION & MOTION
@@ -116,30 +192,33 @@
      ========================================== */
   
   /* Durations */
-  --duration-instant: 0ms;       /* No animation */
-  --duration-micro: 150ms;       /* Small state changes */
-  --duration-fast: 180ms;        /* Quick transitions */
-  --duration-base: 200ms;        /* Standard transitions */
-  --duration-slow: 240ms;        /* Size/position changes */
-  --duration-slower: 320ms;      /* Enter/exit animations */
+  /* Carefully tuned timing for responsive yet elegant motion */
+  --duration-instant: 0ms;       /* No animation - immediate state change */
+  --duration-micro: 150ms;       /* Small state changes - button hover, focus rings */
+  --duration-fast: 180ms;        /* Quick transitions - color changes, opacity */
+  --duration-base: 200ms;        /* Standard transitions - default for most animations */
+  --duration-slow: 240ms;        /* Size/position changes - transforms, layout shifts */
+  --duration-slower: 320ms;      /* Enter/exit animations - modals, panels */
   
   /* Easing Functions */
-  --ease-base: cubic-bezier(0.2, 0.8, 0.2, 1);  /* Brand standard */
-  --ease-in: cubic-bezier(0.4, 0, 1, 1);        /* Accelerate */
-  --ease-out: cubic-bezier(0, 0, 0.2, 1);       /* Decelerate */
-  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);  /* Smooth both ends */
+  /* Cubic bezier curves create natural, organic motion */
+  --ease-base: cubic-bezier(0.2, 0.8, 0.2, 1);  /* Brand standard - gentle ease both ends */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);        /* Accelerate - starts slow, ends fast */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);       /* Decelerate - starts fast, ends slow */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);  /* Smooth both ends - balanced acceleration */
   
   /* ==========================================
      Z-INDEX SCALE
      Following brand guide section 7
      ========================================== */
   
-  --z-base: 0;
-  --z-overlay: 1000;     /* Overlays, dropdowns */
-  --z-pill: 1100;        /* Float bar window */
-  --z-modal: 1150;       /* Modal dialogs */
-  --z-toast: 1200;       /* Toast notifications */
-  --z-tooltip: 1300;     /* Tooltips */
+  /* Stacking order for layered UI elements */
+  --z-base: 0;            /* Default layer - main content */
+  --z-overlay: 1000;      /* Overlays, dropdowns - above content */
+  --z-pill: 1100;         /* Float bar window - above overlays */
+  --z-modal: 1150;        /* Modal dialogs - above pill */
+  --z-toast: 1200;        /* Toast notifications - above modals */
+  --z-tooltip: 1300;      /* Tooltips - highest layer */
   
   /* ==========================================
      LAYOUT CONSTRAINTS
@@ -147,24 +226,28 @@
      ========================================== */
   
   /* Chat message max width */
+  /* Limits line length for comfortable reading (45-75 characters per line) */
   --message-max-width: 760px;
   
   /* Breakpoints (for media queries) */
-  --breakpoint-compact: 1024px;
-  --breakpoint-standard: 1440px;
+  /* Window size thresholds where layout adapts */
+  --breakpoint-compact: 1024px;   /* Tablets, small laptops */
+  --breakpoint-standard: 1440px;  /* Standard desktop displays */
   
   /* Container gutters */
-  --gutter-compact: 24px;
-  --gutter-standard: 32px;
-  --gutter-spacious: 40px;
+  /* Horizontal padding at different screen sizes */
+  --gutter-compact: 24px;    /* Tight screens - mobile, small tablets */
+  --gutter-standard: 32px;   /* Standard screens - laptops */
+  --gutter-spacious: 40px;   /* Large screens - desktops */
   
   /* Component heights */
-  --header-height: 48px;
-  --composer-min-height: 64px;
-  --composer-max-height: 88px;
-  --button-sm: 28px;
-  --button-md: 36px;
-  --button-lg: 44px;
+  /* Fixed heights for consistent UI rhythm */
+  --header-height: 48px;         /* Card header height */
+  --composer-min-height: 64px;   /* Minimum input area height */
+  --composer-max-height: 88px;   /* Maximum before scrolling */
+  --button-sm: 28px;             /* Small buttons - compact UIs */
+  --button-md: 36px;             /* Standard buttons - default */
+  --button-lg: 44px;             /* Large buttons - primary actions */
   
   /* ==========================================
      GLASS EFFECTS (macOS)
@@ -172,18 +255,78 @@
      True glassmorphism: mostly see-through with subtle blur
      ========================================== */
   
-  --blur-amount: 20px;           /* Subtle backdrop blur */
-  --glass-opacity: 0.5;          /* Mostly see-through (50% transparent) */
-  --glass-border: rgba(255, 255, 255, 0.4); /* Bright border for glass edge */
-  --glass-inner-border: rgba(255, 255, 255, 0.9); /* Inner highlight */
-  --glass-shadow: none;
-  --glass-blur-strong: 28px;      /* Default blur for liquid glass */
-  --glass-saturation: 1.65;       /* Richer colors through the glass */
-  --glass-tint-a: rgba(82, 146, 255, 0.18);   /* Cool blue tint */
-  --glass-tint-b: rgba(122, 83, 255, 0.16);   /* Violet tint */
-  --glass-tint-c: rgba(255, 163, 102, 0.12);  /* Warm accent tint */
-  --glass-highlight: rgba(255, 255, 255, 0.45); /* Wet highlight top spot */
-  --glass-base: rgba(255, 255, 255, 0.12);     /* Base translucent fill */
+  /* Blur and translucency settings for glass effects */
+  --blur-amount: 20px;           /* Subtle backdrop blur - balanced frosted look */
+  --glass-opacity: 0.5;          /* Mostly see-through - 50% transparent */
+  --glass-border: rgba(255, 255, 255, 0.4); /* Bright border - defines glass edge */
+  --glass-inner-border: rgba(255, 255, 255, 0.9); /* Inner highlight - rim light effect */
+  --glass-shadow: none;          /* No shadow in light mode */
+  --glass-blur-strong: 28px;     /* Default blur for liquid glass - heavier frosting */
+  --glass-saturation: 1.65;      /* Richer colors - 165% saturation boost through glass */
+  /* Color tints create chromatic depth in gradients */
+  --glass-tint-a: rgba(82, 146, 255, 0.18);   /* Cool blue tint - top-left */
+  --glass-tint-b: rgba(122, 83, 255, 0.16);   /* Violet tint - middle */
+  --glass-tint-c: rgba(255, 163, 102, 0.12);  /* Warm accent tint - bottom-right */
+  --glass-highlight: rgba(255, 255, 255, 0.45); /* Wet highlight - simulates light reflection */
+  --glass-base: rgba(255, 255, 255, 0.12);     /* Base translucent fill - core glass color */
+  
+  /* ==========================================
+     PROFESSIONAL LIGHT MODE TOKENS (V2)
+     Clean, content-first design system
+     ========================================== */
+  
+  /* Surfaces */
+  /* Professional V2 design system - clean, content-first aesthetic */
+  --amx-surface: #FFFFFF;         /* Pure white for cards and panels */
+  --amx-surface-subtle: #F6F7F9;  /* Light gray for user message bubbles */
+  --amx-text: #0B1220;            /* Nearly black for high contrast */
+  --amx-text-muted: #4A5568;      /* Medium gray for secondary text */
+  --amx-border: #E6E8EC;          /* Light border for subtle separation */
+  
+  /* Accent Colors */
+  /* Blue accent for interactive elements and focus states */
+  --amx-accent: #3B82F6;          /* Primary blue - buttons, links */
+  --amx-accent-hover: #2563EB;    /* Darker blue - hover state */
+  
+  /* Elevation Shadow */
+  /* Single soft shadow creates subtle depth without heavy effects */
+  --amx-shadow: 0 4px 24px rgba(10, 20, 40, 0.08);  /* Soft elevation */
+  
+  /* Border Radii */
+  /* Consistent rounding scale for visual harmony */
+  --amx-radius-sm: 8px;   /* Small - chips, tags */
+  --amx-radius-md: 12px;  /* Medium - buttons, inputs */
+  --amx-radius-lg: 16px;  /* Large - cards, panels */
+  
+  /* Spacing Scale (4-point) */
+  /* Strict 4px grid for consistent rhythm */
+  --amx-space-1: 4px;   /* Tight - inline gaps */
+  --amx-space-2: 8px;   /* Small - between messages */
+  --amx-space-3: 12px;  /* Medium - card padding */
+  --amx-space-4: 16px;  /* Standard - section gaps */
+  --amx-space-5: 20px;  /* Large - generous spacing */
+  --amx-space-6: 24px;  /* Extra large - component separation */
+  
+  /* Typography Scale */
+  /* 4-point font size scale for hierarchy */
+  --amx-text-12: 12px;  /* Tiny - metadata */
+  --amx-text-14: 14px;  /* Small - body text */
+  --amx-text-16: 16px;  /* Medium - headings */
+  --amx-text-18: 18px;  /* Large - card titles */
+  --amx-text-20: 20px;  /* XL - page titles */
+  --amx-text-24: 24px;  /* XXL - hero text */
+  
+  /* Icon Sizes */
+  /* Consistent icon scale matches typography */
+  --amx-icon-sm: 12px;  /* Small icons */
+  --amx-icon-md: 14px;  /* Standard icons */
+  --amx-icon-lg: 16px;  /* Large icons */
+  
+  /* Component Heights */
+  /* Fixed heights for card chrome elements */
+  --amx-header-height: 56px;    /* Glass chrome header */
+  --amx-composer-height: 64px;  /* Glass chrome composer */
+  --amx-button-size: 24px;      /* Icon button size */
 }
 
 /* ==========================================
@@ -192,7 +335,9 @@
    ========================================== */
 
 :root {
-  color-scheme: light dark;  /* Allows native scrollbars/controls to match */
+  /* Tells browser this page supports both light and dark modes */
+  /* Native UI elements (scrollbars, form controls) will adapt automatically */
+  color-scheme: light dark;
 }
 
 /* ==========================================
@@ -201,7 +346,10 @@
    ========================================== */
 
 @media (prefers-reduced-motion: reduce) {
+  /* Respects user's OS-level accessibility preference for reduced motion */
+  /* Critical for users with vestibular disorders or motion sensitivity */
   :root {
+    /* Sets all duration variables to near-instant (not 0 to preserve transition events) */
     --duration-instant: 0ms;
     --duration-micro: 1ms;
     --duration-fast: 1ms;
@@ -210,12 +358,13 @@
     --duration-slower: 1ms;
   }
   
+  /* Force all animations and transitions to complete instantly */
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;        /* Animations finish immediately */
+    animation-iteration-count: 1 !important;      /* No looping animations */
+    transition-duration: 0.01ms !important;       /* Transitions finish immediately */
+    scroll-behavior: auto !important;             /* Instant scroll (no smooth scrolling) */
   }
 }

@@ -6,6 +6,64 @@
  * - Single viewport backdrop (filter: blur once)
  * - Cards use backdrop-filter to sample backdrop
  * - Tint + rim + noise for visual richness
+ * 
+ * ========================================
+ * QUICK CUSTOMIZATION GUIDE
+ * Copy these snippets and paste into :root { } section below
+ * ========================================
+ * 
+ * MAKE GLASS MORE TRANSPARENT
+ *   --base → rgba(255, 255, 255, 0.08)
+ *   --base-nested → rgba(255, 255, 255, 0.05)
+ * 
+ * MAKE GLASS MORE OPAQUE
+ *   --base → rgba(255, 255, 255, 0.20)
+ *   --base-nested → rgba(255, 255, 255, 0.15)
+ * 
+ * INCREASE BLUR (MORE FROSTED)
+ *   --blur-card → 24px
+ *   --blur-nested → 14px
+ * 
+ * DECREASE BLUR (MORE CLEAR)
+ *   --blur-card → 12px
+ *   --blur-nested → 6px
+ * 
+ * CHANGE BORDER VISIBILITY
+ *   --stroke → rgba(255, 255, 255, 0.20)  [More visible]
+ *   --stroke → rgba(255, 255, 255, 0.05)  [Barely visible]
+ * 
+ * ADJUST RIM LIGHT
+ *   --rim → rgba(255, 255, 255, 0.50)  [Brighter rim]
+ *   --rim → rgba(255, 255, 255, 0.20)  [Subtle rim]
+ * 
+ * CHANGE TEXT CONTRAST
+ *   --text-heading → rgba(255, 255, 255, 1.0)   [Pure white]
+ *   --text-body → rgba(255, 255, 255, 0.85)     [Softer]
+ * 
+ * ADJUST SHADOW DEPTH
+ *   --shadow → 0 20px 40px rgba(0, 0, 0, 0.35)  [Deeper]
+ *   --shadow → 0 4px 12px rgba(0, 0, 0, 0.15)   [Lighter]
+ * 
+ * CHANGE BACKGROUND COLOR
+ *   In #backdrop section → background → #1a1b20  [Lighter dark]
+ *   In #backdrop section → background → #050508  [Pure black]
+ * 
+ * BOOST COLOR SATURATION
+ *   --sat → 1.5  [More vivid colors]
+ *   --sat → 1.0  [Natural colors]
+ * 
+ * LARGER BORDER RADIUS (SOFTER CORNERS)
+ *   In .amx-liquid section → border-radius → 28px
+ *   In .amx-liquid-nested section → border-radius → 18px
+ * 
+ * SHARPER CORNERS
+ *   In .amx-liquid section → border-radius → 12px
+ *   In .amx-liquid-nested section → border-radius → 8px
+ * 
+ * DISABLE NOISE TEXTURE
+ *   Remove 'amx-noise' class from your HTML elements
+ * 
+ * ========================================
  */
 
 /* ========================================
@@ -14,33 +72,40 @@
 
 :root {
   /* Blur radii */
-  --blur-card: 18px;
-  --blur-nested: 10px;
-  --blur-heavy: 12px;
+  /* Controls how much background content is blurred behind glass */
+  --blur-card: 18px;      /* Main card surfaces - balanced blur */
+  --blur-nested: 10px;    /* Nested cards - lighter blur to avoid over-processing */
+  --blur-heavy: 12px;     /* Reserved for elevated/modal surfaces */
   
   /* Saturation */
-  --sat: 1.2;
+  /* Boosts color richness of content seen through glass (1.0 = natural) */
+  --sat: 1.2;  /* 120% saturation adds vibrancy */
   
   /* Base layers */
-  --base: rgba(255, 255, 255, 0.12);
-  --base-nested: rgba(255, 255, 255, 0.08);
+  /* Semi-transparent white tints that give glass its core color */
+  --base: rgba(255, 255, 255, 0.12);         /* Primary cards - 12% opacity */
+  --base-nested: rgba(255, 255, 255, 0.08);  /* Nested cards - 8% for subtlety */
   
   /* Strokes */
-  --stroke: rgba(255, 255, 255, 0.10);
-  --stroke-nested: rgba(255, 255, 255, 0.12);
+  /* Border colors that create rim definition on glass edges */
+  --stroke: rgba(255, 255, 255, 0.10);        /* Main borders - subtle */
+  --stroke-nested: rgba(255, 255, 255, 0.12); /* Nested borders - slightly stronger */
   
   /* Rim light */
-  --rim: rgba(255, 255, 255, 0.35);
+  /* Top-edge highlight that simulates light reflection on glass */
+  --rim: rgba(255, 255, 255, 0.35);  /* 35% white creates visible glow */
   
   /* Shadows */
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.15);
+  /* Drop shadows that create depth and elevation */
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.25);     /* Main shadow for cards */
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.15);   /* Lighter shadow for small elements */
   
   /* Text colors */
-  --text-heading: rgba(255, 255, 255, 0.95);
-  --text-body: rgba(255, 255, 255, 0.92);
-  --text-muted: rgba(255, 255, 255, 0.65);
-  --text-subtle: rgba(255, 255, 255, 0.45);
+  /* RGBA whites with varying opacity for text hierarchy */
+  --text-heading: rgba(255, 255, 255, 0.95);  /* Headings - nearly opaque */
+  --text-body: rgba(255, 255, 255, 0.92);     /* Body text - high readability */
+  --text-muted: rgba(255, 255, 255, 0.65);    /* Secondary text - medium emphasis */
+  --text-subtle: rgba(255, 255, 255, 0.45);   /* Tertiary text - low emphasis */
 }
 
 /* ========================================
@@ -48,29 +113,32 @@
    ======================================== */
 
 #backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
+  /* Global blurred layer that sits behind all glass surfaces */
+  position: fixed; /* Stays in viewport even when scrolling */
+  inset: 0; /* Fills entire viewport */
+  z-index: 0; /* Behind all content */
+  pointer-events: none; /* Allows clicks to pass through */
   
-  /* Wallpaper proxy: tint + gentle gradients */
-  background:
-    radial-gradient(140% 180% at 15% -20%, #9bb2ff33 0%, transparent 60%),
-    linear-gradient(180deg, #0b0c10, #0b0c10);
+  /* Wallpaper proxy: neutral dark background */
+  /* In production, this would be replaced by actual desktop wallpaper */
+  background: #0b0c10; /* Very dark gray-blue */
   
   /* Heavy blur once (not per card) */
-  filter: blur(28px) saturate(1.2);
+  /* Single blur is more performant than multiple backdrop-filter blurs */
+  filter: blur(28px) saturate(1.2); /* 28px blur + 120% saturation */
   
   /* Keep on compositor */
-  transform: translateZ(0);
-  will-change: transform;
+  /* Forces GPU acceleration for smooth performance */
+  transform: translateZ(0); /* Creates 3D rendering context */
+  will-change: transform; /* Hints to browser this will animate */
 }
 
 /* Main UI layer (Settings window only) */
+/* Container for settings window content */
 .main-ui {
-  position: relative;
-  z-index: 1;
-  min-height: 100vh;
+  position: relative; /* Establishes stacking context */
+  z-index: 1; /* Above backdrop layer */
+  min-height: 100vh; /* Always fills viewport height */
 }
 
 /* ========================================
@@ -78,8 +146,11 @@
    ======================================== */
 
 .amx-noise {
+  /* Subtle noise texture overlay for visual richness */
+  /* Inline SVG creates a 2×2 checkerboard pattern */
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 2 2'><rect width='2' height='2' fill='rgba(0,0,0,0)'/><rect x='0' y='0' width='1' height='1' fill='rgba(255,255,255,0.015)'/><rect x='1' y='1' width='1' height='1' fill='rgba(255,255,255,0.015)'/></svg>");
-  background-size: 32px 32px;
+  background-size: 32px 32px; /* Tiles pattern at 32×32px */
+  /* Very low opacity (0.015) keeps noise barely perceptible */
 }
 
 /* ========================================
@@ -87,51 +158,63 @@
    ======================================== */
 
 .amx-liquid {
-  position: relative;
-  border-radius: 20px;
-  overflow: hidden;
+  /* Primary glass surface for cards and panels */
+  position: relative; /* Required for ::before and ::after pseudo-elements */
+  border-radius: 20px; /* Generous rounding for Apple-style softness */
+  overflow: hidden; /* Clips pseudo-elements to rounded bounds */
   
   /* Multi-layer background for depth */
+  /* Three gradients stack top-to-bottom */
   background:
+    /* Layer 1: Top-left spotlight simulates light source */
     radial-gradient(160% 200% at 25% -20%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 60%, rgba(255, 255, 255, 0) 80%),
+    /* Layer 2: Diagonal color wash adds chromatic depth */
     linear-gradient(150deg, rgba(110, 145, 255, 0.12), rgba(144, 92, 255, 0.10), rgba(255, 165, 110, 0.05)),
+    /* Layer 3: Base translucent white from CSS variable */
     var(--base);
   
   /* Sample the viewport backdrop */
+  /* Applies blur and saturation to content behind this element */
   backdrop-filter: saturate(var(--sat)) blur(var(--blur-card));
-  -webkit-backdrop-filter: saturate(var(--sat)) blur(var(--blur-card));
+  -webkit-backdrop-filter: saturate(var(--sat)) blur(var(--blur-card)); /* Safari */
   
   /* Hairline border */
+  /* Semi-transparent white border creates rim definition */
   border: 1px solid var(--stroke);
   
   /* Depth shadow */
+  /* Lifts card off background surface */
   box-shadow: var(--shadow);
   
   /* Smooth animations (no filter) */
+  /* Only animate fast properties to avoid jank */
   transition: opacity 0.12s ease, transform 0.12s ease;
 }
 
 /* Rim light (top edge glow) */
+/* Simulates light reflection on top edge of glass */
 .amx-liquid::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
+  content: ""; /* Required for pseudo-element to render */
+  position: absolute; /* Positioned over parent card */
+  inset: 0; /* Covers entire card */
+  pointer-events: none; /* Decorative layer—allows clicks through */
+  border-radius: inherit; /* Matches parent's rounded corners */
+  /* Gradient fades from white at top to transparent */
   background: linear-gradient(to bottom, var(--rim), rgba(255, 255, 255, 0) 42%);
-  opacity: 1;
+  opacity: 1; /* Fully visible (controlled by --rim variable) */
 }
 
 /* Noise overlay (soft-light blend) */
+/* Adds subtle texture to glass surface when amx-noise class is applied */
 .amx-liquid.amx-noise::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  background: inherit;
-  opacity: 0.6;
-  mix-blend-mode: soft-light;
+  content: ""; /* Required for pseudo-element */
+  position: absolute; /* Over parent card */
+  inset: 0; /* Covers entire surface */
+  pointer-events: none; /* Decorative—clicks pass through */
+  border-radius: inherit; /* Matches parent's corners */
+  background: inherit; /* Inherits noise texture from parent */
+  opacity: 0.6; /* 60% visible for subtle effect */
+  mix-blend-mode: soft-light; /* Blends texture naturally with background */
 }
 
 /* ========================================
@@ -139,18 +222,20 @@
    ======================================== */
 
 .amx-liquid-nested {
-  border-radius: 14px;
-  background: var(--base-nested);
-  backdrop-filter: blur(var(--blur-nested));
-  -webkit-backdrop-filter: blur(var(--blur-nested));
-  border: 1px solid var(--stroke-nested);
-  transition: opacity 0.12s ease, transform 0.12s ease;
+  /* Lighter glass for cards inside other glass surfaces */
+  border-radius: 14px; /* Smaller radius than parent cards */
+  background: var(--base-nested); /* Lower opacity (8%) for subtle nesting */
+  backdrop-filter: blur(var(--blur-nested)); /* Lighter blur (10px) */
+  -webkit-backdrop-filter: blur(var(--blur-nested)); /* Safari */
+  border: 1px solid var(--stroke-nested); /* Slightly stronger border for definition */
+  transition: opacity 0.12s ease, transform 0.12s ease; /* Smooth hover effects */
 }
 
 /* Hover states */
+/* Provides interactive feedback on nested cards */
 .amx-liquid-nested:hover {
-  background: rgba(255, 255, 255, 0.12);
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.12); /* Brightens background on hover */
+  transform: translateY(-1px); /* Lifts card 1px for depth feedback */
 }
 
 /* ========================================
@@ -158,20 +243,24 @@
    ======================================== */
 
 .amx-heading {
-  color: var(--text-heading);
-  font-weight: 700;
+  /* Primary heading text - highest contrast */
+  color: var(--text-heading); /* 95% opacity white */
+  font-weight: 700; /* Bold for emphasis */
 }
 
 .amx-body {
-  color: var(--text-body);
+  /* Standard body text - high readability */
+  color: var(--text-body); /* 92% opacity white */
 }
 
 .amx-muted {
-  color: var(--text-muted);
+  /* Secondary text - medium emphasis */
+  color: var(--text-muted); /* 65% opacity white */
 }
 
 .amx-subtle {
-  color: var(--text-subtle);
+  /* Tertiary text - low emphasis */
+  color: var(--text-subtle); /* 45% opacity white */
 }
 
 /* ========================================
@@ -179,9 +268,12 @@
    ======================================== */
 
 :where(button, [role='button'], input, select, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.75);
-  outline-offset: 2px;
-  transition: outline 0.12s ease;
+  /* Accessible focus indicator for keyboard navigation */
+  /* :where() keeps specificity low so it can be easily overridden */
+  outline: 2px solid rgba(255, 255, 255, 0.75); /* Bright white outline */
+  outline-offset: 2px; /* 2px gap between element and outline */
+  transition: outline 0.12s ease; /* Smooth appearance */
+  /* Only appears on keyboard focus, not mouse clicks */
 }
 
 /* ========================================
@@ -189,15 +281,19 @@
    ======================================== */
 
 /* Never animate filters (causes compositor thrashing) */
+/* Restricts all transitions to fast GPU properties only */
 * {
+  /* Only these properties are safe to animate without jank */
   transition-property: opacity, transform, color, background-color, border-color, box-shadow;
-  transition-duration: 0.12s;
-  transition-timing-function: ease;
+  transition-duration: 0.12s; /* Fast 120ms duration */
+  transition-timing-function: ease; /* Natural easing curve */
 }
 
 /* Explicit reset for filter/backdrop-filter */
+/* Prevents accidental filter animations which are extremely slow */
 *:not(#backdrop) {
   transition-property: opacity, transform, color, background-color, border-color, box-shadow !important;
+  /* !important ensures no filter/backdrop-filter animations can slip through */
 }
 
 /* ========================================
@@ -255,41 +351,45 @@ html.force-opaque .amx-muted {
    ======================================== */
 
 /* Sizing */
+/* Predefined border radius sizes for consistency */
 .amx-liquid-sm {
-  border-radius: 14px;
+  border-radius: 14px; /* Smaller corners for compact cards */
 }
 
 .amx-liquid-lg {
-  border-radius: 24px;
+  border-radius: 24px; /* Larger corners for hero cards */
 }
 
 /* Padding presets */
+/* Standard padding scales for common layouts */
 .amx-p-card {
-  padding: 1rem;
+  padding: 1rem; /* 16px - compact card padding */
 }
 
 .amx-p-panel {
-  padding: 1.5rem;
+  padding: 1.5rem; /* 24px - generous panel padding */
 }
 
 /* Interactive states */
+/* Makes glass surfaces respond to user interaction */
 .amx-interactive {
-  cursor: pointer;
-  transition: transform 0.12s ease, opacity 0.12s ease;
+  cursor: pointer; /* Hand cursor indicates clickability */
+  transition: transform 0.12s ease, opacity 0.12s ease; /* Smooth motion */
 }
 
 .amx-interactive:hover {
-  transform: translateY(-2px);
+  transform: translateY(-2px); /* Lifts 2px on hover */
 }
 
 .amx-interactive:active {
-  transform: translateY(0);
+  transform: translateY(0); /* Returns to original position when pressed */
 }
 
 /* Disabled state */
+/* Visual and functional disable state */
 .amx-disabled {
-  opacity: 0.5;
-  pointer-events: none;
+  opacity: 0.5; /* Faded to 50% to indicate inactive */
+  pointer-events: none; /* Blocks all mouse/touch interactions */
 }
 
 /* ========================================
@@ -297,18 +397,20 @@ html.force-opaque .amx-muted {
    ======================================== */
 
 /* Full-height glass container */
+/* Vertical flex container that fills viewport */
 .amx-container-full {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  min-height: 100vh; /* Always fills full viewport height */
+  display: flex; /* Flexbox for vertical stacking */
+  flex-direction: column; /* Stack children vertically */
 }
 
 /* Centered glass card */
+/* Centers a single card in the middle of viewport */
 .amx-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
+  display: flex; /* Flexbox for centering */
+  align-items: center; /* Center vertically */
+  justify-content: center; /* Center horizontally */
+  min-height: 100vh; /* Full viewport height */
 }
 
 /* ========================================
@@ -316,13 +418,17 @@ html.force-opaque .amx-muted {
    ======================================== */
 
 /* Compositor hints for smooth animations */
+/* Tells browser to prepare these elements for GPU animation */
 .amx-liquid,
 .amx-liquid-nested {
-  will-change: transform;
+  will-change: transform; /* Hints that transform will animate */
+  /* Creates compositing layer for smooth 60fps animations */
 }
 
 /* Remove will-change after animation */
+/* Frees up GPU memory when not needed */
 .amx-liquid:not(:hover),
 .amx-liquid-nested:not(:hover) {
-  will-change: auto;
+  will-change: auto; /* Returns to normal rendering when idle */
+  /* Browser can deallocate compositing layer */
 }

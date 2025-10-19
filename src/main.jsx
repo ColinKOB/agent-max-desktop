@@ -10,6 +10,8 @@ import './styles/liquid-glass.css';
 import './styles/liquid-glass-enhanced.css';
 import './styles/design-system.css';
 import './styles/accessibility.css';
+import './styles/premium-glass.css';
+import './styles/premium-enhancements.css';
 
 const PillApp = () => <App windowMode="pill" />;
 const CardApp = () => <App windowMode="card" />;

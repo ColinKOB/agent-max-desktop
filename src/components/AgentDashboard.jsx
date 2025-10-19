@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Bot, Plus, Trash2, Send, Loader2, Users, Sparkles, MessageSquare } from 'lucide-react';
 import { agentsAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import CreateAgentPremium from './CreateAgentPremium';
 
 export default function AgentDashboard() {
   const [agents, setAgents] = useState([]);
@@ -133,62 +134,15 @@ export default function AgentDashboard() {
         </div>
       </div>
 
-      {/* Create Form */}
+      {/* Premium Create Agent Modal */}
       {showCreateForm && (
-        <div className="px-5 py-4 border-b border-white/10 space-y-3 bg-white/5">
-          <div>
-            <label className="text-sm text-white/80 mb-2 block font-medium">Agent Role</label>
-            <select
-              value={newAgentRole}
-              onChange={(e) => setNewAgentRole(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/40 transition-all"
-            >
-              <option value="" className="bg-gray-900">Select role...</option>
-              {roles.map((role) => (
-                <option key={role.id} value={role.id} className="bg-gray-900">
-                  {role.name} - {role.description}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm text-white/80 mb-2 block font-medium">Provider (optional)</label>
-            <select
-              value={newAgentProvider}
-              onChange={(e) => setNewAgentProvider(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/40 transition-all"
-            >
-              <option value="" className="bg-gray-900">Default</option>
-              {providers.map((provider) => (
-                <option key={provider.id} value={provider.id} className="bg-gray-900">
-                  {provider.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={handleCreateAgent}
-              disabled={creating || !newAgentRole}
-              className="flex-1 bg-white/15 hover:bg-white/25 disabled:bg-white/5 disabled:text-white/30 border border-white/20 text-white py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all"
-            >
-              {creating ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4" />
-              )}
-              Create Agent
-            </button>
-            <button
-              onClick={() => setShowCreateForm(false)}
-              className="px-4 bg-white/5 hover:bg-white/10 border border-white/20 text-white/80 rounded-lg text-sm transition-all"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <CreateAgentPremium
+          onClose={() => setShowCreateForm(false)}
+          onSuccess={async (agent) => {
+            setShowCreateForm(false);
+            await loadData();
+          }}
+        />
       )}
 
       <div className="flex-1 flex overflow-hidden">

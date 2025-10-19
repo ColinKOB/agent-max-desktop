@@ -1,0 +1,241 @@
+/**
+ * Premium Glass Settings Window Styles
+ * Professional light mode design for settings panel
+ * 
+ * ========================================
+ * QUICK CUSTOMIZATION GUIDE
+ * Copy these snippets to customize the settings window
+ * ========================================
+ * 
+ * CHANGE CARD BACKGROUND
+ *   In .premium-glass-card → background → #F8F9FA  [Off-white]
+ *   In .premium-glass-card → background → #FFFFFF  [Pure white]
+ *
+ * ADJUST CARD SPACING
+ *   In .premium-settings-grid → gap → 2rem  [Larger gaps]
+ *   In .premium-settings-grid → gap → 1rem  [Tighter gaps]
+ *
+ * CHANGE HOVER LIFT DISTANCE
+ *   In .premium-glass-card:hover → translateY → -4px  [Higher lift]
+ *   In .premium-glass-card:hover → translateY → -1px  [Subtle lift]
+ *
+ * MODIFY BORDER RADIUS
+ *   In .premium-glass-card → border-radius → 20px  [Softer]
+ *   In .premium-glass-card → border-radius → 8px   [Sharper]
+ *
+ * CHANGE HOVER BORDER COLOR
+ *   In .premium-glass-card:hover → border-color → #FF6B35  [Orange]
+ *   In .premium-glass-card:hover → border-color → #10B981  [Green]
+ *
+ * ADJUST ANIMATION SPEED
+ *   In .premium-glass-card → transition → all 0.2s  [Faster]
+ *   In .premium-glass-card → transition → all 0.5s  [Slower]
+ *
+ * DISABLE ENTRANCE ANIMATIONS
+ *   Comment out lines 124-139 (fadeInUp animation section)
+ *
+ * CHANGE SCROLLBAR COLOR
+ *   In scrollbar-thumb → background → rgba(100, 150, 255, 0.3)  [Blue]
+ *   In scrollbar-thumb → background → rgba(255, 255, 255, 0.15)  [Lighter]
+ *
+ * ========================================
+ */
+
+.premium-settings-container {
+  /* Main container for entire settings window */
+  min-height: 100vh;      /* Always fills full viewport height */
+  padding: 2rem;          /* 32px breathing room on all sides */
+  background: transparent; /* Transparent to show backdrop */
+  position: relative;      /* Stacking context for pseudo-elements */
+  overflow-x: hidden;      /* Prevents horizontal scrollbar */
+}
+
+.premium-settings-container::before {
+  /* Decorative background layer (currently disabled) */
+  content: '';             /* Required for pseudo-element */
+  position: absolute;      /* Positioned behind content */
+  top: -50%;               /* Extends beyond viewport */
+  left: -50%;
+  width: 200%;             /* Oversized to cover entire area */
+  height: 200%;
+  background: transparent; /* No gradient in current design */
+  animation: none;         /* Animation disabled for performance */
+}
+
+@keyframes gradientShift {
+  /* Animated gradient rotation (currently unused) */
+  /* Can be applied to ::before element for dynamic background */
+  0%, 100% { transform: rotate(0deg) scale(1); }      /* Start/end position */
+  50% { transform: rotate(180deg) scale(1.1); }       /* Midpoint - rotated and scaled */
+}
+
+.premium-settings-header {
+  /* Top header bar containing title and close button */
+  display: flex;                /* Flexbox for horizontal layout */
+  justify-content: space-between; /* Title left, button right */
+  align-items: center;          /* Vertical centering */
+  margin-bottom: 2rem;          /* 32px gap before content */
+  padding: 1.5rem;              /* 24px internal padding */
+  background: #FFFFFF;          /* Clean white card */
+  border-radius: var(--amx-radius-lg); /* 16px rounded corners */
+  border: 1px solid var(--amx-border); /* Subtle border */
+  box-shadow: var(--amx-shadow);       /* Soft elevation shadow */
+  position: relative;           /* Stacking context */
+  z-index: 1;                   /* Above background decorations */
+}
+
+.premium-settings-grid {
+  /* Responsive grid layout for settings cards */
+  display: grid;              /* CSS Grid layout */
+  /* Auto-fit creates as many columns as will fit */
+  /* Each column is minimum 350px, maximum equal width (1fr) */
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;                /* 24px spacing between cards */
+  margin-bottom: 2rem;        /* 32px gap before footer actions */
+  position: relative;         /* Stacking context */
+  z-index: 1;                 /* Above background */
+}
+
+.premium-glass-card {
+  /* Individual settings card with clean light aesthetic */
+  background: var(--amx-surface);      /* White background */
+  border-radius: var(--amx-radius-lg); /* 16px rounded corners */
+  border: 1px solid var(--amx-border); /* Light gray border */
+  box-shadow: var(--amx-shadow);       /* Soft elevation shadow */
+  padding: var(--amx-space-6);         /* 24px internal padding */
+  /* Smooth transitions for hover effects */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Ease-in-out */
+  position: relative;                  /* For pseudo-elements */
+  overflow: hidden;                    /* Clips decorative layers */
+}
+
+.premium-glass-card::before {
+  /* Decorative overlay layer (currently transparent) */
+  content: '';                 /* Required for pseudo-element */
+  position: absolute;          /* Positioned over card */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;     /* No gradient in current design */
+  pointer-events: none;        /* Doesn't block interactions */
+}
+
+.premium-glass-card:hover {
+  /* Interactive feedback on hover */
+  transform: translateY(-2px);    /* Lifts card 2px upward */
+  border-color: var(--amx-accent); /* Border turns blue on hover */
+  box-shadow: 0 8px 32px rgba(10, 20, 40, 0.12); /* Deeper shadow enhances lift */
+}
+
+.premium-settings-actions {
+  /* Bottom action button container */
+  display: flex;           /* Flexbox for horizontal layout */
+  gap: 1rem;               /* 16px space between buttons */
+  justify-content: center; /* Center buttons horizontally */
+  position: relative;      /* Stacking context */
+  z-index: 1;              /* Above background */
+}
+
+.premium-action-button {
+  /* Glass-style action button with blur effect */
+  display: flex;              /* Flexbox for icon + text */
+  align-items: center;        /* Vertical centering */
+  gap: 0.5rem;                /* 8px space between icon and text */
+  padding: 0.75rem 1.5rem;    /* 12px vertical, 24px horizontal */
+  /* Translucent glass background */
+  background: rgba(255, 255, 255, 0.1);  /* 10% white tint */
+  backdrop-filter: blur(20px);           /* Blurs content behind */
+  -webkit-backdrop-filter: blur(20px);   /* Safari */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* Semi-transparent border */
+  border-radius: 0.75rem;     /* 12px rounded corners */
+  color: white;               /* White text */
+  font-weight: 500;           /* Medium weight */
+  font-size: 0.875rem;        /* 14px text */
+  transition: all 0.3s ease;  /* Smooth hover transitions */
+  cursor: pointer;            /* Hand cursor on hover */
+}
+
+.premium-action-button:hover {
+  /* Brighter and lifted on hover */
+  background: rgba(255, 255, 255, 0.15);   /* Slightly more opaque */
+  transform: translateY(-1px);             /* Lifts 1px */
+  border-color: rgba(255, 255, 255, 0.3);  /* Brighter border */
+}
+
+/* Clean typography */
+/* Consistent text styling within cards */
+.premium-glass-card h2 {
+  /* Card heading style */
+  color: var(--amx-text);          /* Dark text for readability */
+  font-size: var(--amx-text-18);   /* 18px - prominent but not huge */
+  font-weight: var(--weight-semibold); /* 600 weight for emphasis */
+}
+
+.premium-glass-card p,
+.premium-glass-card span,
+.premium-glass-card label {
+  /* Body text and labels */
+  color: var(--amx-text);          /* Same dark color */
+  font-size: var(--amx-text-14);   /* 14px - comfortable reading size */
+}
+
+/* Subtle animations */
+/* Staggered entrance animation for card content */
+.premium-glass-card > * {
+  /* All direct children start invisible and animate in */
+  animation: fadeInUp 0.5s ease forwards; /* 500ms fade + slide animation */
+  opacity: 0;                             /* Starts invisible */
+}
+
+@keyframes fadeInUp {
+  /* Slides up while fading in */
+  to {
+    opacity: 1;              /* Fully visible */
+    transform: translateY(0); /* Original position (starts below) */
+  }
+}
+
+/* Staggered delays create cascade effect */
+.premium-glass-card > *:nth-child(1) { animation-delay: 0.05s; }  /* First child */
+.premium-glass-card > *:nth-child(2) { animation-delay: 0.1s; }   /* Second child */
+.premium-glass-card > *:nth-child(3) { animation-delay: 0.15s; }  /* Third child */
+.premium-glass-card > *:nth-child(4) { animation-delay: 0.2s; }   /* Fourth child */
+
+/* Enhanced focus states */
+/* Accessible focus indicators for keyboard navigation */
+input:focus,
+button:focus {
+  outline: none;           /* Remove default browser outline */
+  /* Custom dual-ring focus with glow */
+  box-shadow: 
+    0 0 0 2px rgba(255, 255, 255, 0.2),      /* Inner white ring */
+    0 0 20px rgba(100, 150, 255, 0.3);       /* Outer blue glow */
+  /* Creates visible, attractive focus indicator */
+}
+
+/* Smooth scrollbar */
+/* Custom scrollbar styling (Webkit browsers only) */
+.premium-settings-container::-webkit-scrollbar {
+  width: 10px;  /* Scrollbar track width */
+}
+
+.premium-settings-container::-webkit-scrollbar-track {
+  /* Track (background area where thumb slides) */
+  background: rgba(255, 255, 255, 0.05);  /* Barely visible track */
+  border-radius: 10px;                    /* Rounded track */
+}
+
+.premium-settings-container::-webkit-scrollbar-thumb {
+  /* Thumb (draggable scroll handle) */
+  background: rgba(255, 255, 255, 0.2);   /* Semi-transparent white */
+  border-radius: 10px;                    /* Rounded thumb */
+  border: 2px solid transparent;          /* Invisible border creates padding */
+  background-clip: content-box;           /* Background stays inside border */
+  /* Creates inset appearance */
+}
+
+.premium-settings-container::-webkit-scrollbar-thumb:hover {
+  /* Brighter on hover for better visibility */
+  background: rgba(255, 255, 255, 0.3);  /* 30% opacity white */
+}
