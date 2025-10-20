@@ -35,6 +35,7 @@ export default function AppleFloatBar({
   const toolbarRef = useRef(null);
   const composerRef = useRef(null);
   const naturalHeightRef = useRef(0); // last measured natural content height
+  const isMiniRef = useRef(true);
   
   // Store
   const { clearMessages, apiConnected } = useStore();
@@ -43,6 +44,7 @@ export default function AppleFloatBar({
   const handleExpand = useCallback(() => {
     setIsTransitioning(true);
     setIsMini(false);
+    isMiniRef.current = false;
 
     // Restore last height immediately to avoid visible shrink
     (async () => {
@@ -84,6 +86,10 @@ export default function AppleFloatBar({
   
   const handleCollapse = useCallback(async () => {
     setIsTransitioning(true);
+    if (resizeDebounceRef.current) {
+      clearTimeout(resizeDebounceRef.current);
+      resizeDebounceRef.current = null;
+    }
     try {
       try {
         const b = await window.electron?.getBounds?.();
@@ -92,6 +98,8 @@ export default function AppleFloatBar({
       await window.electron?.resizeWindow?.(80, 80);
     } catch {}
     setIsMini(true);
+    isMiniRef.current = true;
+    naturalHeightRef.current = 0;
     setTimeout(() => {
       setIsTransitioning(false);
     }, 300);
@@ -111,30 +119,31 @@ export default function AppleFloatBar({
     setThinkingStatus('Thinking...');
     
     // Call real backend API with streaming
-    let fullResponse = '';
     chatAPI.sendMessageStream(text, null, null, (event) => {
-      // Handle SSE events
+      console.log('[Chat] Received SSE event:', event);
+      
+      // Handle SSE events - backend sends {type: string, data: {...}}
       if (event.type === 'thinking') {
-        setThinkingStatus(event.message || 'Processing...');
-      } else if (event.type === 'message') {
-        // Append streaming message chunks
-        fullResponse += event.message || '';
-        setThoughts(prev => {
-          const newThoughts = [...prev];
-          // Update or add assistant message
-          const lastIdx = newThoughts.length - 1;
-          if (lastIdx >= 0 && newThoughts[lastIdx].role === 'assistant') {
-            newThoughts[lastIdx].content = fullResponse;
-          } else {
-            newThoughts.push({ role: 'assistant', content: fullResponse, timestamp: Date.now() });
-          }
-          return newThoughts;
-        });
+        const message = event.data?.message || event.message || 'Processing...';
+        setThinkingStatus(message);
+      } else if (event.type === 'step') {
+        // Step completed - could show intermediate steps
+        setThinkingStatus('Working...');
       } else if (event.type === 'done') {
+        // Final response received
+        const finalResponse = event.data?.final_response || event.final_response || '';
+        if (finalResponse) {
+          setThoughts(prev => [...prev, { 
+            role: 'assistant', 
+            content: finalResponse, 
+            timestamp: Date.now() 
+          }]);
+        }
         setIsThinking(false);
         setThinkingStatus('');
       } else if (event.type === 'error') {
-        toast.error(event.message || 'Failed to get response');
+        const errorMsg = event.data?.error || event.error || 'Failed to get response';
+        toast.error(errorMsg);
         setIsThinking(false);
         setThinkingStatus('');
       }
@@ -169,13 +178,14 @@ export default function AppleFloatBar({
   
   // Dynamically resize window based on content (no arbitrary caps)
   const updateWindowHeight = useCallback(() => {
-    if (!barRef.current || isMini) return;
+    if (!barRef.current || isMiniRef.current) return;
 
     if (resizeDebounceRef.current) {
       clearTimeout(resizeDebounceRef.current);
     }
 
     resizeDebounceRef.current = setTimeout(async () => {
+      if (isMiniRef.current) return;
       // Compute natural content height: paddings + toolbar + messages content + input + gaps
       const containerEl = barRef.current;
       const glassEl = containerEl?.querySelector?.('.apple-bar-glass');
@@ -240,6 +250,10 @@ export default function AppleFloatBar({
       // Update baseline after any attempted resize
       naturalHeightRef.current = naturalHeight;
     }, 100);
+  }, [isMini]);
+
+  useEffect(() => {
+    isMiniRef.current = isMini;
   }, [isMini]);
   
   // Update height when content changes

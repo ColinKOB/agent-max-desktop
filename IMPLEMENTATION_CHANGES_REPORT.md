@@ -247,11 +247,12 @@ GOOGLE_OAUTH_CLIENT_SECRET=your-google-client-secret-here
 ### After Fixes  
 - **Pass Rate**: 18/33 (55%)
 - **Improvements**:
-  - ✅ Chat UI sends real messages to backend
-  - ✅ Agent endpoints return 503 with helpful errors
-  - ✅ Telemetry accepts events without API key
-  - ✅ API key configuration removed from UI
-  - ✅ Environment configuration documented
+  - Chat UI sends real messages to backend
+  - Chat UI receives and displays AI responses
+  - Agent endpoints return 503 with helpful errors
+  - Telemetry accepts events without API key
+  - API key configuration removed from UI
+  - Environment configuration documented
 
 ### Remaining Issues (Not Critical)
 - Google services need OAuth credentials in .env
@@ -264,17 +265,26 @@ GOOGLE_OAUTH_CLIENT_SECRET=your-google-client-secret-here
 ## How to Verify Changes
 
 ### 1. Test Chat Functionality
+
+**IMPORTANT**: You need an OpenAI API key for chat to work!
+
 ```bash
-# Start backend
+# Set up backend environment
 cd Agent_Max
+cp .env.example .env
+# Edit .env and add: OPENAI_API_KEY=sk-your-key-here
+
+# Start backend
 uvicorn api.main:app --reload --port 8000
 
-# Start frontend  
+# Start frontend (in new terminal)
 cd agent-max-desktop
 npm run dev
 
-# Open browser, expand chat bar, send message
+# Open browser to http://localhost:5173
+# Expand chat bar, send message like "Hello, how are you?"
 # Should receive real AI response via streaming
+# Check browser console for [Chat] logs
 ```
 
 ### 2. Verify API Key Removal

@@ -32,6 +32,49 @@ let tray = null;
 let settingsWindow;
 let ffmpegProcess;
 let memoryManager;
+let cardWindow;
+
+// Screen magnet (edge snap) state
+let magnetTimer = null;
+const MAGNET_DELAY_MS = 1800; // a few seconds after movement stops
+let isMagnetizing = false;
+
+function scheduleMagnet(win) {
+  if (!win || win.isDestroyed()) return;
+  if (magnetTimer) clearTimeout(magnetTimer);
+  magnetTimer = setTimeout(() => snapWindowToEdge(win), MAGNET_DELAY_MS);
+}
+
+function snapWindowToEdge(win) {
+  if (!win || win.isDestroyed()) return;
+  try {
+    const bounds = win.getBounds();
+    const display = screen.getDisplayMatching(bounds);
+    const wa = display.workArea; // respect taskbar/notch
+    const margin = 16;
+
+    const distLeft = Math.abs(bounds.x - wa.x);
+    const distRight = Math.abs((wa.x + wa.width) - (bounds.x + bounds.width));
+    const distTop = Math.abs(bounds.y - wa.y);
+    const distBottom = Math.abs((wa.y + wa.height) - (bounds.y + bounds.height));
+
+    // Snap independently on both axes to nearest screen edge
+    const snapX = distLeft <= distRight
+      ? wa.x + margin
+      : wa.x + wa.width - bounds.width - margin;
+
+    const snapY = distTop <= distBottom
+      ? wa.y + margin
+      : wa.y + wa.height - bounds.height - margin;
+
+    // Avoid recursive move storms during magnetization
+    isMagnetizing = true;
+    win.setPosition(Math.round(snapX), Math.round(snapY));
+    setTimeout(() => { isMagnetizing = false; }, 250);
+  } catch (e) {
+    console.error('[Electron] snapWindowToEdge failed:', e);
+  }
+}
 
 function createWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
@@ -83,6 +126,12 @@ function createWindow() {
 
   // Make window draggable from top 20px
   mainWindow.setWindowButtonVisibility(false);
+
+  // Debounced screen magnet after user stops moving the window
+  mainWindow.on('move', () => {
+    if (isMagnetizing) return; // ignore our own snap
+    scheduleMagnet(mainWindow);
+  });
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
@@ -162,6 +211,12 @@ function ensureCardWindow() {
   cardWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   cardWindow.setAlwaysOnTop(true, 'floating', 1);
   cardWindow.setWindowButtonVisibility(false);
+
+  // Apply magnet behavior to card window too
+  cardWindow.on('move', () => {
+    if (isMagnetizing) return;
+    scheduleMagnet(cardWindow);
+  });
 
   if (process.env.NODE_ENV === 'development') {
     cardWindow.loadURL('http://localhost:5173/#/card');
