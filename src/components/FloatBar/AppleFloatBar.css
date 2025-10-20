@@ -99,6 +99,20 @@
   position: relative;
 }
 
+.apple-bar-logo {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  width: 32px;
+  height: 32px;
+  background-image: url('/AgentMaxLogo.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+  pointer-events: none;
+}
+
 /* Drag strip at top for window dragging */
 .apple-drag-strip {
   height: 14px;

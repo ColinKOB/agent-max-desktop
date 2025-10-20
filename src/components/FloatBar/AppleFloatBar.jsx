@@ -33,6 +33,17 @@ export default function AppleFloatBar({
   
   // Store
   const { send, clearMessages, apiConnected } = useStore();
+
+  // Fallback send handler when store.send is not yet wired
+  const sendMessage = useCallback(async (text) => {
+    if (typeof send === 'function') {
+      return send(text);
+    }
+
+    // Demo fallback: echo response so UI remains stable
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    return `I received your message: "${text}". This is a preview response.`;
+  }, [send]);
   
   // Handle expand/collapse
   const handleExpand = useCallback(() => {
@@ -71,7 +82,7 @@ export default function AppleFloatBar({
     setThinkingStatus('Thinking...');
     
     // Simulate API call (replace with actual implementation)
-    send(text).then(response => {
+    sendMessage(text).then(response => {
       setThoughts(prev => [...prev, { role: 'assistant', content: response, timestamp: Date.now() }]);
     }).catch(error => {
       toast.error('Failed to send message');
@@ -80,7 +91,7 @@ export default function AppleFloatBar({
       setIsThinking(false);
       setThinkingStatus('');
     });
-  }, [message, isThinking, apiConnected, send]);
+  }, [message, isThinking, apiConnected, sendMessage]);
   
   // Handle clear conversation
   const handleClear = useCallback(() => {
@@ -106,7 +117,7 @@ export default function AppleFloatBar({
   // Dynamically resize window based on content
   const updateWindowHeight = useCallback(() => {
     if (!barRef.current || isMini) return;
-    
+
     // Clear existing debounce
     if (resizeDebounceRef.current) {
       clearTimeout(resizeDebounceRef.current);
@@ -117,11 +128,19 @@ export default function AppleFloatBar({
       const contentHeight = barRef.current.scrollHeight;
       const minHeight = 70;
       const maxHeight = 700; // 10x the min height
-      const targetHeight = Math.max(minHeight, Math.min(maxHeight, contentHeight));
-      
+      let targetHeight = Math.max(minHeight, Math.min(maxHeight, contentHeight));
+
+      // Only allow full "card" expansion once assistant messages exist (AI conversation)
+      const hasAssistantMessage = !!barRef.current.querySelector('.apple-message-assistant');
+      if (!hasAssistantMessage) {
+        const userOnlyMax = 220;
+        targetHeight = Math.min(targetHeight, userOnlyMax);
+      }
+
       // Only resize if height changed significantly (>10px)
       if (Math.abs(targetHeight - lastHeightRef.current) > 10) {
         lastHeightRef.current = targetHeight;
+
         
         // Use electron API if available
         if (window.electron?.resizeWindow) {
@@ -139,6 +158,28 @@ export default function AppleFloatBar({
   useEffect(() => {
     updateWindowHeight();
   }, [thoughts, isThinking, updateWindowHeight]);
+
+  // Re-measure height when window regains focus or visibility (e.g., after minimize)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (!isMini) {
+        setTimeout(() => updateWindowHeight(), 50);
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        handleFocus();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [isMini, updateWindowHeight]);
   
   // Keyboard shortcuts
   useEffect(() => {
@@ -199,6 +240,7 @@ export default function AppleFloatBar({
     <div className={windowClasses}>
       <div className="apple-bar-container" ref={barRef}>
         <div className="apple-bar-glass">
+          <div className="apple-bar-logo" />
           <div className="apple-drag-strip" />
           {/* Toolbar */}
           <div className="apple-toolbar">
