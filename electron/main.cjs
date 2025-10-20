@@ -437,6 +437,44 @@ ipcMain.handle(
 
         mainWindow.setSize(width, height, false); // false = no animation (instant)
 
+        // After resizing, preserve corner anchoring and keep fully within work area
+        try {
+          const margin = 16;
+          const anchorThreshold = 32; // how close counts as anchored to an edge
+          const before = beforeBounds; // bounds captured before resize
+          const display = screen.getDisplayMatching(before);
+          const wa = display.workArea;
+
+          const after = mainWindow.getBounds();
+
+          const anchoredLeft = before.x <= wa.x + anchorThreshold;
+          const anchoredRight = before.x + before.width >= wa.x + wa.width - anchorThreshold;
+          const anchoredTop = before.y <= wa.y + anchorThreshold;
+          const anchoredBottom = before.y + before.height >= wa.y + wa.height - anchorThreshold;
+
+          let targetX = after.x;
+          let targetY = after.y;
+
+          if (anchoredLeft) targetX = wa.x + margin;
+          else if (anchoredRight) targetX = wa.x + wa.width - after.width - margin;
+
+          if (anchoredTop) targetY = wa.y + margin;
+          else if (anchoredBottom) targetY = wa.y + wa.height - after.height - margin;
+
+          // Final clamp to ensure we never go off-screen
+          const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
+          targetX = clamp(targetX, wa.x, wa.x + wa.width - after.width);
+          targetY = clamp(targetY, wa.y, wa.y + wa.height - after.height);
+
+          if (targetX !== after.x || targetY !== after.y) {
+            isMagnetizing = true;
+            mainWindow.setPosition(Math.round(targetX), Math.round(targetY));
+            setTimeout(() => { isMagnetizing = false; }, 200);
+          }
+        } catch (e) {
+          console.error('[Electron] Post-resize boundary clamp failed:', e);
+        }
+
         // TEST 2: RESTORE VISIBILITY (currently disabled)
         // if (wasVisible) {
         //   setTimeout(() => {

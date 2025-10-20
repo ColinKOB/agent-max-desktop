@@ -106,7 +106,7 @@ export default function AppleFloatBar({
   }, []);
   
   // Handle message submit
-  const handleSubmit = useCallback((e) => {
+  const handleSubmit = useCallback(async (e) => {
     e?.preventDefault();
     const text = message.trim();
     
@@ -118,8 +118,25 @@ export default function AppleFloatBar({
     setIsThinking(true);
     setThinkingStatus('Thinking...');
     
+    // Check if user is asking about screen content
+    const screenKeywords = ['screen', 'see', 'what is on', 'what\'s on', 'show me', 'screenshot', 'display'];
+    const needsScreenshot = screenKeywords.some(keyword => text.toLowerCase().includes(keyword));
+    
+    let screenshotData = null;
+    if (needsScreenshot && window.electron?.takeScreenshot) {
+      try {
+        setThinkingStatus('Capturing screenshot...');
+        const result = await window.electron.takeScreenshot();
+        screenshotData = result.base64;
+        console.log('[Chat] Screenshot captured:', Math.round(result.size / 1024), 'KB');
+      } catch (error) {
+        console.error('[Chat] Failed to capture screenshot:', error);
+        toast.error('Failed to capture screenshot');
+      }
+    }
+    
     // Call real backend API with streaming
-    chatAPI.sendMessageStream(text, null, null, (event) => {
+    chatAPI.sendMessageStream(text, null, screenshotData, (event) => {
       console.log('[Chat] Received SSE event:', event);
       
       // Handle SSE events - backend sends {type: string, data: {...}}
