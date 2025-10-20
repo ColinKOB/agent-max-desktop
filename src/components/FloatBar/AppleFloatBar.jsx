@@ -49,7 +49,26 @@ export default function AppleFloatBar({
   const handleExpand = useCallback(() => {
     setIsTransitioning(true);
     setIsMini(false);
-    
+
+    // Restore last height immediately to avoid visible shrink
+    (async () => {
+      try {
+        const key = 'amx:floatbar:lastHeight';
+        let saved = Number(localStorage.getItem(key));
+        if (!Number.isFinite(saved) || saved < 120) saved = 140;
+        let limit = Infinity;
+        try {
+          const size = await window.electron?.getScreenSize?.();
+          if (size?.height) limit = Math.max(120, size.height - 120);
+        } catch {}
+        const target = Math.min(limit, Math.max(120, saved));
+        if (window.electron?.resizeWindow) {
+          await window.electron.resizeWindow(360, target);
+          lastHeightRef.current = target;
+        }
+      } catch {}
+    })();
+
     // Focus input after animation
     setTimeout(() => {
       inputRef.current?.focus();
@@ -60,6 +79,10 @@ export default function AppleFloatBar({
   const handleCollapse = useCallback(async () => {
     setIsTransitioning(true);
     try {
+      try {
+        const b = await window.electron?.getBounds?.();
+        if (b?.height) localStorage.setItem('amx:floatbar:lastHeight', String(b.height));
+      } catch {}
       await window.electron?.resizeWindow?.(80, 80);
     } catch {}
     setIsMini(true);
@@ -114,44 +137,43 @@ export default function AppleFloatBar({
     window.dispatchEvent(new CustomEvent('amx:ui', { detail: { type: 'tools_open' } }));
   }, []);
   
-  // Dynamically resize window based on content
+  // Dynamically resize window based on content (no arbitrary caps)
   const updateWindowHeight = useCallback(() => {
     if (!barRef.current || isMini) return;
 
-    // Clear existing debounce
     if (resizeDebounceRef.current) {
       clearTimeout(resizeDebounceRef.current);
     }
-    
-    // Debounce resize to avoid performance issues
-    resizeDebounceRef.current = setTimeout(() => {
+
+    resizeDebounceRef.current = setTimeout(async () => {
       const contentHeight = barRef.current.scrollHeight;
       const minHeight = 70;
-      const maxHeight = 700; // 10x the min height
-      let targetHeight = Math.max(minHeight, Math.min(maxHeight, contentHeight));
 
-      // Only allow full "card" expansion once assistant messages exist (AI conversation)
-      const hasAssistantMessage = !!barRef.current.querySelector('.apple-message-assistant');
-      if (!hasAssistantMessage) {
-        const userOnlyMax = 220;
-        targetHeight = Math.min(targetHeight, userOnlyMax);
-      }
+      // Limit by available screen height (minus margin), not a hardcoded app cap
+      let screenLimit = Infinity;
+      try {
+        const screenSize = await window.electron?.getScreenSize?.();
+        if (screenSize?.height) {
+          screenLimit = Math.max(minHeight, screenSize.height - 120); // 120px safe margin
+        }
+      } catch {}
 
-      // Only resize if height changed significantly (>10px)
-      if (Math.abs(targetHeight - lastHeightRef.current) > 10) {
+      let targetHeight = Math.max(minHeight, Math.min(screenLimit, contentHeight));
+
+      // Only resize if height changed meaningfully
+      if (Math.abs(targetHeight - lastHeightRef.current) > 8) {
         lastHeightRef.current = targetHeight;
-
-        
-        // Use electron API if available
         if (window.electron?.resizeWindow) {
-          window.electron.getBounds?.().then(bounds => {
+          try {
+            const bounds = await window.electron.getBounds?.();
             if (bounds) {
-              window.electron.resizeWindow(bounds.width, targetHeight);
+              await window.electron.resizeWindow(bounds.width, targetHeight);
+              try { localStorage.setItem('amx:floatbar:lastHeight', String(targetHeight)); } catch {}
             }
-          });
+          } catch {}
         }
       }
-    }, 100); // 100ms debounce
+    }, 100);
   }, [isMini]);
   
   // Update height when content changes
@@ -214,11 +236,7 @@ export default function AppleFloatBar({
     return (
       <div
         className={`amx-root amx-mini amx-mini-draggable ${isTransitioning ? 'amx-transitioning' : ''}`}
-        onClick={async () => {
-          try {
-            // Expand window horizontally first, then focus input
-            await window.electron?.resizeWindow?.(360, 120);
-          } catch {}
+        onClick={() => {
           handleExpand();
         }}
       >

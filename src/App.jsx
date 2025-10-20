@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import AppleFloatBar from './components/FloatBar/AppleFloatBar';
-import Settings from './pages/Settings';
-import SettingsPremium from './pages/SettingsPremium';
 import UITestDashboard from './pages/UITestDashboard';
 import useStore from './store/useStore';
 import { healthAPI, profileAPI } from './services/api';

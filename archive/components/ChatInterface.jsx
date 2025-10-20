@@ -114,7 +114,7 @@ export default function ChatInterface() {
             rows={1}
             disabled={sending}
             className="flex-1 input resize-none"
-            style={{ minHeight: '44px', maxHeight: '120px' }}
+            style={{ minHeight: '44px', maxHeight: '140px' }}
           />
           <button
             onClick={handleSend}

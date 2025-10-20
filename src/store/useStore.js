@@ -34,6 +34,7 @@ const useStore = create((set, get) => ({
     })),
 
   setMessages: (messages) => set({ messages }),
+  clearMessages: () => set({ messages: [] }),
   setPendingTasks: (tasks) => set({ pendingTasks: tasks }),
   setFacts: (facts) => set({ facts }),
   setPreferences: (preferences) => set({ preferences }),

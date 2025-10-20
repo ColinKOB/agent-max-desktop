@@ -1,0 +1,45 @@
+.settings-scope { 
+  /* Monochrome, utilitarian, Google-like on white */
+  --sat: 1.0;
+  --base: rgba(255, 255, 255, 0.75);         /* main panels nearly white */
+  --base-nested: rgba(255, 255, 255, 0.6);   /* nested tiles slightly dimmer */
+  --stroke: rgba(0, 0, 0, 0.08);
+  --stroke-nested: rgba(0, 0, 0, 0.10);
+  --rim: rgba(255, 255, 255, 0.18);
+  --text-heading: rgba(0, 0, 0, 0.92);
+  --text-body: rgba(0, 0, 0, 0.86);
+  --text-muted: rgba(0, 0, 0, 0.62);
+  --text-subtle: rgba(0, 0, 0, 0.48);
+}
+
+/* Neutralize purple tint for settings panels */
+.settings-scope .amx-liquid {
+  /* Neutral gradients — no purple wash */
+  background:
+    radial-gradient(160% 200% at 25% -20%, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.06) 60%, rgba(255, 255, 255, 0) 80%),
+    linear-gradient(150deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.04)),
+    var(--base) !important;
+}
+
+/* Softer noise for a cleaner, more professional look */
+.settings-scope .amx-liquid.amx-noise::after {
+  opacity: 0.18; /* lower noise for professionalism */
+}
+
+/* Dial back backdrop color saturation for this window */
+.settings-scope #backdrop {
+  background: #ffffff !important; /* white workspace */
+  filter: blur(18px) saturate(1.0) !important; /* minimal processing */
+}
+
+/* Typography refinements */
+.settings-scope .amx-heading {
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+/* Sidebar heading utility (remove uppercase/extra tracking) */
+.settings-scope .settings-sidebar-title {
+  text-transform: none;
+  letter-spacing: 0;
+}
