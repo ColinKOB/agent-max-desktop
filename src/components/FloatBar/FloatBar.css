@@ -10,6 +10,103 @@
    FloatBar specific overrides
    ======================================== */
 
+/* Option A: Frosted Toolbar + Light Card
+   High-specificity to override legacy styles without touching pill */
+.amx-root.amx-bar {
+  position: relative;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* Bar shell fills the window and owns the glass background */
+.amx-bar-shell {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.amx-bar-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(220% 180% at 12% -18%, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.1) 58%, rgba(255, 255, 255, 0) 78%),
+    linear-gradient(140deg, rgba(72, 116, 255, 0.22), rgba(122, 83, 255, 0.2), rgba(255, 153, 102, 0.14)),
+    rgba(16, 22, 36, 0.58);
+  /* 40px blur for a strong frosted look */
+  backdrop-filter: blur(40px) saturate(1.35);
+  -webkit-backdrop-filter: blur(40px) saturate(1.35);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.amx-bar-shell > * { position: relative; z-index: 1; }
+
+/* Vertical layout: messages above, input/actions at bottom */
+.amx-bar-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px 16px;
+  gap: 8px;
+}
+
+.amx-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+
+.amx-bar-messages {
+  flex: 1;
+  min-height: 60px;
+  overflow-y: auto;
+}
+
+.amx-bar-composer {
+  padding-top: 4px;
+}
+
+/* Card header and composer as frosted chrome; card body stays light */
+.amx-root.amx-card .amx-header,
+.amx-root.amx-card .amx-actions {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+}
+
+.amx-root.amx-card .amx-header { 
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.amx-root.amx-card .amx-actions {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Header icon buttons */
+.amx-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--amx-button-size);
+  height: var(--amx-button-size);
+  border-radius: var(--amx-radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--amx-text, rgba(16, 18, 30, 0.9));
+  opacity: 0.72;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-base);
+  -webkit-app-region: no-drag;
+}
+
+.amx-icon-btn:hover { opacity: 1; background: rgba(0, 0, 0, 0.04); }
+.amx-icon-btn:active { transform: scale(0.96); }
+.amx-icon-btn svg { width: var(--amx-icon-md); height: var(--amx-icon-md); }
+
 /* Actions container */
 .amx-actions {
   padding: 16px;
@@ -307,6 +404,22 @@
   padding: 0 16px;
 }
 
+/* Scale wrapper for transform-only expansion (no layout reflow) */
+.amx-scale {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transform-origin: left center;
+  transform: scaleX(1);
+  transition: transform 320ms var(--ease-base);
+  will-change: transform;
+}
+
+/* BAR_EXPANDING visual: widen via scaleX */
+.amx-bar-expanding .amx-scale {
+  transform: scaleX(1.5);
+}
+
 .amx-bar .amx-bar-input {
   flex: 1;
   background: transparent;
@@ -314,6 +427,12 @@
   outline: none;
   color: rgba(var(--liquid-ink-primary));
   font-size: 14px;
+}
+
+/* Accessibility: restore visible focus for bar input */
+.amx-bar .amx-bar-input:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.75);
+  outline-offset: 2px;
 }
 
 .amx-bar .amx-bar-minimize-btn {
@@ -330,6 +449,44 @@
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.3);
   transform: scale(1.05);
+}
+
+/* Bar actions cluster (History, Settings, Shrink) */
+.amx-bar .amx-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.amx-bar .amx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  color: rgba(var(--liquid-ink-primary));
+  cursor: pointer;
+  transition: transform 180ms var(--ease-base), opacity 180ms var(--ease-base), background-color 180ms var(--ease-base), border-color 180ms var(--ease-base);
+}
+
+.amx-bar .amx-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.amx-bar .amx-btn:active {
+  transform: scale(0.96);
+}
+
+.amx-bar .amx-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
 }
 
 /* Transition animations */

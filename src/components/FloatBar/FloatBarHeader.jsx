@@ -1,10 +1,5 @@
-/**
- * FloatBar Header Component
- * Header with greeting and controls
- */
 import React from 'react';
 import { Minimize2, Settings, Trash2, Menu } from 'lucide-react';
-import { LiquidGlassButton } from '../ui/LiquidGlassCard';
 
 export default function FloatBarHeader({
   greeting = "Hi there!",
@@ -18,40 +13,44 @@ export default function FloatBarHeader({
       <span className="amx-drag-handle flex-1">{greeting}</span>
       <div className="flex gap-2">
         {onMenu && (
-          <LiquidGlassButton
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
+            className="amx-icon-btn"
             onClick={onMenu}
-            icon={Menu}
             aria-label="Menu"
-          />
+          >
+            <Menu size={14} />
+          </button>
         )}
         {onClear && (
-          <LiquidGlassButton
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
+            className="amx-icon-btn"
             onClick={onClear}
-            icon={Trash2}
             aria-label="Clear conversation"
-          />
+          >
+            <Trash2 size={14} />
+          </button>
         )}
         {onSettings && (
-          <LiquidGlassButton
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
+            className="amx-icon-btn"
             onClick={onSettings}
-            icon={Settings}
             aria-label="Settings"
-          />
+          >
+            <Settings size={14} />
+          </button>
         )}
         {onMinimize && (
-          <LiquidGlassButton
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
+            className="amx-icon-btn"
             onClick={onMinimize}
-            icon={Minimize2}
             aria-label="Minimize"
-          />
+          >
+            <Minimize2 size={14} />
+          </button>
         )}
       </div>
     </div>

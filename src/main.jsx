@@ -13,6 +13,15 @@ import './styles/accessibility.css';
 import './styles/premium-glass.css';
 import './styles/premium-enhancements.css';
 
+// Add platform class for glass tuning (avoid double-blur on mac vibrancy, etc.)
+const ua = navigator.userAgent || '';
+const isMac = /Macintosh|Mac OS X/.test(ua);
+const isWin = /Windows/.test(ua);
+const isLinux = /Linux/.test(ua);
+if (isMac) document.documentElement.classList.add('platform-mac');
+else if (isWin) document.documentElement.classList.add('platform-win');
+else if (isLinux) document.documentElement.classList.add('platform-linux');
+
 const PillApp = () => <App windowMode="pill" />;
 const CardApp = () => <App windowMode="card" />;
 

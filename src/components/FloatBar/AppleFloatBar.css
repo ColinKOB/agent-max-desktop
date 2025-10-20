@@ -1,0 +1,368 @@
+/**
+ * Apple-style FloatBar CSS
+ * Glassmorphism with 40px blur, expanding bar design
+ */
+
+/* Root container */
+.apple-floatbar-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.apple-floatbar-root > * {
+  pointer-events: auto;
+}
+
+/* Mini pill state */
+.apple-floatbar-root.mini {
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 20px;
+}
+
+.apple-mini-content {
+  width: 68px;
+  height: 68px;
+  border-radius: 20px;
+  background: rgba(30, 30, 35, 0.8);
+  backdrop-filter: blur(40px) saturate(1.8);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.apple-mini-content:hover {
+  transform: scale(1.05);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.apple-mini-content:active {
+  transform: scale(0.98);
+}
+
+.apple-logo {
+  font-size: 28px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+/* Expanded bar container */
+.apple-bar-container {
+  width: 100%;
+  max-width: 360px;
+  min-height: 70px;
+  max-height: 700px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  animation: expandIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Glass background layer */
+.apple-bar-glass {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: 
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.05) 100%
+    ),
+    rgba(26, 26, 31, 0.7);
+  backdrop-filter: blur(40px) saturate(1.8);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 
+    0 20px 70px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+  padding: 12px;
+  gap: 8px;
+  position: relative;
+}
+
+/* Drag strip at top for window dragging */
+.apple-drag-strip {
+  height: 14px;
+  -webkit-app-region: drag;
+}
+
+/* Interactive elements must not be draggable */
+.apple-toolbar,
+.apple-tool-btn,
+.apple-input-area,
+.apple-input,
+.apple-send-btn {
+  -webkit-app-region: no-drag;
+}
+
+/* Gradient overlay for depth */
+.apple-bar-glass::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+  pointer-events: none;
+}
+
+/* Toolbar */
+.apple-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+.apple-tool-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.apple-tool-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+  color: white;
+}
+
+.apple-tool-btn:active {
+  transform: translateY(0);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Messages area */
+.apple-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+  max-height: 500px;
+}
+
+/* Custom scrollbar */
+.apple-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.apple-messages::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.apple-messages::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.apple-messages::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Message bubbles */
+.apple-message {
+  max-width: 85%;
+  animation: messageIn 0.2s ease;
+}
+
+.apple-message-user {
+  align-self: flex-end;
+}
+
+.apple-message-assistant {
+  align-self: flex-start;
+}
+
+.apple-message-thinking {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  padding: 8px 12px;
+}
+
+.apple-message-content {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  position: relative;
+}
+
+.apple-message-user .apple-message-content {
+  background: linear-gradient(135deg, #007AFF, #0051D5);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+}
+
+.apple-message-assistant .apple-message-content {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Input area */
+.apple-input-area {
+  display: flex;
+  gap: 8px;
+  padding: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+.apple-input {
+  flex: 1;
+  height: 36px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 18px;
+  color: white;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.apple-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.apple-input:focus {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+}
+
+.apple-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.apple-send-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #007AFF, #0051D5);
+  border: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+}
+
+.apple-send-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
+}
+
+.apple-send-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.apple-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+/* Platform-specific tuning to avoid double blur per GlassmorphismINFO.md */
+.platform-mac .apple-bar-glass {
+  /* macOS provides native vibrancy blur; avoid double-blur */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(26, 26, 31, 0.5);
+}
+
+.platform-linux .apple-bar-glass {
+  /* Linux fallback: keep strong CSS blur for legibility */
+  backdrop-filter: blur(40px) saturate(1.8);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+}
+
+/* Animations */
+@keyframes expandIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes messageIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Spin animation for loader */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Transition states */
+.apple-floatbar-root.transitioning .apple-bar-container,
+.apple-floatbar-root.transitioning .apple-mini-content {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

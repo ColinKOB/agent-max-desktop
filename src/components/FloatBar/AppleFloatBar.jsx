@@ -1,0 +1,262 @@
+/**
+ * Apple-style FloatBar Component
+ * Clean, expanding bar-only UI with glassmorphism
+ * Replaces card mode entirely with a dynamic expanding bar
+ */
+
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { Settings, RotateCcw, Wrench, Send, Loader2, Minimize2 } from 'lucide-react';
+import useStore from '../../store/useStore';
+import toast from 'react-hot-toast';
+import './AppleFloatBar.css';
+
+export default function AppleFloatBar({ 
+  showWelcome, 
+  onWelcomeComplete, 
+  isLoading,
+  windowMode = 'single',
+  autoSend = true 
+}) {
+  // Core state
+  const [isMini, setIsMini] = useState(true); // Start as mini pill
+  const [message, setMessage] = useState('');
+  const [thoughts, setThoughts] = useState([]);
+  const [isThinking, setIsThinking] = useState(false);
+  const [thinkingStatus, setThinkingStatus] = useState('');
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  
+  // Refs
+  const barRef = useRef(null);
+  const inputRef = useRef(null);
+  const lastHeightRef = useRef(70);
+  const resizeDebounceRef = useRef(null);
+  
+  // Store
+  const { send, clearMessages, apiConnected } = useStore();
+  
+  // Handle expand/collapse
+  const handleExpand = useCallback(() => {
+    setIsTransitioning(true);
+    setIsMini(false);
+    
+    // Focus input after animation
+    setTimeout(() => {
+      inputRef.current?.focus();
+      setIsTransitioning(false);
+    }, 300);
+  }, []);
+  
+  const handleCollapse = useCallback(async () => {
+    setIsTransitioning(true);
+    try {
+      await window.electron?.resizeWindow?.(80, 80);
+    } catch {}
+    setIsMini(true);
+    setTimeout(() => {
+      setIsTransitioning(false);
+    }, 300);
+  }, []);
+  
+  // Handle message submit
+  const handleSubmit = useCallback((e) => {
+    e?.preventDefault();
+    const text = message.trim();
+    
+    if (!text || isThinking || !apiConnected) return;
+    
+    // Add user message
+    setThoughts(prev => [...prev, { role: 'user', content: text, timestamp: Date.now() }]);
+    setMessage('');
+    setIsThinking(true);
+    setThinkingStatus('Thinking...');
+    
+    // Simulate API call (replace with actual implementation)
+    send(text).then(response => {
+      setThoughts(prev => [...prev, { role: 'assistant', content: response, timestamp: Date.now() }]);
+    }).catch(error => {
+      toast.error('Failed to send message');
+      console.error(error);
+    }).finally(() => {
+      setIsThinking(false);
+      setThinkingStatus('');
+    });
+  }, [message, isThinking, apiConnected, send]);
+  
+  // Handle clear conversation
+  const handleClear = useCallback(() => {
+    setThoughts([]);
+    clearMessages();
+    toast.success('Conversation cleared');
+  }, [clearMessages]);
+  
+  // Handle settings
+  const handleSettings = useCallback(() => {
+    if (window.electron?.openSettings) {
+      window.electron.openSettings();
+    } else if (window.electronAPI?.openSettings) {
+      window.electronAPI.openSettings();
+    }
+  }, []);
+  
+  // Handle tools
+  const handleTools = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('amx:ui', { detail: { type: 'tools_open' } }));
+  }, []);
+  
+  // Dynamically resize window based on content
+  const updateWindowHeight = useCallback(() => {
+    if (!barRef.current || isMini) return;
+    
+    // Clear existing debounce
+    if (resizeDebounceRef.current) {
+      clearTimeout(resizeDebounceRef.current);
+    }
+    
+    // Debounce resize to avoid performance issues
+    resizeDebounceRef.current = setTimeout(() => {
+      const contentHeight = barRef.current.scrollHeight;
+      const minHeight = 70;
+      const maxHeight = 700; // 10x the min height
+      const targetHeight = Math.max(minHeight, Math.min(maxHeight, contentHeight));
+      
+      // Only resize if height changed significantly (>10px)
+      if (Math.abs(targetHeight - lastHeightRef.current) > 10) {
+        lastHeightRef.current = targetHeight;
+        
+        // Use electron API if available
+        if (window.electron?.resizeWindow) {
+          window.electron.getBounds?.().then(bounds => {
+            if (bounds) {
+              window.electron.resizeWindow(bounds.width, targetHeight);
+            }
+          });
+        }
+      }
+    }, 100); // 100ms debounce
+  }, [isMini]);
+  
+  // Update height when content changes
+  useEffect(() => {
+    updateWindowHeight();
+  }, [thoughts, isThinking, updateWindowHeight]);
+  
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Escape to collapse
+      if (e.key === 'Escape' && !isMini) {
+        e.preventDefault();
+        handleCollapse();
+      }
+      
+      // Cmd/Ctrl + K to expand
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k' && isMini) {
+        e.preventDefault();
+        handleExpand();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMini, handleExpand, handleCollapse]);
+  
+  // Window classes
+  const windowClasses = useMemo(() => {
+    const classes = ['apple-floatbar-root'];
+    if (isMini) classes.push('mini');
+    if (isTransitioning) classes.push('transitioning');
+    return classes.join(' ');
+  }, [isMini, isTransitioning]);
+  
+  // Render mini pill (use original unchanged pill markup and classes)
+  if (isMini) {
+    return (
+      <div
+        className={`amx-root amx-mini amx-mini-draggable ${isTransitioning ? 'amx-transitioning' : ''}`}
+        onClick={async () => {
+          try {
+            // Expand window horizontally first, then focus input
+            await window.electron?.resizeWindow?.(360, 120);
+          } catch {}
+          handleExpand();
+        }}
+      >
+        <img src="/AgentMaxLogo.png" alt="Agent Max" className="amx-mini-logo" />
+        <div className="amx-drag-handle-mini">
+          <span className="amx-dot"></span>
+          <span className="amx-dot"></span>
+          <span className="amx-dot"></span>
+          <span className="amx-dot"></span>
+          <span className="amx-dot"></span>
+          <span className="amx-dot"></span>
+        </div>
+      </div>
+    );
+  }
+  
+  // Render expanded bar
+  return (
+    <div className={windowClasses}>
+      <div className="apple-bar-container" ref={barRef}>
+        <div className="apple-bar-glass">
+          <div className="apple-drag-strip" />
+          {/* Toolbar */}
+          <div className="apple-toolbar">
+            <button className="apple-tool-btn" onClick={handleTools} title="Tools">
+              <Wrench size={16} />
+            </button>
+            <button className="apple-tool-btn" onClick={handleSettings} title="Settings">
+              <Settings size={16} />
+            </button>
+            <button className="apple-tool-btn" onClick={handleClear} title="Clear">
+              <RotateCcw size={16} />
+            </button>
+            <button className="apple-tool-btn" onClick={handleCollapse} title="Shrink">
+              <Minimize2 size={16} />
+            </button>
+          </div>
+          
+          {/* Messages */}
+          {thoughts.length > 0 && (
+            <div className="apple-messages">
+              {thoughts.map((thought, idx) => (
+                <div key={idx} className={`apple-message apple-message-${thought.role}`}>
+                  <div className="apple-message-content">
+                    {thought.content}
+                  </div>
+                </div>
+              ))}
+              {isThinking && (
+                <div className="apple-message apple-message-thinking">
+                  <Loader2 className="animate-spin" size={14} />
+                  <span>{thinkingStatus}</span>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Input Area */}
+          <div className="apple-input-area">
+            <input
+              ref={inputRef}
+              type="text"
+              className="apple-input"
+              placeholder={apiConnected ? "Ask anything..." : "Connecting..."}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSubmit()}
+              disabled={!apiConnected || isThinking}
+            />
+            <button 
+              className="apple-send-btn"
+              onClick={handleSubmit}
+              disabled={!message.trim() || !apiConnected || isThinking}
+            >
+              <Send size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

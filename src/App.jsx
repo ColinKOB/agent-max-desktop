@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
-import FloatBar from './components/FloatBar';
+import AppleFloatBar from './components/FloatBar/AppleFloatBar';
 import Settings from './pages/Settings';
 import SettingsPremium from './pages/SettingsPremium';
 import UITestDashboard from './pages/UITestDashboard';
@@ -132,7 +132,7 @@ function App({ windowMode = 'single' }) {
 
   return (
     <>
-      <FloatBar
+      <AppleFloatBar
         showWelcome={showWelcome}
         onWelcomeComplete={handleWelcomeComplete}
         isLoading={isLoading}

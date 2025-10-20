@@ -46,6 +46,20 @@
   
   /* Legacy animation - now using tokens */
   --transition: var(--duration-base) var(--ease-base);
+
+  /* Glass tokens for bar/card overhaul */
+  --amx-glass-background: rgba(16, 22, 36, 0.58);
+  --amx-glass-highlight: rgba(255, 255, 255, 0.16);
+  --amx-glass-gradient: linear-gradient(140deg, rgba(72, 116, 255, 0.22), rgba(122, 83, 255, 0.2), rgba(255, 153, 102, 0.14));
+  --amx-glass-spotlight: radial-gradient(220% 180% at 12% -18%, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.1) 58%, rgba(255, 255, 255, 0) 78%);
+  --amx-border-soft: rgba(255, 255, 255, 0.24);
+  --amx-border-strong: rgba(255, 255, 255, 0.35);
+  --amx-shadow-bar: 0 24px 48px rgba(4, 10, 24, 0.48);
+  --amx-shadow-card: 0 40px 82px rgba(2, 6, 18, 0.58);
+  --amx-radius: var(--amx-radius-lg);
+  --amx-bar-height: 56px;
+  --amx-text-bright: rgba(255, 255, 255, 0.92);
+  --amx-text-muted-light: rgba(255, 255, 255, 0.62);
 }
 
 /* Force legacy builds to keep the pill surface neutral when no tint is desired */
@@ -313,20 +327,6 @@
   background: none !important;
 }
 
-.amx-root::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, rgba(19, 25, 40, 0.46), rgba(22, 27, 42, 0.22));
-  opacity: 0.6;
-  pointer-events: none;
-  z-index: -2;
-}
-
-.amx-root.amx-mini::after {
-  display: none;
-}
 
 /* ============================================
    MINI PILL MODE (68x68px)
@@ -339,9 +339,7 @@
    
    See UI_CUSTOMIZATION_GUIDE.md for detailed instructions
    ============================================ */
-.amx-mini,
-.amx-bar,
-.amx-card {
+.amx-mini {
   position: absolute;
   top: 0;
   left: 0;
@@ -359,18 +357,7 @@
   --glass-shadow-ring: none;
 }
 
-.amx-bar,
-.amx-card {
-  /* Bar/card share same multitone tint so transitions look seamless */
-  --glass-surface:
-    radial-gradient(190% 240% at 25% -12%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 58%, rgba(255, 255, 255, 0) 78%),
-    linear-gradient(150deg, rgba(82, 146, 255, 0.16), rgba(122, 83, 255, 0.12), rgba(255, 163, 102, 0.06)),
-    rgba(255, 255, 255, 0.08);
-  --glass-filter: blur(14px) saturate(1.25);
-  --glass-shadow-ring:
-    inset 0 1px rgba(255, 255, 255, 0.35),
-    inset 0 -1px rgba(255, 255, 255, 0.18);
-}
+/* Bar & card glass surfaces now use tokenized backgrounds defined below */
 
 .amx-transitioning::before {
   content: '';
@@ -383,9 +370,7 @@
 
 /* TEST 3: Disable backdrop-filter during resize (currently not applied) */
 /* To enable: Add 'amx-no-blur' class alongside 'amx-transitioning' in FloatBar.jsx */
-.amx-no-blur.amx-mini::before,
-.amx-no-blur.amx-bar::before,
-.amx-no-blur.amx-card::before {
+.amx-no-blur.amx-mini::before {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
@@ -409,27 +394,7 @@
   z-index: 0;
 }
 
-.amx-bar::before,
-.amx-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: var(--glass-surface, rgba(255, 255, 255, 0.2));
-  backdrop-filter: var(--glass-filter, blur(6px));
-  -webkit-backdrop-filter: var(--glass-filter, blur(6px));
-  box-shadow: var(
-    --glass-shadow-ring,
-    inset 0 1px rgba(255, 255, 255, 0.38),
-    inset 0 -1px rgba(255, 255, 255, 0.22)
-  );
-  pointer-events: none;
-  z-index: 0;
-}
-
-.amx-mini > *,
-.amx-bar > *,
-.amx-card > * {
+.amx-mini > * {
   position: relative;
   z-index: 1;
 }
@@ -599,119 +564,15 @@
    - More opaque: Increase --panel opacity in :root
    - Different color: Change --panel hue/lightness
    ============================================ */
-.amx-bar {
-  /* Layout - horizontal row */
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);  /* 12px */
-  padding: 0 var(--space-3) 0 var(--space-5);  /* 0 12px 0 24px */
-  
-  /* Appearance - smoked glass bar */
-  /* Surface gradients mimic macOS quick note aesthetic */
-  --glass-surface:
-    radial-gradient(circle at 50% 50%, rgba(16, 20, 32, 0.16) 0%, rgba(16, 20, 32, 0.14) 56%, rgba(16, 20, 32, 0) 97%);
-  --glass-filter: blur(32px) saturate(1.45);
-  --glass-shadow-ring:
-    inset 0 1px rgba(255, 255, 255, 0.35),
-    inset 0 -1px rgba(255, 255, 255, 0.18);
-  
-  transition: all var(--duration-base) var(--ease-base);
-}
+
 
 /* ============================================
    BAR INPUT FIELD
    The text input where you type messages
-   
-   CUSTOMIZATION:
-   - Larger text: Increase font-size (14px → 16px)
-   - Different font: Add font-family
-   - Text color: Change --text variable
    ============================================ */
-.amx-bar-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  /* Retain legacy bright ink so returning users recognise interaction */
-  color: rgba(255, 255, 255, 0.92);  /* Bright ink on smoked glass */
-  font-size: var(--text-body-size);  /* 16px */
-  font-weight: var(--weight-regular);  /* 400 */
-  letter-spacing: var(--tracking-normal);
-  -webkit-app-region: no-drag;
-}
 
-.amx-bar-input::placeholder {
-  color: rgba(255, 255, 255, 0.6);  /* Subtle placeholder */
-  font-weight: var(--weight-regular);
-}
 
-.amx-bar-input:focus {
-  /* Avoid default focus ring to keep bar minimal; card focus handles accessibility */
-  outline: none;
-  box-shadow: none;
-}
 
-.amx-bar-minimize-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--button-md);  /* 36px */
-  height: var(--button-md);
-  border-radius: var(--radius-pill);  /* Full circle */
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.68));
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  color: rgba(16, 18, 30, 0.88);  /* Dark icon */
-  cursor: pointer;
-  transition: all var(--duration-micro) var(--ease-base);
-  flex-shrink: 0;
-  -webkit-app-region: no-drag;
-}
-
-.amx-bar-minimize-btn:hover {
-  /* Lift effect reassures user that tap target is interactive */
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(255, 255, 255, 0.8));
-  color: rgba(16, 18, 30, 0.97);
-  border-color: rgba(255, 255, 255, 0.96);
-  transform: scale(1.05);
-}
-
-.amx-bar-minimize-btn:active {
-  transform: scale(0.95);
-}
-
-.amx-icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--amx-button-size);
-  height: var(--amx-button-size);
-  border-radius: var(--amx-radius-sm);
-  
-  /* Clean minimal button */
-  background: transparent;
-  border: none;
-  /* Idle icons reuse primary text tone and rely on opacity for hierarchy */
-  color: var(--amx-text);
-  opacity: 0.68;
-  cursor: pointer;
-  
-  transition: all var(--duration-fast) var(--ease-base);
-  -webkit-app-region: no-drag;
-}
-
-.amx-icon-btn svg {
-  width: var(--amx-icon-md);
-  height: var(--amx-icon-md);
-}
-
-.amx-icon-btn:hover {
-  opacity: 1;
-  background: rgba(0, 0, 0, 0.04);
-}
-
-.amx-icon-btn:active {
-  transform: scale(0.95);
-}
 
 /* ============================================
    CARD MODE - Professional Light UI (V2)
@@ -723,35 +584,12 @@
    - Messages (flat content): white surface, readable typography
    - Composer (glass chrome): 64px, textarea + controls
    ============================================ */
-.amx-card {
-  display: flex;
-  flex-direction: column;
-  
-  /* Light professional container */
-  background: var(--amx-surface);
-  border: 1px solid var(--amx-border);
-  box-shadow: var(--amx-shadow);
-  
-  /* Remove glass effects from card root */
-  --glass-surface: transparent;
-  --glass-filter: none;
-  --glass-shadow-ring: none;
-  
-  overflow: hidden;
-  transition: all var(--duration-base) var(--ease-base);
-}
+
 
 @supports not (backdrop-filter: blur(1px)) {
   .amx-mini {
     --glass-filter: none;
     --glass-surface: transparent;
-    --glass-shadow-ring: none;
-  }
-
-  .amx-bar,
-  .amx-card {
-    --glass-filter: none;
-    --glass-surface: rgba(255, 255, 255, 0.16);
     --glass-shadow-ring: none;
   }
 }
@@ -760,92 +598,19 @@
    INPUT FIELD - Glassmorphism Style
    Nested glass effect with shine gradient
    ============================================ */
-.amx-input {
-  width: 100%;
-  height: 44px;
-  border-radius: var(--radius-md);  /* 12px */
-  
-  /* Shine gradient + semi-transparent base */
-  background:
-    linear-gradient(to bottom, 
-      rgba(255, 255, 255, 0.92), 
-      rgba(255, 255, 255, 0.78)
-    );
-  
-  border: 1px solid rgba(255, 255, 255, 0.82);
-  outline: none;
-  padding: 0 14px;
-  
-  color: rgba(11, 18, 32, 0.95);  /* Dark text on glass */
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  line-height: 20px;
-  
-  /* Nested blur + rim light */
-  backdrop-filter: blur(8px) saturate(1.2);
-  -webkit-backdrop-filter: blur(8px) saturate(1.2);
-  box-shadow: none;
-  
-  transition: all var(--duration-base) var(--ease-base);
-  -webkit-app-region: no-drag;
-}
 
-.amx-input::placeholder {
-  color: rgba(60, 64, 78, 0.7);  /* Secondary text color */
-}
-
-.amx-input:focus {
-  outline: 2px solid rgba(122, 162, 255, 0.45);
-  outline-offset: 2px;
-  background:
-    linear-gradient(to bottom, 
-      rgba(255, 255, 255, 0.98), 
-      rgba(255, 255, 255, 0.82)
-    );
-  border-color: rgba(122, 162, 255, 0.6);
-  transform: translateY(-1px);
-}
 
 /* ============================================
    PANEL CONTAINER - Main content area
    Flat white content surface (no glass)
    ============================================ */
-.amx-panel {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  /* Use white base so message bubbles sit on a neutral reading surface */
-  background: var(--amx-surface);
-  /* Inherit primary text color so nested elements default to readable ink */
-  color: var(--amx-text);
-}
+
 
 /* ============================================
    HEADER - Glass chrome bar (56px)
    Title + icon buttons
    ============================================ */
-.amx-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  
-  /* Match product spec: chrome stays 56px tall for consistent drag target */
-  height: var(--amx-header-height);
-  padding: 0 var(--amx-space-4);
-  
-  /* Subtle glass effect for chrome only */
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--amx-border);
-  
-  /* Typography */
-  font-size: var(--amx-text-18);
-  font-weight: var(--weight-semibold);
-  color: var(--amx-text);
-  letter-spacing: var(--tracking-tight);
-}
+
 
 /* 👆 DRAG HANDLE: Makes the header draggable */
 .amx-drag-handle {
@@ -859,364 +624,19 @@
    ============================================ */
 
 /* Thoughts/Messages stream area */
-.amx-thoughts {
-  flex: 1;
-  overflow-y: auto;
-  /* Internal padding keeps conversation bubbles away from chrome edges */
-  padding: var(--amx-space-4);
-  font-size: var(--amx-text-14);
-  color: var(--amx-text);
-  scrollbar-width: thin;
-  scrollbar-color: var(--amx-border) transparent;
-}
 
-.amx-thoughts::-webkit-scrollbar {
-  width: 6px;
-  /* Compact scrollbar mirrors Electron floating-window styling */
-}
-
-.amx-thoughts::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.amx-thoughts::-webkit-scrollbar-thumb {
-  background: var(--amx-border);
-  border-radius: var(--amx-radius-sm);
-}
 
 /* Empty state */
-.amx-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  /* Muted palette keeps empty state secondary to primary actions */
-  color: var(--amx-text-muted);
-}
 
-.amx-empty-icon {
-  font-size: var(--amx-text-24);
-  margin-bottom: var(--amx-space-3);
-  opacity: 0.4;
-}
-
-.amx-empty-text {
-  font-size: var(--amx-text-14);
-  color: var(--amx-text-muted);
-}
 
 /* Message bubbles */
-.amx-message {
-  margin-bottom: var(--amx-space-2);
-  /* Lightweight entrance animation keeps transcript lively without jank */
-  animation: slideIn 0.2s ease-out;
-  position: relative;
-  outline: none;
-  transition: all 0.15s ease;
-}
-
-.amx-message:focus {
-  /* Keyboard users get accent-colored focus halo */
-  outline: 2px solid var(--amx-accent);
-  outline-offset: 2px;
-  border-radius: var(--amx-radius-md);
-}
-
-.amx-message-focused {
-  outline: 2px solid var(--amx-accent);
-  outline-offset: 2px;
-}
-
-.amx-message-label {
-  display: block;
-  font-size: var(--amx-text-12);
-  font-weight: var(--weight-medium);
-  color: var(--amx-text-muted);
-  margin-bottom: var(--amx-space-1);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  opacity: 0.6;
-}
-
-.amx-thought-label {
-  display: block;
-  font-size: 11px;
-  font-weight: var(--weight-semibold);
-  color: var(--accent);  /* Teal accent color - already good contrast */
-  margin-bottom: var(--space-1);
-  letter-spacing: var(--tracking-wide);
-}
-
-/* Collapsible thought pill */
-.amx-thought-collapsed {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  background: rgba(15, 181, 174, 0.1);
-  border: 1px solid rgba(15, 181, 174, 0.3);
-  border-radius: 16px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--accent);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  margin-bottom: 8px;
-}
-
-.amx-thought-collapsed:hover {
-  background: rgba(15, 181, 174, 0.15);
-  border-color: rgba(15, 181, 174, 0.5);
-  transform: scale(1.02);
-}
-
-.amx-message-content {
-  padding: var(--amx-space-3);
-  border-radius: var(--amx-radius-md);
-  line-height: 1.5;
-  font-size: var(--amx-text-14);
-  /* Limit width so long responses remain readable inside tall card */
-  max-width: 640px;
-}
-
-/* ============================================
-   CHAT BUBBLES - User Messages
-   Light gray background for distinction
-   ============================================ */
-.amx-message-user .amx-message-content {
-  background: var(--amx-surface-subtle);
-  border: 1px solid var(--amx-border);
-  /* Gentle contrast keeps user voice distinct without heavy color */
-  color: var(--amx-text);
-  box-shadow: none;
-}
-
-/* ============================================
-   CHAT BUBBLES - AI/Agent Messages
-   White background with subtle left accent
-   ============================================ */
-.amx-message-agent .amx-message-content {
-  background: var(--amx-surface);
-  border: 1px solid var(--amx-border);
-  border-left: 2px solid var(--amx-accent);
-  /* Accent rail anchors brand color while keeping body copy neutral */
-  color: var(--amx-text);
-  box-shadow: none;
-}
-
-/* ============================================
-   THOUGHT/DEBUG MESSAGES
-   System messages showing AI thinking process
-   ============================================ */
-.amx-message-thought .amx-message-content {
-  background: var(--amx-surface-subtle);
-  border: 1px dashed var(--amx-border);
-  /* Dashed outline signals diagnostic content separate from chat */
-  color: var(--amx-text-muted);
-  font-style: italic;
-  font-size: var(--amx-text-12);
-  opacity: 0.9;
-}
-
-/* Debug message */
-.amx-debug-label {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(226, 156, 69, 0.85);
-  margin-bottom: 4px;
-  letter-spacing: 0.5px;
-}
-
-.amx-message-debug .amx-message-content {
-  background: rgba(50, 50, 50, 0.3);
-  border-left: 2px solid rgba(255, 200, 100, 0.4);
-  color: rgba(255, 255, 255, 0.7);
-  font-family: 'Monaco', 'Courier New', monospace;
-  font-size: 11px;
-  line-height: 1.6;
-}
-
-/* Error message */
-.amx-error-label {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(255, 100, 100, 0.9);
-  margin-bottom: 4px;
-  letter-spacing: 0.5px;
-}
-
-.amx-message-error .amx-message-content {
-  background: rgba(255, 50, 50, 0.15);
-  border: 1px solid rgba(255, 100, 100, 0.5);
-  color: rgba(0, 0, 0, 0.95);
-  font-size: 12px;
-}
-/* ============================================
-   COMPOSER - Glass chrome footer (64px)
-   Input area with textarea + controls
-   ============================================ */
-.amx-composer {
-  display: flex;
-  align-items: center;
-  gap: var(--amx-space-2);
-  min-height: var(--amx-composer-height);
-  padding: var(--amx-space-3) var(--amx-space-4);
-  
-  /* Subtle glass effect for chrome */
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-top: 1px solid var(--amx-border);
-  
-  -webkit-app-region: no-drag;
-}
-
-.amx-composer textarea {
-  flex: 1;
-  min-height: 36px;
-  max-height: 120px;
-  padding: var(--amx-space-2) var(--amx-space-3);
-  
-  /* Clean input styling */
-  background: var(--amx-surface);
-  border: 1px solid var(--amx-border);
-  border-radius: var(--amx-radius-md);
-  
-  font-size: var(--amx-text-14);
-  color: var(--amx-text);
-  line-height: 1.5;
-  
-  resize: none;
-  outline: none;
-  transition: all var(--duration-fast) var(--ease-base);
-}
-
-.amx-composer textarea::placeholder {
-  color: var(--amx-text-muted);
-}
-
-.amx-composer textarea:focus {
-  border-color: var(--amx-accent);
-  outline: 2px solid var(--amx-accent);
-  outline-offset: -1px;
-  opacity: 0.6;
-}
-
-.amx-composer-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--amx-radius-md);
-  
-  background: var(--amx-accent);
-  border: none;
-  color: white;
-  cursor: pointer;
-  
-  transition: all var(--duration-fast) var(--ease-base);
-}
-
-.amx-composer-btn:hover {
-  background: var(--amx-accent-hover);
-  transform: translateY(-1px);
-}
-
-.amx-composer-btn:active {
-  transform: scale(0.95);
-}
+/* composer styles removed: handled in FloatBar.css */
 
 /* Thinking indicator */
-.amx-thinking-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: rgba(138, 166, 255, 0.1);
-  border: 1px solid rgba(138, 166, 255, 0.2);
-  border-radius: 10px;
-  color: rgba(0, 0, 0, 0.9);
-  font-size: 12px;
-  margin-bottom: 12px;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
+/* thinking indicator styles removed: handled in FloatBar.css */
 
 /* Semantic suggestions dropdown */
-.amx-suggestions {
-  margin: 8px 16px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(122, 162, 255, 0.2);
-  border-radius: 12px;
-  padding: 8px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.amx-suggestions-label {
-  font-size: 11px;
-  color: rgba(122, 162, 255, 0.8);
-  margin-bottom: 6px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.amx-suggestion-item {
-  padding: 8px 10px;
-  margin: 4px 0;
-  background: rgba(122, 162, 255, 0.08);
-  border: 1px solid rgba(122, 162, 255, 0.15);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.amx-suggestion-item:hover {
-  background: rgba(122, 162, 255, 0.15);
-  border-color: rgba(122, 162, 255, 0.3);
-  transform: translateX(2px);
-}
-
-.amx-suggestion-text {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.9);
-  margin-bottom: 4px;
-}
-
-.amx-suggestion-meta {
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.5);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
+/* suggestions styles removed */
 
 /* ============================================
    UX IMPROVEMENTS - Composer Enhancements
@@ -1373,52 +793,7 @@
    UX IMPROVEMENTS - Message Actions
    ============================================ */
 
-/* Message actions toolbar */
-.amx-message-actions {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: flex;
-  gap: 4px;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-  animation: fadeIn 0.15s ease-out;
-}
-
-.amx-message-action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  color: var(--text);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.amx-message-action:hover {
-  background: rgba(0, 0, 0, 0.08);
-  transform: scale(1.05);
-}
-
-.amx-message-action:active {
-  transform: scale(0.95);
-}
-
-.amx-message-action-danger {
-  color: rgba(239, 68, 68, 0.9);
-}
-
-.amx-message-action-danger:hover {
-  background: rgba(239, 68, 68, 0.1);
-}
+/* message action toolbar removed: handled in FloatBar.css */
 
 /* Delete confirmation */
 .amx-delete-confirm {
@@ -1949,35 +1324,7 @@
   white-space: nowrap;
 }
 
-.amx-actions {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.amx-btn {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 240, 255, 0.82));
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  border-radius: 8px;
-  padding: 6px 10px;
-  color: rgba(16, 18, 30, 0.9);
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 500;
-}
-
-.amx-btn:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(235, 240, 255, 0.88));
-  border-color: rgba(255, 255, 255, 1);
-}
-
-.amx-btn:active {
-  transform: scale(0.96);
-}
+/* bar action buttons removed: handled in FloatBar.css */
 
 /* Confirmation Modal */
 .amx-modal {
@@ -2278,15 +1625,9 @@
 
 /* Accessibility: Reduced transparency mode */
 @media (prefers-reduced-transparency: reduce) {
-  .amx-mini,
-  .amx-bar,
-  .amx-card {
+  .amx-mini {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-  }
-  
-  .amx-root.amx-card::before {
-    display: none;
   }
 }
 

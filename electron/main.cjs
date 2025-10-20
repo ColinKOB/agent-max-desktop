@@ -35,6 +35,8 @@ let memoryManager;
 
 function createWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+  const isMac = process.platform === 'darwin';
+  const isWin = process.platform === 'win32';
 
   // Initial size: fixed pill mode (80x80)
   const windowWidth = 80;
@@ -49,12 +51,16 @@ function createWindow() {
     minWidth: 80,
     minHeight: 80,
     maxWidth: 360,
-    maxHeight: 520,
+    maxHeight: 700,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
     resizable: false,
     skipTaskbar: false,
+    // Native glass
+    vibrancy: isMac ? 'fullscreen-ui' : undefined,
+    visualEffectState: isMac ? 'active' : undefined,
+    backgroundMaterial: isWin ? 'acrylic' : undefined,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -96,8 +102,8 @@ function createWindow() {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
             "img-src 'self' data: https: blob:; " +
-            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://accounts.google.com https://www.googleapis.com; " +
-            "frame-src 'none'; " +
+            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://accounts.google.com https://www.googleapis.com https://api.stripe.com https://js.stripe.com https://m.stripe.network; " +
+            "frame-src 'self' https://js.stripe.com https://hooks.stripe.com; " +
             "object-src 'none'; " +
             "base-uri 'self'; " +
             "form-action 'self'; " +
@@ -360,8 +366,9 @@ ipcMain.handle(
         if (width < 80) width = 80;
         if (height < 80) height = 80;
         if (width > 360) width = 360;
-        if (height > 520) height = 520;
-        mainWindow.setResizable(width > 80 || height > 80);
+        if (height > 700) height = 700;
+        // Disallow manual resize at all times
+        mainWindow.setResizable(false);
         console.log(`[Electron] Resizing window to ${width}x${height}`);
         const beforeBounds = mainWindow.getBounds();
         console.log('[Electron] Before resize:', beforeBounds);
@@ -439,7 +446,8 @@ ipcMain.handle('switch-to-floatbar', () => {
     mainWindow.setPosition(screenWidth - windowWidth - margin, margin);
     mainWindow.setAlwaysOnTop(true, 'floating', 1);
     mainWindow.setMinimumSize(80, 80);
-    mainWindow.setMaximumSize(360, 520);
+    mainWindow.setMaximumSize(360, 700);
+    // Disallow manual resize for the floatbar window
     mainWindow.setResizable(false);
   }
 });
