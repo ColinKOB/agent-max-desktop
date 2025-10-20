@@ -99,8 +99,6 @@ const ThemeCard = ({ theme, currentTheme, icon: Icon, label, colors, onClick }) 
 export default function SettingsPremium() {
   const { theme, setTheme } = useStore();
   const [apiUrl, setApiUrl] = useState('http://localhost:8000');
-  const [apiKey, setApiKey] = useState('');
-  const [showApiKey, setShowApiKey] = useState(false);
   
   // Premium settings state
   const [settings, setSettings] = useState({
@@ -265,34 +263,9 @@ export default function SettingsPremium() {
               />
             </div>
             
-            <div>
-              <label className="block text-white/80 text-sm font-medium mb-2">
-                API Key
-              </label>
-              <div className="relative">
-                <input
-                  type={showApiKey ? "text" : "password"}
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  className="w-full px-4 py-3 pr-12 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-white/40 focus:bg-white/15 transition-all duration-300"
-                  placeholder="Enter your API key"
-                />
-                <button
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-                >
-                  {showApiKey ? (
-                    <EyeOff className="w-4 h-4 text-white/60" />
-                  ) : (
-                    <Eye className="w-4 h-4 text-white/60" />
-                  )}
-                </button>
-              </div>
-            </div>
-            
             <button
               onClick={() => {
-                reconfigureAPI(apiUrl, apiKey);
+                reconfigureAPI(apiUrl);
                 toast.success('API settings updated');
               }}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium hover:from-blue-600 hover:to-purple-600 transition-all duration-300 transform hover:scale-[1.02]"

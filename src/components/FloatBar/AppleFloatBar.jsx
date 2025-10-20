@@ -7,6 +7,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Settings, RotateCcw, Wrench, Send, Loader2, Minimize2 } from 'lucide-react';
 import useStore from '../../store/useStore';
+import { chatAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import './AppleFloatBar.css';
 
@@ -30,20 +31,13 @@ export default function AppleFloatBar({
   const inputRef = useRef(null);
   const lastHeightRef = useRef(70);
   const resizeDebounceRef = useRef(null);
+  const messagesRef = useRef(null);
+  const toolbarRef = useRef(null);
+  const composerRef = useRef(null);
+  const naturalHeightRef = useRef(0); // last measured natural content height
   
   // Store
-  const { send, clearMessages, apiConnected } = useStore();
-
-  // Fallback send handler when store.send is not yet wired
-  const sendMessage = useCallback(async (text) => {
-    if (typeof send === 'function') {
-      return send(text);
-    }
-
-    // Demo fallback: echo response so UI remains stable
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    return `I received your message: "${text}". This is a preview response.`;
-  }, [send]);
+  const { clearMessages, apiConnected } = useStore();
   
   // Handle expand/collapse
   const handleExpand = useCallback(() => {
@@ -53,18 +47,30 @@ export default function AppleFloatBar({
     // Restore last height immediately to avoid visible shrink
     (async () => {
       try {
-        const key = 'amx:floatbar:lastHeight';
-        let saved = Number(localStorage.getItem(key));
-        if (!Number.isFinite(saved) || saved < 120) saved = 140;
+        const hasMessages = thoughts.length > 0;
+        const base = 140;
         let limit = Infinity;
         try {
           const size = await window.electron?.getScreenSize?.();
           if (size?.height) limit = Math.max(120, size.height - 120);
         } catch {}
-        const target = Math.min(limit, Math.max(120, saved));
-        if (window.electron?.resizeWindow) {
-          await window.electron.resizeWindow(360, target);
-          lastHeightRef.current = target;
+        const hardMax = 520;
+
+        // Only restore saved height if there are messages; otherwise start compact
+        if (hasMessages) {
+          const key = 'amx:floatbar:lastHeight';
+          let saved = Number(localStorage.getItem(key));
+          if (!Number.isFinite(saved) || saved < base) saved = base;
+          const target = Math.min(limit, hardMax, Math.max(base, saved));
+          if (window.electron?.resizeWindow) {
+            await window.electron.resizeWindow(360, target);
+            lastHeightRef.current = target;
+          }
+        } else {
+          if (window.electron?.resizeWindow) {
+            await window.electron.resizeWindow(360, base);
+            lastHeightRef.current = base;
+          }
         }
       } catch {}
     })();
@@ -74,7 +80,7 @@ export default function AppleFloatBar({
       inputRef.current?.focus();
       setIsTransitioning(false);
     }, 300);
-  }, []);
+  }, [thoughts.length]);
   
   const handleCollapse = useCallback(async () => {
     setIsTransitioning(true);
@@ -104,17 +110,41 @@ export default function AppleFloatBar({
     setIsThinking(true);
     setThinkingStatus('Thinking...');
     
-    // Simulate API call (replace with actual implementation)
-    sendMessage(text).then(response => {
-      setThoughts(prev => [...prev, { role: 'assistant', content: response, timestamp: Date.now() }]);
+    // Call real backend API with streaming
+    let fullResponse = '';
+    chatAPI.sendMessageStream(text, null, null, (event) => {
+      // Handle SSE events
+      if (event.type === 'thinking') {
+        setThinkingStatus(event.message || 'Processing...');
+      } else if (event.type === 'message') {
+        // Append streaming message chunks
+        fullResponse += event.message || '';
+        setThoughts(prev => {
+          const newThoughts = [...prev];
+          // Update or add assistant message
+          const lastIdx = newThoughts.length - 1;
+          if (lastIdx >= 0 && newThoughts[lastIdx].role === 'assistant') {
+            newThoughts[lastIdx].content = fullResponse;
+          } else {
+            newThoughts.push({ role: 'assistant', content: fullResponse, timestamp: Date.now() });
+          }
+          return newThoughts;
+        });
+      } else if (event.type === 'done') {
+        setIsThinking(false);
+        setThinkingStatus('');
+      } else if (event.type === 'error') {
+        toast.error(event.message || 'Failed to get response');
+        setIsThinking(false);
+        setThinkingStatus('');
+      }
     }).catch(error => {
-      toast.error('Failed to send message');
-      console.error(error);
-    }).finally(() => {
+      toast.error('Failed to send message: ' + error.message);
+      console.error('Chat error:', error);
       setIsThinking(false);
       setThinkingStatus('');
     });
-  }, [message, isThinking, apiConnected, sendMessage]);
+  }, [message, isThinking, apiConnected]);
   
   // Handle clear conversation
   const handleClear = useCallback(() => {
@@ -146,8 +176,18 @@ export default function AppleFloatBar({
     }
 
     resizeDebounceRef.current = setTimeout(async () => {
-      const contentHeight = barRef.current.scrollHeight;
-      const minHeight = 70;
+      // Compute natural content height: paddings + toolbar + messages content + input + gaps
+      const containerEl = barRef.current;
+      const glassEl = containerEl?.querySelector?.('.apple-bar-glass');
+      const style = glassEl ? getComputedStyle(glassEl) : null;
+      const padTop = style ? parseInt(style.paddingTop || '0', 10) : 0;
+      const padBottom = style ? parseInt(style.paddingBottom || '0', 10) : 0;
+      const gaps = 16; // two gaps between three blocks
+      const th = toolbarRef.current?.offsetHeight || 0;
+      const ih = composerRef.current?.offsetHeight || 0;
+      const mh = messagesRef.current?.scrollHeight || 0;
+      const naturalHeight = padTop + th + mh + ih + padBottom + gaps;
+      const minHeight = 120;
 
       // Limit by available screen height (minus margin), not a hardcoded app cap
       let screenLimit = Infinity;
@@ -158,7 +198,31 @@ export default function AppleFloatBar({
         }
       } catch {}
 
-      let targetHeight = Math.max(minHeight, Math.min(screenLimit, contentHeight));
+      const preferredMax = Math.min(screenLimit, 520); // cap for internal scroll behavior
+
+      // Compute delta vs previous natural height to grow/shrink incrementally
+      let prevNatural = naturalHeightRef.current || 0;
+      if (prevNatural === 0) {
+        // First measurement, set baseline without resizing to full natural height
+        naturalHeightRef.current = naturalHeight;
+        return;
+      }
+      const delta = naturalHeight - prevNatural;
+
+      // If change is negligible, skip
+      if (Math.abs(delta) < 6) {
+        naturalHeightRef.current = naturalHeight;
+        return;
+      }
+
+      // Current window height
+      let currentHeight = lastHeightRef.current;
+      try {
+        const b = await window.electron?.getBounds?.();
+        if (b?.height) currentHeight = b.height;
+      } catch {}
+
+      let targetHeight = Math.max(minHeight, Math.min(preferredMax, currentHeight + delta));
 
       // Only resize if height changed meaningfully
       if (Math.abs(targetHeight - lastHeightRef.current) > 8) {
@@ -173,6 +237,8 @@ export default function AppleFloatBar({
           } catch {}
         }
       }
+      // Update baseline after any attempted resize
+      naturalHeightRef.current = naturalHeight;
     }, 100);
   }, [isMini]);
   
@@ -180,6 +246,13 @@ export default function AppleFloatBar({
   useEffect(() => {
     updateWindowHeight();
   }, [thoughts, isThinking, updateWindowHeight]);
+
+  // Auto-scroll to bottom when new messages arrive or thinking indicator toggles
+  useEffect(() => {
+    if (messagesRef.current) {
+      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    }
+  }, [thoughts.length, isThinking]);
 
   // Re-measure height when window regains focus or visibility (e.g., after minimize)
   useEffect(() => {
@@ -277,23 +350,21 @@ export default function AppleFloatBar({
           </div>
           
           {/* Messages */}
-          {thoughts.length > 0 && (
-            <div className="apple-messages">
-              {thoughts.map((thought, idx) => (
-                <div key={idx} className={`apple-message apple-message-${thought.role}`}>
-                  <div className="apple-message-content">
-                    {thought.content}
-                  </div>
+          <div className="apple-messages" ref={messagesRef}>
+            {thoughts.map((thought, idx) => (
+              <div key={idx} className={`apple-message apple-message-${thought.role}`}>
+                <div className="apple-message-content">
+                  {thought.content}
                 </div>
-              ))}
-              {isThinking && (
-                <div className="apple-message apple-message-thinking">
-                  <Loader2 className="animate-spin" size={14} />
-                  <span>{thinkingStatus}</span>
-                </div>
-              )}
-            </div>
-          )}
+              </div>
+            ))}
+            {isThinking && (
+              <div className="apple-message apple-message-thinking">
+                <Loader2 className="animate-spin" size={14} />
+                <span>{thinkingStatus}</span>
+              </div>
+            )}
+          </div>
           
           {/* Input Area */}
           <div className="apple-input-area">

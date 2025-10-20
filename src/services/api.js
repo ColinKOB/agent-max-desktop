@@ -80,11 +80,7 @@ axiosRetry(api, {
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // Get API key from config manager
-    const apiKey = apiConfigManager.getApiKey();
-    if (apiKey) {
-      config.headers['X-API-Key'] = apiKey;
-    }
+    // No API key needed - backend uses server-side keys
 
     // Add request metadata
     config.metadata = {
@@ -325,16 +321,14 @@ export const chatAPI = {
       payload.image = image;
     }
 
-    // Get API key
-    const apiKey = apiConfigManager.getApiKey();
+    // Get base URL
     const { baseURL } = apiConfigManager.getConfig();
 
     // Use fetch for SSE streaming
     const response = await fetch(`${baseURL}/api/v2/autonomous/execute/stream`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': apiKey || '',
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload),
     });
@@ -569,11 +563,11 @@ export { API_BASE_URL };
  * Reconfigure the axios instance with new base URL
  * Called when user updates settings
  */
-export const reconfigureAPI = (newBaseURL, newApiKey = null) => {
+export const reconfigureAPI = (newBaseURL) => {
   logger.info('Reconfiguring with new base URL', { newBaseURL });
 
   // Update config manager
-  apiConfigManager.updateConfig(newBaseURL, newApiKey);
+  apiConfigManager.updateConfig(newBaseURL);
 
   // Update axios instance
   api.defaults.baseURL = newBaseURL;

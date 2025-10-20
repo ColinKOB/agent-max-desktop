@@ -17,8 +17,7 @@ class ApiConfigManager {
     if (savedUrl) {
       console.log('[ApiConfig] Using saved URL from localStorage:', savedUrl);
       return {
-        baseURL: savedUrl,
-        apiKey: localStorage.getItem('api_key') || null,
+        baseURL: savedUrl
       };
     }
 
@@ -26,8 +25,7 @@ class ApiConfigManager {
     if (import.meta.env.VITE_API_URL) {
       console.log('[ApiConfig] Using URL from environment:', import.meta.env.VITE_API_URL);
       return {
-        baseURL: import.meta.env.VITE_API_URL,
-        apiKey: null,
+        baseURL: import.meta.env.VITE_API_URL
       };
     }
 
@@ -35,16 +33,14 @@ class ApiConfigManager {
     if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
       console.log('[ApiConfig] Development mode - using localhost:8000');
       return {
-        baseURL: 'http://localhost:8000',
-        apiKey: null,
+        baseURL: 'http://localhost:8000'
       };
     }
 
     // Priority 4: Production default
     console.log('[ApiConfig] Production mode - using default API');
     return {
-      baseURL: 'https://api.agentmax.com',
-      apiKey: null,
+      baseURL: 'https://api.agentmax.com'
     };
   }
 
@@ -52,9 +48,6 @@ class ApiConfigManager {
     return this.config.baseURL;
   }
 
-  getApiKey() {
-    return this.config.apiKey;
-  }
 
   getConfig() {
     return { ...this.config };
@@ -63,21 +56,16 @@ class ApiConfigManager {
   /**
    * Update API configuration and notify listeners
    * @param {string} baseURL - New API base URL
-   * @param {string} apiKey - Optional API key
    */
-  updateConfig(baseURL, apiKey = null) {
-    console.log('[ApiConfig] Updating configuration:', { baseURL, apiKey: apiKey ? '***' : null });
+  updateConfig(baseURL) {
+    console.log('[ApiConfig] Updating configuration:', { baseURL });
 
     // Save to localStorage
     localStorage.setItem('api_url', baseURL);
-    if (apiKey) {
-      localStorage.setItem('api_key', apiKey);
-    } else {
-      localStorage.removeItem('api_key');
-    }
+    localStorage.removeItem('api_key'); // Clean up old API keys
 
     // Update internal config
-    this.config = { baseURL, apiKey };
+    this.config = { baseURL };
 
     // Notify all listeners
     this.notifyListeners();
@@ -108,7 +96,7 @@ class ApiConfigManager {
    */
   reset() {
     localStorage.removeItem('api_url');
-    localStorage.removeItem('api_key');
+    localStorage.removeItem('api_key'); // Clean up old API keys
     this.config = this.loadConfig();
     this.notifyListeners();
   }
