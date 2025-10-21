@@ -422,6 +422,11 @@ ipcMain.handle(
         if (height < 80) height = 80;
         if (width > 360) width = 360;
         if (height > 700) height = 700;
+        // HARD GUARD: keep pill square. If width is the pill width, force 80x80.
+        if (width <= 80) {
+          width = 80;
+          height = 80;
+        }
         // Disallow manual resize at all times
         mainWindow.setResizable(false);
         console.log(`[Electron] Resizing window to ${width}x${height}`);

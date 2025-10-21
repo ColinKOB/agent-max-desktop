@@ -30,8 +30,15 @@ class ApiConfigManager {
     }
 
     // Priority 3: Development default
-    if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
-      console.log('[ApiConfig] Development mode - using localhost:8000');
+    // Check multiple ways to detect development mode
+    const isDev = import.meta.env.DEV || 
+                  import.meta.env.MODE === 'development' || 
+                  window.location.hostname === 'localhost' ||
+                  window.location.hostname === '127.0.0.1';
+    
+    if (isDev) {
+      console.log('[ApiConfig] Development mode detected - using localhost:8000');
+      console.log('[ApiConfig] Mode:', import.meta.env.MODE, 'DEV:', import.meta.env.DEV);
       return {
         baseURL: 'http://localhost:8000'
       };

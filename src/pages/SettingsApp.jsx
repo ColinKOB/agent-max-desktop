@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Settings as SettingsIcon, History, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import SettingsGlass from './SettingsGlass';
+import SettingsEnhanced from './SettingsEnhanced';
 import ConversationHistory from '../components/ConversationHistory';
 import '../styles/settings-glass.css';
 
@@ -9,7 +9,7 @@ export default function SettingsApp() {
   const [activeTab, setActiveTab] = useState('settings');
 
   const tabs = [
-    { id: 'settings', label: 'Settings', icon: SettingsIcon, component: SettingsGlass },
+    { id: 'settings', label: 'Settings', icon: SettingsIcon, component: SettingsEnhanced },
     { id: 'history', label: 'History', icon: History, component: ConversationHistory },
   ];
 

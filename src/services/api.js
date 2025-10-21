@@ -25,7 +25,12 @@ logger.info('Initial configuration', {
 });
 
 // API Base URL - dynamically configured
-let API_BASE_URL = initialConfig.baseURL;
+// CRITICAL: Always have a fallback to prevent undefined baseURL
+let API_BASE_URL = initialConfig.baseURL || 'http://localhost:8000';
+
+if (!initialConfig.baseURL) {
+  logger.warn('apiConfigManager returned undefined baseURL, using fallback: http://localhost:8000');
+}
 
 // Connection state management
 const connectionState = {

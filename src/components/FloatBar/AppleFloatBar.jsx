@@ -11,6 +11,8 @@ import { chatAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import './AppleFloatBar.css';
 
+const MIN_EXPANDED_HEIGHT = 140;
+
 export default function AppleFloatBar({ 
   showWelcome, 
   onWelcomeComplete, 
@@ -50,11 +52,11 @@ export default function AppleFloatBar({
     (async () => {
       try {
         const hasMessages = thoughts.length > 0;
-        const base = 140;
+        const base = MIN_EXPANDED_HEIGHT;
         let limit = Infinity;
         try {
           const size = await window.electron?.getScreenSize?.();
-          if (size?.height) limit = Math.max(120, size.height - 120);
+          if (size?.height) limit = Math.max(MIN_EXPANDED_HEIGHT, size.height - 120);
         } catch {}
         const hardMax = 520;
 
@@ -118,9 +120,28 @@ export default function AppleFloatBar({
     setIsThinking(true);
     setThinkingStatus('Thinking...');
     
-    // Check if user is asking about screen content
+    // Save user message to memory
+    if (window.electron?.memory?.addMessage) {
+      window.electron.memory.addMessage('user', text)
+        .catch(err => console.warn('[Chat] Failed to save user message to memory:', err));
+    }
+    
+    // Check if user is asking about screen content OR asking ambiguous questions
     const screenKeywords = ['screen', 'see', 'what is on', 'what\'s on', 'show me', 'screenshot', 'display'];
-    const needsScreenshot = screenKeywords.some(keyword => text.toLowerCase().includes(keyword));
+    const ambiguousKeywords = ['this', 'that', 'it', 'these', 'those', 'here', 'there'];
+    
+    const hasScreenKeyword = screenKeywords.some(keyword => text.toLowerCase().includes(keyword));
+    const hasAmbiguousWord = ambiguousKeywords.some(keyword => {
+      // Check for word boundaries to avoid false positives
+      const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+      return regex.test(text);
+    });
+    
+    const needsScreenshot = hasScreenKeyword || hasAmbiguousWord;
+    
+    if (hasAmbiguousWord) {
+      console.log('[Chat] Ambiguous question detected, capturing screenshot for context');
+    }
     
     let screenshotData = null;
     if (needsScreenshot && window.electron?.takeScreenshot) {
@@ -135,8 +156,40 @@ export default function AppleFloatBar({
       }
     }
     
+    // Build user context with conversation history and memory
+    let userContext = {
+      recent_messages: thoughts.map(t => ({
+        role: t.role,
+        content: t.content
+      })),
+      profile: null,
+      facts: null,
+      preferences: null
+    };
+    
+    // Get memory data if available
+    if (window.electron?.memory) {
+      try {
+        const [profile, facts, preferences] = await Promise.all([
+          window.electron.memory.getProfile().catch(() => null),
+          window.electron.memory.getFacts().catch(() => null),
+          window.electron.memory.getPreferences().catch(() => null)
+        ]);
+        userContext.profile = profile;
+        userContext.facts = facts;
+        userContext.preferences = preferences;
+        console.log('[Chat] Loaded memory context:', {
+          hasProfile: !!profile,
+          hasFacts: !!facts,
+          hasPreferences: !!preferences
+        });
+      } catch (error) {
+        console.warn('[Chat] Failed to load memory context:', error);
+      }
+    }
+    
     // Call real backend API with streaming
-    chatAPI.sendMessageStream(text, null, screenshotData, (event) => {
+    chatAPI.sendMessageStream(text, userContext, screenshotData, (event) => {
       console.log('[Chat] Received SSE event:', event);
       
       // Handle SSE events - backend sends {type: string, data: {...}}
@@ -155,6 +208,12 @@ export default function AppleFloatBar({
             content: finalResponse, 
             timestamp: Date.now() 
           }]);
+          
+          // Save conversation to memory system
+          if (window.electron?.memory?.addMessage) {
+            window.electron.memory.addMessage('assistant', finalResponse)
+              .catch(err => console.warn('[Chat] Failed to save message to memory:', err));
+          }
         }
         setIsThinking(false);
         setThinkingStatus('');
@@ -214,14 +273,14 @@ export default function AppleFloatBar({
       const ih = composerRef.current?.offsetHeight || 0;
       const mh = messagesRef.current?.scrollHeight || 0;
       const naturalHeight = padTop + th + mh + ih + padBottom + gaps;
-      const minHeight = 120;
+      const minHeight = MIN_EXPANDED_HEIGHT;
 
       // Limit by available screen height (minus margin), not a hardcoded app cap
       let screenLimit = Infinity;
       try {
         const screenSize = await window.electron?.getScreenSize?.();
         if (screenSize?.height) {
-          screenLimit = Math.max(minHeight, screenSize.height - 120); // 120px safe margin
+          screenLimit = Math.max(MIN_EXPANDED_HEIGHT, screenSize.height - 120); // 120px safe margin
         }
       } catch {}
 
