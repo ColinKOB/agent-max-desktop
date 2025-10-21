@@ -319,10 +319,20 @@ app.on('activate', () => {
 });
 
 // Create Settings Window
-function createSettingsWindow() {
+function createSettingsWindow(route) {
   if (settingsWindow) {
     settingsWindow.show();
     settingsWindow.focus();
+    // If a specific route was requested, navigate existing window
+    if (route) {
+      if (process.env.NODE_ENV === 'development') {
+        const target = route.startsWith('#') ? route : `#${route}`;
+        settingsWindow.loadURL(`http://localhost:5173/${target}`);
+      } else {
+        const hash = route.startsWith('#') ? route.slice(1) : route;
+        settingsWindow.loadFile(path.join(__dirname, '../dist/index.html'), { hash });
+      }
+    }
     return;
   }
 
@@ -381,11 +391,11 @@ function createSettingsWindow() {
   });
 
   if (process.env.NODE_ENV === 'development') {
-    settingsWindow.loadURL('http://localhost:5173/#/settings');
+    const target = route && route.startsWith('#') ? route : '#/settings';
+    settingsWindow.loadURL(`http://localhost:5173/${target}`);
   } else {
-    settingsWindow.loadFile(path.join(__dirname, '../dist/index.html'), {
-      hash: '/settings',
-    });
+    const hash = route && route.startsWith('#') ? route.slice(1) : '/settings';
+    settingsWindow.loadFile(path.join(__dirname, '../dist/index.html'), { hash });
   }
 
   settingsWindow.on('closed', () => {
@@ -646,8 +656,9 @@ ipcMain.handle(
 );
 
 // Open Settings Window
-ipcMain.handle('open-settings', () => {
-  createSettingsWindow();
+ipcMain.handle('open-settings', (_event, opts = {}) => {
+  const route = typeof opts?.route === 'string' ? opts.route : undefined;
+  createSettingsWindow(route);
   return { success: true };
 });
 

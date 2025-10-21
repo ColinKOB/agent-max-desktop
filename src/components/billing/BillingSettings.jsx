@@ -12,11 +12,14 @@ import {
   Check,
   Info,
   ExternalLink,
-  Loader2
+  Loader2,
+  Coins
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { CreditPurchase } from './CreditPurchase';
 
-export function BillingSettings({ tenantId = 'test-tenant-001' }) {
+export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialTab = 'overview' }) {
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [settings, setSettings] = useState({
     paymentMethod: null,
     subscription: null,
@@ -39,6 +42,13 @@ export function BillingSettings({ tenantId = 'test-tenant-001' }) {
 
   useEffect(() => {
     fetchBillingSettings();
+    
+    // Check URL for tab parameter
+    const urlParams = new URLSearchParams(window.location.search || window.location.hash.split('?')[1]);
+    const tabParam = urlParams.get('tab');
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
   }, [tenantId]);
 
   const fetchBillingSettings = async () => {
@@ -114,9 +124,49 @@ export function BillingSettings({ tenantId = 'test-tenant-001' }) {
     );
   }
 
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: Shield },
+    { id: 'credits', label: 'Purchase Credits', icon: Coins },
+  ];
+
   return (
     <div className="billing-settings space-y-6">
-      {/* Payment Method Section */}
+      {/* Tab Navigation */}
+      <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-4">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Credits Tab */}
+      {activeTab === 'credits' && (
+        <CreditPurchase 
+          userId={userId} 
+          onSuccess={() => {
+            toast.success('Credits added successfully!');
+            setActiveTab('overview');
+          }}
+        />
+      )}
+
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <>
+          {/* Payment Method Section */}
       <div className="section bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
@@ -424,6 +474,8 @@ export function BillingSettings({ tenantId = 'test-tenant-001' }) {
           )}
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 }

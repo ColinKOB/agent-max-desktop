@@ -21,16 +21,29 @@ import {
   Activity,
   Calendar,
   BarChart3,
-  Receipt
+  Receipt,
+  Coins
 } from 'lucide-react';
 import useStore from '../store/useStore';
 import { healthAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import { CreditPurchase } from '../components/billing/CreditPurchase';
 import './SettingsEnhanced.css';
 
 export default function SettingsEnhanced() {
   const { theme, setTheme } = useStore();
   const [activeSection, setActiveSection] = useState('billing');
+  
+  // Check URL for initial section
+  useEffect(() => {
+    const urlParams = new URLSearchParams(
+      window.location.search || window.location.hash.split('?')[1]
+    );
+    const section = urlParams.get('section');
+    if (section) {
+      setActiveSection(section);
+    }
+  }, []);
   
   // Billing state
   const [billingData, setBillingData] = useState({
@@ -59,6 +72,7 @@ export default function SettingsEnhanced() {
   });
 
   const sections = [
+    { id: 'credits', label: 'Purchase Credits', icon: Coins },
     { id: 'billing', label: 'Billing & Usage', icon: CreditCard },
     { id: 'appearance', label: 'Appearance', icon: Moon },
     { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -106,6 +120,20 @@ export default function SettingsEnhanced() {
 
         {/* Main Content */}
         <main className="settings-content">
+          {activeSection === 'credits' && (
+            <div className="credits-section">
+              <CreditPurchase 
+                userId={localStorage.getItem('user_id')}
+                onSuccess={() => {
+                  toast.success('Credits purchased successfully!');
+                  setTimeout(() => {
+                    setActiveSection('billing');
+                  }, 2000);
+                }}
+              />
+            </div>
+          )}
+
           {activeSection === 'billing' && (
             <div className="billing-section">
               <header className="section-header glass-panel">

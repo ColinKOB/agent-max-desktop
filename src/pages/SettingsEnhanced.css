@@ -7,6 +7,36 @@
   overflow: hidden;
 }
 
+/* Credits Section */
+.credits-section {
+  padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.credits-section .credit-purchase {
+  background: transparent;
+  padding: 0;
+}
+
+.credits-section .credit-purchase-header,
+.credits-section .package-card,
+.credits-section .purchase-summary,
+.credits-section .security-notice {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.dark .credits-section .credit-purchase-header,
+.dark .credits-section .package-card,
+.dark .credits-section .purchase-summary,
+.dark .credits-section .security-notice {
+  background: rgba(17, 24, 39, 0.65);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
 /* Glass Background */
 .glass-background {
   position: fixed;

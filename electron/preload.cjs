@@ -22,7 +22,7 @@ contextBridge.exposeInMainWorld('electron', {
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
 
   // Open Settings window
-  openSettings: () => ipcRenderer.invoke('open-settings'),
+  openSettings: (opts) => ipcRenderer.invoke('open-settings', opts || {}),
 
   // Memory management functions
   memory: {
@@ -83,5 +83,5 @@ contextBridge.exposeInMainWorld('electron', {
 // Also expose as electronAPI for compatibility
 contextBridge.exposeInMainWorld('electronAPI', {
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
-  openSettings: () => ipcRenderer.invoke('open-settings'),
+  openSettings: (opts) => ipcRenderer.invoke('open-settings', opts || {}),
 });

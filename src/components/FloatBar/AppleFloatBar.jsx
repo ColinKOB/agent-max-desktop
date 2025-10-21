@@ -10,7 +10,6 @@ import useStore from '../../store/useStore';
 import { chatAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { CreditDisplay } from '../CreditDisplay';
-import { PurchaseCreditsModal } from '../PurchaseCreditsModal';
 import { supabase, checkResponseCache, storeResponseCache } from '../../services/supabase';
 import { createLogger } from '../../services/logger';
 import './AppleFloatBar.css';
@@ -47,7 +46,23 @@ export default function AppleFloatBar({
   
   // Store
   const { clearMessages, apiConnected, currentUser } = useStore();
-  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  
+  // Hard route guard: the FloatBar window should never navigate to /settings
+  useEffect(() => {
+    const keepRoot = () => {
+      try {
+        const h = window.location?.hash || '#/';
+        if (h.startsWith('#/settings')) {
+          // Replace without adding history entries or causing flashes
+          if (history?.replaceState) history.replaceState(null, '', '#/');
+          else window.location.hash = '#/';
+        }
+      } catch {}
+    };
+    keepRoot();
+    window.addEventListener('hashchange', keepRoot);
+    return () => window.removeEventListener('hashchange', keepRoot);
+  }, []);
   
   // Handle expand/collapse
   const handleExpand = useCallback(() => {
@@ -168,7 +183,11 @@ export default function AppleFloatBar({
       
       if (currentCredits <= 0) {
         toast.error('No credits remaining! Please purchase more.');
-        setShowPurchaseModal(true);
+        // Open settings window directly to Credits section (do not touch main window route)
+        const openSettings = window.electron?.openSettings || window.electronAPI?.openSettings;
+        if (openSettings) {
+          await openSettings({ route: '#/settings?section=credits' });
+        }
         return;
       }
       
@@ -517,7 +536,6 @@ export default function AppleFloatBar({
             {/* Credits moved to the right, next to other tools */}
             <CreditDisplay 
               userId={currentUser?.id || localStorage.getItem('user_id')} 
-              onPurchaseClick={() => setShowPurchaseModal(true)}
               variant="tool"
             />
             <button className="apple-tool-btn" onClick={handleTools} title="Tools">
@@ -573,12 +591,6 @@ export default function AppleFloatBar({
           </div>
         </div>
       </div>
-      
-      {/* Purchase Modal */}
-      <PurchaseCreditsModal 
-        isOpen={showPurchaseModal}
-        onClose={() => setShowPurchaseModal(false)}
-      />
     </div>
   );
 }
