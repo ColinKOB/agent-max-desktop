@@ -27,14 +27,14 @@ export default function SettingsApp() {
         <div id="backdrop"></div>
         <div className="main-ui h-screen flex flex-col bg-transparent">
         {/* Header */}
-        <div className="amx-liquid amx-noise amx-p-panel mx-4 mt-4 mb-2 flex flex-col gap-3 flex-shrink-0">
+        <div className="amx-liquid amx-noise amx-p-panel mx-4 mt-4 mb-2 flex flex-col gap-3 flex-shrink-0 relative z-50">
           {/* Title row */}
           <div className="flex items-center justify-between min-w-0">
             <h1 className="amx-heading text-lg">Agent Max Settings</h1>
 
             <button
               onClick={handleClose}
-              className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              className="p-2 rounded-lg text-black/70 hover:text-black hover:bg-black/10 transition-colors"
               title="Close"
             >
               <X className="w-5 h-5" />
@@ -61,6 +61,8 @@ export default function SettingsApp() {
                     style={{
                       backdropFilter: selected ? 'blur(12px) saturate(160%)' : 'blur(10px)',
                       WebkitBackdropFilter: selected ? 'blur(12px) saturate(160%)' : 'blur(10px)',
+                      WebkitAppRegion: 'no-drag',
+                      pointerEvents: 'auto',
                     }}
                   >
                     <Icon className="w-4 h-4" />

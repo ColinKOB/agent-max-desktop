@@ -513,12 +513,13 @@ export default function AppleFloatBar({
           <div className="apple-drag-strip" />
           {/* Toolbar */}
           <div className="apple-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {/* Credit Display */}
+            <div style={{ flexGrow: 1 }} />
+            {/* Credits moved to the right, next to other tools */}
             <CreditDisplay 
               userId={currentUser?.id || localStorage.getItem('user_id')} 
               onPurchaseClick={() => setShowPurchaseModal(true)}
+              variant="tool"
             />
-            <div style={{ flexGrow: 1 }} />
             <button className="apple-tool-btn" onClick={handleTools} title="Tools">
               <Wrench size={16} />
             </button>

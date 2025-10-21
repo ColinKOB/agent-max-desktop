@@ -5,9 +5,10 @@
 import { useState, useEffect } from 'react';
 import { Coins, AlertCircle, Plus, TrendingDown } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { creditsAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
-export function CreditDisplay({ userId, onPurchaseClick }) {
+export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', purchasePackage = 'pro' }) {
   const [credits, setCredits] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
@@ -78,15 +79,53 @@ export function CreditDisplay({ userId, onPurchaseClick }) {
     }
   };
 
-  const handlePurchase = () => {
-    if (onPurchaseClick) {
-      onPurchaseClick();
-    } else {
-      // Default: open settings
+  const handlePurchase = async () => {
+    try {
+      const uid = userId || localStorage.getItem('user_id');
+      if (!uid) {
+        if (onPurchaseClick) return onPurchaseClick();
+        toast.error('User not initialized');
+        return;
+      }
+
+      // If a direct Stripe Payment Link is configured, use it
+      const envLink = import.meta.env?.VITE_STRIPE_CHECKOUT_URL;
+      if (envLink && /^https?:\/\//.test(envLink)) {
+        window.location.href = envLink;
+        return;
+      }
+
+      // Ensure we use a valid package id supported by backend
+      let pkg = purchasePackage;
+      try {
+        const res = await creditsAPI.getPackages();
+        const list = res?.data?.packages || res?.data || [];
+        const byId = list.find((p) => p.id === purchasePackage || p.slug === purchasePackage);
+        pkg = byId?.id || (list[0]?.id || purchasePackage);
+      } catch {}
+
+      // Prefer direct Stripe checkout
+      const resp = await creditsAPI.createCheckout(
+        pkg,
+        uid,
+        `${window.location.origin}/#/purchase-success`,
+        `${window.location.origin}/#/purchase-cancel`
+      );
+
+      const url = resp?.data?.url;
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+
+      // Fallback to modal/settings if API didn't return a URL
+      if (onPurchaseClick) return onPurchaseClick();
       window.location.hash = '#/settings';
-      toast('Navigate to Settings → Billing to purchase credits', {
-        icon: '💳'
-      });
+      toast('Navigate to Settings → Billing to purchase credits', { icon: '💳' });
+    } catch (e) {
+      if (onPurchaseClick) return onPurchaseClick();
+      window.location.hash = '#/settings';
+      toast.error('Failed to start checkout. Open Settings → Billing to continue.');
     }
   };
 
@@ -104,6 +143,28 @@ export function CreditDisplay({ userId, onPurchaseClick }) {
 
   const isLow = credits < 10;
   const isEmpty = credits === 0;
+
+  // Compact tool-button variant to match top-right tools (32x32 buttons)
+  if (variant === 'tool') {
+    return (
+      <div className="flex items-center gap-2">
+        <button
+          className="apple-tool-btn"
+          title={`${credits} ${credits === 1 ? 'credit' : 'credits'}`}
+          onClick={() => toast(`${credits} ${credits === 1 ? 'credit' : 'credits'}`, { icon: '💳' })}
+        >
+          <span className="text-[12px] font-semibold">{credits}</span>
+        </button>
+        <button
+          className="apple-tool-btn"
+          onClick={handlePurchase}
+          title="Add credits"
+        >
+          <Plus size={16} />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className={`credit-display flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
