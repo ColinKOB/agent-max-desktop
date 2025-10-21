@@ -5,6 +5,10 @@ import UITestDashboard from './pages/UITestDashboard';
 import useStore from './store/useStore';
 import { healthAPI, profileAPI } from './services/api';
 import apiConfigManager from './config/apiConfig';
+import { getOrCreateUser } from './services/supabase';
+import { createLogger } from './services/logger';
+
+const logger = createLogger('App');
 
 function App({ windowMode = 'single' }) {
   const { setApiConnected, setProfile, setGreeting } = useStore();
@@ -12,6 +16,9 @@ function App({ windowMode = 'single' }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Initialize user in Supabase
+    initializeUser();
+    
     // Check API connection
     checkApiConnection();
 
@@ -44,6 +51,31 @@ function App({ windowMode = 'single' }) {
       if (intervalId) clearTimeout(intervalId);
     };
   }, []);
+
+  const initializeUser = async () => {
+    try {
+      // Generate or retrieve device_id
+      let deviceId = localStorage.getItem('device_id');
+      if (!deviceId) {
+        deviceId = crypto.randomUUID();
+        localStorage.setItem('device_id', deviceId);
+        logger.info('Generated new device ID', { deviceId });
+      }
+
+      // Create or get user in Supabase
+      const user = await getOrCreateUser(deviceId);
+      if (user) {
+        localStorage.setItem('user_id', user.id);
+        logger.info('User initialized', { userId: user.id, credits: user.metadata?.credits || 0 });
+        
+        // Store user in global store for easy access
+        useStore.getState().setCurrentUser(user);
+      }
+    } catch (error) {
+      logger.error('Failed to initialize user', error);
+      // Continue app operation even if user init fails
+    }
+  };
 
   const checkApiConnection = async () => {
     try {

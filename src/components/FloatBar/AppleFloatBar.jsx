@@ -9,7 +9,13 @@ import { Settings, RotateCcw, Wrench, Send, Loader2, Minimize2 } from 'lucide-re
 import useStore from '../../store/useStore';
 import { chatAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import { CreditDisplay } from '../CreditDisplay';
+import { PurchaseCreditsModal } from '../PurchaseCreditsModal';
+import { supabase, checkResponseCache, storeResponseCache } from '../../services/supabase';
+import { createLogger } from '../../services/logger';
 import './AppleFloatBar.css';
+
+const logger = createLogger('FloatBar');
 
 const MIN_EXPANDED_HEIGHT = 140;
 
@@ -40,7 +46,8 @@ export default function AppleFloatBar({
   const isMiniRef = useRef(true);
   
   // Store
-  const { clearMessages, apiConnected } = useStore();
+  const { clearMessages, apiConnected, currentUser } = useStore();
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   
   // Handle expand/collapse
   const handleExpand = useCallback(() => {
@@ -113,6 +120,87 @@ export default function AppleFloatBar({
     const text = message.trim();
     
     if (!text || isThinking || !apiConnected) return;
+    
+    // Get user ID for credit check
+    const userId = localStorage.getItem('user_id');
+    if (!userId) {
+      toast.error('Please wait for user initialization');
+      return;
+    }
+    
+    // Check if response is cached (no credit charge)
+    try {
+      const cached = await checkResponseCache(text);
+      if (cached) {
+        // Use cached response, NO credit deduction
+        setThoughts(prev => [
+          ...prev, 
+          { role: 'user', content: text, timestamp: Date.now() },
+          { role: 'assistant', content: cached.response, timestamp: Date.now(), cached: true }
+        ]);
+        setMessage('');
+        
+        toast.success('Answer from cache (no credit used)', { icon: '💰' });
+        logger.info('Used cached response, no credit deducted');
+        
+        // Track cache hit event
+        await supabase.from('telemetry_events').insert({
+          user_id: userId,
+          event_type: 'cache_hit',
+          metadata: { cached_response: true, no_credit_charge: true }
+        });
+        
+        return;
+      }
+    } catch (error) {
+      logger.warn('Cache check failed', error);
+    }
+    
+    // NOT cached - check and deduct credit
+    try {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('metadata')
+        .eq('id', userId)
+        .single();
+      
+      const currentCredits = userData?.metadata?.credits || 0;
+      
+      if (currentCredits <= 0) {
+        toast.error('No credits remaining! Please purchase more.');
+        setShowPurchaseModal(true);
+        return;
+      }
+      
+      // Deduct credit optimistically
+      await supabase
+        .from('users')
+        .update({
+          metadata: {
+            ...userData.metadata,
+            credits: currentCredits - 1
+          }
+        })
+        .eq('id', userId);
+      
+      logger.info(`Credit deducted: ${currentCredits} → ${currentCredits - 1}`);
+      
+      // Track credit usage
+      await supabase.from('telemetry_events').insert({
+        user_id: userId,
+        event_type: 'credit_usage',
+        action: 'message_sent',
+        metadata: {
+          credits_remaining: currentCredits - 1,
+          message_cached: false
+        }
+      });
+      
+    } catch (error) {
+      logger.error('Credit check/deduction failed', error);
+      toast.error('Failed to process credits. Please try again.');
+      return;
+    }
     
     // Add user message
     setThoughts(prev => [...prev, { role: 'user', content: text, timestamp: Date.now() }]);
@@ -424,7 +512,13 @@ export default function AppleFloatBar({
           <div className="apple-bar-logo" />
           <div className="apple-drag-strip" />
           {/* Toolbar */}
-          <div className="apple-toolbar">
+          <div className="apple-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Credit Display */}
+            <CreditDisplay 
+              userId={currentUser?.id || localStorage.getItem('user_id')} 
+              onPurchaseClick={() => setShowPurchaseModal(true)}
+            />
+            <div style={{ flexGrow: 1 }} />
             <button className="apple-tool-btn" onClick={handleTools} title="Tools">
               <Wrench size={16} />
             </button>
@@ -478,6 +572,12 @@ export default function AppleFloatBar({
           </div>
         </div>
       </div>
+      
+      {/* Purchase Modal */}
+      <PurchaseCreditsModal 
+        isOpen={showPurchaseModal}
+        onClose={() => setShowPurchaseModal(false)}
+      />
     </div>
   );
 }

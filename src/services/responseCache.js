@@ -2,7 +2,13 @@
  * Response Cache Service
  * Caches AI responses for instant replay of similar questions
  * Dramatically speeds up repeated or similar questions
+ * 
+ * NOW WITH SUPABASE INTEGRATION:
+ * - Checks Supabase cross-user cache first (shared across all users)
+ * - Falls back to local cache (per-device)
  */
+
+import { checkResponseCache as checkSupabaseCache, storeResponseCache as storeSupabaseCache } from './supabase';
 
 class ResponseCache {
   constructor() {
@@ -146,8 +152,26 @@ class ResponseCache {
   /**
    * Check if question is an exact or very similar match
    * Returns cached response if found
+   * 
+   * NOW CHECKS SUPABASE FIRST for cross-user cache hits!
    */
-  getCachedResponse(userPrompt) {
+  async getCachedResponse(userPrompt) {
+    // ============================================
+    // STEP 1: Check Supabase cross-user cache FIRST
+    // ============================================
+    try {
+      const supabaseCached = await checkSupabaseCache(userPrompt);
+      if (supabaseCached) {
+        console.log('[ResponseCache] 🌍 SUPABASE cross-user cache HIT!');
+        return supabaseCached;
+      }
+    } catch (error) {
+      console.warn('[ResponseCache] Supabase check failed, falling back to local', error);
+    }
+
+    // ============================================
+    // STEP 2: Fall back to local cache
+    // ============================================
     const normalized = this.normalizeText(userPrompt);
 
     // First, check for exact match (instant)
@@ -205,8 +229,9 @@ class ResponseCache {
 
   /**
    * Add a new response to cache (only if asked 3+ times and not multi-step)
+   * NOW ALSO STORES IN SUPABASE for cross-user sharing!
    */
-  cacheResponse(userPrompt, aiResponse, metadata = {}) {
+  async cacheResponse(userPrompt, aiResponse, metadata = {}) {
     // Don't cache errors
     if (!aiResponse || metadata.success === false) {
       return;
@@ -279,6 +304,26 @@ class ResponseCache {
     }
 
     this.saveCache();
+
+    // ============================================
+    // STORE IN SUPABASE for cross-user sharing!
+    // ============================================
+    if (askCount >= this.minAsksBeforeCache) {
+      try {
+        // Determine if this is a personal query (don't share cross-user)
+        const personalKeywords = ['my', 'i am', 'i\'m', 'where am i', 'who am i'];
+        const isPersonal = personalKeywords.some(keyword => userPrompt.toLowerCase().includes(keyword));
+        
+        await storeSupabaseCache(userPrompt, aiResponse, isPersonal);
+        
+        if (!isPersonal) {
+          console.log(`[ResponseCache] 💾 Stored in Supabase for cross-user sharing`);
+        }
+      } catch (error) {
+        console.warn('[ResponseCache] Failed to store in Supabase:', error);
+        // Don't throw - local cache is still working
+      }
+    }
   }
 
   /**

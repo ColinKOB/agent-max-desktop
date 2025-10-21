@@ -151,12 +151,12 @@ function createWindow() {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
             "img-src 'self' data: https: blob:; " +
-            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://accounts.google.com https://www.googleapis.com https://api.stripe.com https://js.stripe.com https://m.stripe.network; " +
+            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://accounts.google.com https://www.googleapis.com https://api.stripe.com https://js.stripe.com https://m.stripe.network https://*.supabase.co https://*.supabase.in wss://*.supabase.co wss://*.supabase.in; " +
             "frame-src 'self' https://js.stripe.com https://hooks.stripe.com; " +
             "object-src 'none'; " +
             "base-uri 'self'; " +
             "form-action 'self'; " +
-            "frame-ancestors 'none'",
+            "frame-ancestors 'self'",
         ],
       },
     });
@@ -369,12 +369,12 @@ function createSettingsWindow() {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
             "img-src 'self' data: https: blob:; " +
-            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://accounts.google.com https://www.googleapis.com; " +
-            "frame-src 'none'; " +
+            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://accounts.google.com https://www.googleapis.com https://api.stripe.com https://js.stripe.com https://m.stripe.network https://*.supabase.co https://*.supabase.in wss://*.supabase.co wss://*.supabase.in; " +
+            "frame-src 'self' https://js.stripe.com https://hooks.stripe.com; " +
             "object-src 'none'; " +
             "base-uri 'self'; " +
             "form-action 'self'; " +
-            "frame-ancestors 'none'",
+            "frame-ancestors 'self'",
         ],
       },
     });

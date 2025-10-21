@@ -83,26 +83,26 @@ export default function SettingsEnhanced() {
       </div>
 
       <div className="settings-container">
-        {/* Sidebar */}
-        <aside className="settings-sidebar glass-panel">
-          <h2 className="sidebar-title">Settings</h2>
-          <nav className="sidebar-nav">
+        <div className="top-tabs glass-panel">
+          <nav className="tabs-rail" role="tablist" aria-label="Settings sections">
             {sections.map(section => {
               const Icon = section.icon;
+              const selected = activeSection === section.id;
               return (
                 <button
                   key={section.id}
-                  className={`sidebar-item ${activeSection === section.id ? 'active' : ''}`}
+                  role="tab"
+                  aria-selected={selected}
+                  className={`tab-chip ${selected ? 'active' : ''}`}
                   onClick={() => setActiveSection(section.id)}
                 >
-                  <Icon size={18} />
+                  <Icon size={16} />
                   <span>{section.label}</span>
-                  <ChevronRight size={16} className="chevron" />
                 </button>
               );
             })}
           </nav>
-        </aside>
+        </div>
 
         {/* Main Content */}
         <main className="settings-content">

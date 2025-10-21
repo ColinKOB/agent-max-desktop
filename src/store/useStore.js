@@ -4,6 +4,7 @@ const useStore = create((set, get) => ({
   // Profile state
   profile: null,
   greeting: '',
+  currentUser: null, // Supabase user with credits
 
   // Conversation state
   messages: [],
@@ -27,6 +28,7 @@ const useStore = create((set, get) => ({
   // Actions
   setProfile: (profile) => set({ profile }),
   setGreeting: (greeting) => set({ greeting }),
+  setCurrentUser: (user) => set({ currentUser: user }),
 
   addMessage: (message) =>
     set((state) => ({

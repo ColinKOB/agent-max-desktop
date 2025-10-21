@@ -555,6 +555,32 @@ export const agentsAPI = {
 };
 
 // ============================================
+// CREDITS MANAGEMENT
+// ============================================
+export const creditsAPI = {
+  // Get current credit balance
+  getBalance: (userId) => api.get(`/api/v2/credits/balance/${userId}`),
+
+  // Create Stripe checkout session for purchasing credits
+  createCheckout: (packageType, userId, successUrl, cancelUrl) =>
+    api.post('/api/v2/credits/checkout', {
+      package: packageType,
+      user_id: userId,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+    }),
+
+  // List available credit packages
+  getPackages: () => api.get('/api/v2/credits/packages'),
+
+  // Deduct credits (usually called by backend, but available)
+  deductCredits: (userId, amount = 1) =>
+    api.post(`/api/v2/credits/deduct/${userId}`, null, {
+      params: { amount },
+    }),
+};
+
+// ============================================
 // HEALTH CHECK
 // ============================================
 export const healthAPI = {

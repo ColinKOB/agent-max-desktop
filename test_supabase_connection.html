@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Connection Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { border-left: 4px solid #10b981; }
+        .error { border-left: 4px solid #ef4444; }
+        .pending { border-left: 4px solid #f59e0b; }
+        h1 { color: #333; }
+        h2 { color: #666; font-size: 18px; margin: 0 0 10px 0; }
+        .status { font-weight: bold; }
+        .details { color: #666; font-size: 14px; margin-top: 10px; }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover { background: #2563eb; }
+        button:disabled { background: #94a3b8; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Supabase Connection Test</h1>
+    <p>Testing RLS policies with the anon key (frontend simulation)</p>
+    
+    <button id="runTests" onclick="runAllTests()">Run Tests</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const SUPABASE_URL = 'https://rburoajxsyfousnleydw.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidXJvYWp4c3lmb3VzbmxleWR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5OTE2MTgsImV4cCI6MjA3NjU2NzYxOH0.sWHCQpHiQvI_whjLKF8ybR3mr9BNtPF68MgKT1LLuSc';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function addResult(title, status, details) {
+            const div = document.createElement('div');
+            div.className = `test ${status}`;
+            div.innerHTML = `
+                <h2>${title}</h2>
+                <div class="status">${status === 'success' ? '✅ PASS' : status === 'error' ? '❌ FAIL' : '⏳ PENDING'}</div>
+                <div class="details">${details}</div>
+            `;
+            document.getElementById('results').appendChild(div);
+        }
+
+        async function runAllTests() {
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('runTests').disabled = true;
+
+            // Test 1: Read users table
+            try {
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .limit(1);
+                
+                if (error) throw error;
+                
+                addResult(
+                    'Test 1: Read Users Table',
+                    'success',
+                    `Successfully queried users table. Found ${data.length} rows. No RLS blocking!`
+                );
+            } catch (error) {
+                addResult(
+                    'Test 1: Read Users Table',
+                    'error',
+                    `Error: ${error.message} (Code: ${error.code})`
+                );
+            }
+
+            // Test 2: Insert new user
+            try {
+                // Generate a proper UUID v4
+                const testDeviceId = crypto.randomUUID();
+                const { data, error } = await supabase
+                    .from('users')
+                    .insert({
+                        device_id: testDeviceId,
+                        consent_version: 1,
+                        scopes: {
+                            prompts: false,
+                            outputs: false,
+                            tools: false,
+                            screenshots: false
+                        }
+                    })
+                    .select()
+                    .single();
+                
+                if (error) throw error;
+                
+                addResult(
+                    'Test 2: Insert User',
+                    'success',
+                    `Successfully created test user with ID: ${data.id}`
+                );
+
+                // Clean up
+                await supabase.from('users').delete().eq('id', data.id);
+            } catch (error) {
+                addResult(
+                    'Test 2: Insert User',
+                    'error',
+                    `Error: ${error.message} (Code: ${error.code})`
+                );
+            }
+
+            // Test 3: Read response_cache
+            try {
+                const { data, error } = await supabase
+                    .from('response_cache')
+                    .select('*')
+                    .limit(1);
+                
+                if (error) throw error;
+                
+                addResult(
+                    'Test 3: Read Response Cache',
+                    'success',
+                    `Successfully queried cache. Found ${data.length} entries.`
+                );
+            } catch (error) {
+                addResult(
+                    'Test 3: Read Response Cache',
+                    'error',
+                    `Error: ${error.message} (Code: ${error.code})`
+                );
+            }
+
+            // Test 4: Read facts
+            try {
+                const { data, error } = await supabase
+                    .from('facts')
+                    .select('*')
+                    .limit(1);
+                
+                if (error) throw error;
+                
+                addResult(
+                    'Test 4: Read Facts',
+                    'success',
+                    `Successfully queried facts table.`
+                );
+            } catch (error) {
+                addResult(
+                    'Test 4: Read Facts',
+                    'error',
+                    `Error: ${error.message} (Code: ${error.code})`
+                );
+            }
+
+            // Test 5: Read sessions
+            try {
+                const { data, error } = await supabase
+                    .from('sessions')
+                    .select('*')
+                    .limit(1);
+                
+                if (error) throw error;
+                
+                addResult(
+                    'Test 5: Read Sessions',
+                    'success',
+                    `Successfully queried sessions table.`
+                );
+            } catch (error) {
+                addResult(
+                    'Test 5: Read Sessions',
+                    'error',
+                    `Error: ${error.message} (Code: ${error.code})`
+                );
+            }
+
+            document.getElementById('runTests').disabled = false;
+
+            // Summary
+            const tests = document.querySelectorAll('.test');
+            const passed = document.querySelectorAll('.success').length;
+            const failed = document.querySelectorAll('.error').length;
+            
+            addResult(
+                'Summary',
+                passed === tests.length ? 'success' : 'error',
+                `${passed}/${tests.length - 1} tests passed. ${failed > 0 ? 'Please check errors above.' : 'All systems operational! 🎉'}`
+            );
+        }
+    </script>
+</body>
+</html>

@@ -27,22 +27,41 @@ export default function SettingsApp() {
         <div id="backdrop"></div>
         <div className="main-ui h-screen flex flex-col bg-transparent">
         {/* Header */}
-        <div className="amx-liquid amx-noise amx-p-panel mx-4 mt-4 mb-2 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-4">
+        <div className="amx-liquid amx-noise amx-p-panel mx-4 mt-4 mb-2 flex flex-col gap-3 flex-shrink-0">
+          {/* Title row */}
+          <div className="flex items-center justify-between min-w-0">
             <h1 className="amx-heading text-lg">Agent Max Settings</h1>
 
-            <div className="flex gap-2 ml-6">
+            <button
+              onClick={handleClose}
+              className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              title="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Tabs row */}
+          <div className="overflow-x-auto -mx-2 px-2">
+            <div className="flex gap-3 min-w-max items-center" role="tablist" aria-label="Settings sections">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
+                const selected = activeTab === tab.id;
                 return (
                   <button
                     key={tab.id}
+                    role="tab"
+                    aria-selected={selected}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
-                      activeTab === tab.id
-                        ? 'bg-white/15 border-white/25 text-white'
-                        : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/90'
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 border whitespace-nowrap ${
+                      selected
+                        ? 'bg-white/45 border-white/40 text-black shadow-lg'
+                        : 'bg-white/35 hover:bg-white/40 border-white/25 hover:border-white/30 text-black/90'
                     }`}
+                    style={{
+                      backdropFilter: selected ? 'blur(12px) saturate(160%)' : 'blur(10px)',
+                      WebkitBackdropFilter: selected ? 'blur(12px) saturate(160%)' : 'blur(10px)',
+                    }}
                   >
                     <Icon className="w-4 h-4" />
                     {tab.label}
@@ -51,14 +70,6 @@ export default function SettingsApp() {
               })}
             </div>
           </div>
-
-          <button
-            onClick={handleClose}
-            className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-            title="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
 
       {/* Content */}
