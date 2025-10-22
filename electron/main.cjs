@@ -140,8 +140,15 @@ function createWindow() {
     }
   });
 
-  // Add Content Security Policy
+  // Add Content Security Policy (only for our app origins)
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    const url = details?.url || '';
+    const isAppOrigin = url.startsWith('http://localhost:5173') || url.startsWith('file://');
+    if (!isAppOrigin) {
+      // Do not override CSP for external sites (e.g., Stripe Checkout)
+      callback({ responseHeaders: details.responseHeaders });
+      return;
+    }
     callback({
       responseHeaders: {
         ...details.responseHeaders,
@@ -368,8 +375,14 @@ function createSettingsWindow(route) {
     settingsWindow.show();
   });
 
-  // Add Content Security Policy for settings window
+  // Add Content Security Policy for settings window (only our app origins)
   settingsWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    const url = details?.url || '';
+    const isAppOrigin = url.startsWith('http://localhost:5173') || url.startsWith('file://');
+    if (!isAppOrigin) {
+      callback({ responseHeaders: details.responseHeaders });
+      return;
+    }
     callback({
       responseHeaders: {
         ...details.responseHeaders,

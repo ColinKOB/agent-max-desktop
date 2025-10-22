@@ -18,6 +18,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { format } from 'date-fns';
+import apiConfigManager from '../../config/apiConfig';
 
 export function BillingHistory({ tenantId = 'test-tenant-001' }) {
   const [invoices, setInvoices] = useState([]);
@@ -37,7 +38,7 @@ export function BillingHistory({ tenantId = 'test-tenant-001' }) {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const apiUrl = apiConfigManager.getConfig().baseURL || import.meta.env.VITE_API_URL || 'http://localhost:8000';
       
       const params = new URLSearchParams({
         page: currentPage,
@@ -46,17 +47,36 @@ export function BillingHistory({ tenantId = 'test-tenant-001' }) {
         start_date: dateRange.start,
         end_date: dateRange.end,
       });
+      const endpoint = `${apiUrl}/api/v2/billing/invoices/${encodeURIComponent(tenantId)}?${params}`;
+      const response = await fetch(endpoint);
       
-      const response = await fetch(`${apiUrl}/api/v2/billing/invoices/${tenantId}?${params}`);
-      
-      if (!response.ok) throw new Error('Failed to fetch invoices');
+      if (!response.ok) {
+        let detail = '';
+        try {
+          const data = await response.json();
+          detail = data?.detail || data?.error || JSON.stringify(data);
+        } catch {
+          try { detail = await response.text(); } catch {}
+        }
+        if (response.status === 404) {
+          setInvoices([]);
+          setTotalPages(1);
+          setError(null);
+          return;
+        }
+        throw new Error(`Invoices ${response.status} ${response.statusText} — ${detail || 'no details'}`);
+      }
       
       const data = await response.json();
       setInvoices(data.invoices || []);
       setTotalPages(Math.ceil((data.total || 0) / itemsPerPage));
       setError(null);
     } catch (err) {
-      console.error('[BillingHistory] Error:', err);
+      console.error('[BillingHistory] Error fetching invoices', {
+        tenantId,
+        baseURL: apiConfigManager.getConfig().baseURL,
+        message: err?.message,
+      });
       setError(err.message);
     } finally {
       setLoading(false);
@@ -65,10 +85,20 @@ export function BillingHistory({ tenantId = 'test-tenant-001' }) {
 
   const downloadInvoice = async (invoiceId, format = 'pdf') => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/api/v2/billing/invoice/${invoiceId}/download?format=${format}`);
+      const apiUrl = apiConfigManager.getConfig().baseURL || import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const endpoint = `${apiUrl}/api/v2/billing/invoice/${encodeURIComponent(invoiceId)}/download?format=${encodeURIComponent(format)}`;
+      const response = await fetch(endpoint);
       
-      if (!response.ok) throw new Error('Failed to download invoice');
+      if (!response.ok) {
+        let detail = '';
+        try {
+          const data = await response.json();
+          detail = data?.detail || data?.error || JSON.stringify(data);
+        } catch {
+          try { detail = await response.text(); } catch {}
+        }
+        throw new Error(`Download ${response.status} ${response.statusText} — ${detail || 'no details'}`);
+      }
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -80,16 +110,30 @@ export function BillingHistory({ tenantId = 'test-tenant-001' }) {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (err) {
-      console.error('[BillingHistory] Download error:', err);
+      console.error('[BillingHistory] Download error', {
+        invoiceId,
+        baseURL: apiConfigManager.getConfig().baseURL,
+        message: err?.message,
+      });
     }
   };
 
   const exportToCSV = async () => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/api/v2/billing/export/${tenantId}?format=csv`);
+      const apiUrl = apiConfigManager.getConfig().baseURL || import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const endpoint = `${apiUrl}/api/v2/billing/export/${encodeURIComponent(tenantId)}?format=csv`;
+      const response = await fetch(endpoint);
       
-      if (!response.ok) throw new Error('Failed to export data');
+      if (!response.ok) {
+        let detail = '';
+        try {
+          const data = await response.json();
+          detail = data?.detail || data?.error || JSON.stringify(data);
+        } catch {
+          try { detail = await response.text(); } catch {}
+        }
+        throw new Error(`Export ${response.status} ${response.statusText} — ${detail || 'no details'}`);
+      }
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -101,7 +145,11 @@ export function BillingHistory({ tenantId = 'test-tenant-001' }) {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (err) {
-      console.error('[BillingHistory] Export error:', err);
+      console.error('[BillingHistory] Export error', {
+        tenantId,
+        baseURL: apiConfigManager.getConfig().baseURL,
+        message: err?.message,
+      });
     }
   };
 

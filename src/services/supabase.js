@@ -46,47 +46,55 @@ export async function getOrCreateUser(deviceId) {
       logger.warn('Supabase disabled, returning fallback user');
       return fallbackUser(deviceId);
     }
-    // Try to find existing user
-    const { data: existingUser, error: selectError } = await supabase
+    let normalizedId = deviceId;
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRe.test(String(normalizedId))) {
+      const gen = () => (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function')
+        ? globalThis.crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === 'x' ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          });
+      normalizedId = gen();
+      try { localStorage.setItem('device_id', normalizedId); } catch {}
+    }
+
+    const { data, error } = await supabase
       .from('users')
-      .select('*')
-      .eq('device_id', deviceId)
+      .upsert(
+        {
+          device_id: normalizedId,
+          consent_version: 1,
+          scopes: {
+            prompts: false,
+            outputs: false,
+            tools: false,
+            screenshots: false,
+          },
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'device_id' }
+      )
+      .select()
       .maybeSingle();
 
-    if (existingUser) {
-      logger.debug('User found', { userId: existingUser.id });
-      return existingUser;
-    }
-
-    // Create new user
-    const { data: newUser, error: insertError } = await supabase
-      .from('users')
-      .insert({
-        device_id: deviceId,
-        consent_version: 1,
-        scopes: {
-          prompts: false,
-          outputs: false,
-          tools: false,
-          screenshots: false,
-        },
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      // RLS / 401 fallbacks
-      const msg = (insertError && (insertError.message || String(insertError))) || '';
-      const code = insertError.code || '';
+    if (error) {
+      const msg = (error && (error.message || String(error))) || '';
+      const code = error.code || '';
       if (code === '42501' || /row-level security/i.test(msg) || /unauthorized|401/i.test(msg)) {
-        logger.warn('Supabase insert blocked by RLS or unauthorized. Using fallback user.');
-        return fallbackUser(deviceId);
+        logger.warn('Supabase upsert blocked by RLS or unauthorized. Using fallback user.');
+        return fallbackUser(normalizedId);
       }
-      throw insertError;
+      throw error;
     }
 
-    logger.info('New user created', { userId: newUser.id });
-    return newUser;
+    if (data) {
+      logger.debug('User ready', { userId: data.id });
+      return data;
+    }
+
+    return fallbackUser(normalizedId);
   } catch (error) {
     logger.error('Failed to get/create user', error);
     // Graceful fallback on any network error in dev
@@ -135,33 +143,33 @@ export async function checkResponseCache(prompt) {
       .select('*')
       .eq('prompt_normalized', normalized)
       .eq('is_personal', false)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      // PGRST116 = not found, which is ok
+      .limit(1);
+    if (error) {
       throw error;
     }
 
-    if (data) {
+    const row = Array.isArray(data) ? data[0] : data;
+
+    if (row) {
       // Update hit count
       await supabase
         .from('response_cache')
         .update({
-          hit_count: data.hit_count + 1,
+          hit_count: row.hit_count + 1,
           last_hit_at: new Date().toISOString(),
         })
-        .eq('id', data.id);
+        .eq('id', row.id);
 
       logger.info('🎯 Cache HIT (cross-user)', {
         prompt: prompt.substring(0, 50),
-        hits: data.hit_count + 1,
+        hits: row.hit_count + 1,
       });
 
       return {
-        response: data.response,
+        response: row.response,
         cached: true,
         cacheType: 'supabase-cross-user',
-        hitCount: data.hit_count + 1,
+        hitCount: row.hit_count + 1,
       };
     }
 
