@@ -1,0 +1,371 @@
+/**
+ * Plan Card Styles
+ * 
+ * Phase 4: Accurate Lane Safeguards
+ * Modern, glass-morphism design with clear risk indicators.
+ */
+
+.plan-card {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 16px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  animation: slideIn 0.3s ease-out;
+}
+
+.plan-card--low {
+  border-left: 4px solid #4ade80;
+}
+
+.plan-card--medium {
+  border-left: 4px solid #fbbf24;
+}
+
+.plan-card--high {
+  border-left: 4px solid #ef4444;
+}
+
+/* Header */
+.plan-card__header {
+  margin-bottom: 16px;
+}
+
+.plan-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.plan-card__icon {
+  font-size: 20px;
+}
+
+.plan-card__title {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.plan-card__badge {
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: #6b7280;
+}
+
+.plan-card__goal {
+  font-size: 14px;
+  color: #4b5563;
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+.plan-card__estimate {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 8px;
+}
+
+.plan-card__estimate-icon {
+  font-size: 14px;
+}
+
+/* Warning */
+.plan-card__warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #92400e;
+}
+
+.plan-card__warning-icon {
+  font-size: 16px;
+}
+
+/* Sections */
+.plan-card__section {
+  margin-bottom: 16px;
+}
+
+.plan-card__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.plan-card__section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+}
+
+.plan-card__expand-btn {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.plan-card__expand-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* Milestones */
+.plan-card__milestones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plan-card__milestone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: rgba(59, 130, 246, 0.05);
+  border-radius: 6px;
+}
+
+.plan-card__milestone-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: #3b82f6;
+  color: white;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.plan-card__milestone-name {
+  font-size: 13px;
+  color: #374151;
+}
+
+/* Tasks */
+.plan-card__tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plan-card__task {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.plan-card__task:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.plan-card__task--medium {
+  border-left: 3px solid #fbbf24;
+}
+
+.plan-card__task--high {
+  border-left: 3px solid #ef4444;
+}
+
+.plan-card__task-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: #e5e7eb;
+  color: #6b7280;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.plan-card__task-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.plan-card__task-desc {
+  font-size: 13px;
+  color: #1f2937;
+  line-height: 1.4;
+}
+
+.plan-card__task-tool {
+  font-size: 11px;
+  color: #6b7280;
+  font-family: 'Monaco', 'Courier New', monospace;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 6px;
+  border-radius: 3px;
+  width: fit-content;
+}
+
+.plan-card__task-lock {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.plan-card__task-more {
+  padding: 8px;
+  text-align: center;
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Capabilities */
+.plan-card__capabilities {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 12px;
+  background: rgba(59, 130, 246, 0.05);
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.plan-card__capabilities-label {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.plan-card__capability-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: #1e40af;
+  background: #dbeafe;
+  padding: 3px 8px;
+  border-radius: 10px;
+}
+
+/* Actions */
+.plan-card__actions {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.plan-card__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.plan-card__btn-icon {
+  font-size: 16px;
+}
+
+.plan-card__btn--reject {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
+.plan-card__btn--reject:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.plan-card__btn--approve {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.plan-card__btn--approve:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  transform: translateY(-1px);
+}
+
+.plan-card__btn--approve:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .plan-card {
+    background: rgba(31, 41, 55, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .plan-card__title,
+  .plan-card__task-desc {
+    color: #f3f4f6;
+  }
+  
+  .plan-card__goal,
+  .plan-card__estimate,
+  .plan-card__task-tool {
+    color: #d1d5db;
+  }
+  
+  .plan-card__task {
+    background: rgba(55, 65, 81, 0.5);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .plan-card__task:hover {
+    background: rgba(55, 65, 81, 0.7);
+  }
+}

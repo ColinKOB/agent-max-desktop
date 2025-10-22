@@ -62,6 +62,10 @@ const isDevelopmentMode = () => getEnvMode() === 'development';
  * Feature Flags Configuration
  */
 const flags = {
+  // ============================================================================
+  // GLASS UI FLAGS
+  // ============================================================================
+  
   /**
    * Master switch for all glass UI features
    * @type {boolean}
@@ -99,6 +103,76 @@ const flags = {
    * @type {boolean}
    */
   GLASS_DEV_TOGGLE: getEnvFlag('GLASS_DEV_TOGGLE', isDevelopmentMode()),
+
+  // ============================================================================
+  // AGENT MAX EVOLUTION PLAN FLAGS (Beter_Responses Implementation)
+  // ============================================================================
+  
+  /**
+   * Phase 1: Progressive Context - Fast chat lane for short queries
+   * Target: p50 TTFT ≤ 700ms, p95 ≤ 1500ms
+   * @type {boolean}
+   */
+  enableProgressiveContext: getEnvFlag('ENABLE_PROGRESSIVE_CONTEXT', false),
+
+  /**
+   * Phase 2: Deterministic Tools - Zero-LLM instant tools (time, math, etc.)
+   * Target: All tools ≤ 400ms
+   * @type {boolean}
+   */
+  enableDeterministicTools: getEnvFlag('ENABLE_DETERMINISTIC_TOOLS', false),
+
+  /**
+   * Phase 3: Adaptive Planner - DAG-based planning with delta prompts
+   * Target: User turns ↓ 30%
+   * @type {boolean}
+   */
+  enableAdaptivePlanner: getEnvFlag('ENABLE_ADAPTIVE_PLANNER', false),
+
+  /**
+   * Phase 3: Prompt Sharpening - Batched clarifications before execution
+   * @type {boolean}
+   */
+  enablePromptSharpening: getEnvFlag('ENABLE_PROMPT_SHARPENING', false),
+
+  /**
+   * Phase 3: Instruction Pack Caching - Cache system instructions
+   * @type {boolean}
+   */
+  enableInstructionPackCaching: getEnvFlag('ENABLE_INSTRUCTION_PACK_CACHING', false),
+
+  /**
+   * Phase 4: Plan Approvals - Require approval for side-effects
+   * Target: 100% side-effects gated
+   * @type {boolean}
+   */
+  enablePlanApprovals: getEnvFlag('ENABLE_PLAN_APPROVALS', false),
+
+  /**
+   * Phase 5: Speculative Streaming - Dual-stream for faster TTFT
+   * Target: TTFT ↓ 40%
+   * @type {boolean}
+   */
+  enableSpeculativeStreaming: getEnvFlag('ENABLE_SPECULATIVE_STREAMING', false),
+
+  /**
+   * Phase 6: Semantic Cache - Cache similar queries
+   * Target: ≥ 30% cache hit rate
+   * @type {boolean}
+   */
+  enableSemanticCache: getEnvFlag('ENABLE_SEMANTIC_CACHE', false),
+
+  /**
+   * Accurate Lane - Always enabled (existing functionality)
+   * @type {boolean}
+   */
+  enableAccurateLane: getEnvFlag('ENABLE_ACCURATE_LANE', true),
+
+  /**
+   * Developer Mode - Show DAG, TTFT, swap events in UI
+   * @type {boolean}
+   */
+  enableDeveloperMode: getEnvFlag('ENABLE_DEVELOPER_MODE', isDevelopmentMode()),
 };
 
 /**

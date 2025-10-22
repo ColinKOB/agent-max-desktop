@@ -4,6 +4,8 @@
  */
 
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import './FactTile.css';
 
 export function FactTile({ tile }) {
@@ -18,7 +20,18 @@ export function FactTile({ tile }) {
         </span>
       </div>
       {!!tile.enrichment && (
-        <div className="fact-tile-enrichment">{tile.enrichment}</div>
+        <div className="fact-tile-enrichment">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              a: ({ node, ...props }) => (
+                <a target="_blank" rel="noreferrer" {...props} />
+              ),
+            }}
+          >
+            {tile.enrichment}
+          </ReactMarkdown>
+        </div>
       )}
     </div>
   );

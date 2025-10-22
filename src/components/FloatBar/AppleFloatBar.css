@@ -81,6 +81,26 @@
 .apple-message-user .apple-message-content { background: linear-gradient(135deg, #007AFF, #0051D5); color: white; box-shadow: 0 2px 8px rgba(0,122,255,0.3); }
 .apple-message-assistant .apple-message-content { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.95); border: 1px solid rgba(255,255,255,0.15); }
 
+/* Markdown styles inside assistant messages */
+.apple-message-assistant .apple-message-content p { margin: 0 0 8px; }
+.apple-message-assistant .apple-message-content ul,
+.apple-message-assistant .apple-message-content ol { margin: 6px 0 8px 18px; padding-left: 18px; }
+.apple-message-assistant .apple-message-content li { margin: 2px 0; }
+.apple-message-assistant .apple-message-content a { color: #8ab4ff; text-decoration: underline; }
+.apple-message-assistant .apple-message-content code { background: rgba(255,255,255,0.08); padding: 1px 4px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+.apple-message-assistant .apple-message-content pre { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); padding: 8px; border-radius: 8px; overflow: auto; font-size: 12px; }
+.apple-message-assistant .apple-message-content pre code { background: transparent; padding: 0; }
+
+/* Markdown styles inside fact tile enrichment */
+.fact-tile-enrichment p { margin: 0 0 6px; }
+.fact-tile-enrichment ul,
+.fact-tile-enrichment ol { margin: 6px 0 8px 16px; padding-left: 16px; }
+.fact-tile-enrichment li { margin: 2px 0; }
+.fact-tile-enrichment a { color: #8ab4ff; text-decoration: underline; }
+.fact-tile-enrichment code { background: rgba(255,255,255,0.08); padding: 1px 4px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+.fact-tile-enrichment pre { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); padding: 8px; border-radius: 8px; overflow: auto; font-size: 12px; }
+.fact-tile-enrichment pre code { background: transparent; padding: 0; }
+
 .apple-input-area { display: flex; gap: 8px; padding: 4px; position: relative; z-index: 1; flex-shrink: 0; }
 .apple-input { flex:1; height: 36px; padding: 0 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 18px; color:white; font-size:14px; outline:none; transition: all 0.2s ease; }
 .apple-send-btn { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg,#007AFF,#0051D5); border:none; color:white; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,122,255,0.3); }

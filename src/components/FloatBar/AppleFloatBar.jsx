@@ -5,6 +5,8 @@
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Settings, RotateCcw, Wrench, Send, Loader2, Minimize2 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { chatAPI } from '../../services/api';
@@ -47,6 +49,7 @@ export default function AppleFloatBar({
   const isMiniRef = useRef(true);
   const tilesRef = useRef(null); // fact tiles container
   const enrichTileIdRef = useRef(null); // current tile receiving enrichment
+  const streamBufferRef = useRef(''); // accumulates tokens when not enriching a tile
   
   // Store
   const { clearMessages, apiConnected, currentUser } = useStore();
@@ -341,20 +344,26 @@ export default function AppleFloatBar({
         setFactTiles(prev => [tile, ...prev]);
         logger.info(`[FactTile] Rendered ${toolName} tile in ${Math.round(latencyMs)}ms`);
       } else if (event.type === 'token') {
-        // Only append tokens to the tile created by the last tool_result
         const content = event.content || event.data?.content || '';
-        setFactTiles(prev => {
-          if (!content || prev.length === 0) return prev;
-          const idx = prev.findIndex(t => t.id === enrichTileIdRef.current);
-          if (idx === -1) return prev;
-          const updated = [...prev];
-          const tile = updated[idx];
-          updated[idx] = {
-            ...tile,
-            enrichment: (tile.enrichment || '') + content
-          };
-          return updated;
-        });
+        if (!content) return;
+        if (enrichTileIdRef.current) {
+          // Stream into the most recent fact tile enrichment
+          setFactTiles(prev => {
+            if (prev.length === 0) return prev;
+            const idx = prev.findIndex(t => t.id === enrichTileIdRef.current);
+            if (idx === -1) return prev;
+            const updated = [...prev];
+            const tile = updated[idx];
+            updated[idx] = {
+              ...tile,
+              enrichment: (tile.enrichment || '') + content
+            };
+            return updated;
+          });
+        } else {
+          // No tile enrichment active: accumulate into plain assistant buffer
+          streamBufferRef.current = (streamBufferRef.current || '') + content;
+        }
       } else if (event.type === 'thinking') {
         const message = event.data?.message || event.message || 'Processing...';
         setThinkingStatus(message);
@@ -363,27 +372,38 @@ export default function AppleFloatBar({
         setThinkingStatus('Working...');
       } else if (event.type === 'done') {
         // Final response received
-        const finalResponse = event.data?.final_response || event.final_response || '';
-        if (finalResponse) {
-          setThoughts(prev => [...prev, { 
-            role: 'assistant', 
-            content: finalResponse, 
-            timestamp: Date.now() 
+        const d = event.data || {};
+        const finalResponse = (
+          d.final_response || d.response || d.text || d.content || d.message || d.result ||
+          event.final_response || event.response || event.content || event.text || event.message || ''
+        );
+        const buffered = streamBufferRef.current || '';
+        const responseText = (typeof finalResponse === 'string' ? finalResponse : String(finalResponse || '')) || buffered;
+        if (responseText) {
+          setThoughts(prev => [...prev, {
+            role: 'assistant',
+            content: responseText,
+            timestamp: Date.now()
           }]);
-          
+
           // Save conversation to memory system
           if (window.electron?.memory?.addMessage) {
-            window.electron.memory.addMessage('assistant', finalResponse)
+            window.electron.memory.addMessage('assistant', responseText)
               .catch(err => console.warn('[Chat] Failed to save message to memory:', err));
           }
         }
         // Clear enrichment scope at end of stream
         enrichTileIdRef.current = null;
+        // Clear any accumulated plain text tokens
+        streamBufferRef.current = '';
         setIsThinking(false);
         setThinkingStatus('');
       } else if (event.type === 'error') {
         const errorMsg = event.data?.error || event.error || 'Failed to get response';
         toast.error(errorMsg);
+        // Reset buffers on error
+        enrichTileIdRef.current = null;
+        streamBufferRef.current = '';
         setIsThinking(false);
         setThinkingStatus('');
       }
@@ -624,7 +644,20 @@ export default function AppleFloatBar({
             {thoughts.map((thought, idx) => (
               <div key={idx} className={`apple-message apple-message-${thought.role}`}>
                 <div className="apple-message-content">
-                  {thought.content}
+                  {thought.role === 'assistant' ? (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        a: ({ node, ...props }) => (
+                          <a target="_blank" rel="noreferrer" {...props} />
+                        ),
+                      }}
+                    >
+                      {thought.content || ''}
+                    </ReactMarkdown>
+                  ) : (
+                    thought.content
+                  )}
                 </div>
               </div>
             ))}
