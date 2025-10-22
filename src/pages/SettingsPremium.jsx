@@ -25,9 +25,88 @@ import {
   Monitor,
 } from 'lucide-react';
 import useStore from '../store/useStore';
-import { reconfigureAPI } from '../services/api';
+import { reconfigureAPI, permissionAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import '../styles/premium-glass.css';
+import PermissionLevelSelector from '../components/settings/PermissionLevelSelector';
+import { usePermission } from '../contexts/PermissionContext';
+
+// Helper: Recent activity list (mini)
+function RecentActivityList() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await permissionAPI.getActivityLog('all', 5);
+        const data = res.data || res;
+        if (mounted) setItems(data.activities || []);
+      } catch (e) {
+        if (mounted) setError('Failed to load activity');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-white/60 text-sm">
+        Loading recent activity...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-200 text-sm">
+        {error}
+      </div>
+    );
+  }
+
+  if (!items.length) {
+    return (
+      <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-white/60 text-sm">
+        No recent activity
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {items.map((a, idx) => (
+        <div key={a.id || idx} className="p-3 rounded-lg bg-white/5 border border-white/10">
+          <div className="flex items-center justify-between">
+            <div className="text-white text-sm font-medium truncate mr-2">
+              {a.action}
+            </div>
+            <div className="text-xs text-white/50">
+              {a.permission_level}
+            </div>
+          </div>
+          <div className="mt-1 flex items-center gap-3 text-xs text-white/60">
+            <span>{new Date(a.timestamp).toLocaleString()}</span>
+            {a.required_approval && (
+              <span className={a.approved ? 'text-emerald-300' : 'text-red-300'}>
+                {a.approved ? 'Approved' : 'Denied'}
+              </span>
+            )}
+            {a.is_high_risk && (
+              <span className="text-red-300">High Risk</span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const SettingsSection = ({ icon: Icon, title, children, badge }) => (
   <div className="premium-glass-card">
@@ -245,6 +324,20 @@ export default function SettingsPremium() {
               </div>
             </div>
           </div>
+        </SettingsSection>
+
+        {/* Permission Levels */}
+        <SettingsSection icon={Shield} title="Permissions & Safety" badge="New">
+          <PermissionLevelSelector
+            currentLevel={usePermission().level}
+            onChange={usePermission().updateLevel}
+            loading={usePermission().loading}
+          />
+        </SettingsSection>
+
+        {/* Activity Log (recent) */}
+        <SettingsSection icon={Monitor} title="Recent Activity">
+          <RecentActivityList />
         </SettingsSection>
 
         {/* API Configuration */}

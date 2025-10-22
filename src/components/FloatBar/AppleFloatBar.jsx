@@ -9,12 +9,14 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Settings, RotateCcw, Wrench, Send, Loader2, Minimize2 } from 'lucide-react';
 import useStore from '../../store/useStore';
-import { chatAPI } from '../../services/api';
+import { chatAPI, permissionAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { CreditDisplay } from '../CreditDisplay';
 import { supabase, checkResponseCache, storeResponseCache } from '../../services/supabase';
 import { createLogger } from '../../services/logger';
 import { FactTileList } from '../FactTileList.jsx';
+import { usePermission } from '../../contexts/PermissionContext';
+import ApprovalDialog from '../ApprovalDialog';
 import './AppleFloatBar.css';
 
 const logger = createLogger('FloatBar');
@@ -36,6 +38,9 @@ export default function AppleFloatBar({
   const [thinkingStatus, setThinkingStatus] = useState('');
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [factTiles, setFactTiles] = useState([]);
+  // Approval dialog state
+  const [approvalOpen, setApprovalOpen] = useState(false);
+  const [approvalDetails, setApprovalDetails] = useState({ action: '', markers: [], reason: '', isHighRisk: false, onApprove: null });
   
   // Refs
   const barRef = useRef(null);
@@ -53,6 +58,9 @@ export default function AppleFloatBar({
   
   // Store
   const { clearMessages, apiConnected, currentUser } = useStore();
+  
+  // Permission level
+  const { level: permissionLevel, updateLevel } = usePermission();
   
   // Hard route guard: the FloatBar window should never navigate to /settings
   useEffect(() => {
@@ -136,48 +144,14 @@ export default function AppleFloatBar({
     }, 300);
   }, []);
   
-  // Handle message submit
-  const handleSubmit = useCallback(async (e) => {
-    e?.preventDefault();
-    const text = message.trim();
-    
-    if (!text || isThinking || !apiConnected) return;
-    
+  // Helper to run the full send flow (credits, screenshots, streaming, memory)
+  const continueSend = useCallback(async (text) => {
     // Get user ID for credit check
     const userId = localStorage.getItem('user_id');
     if (!userId) {
       toast.error('Please wait for user initialization');
       return;
     }
-    
-    // Check if response is cached (no credit charge)
-    try {
-      const cached = await checkResponseCache(text);
-      if (cached) {
-        // Use cached response, NO credit deduction
-        setThoughts(prev => [
-          ...prev, 
-          { role: 'user', content: text, timestamp: Date.now() },
-          { role: 'assistant', content: cached.response, timestamp: Date.now(), cached: true }
-        ]);
-        setMessage('');
-        
-        toast.success('Answer from cache (no credit used)', { icon: '💰' });
-        logger.info('Used cached response, no credit deducted');
-        
-        // Track cache hit event
-        await supabase.from('telemetry_events').insert({
-          user_id: userId,
-          event_type: 'cache_hit',
-          metadata: { cached_response: true, no_credit_charge: true }
-        });
-        
-        return;
-      }
-    } catch (error) {
-      logger.warn('Cache check failed', error);
-    }
-    
     // NOT cached - check and deduct credit
     try {
       const { data: userData } = await supabase
@@ -185,20 +159,15 @@ export default function AppleFloatBar({
         .select('metadata')
         .eq('id', userId)
         .single();
-      
       const currentCredits = userData?.metadata?.credits || 0;
-      
       if (currentCredits <= 0) {
         toast.error('No credits remaining! Please purchase more.');
-        // Open settings window directly to Credits section (do not touch main window route)
         const openSettings = window.electron?.openSettings || window.electronAPI?.openSettings;
         if (openSettings) {
           await openSettings({ route: '#/settings?section=credits' });
         }
         return;
       }
-      
-      // Deduct credit optimistically
       await supabase
         .from('users')
         .update({
@@ -208,10 +177,7 @@ export default function AppleFloatBar({
           }
         })
         .eq('id', userId);
-      
       logger.info(`Credit deducted: ${currentCredits} → ${currentCredits - 1}`);
-      
-      // Track credit usage
       await supabase.from('telemetry_events').insert({
         user_id: userId,
         event_type: 'credit_usage',
@@ -221,42 +187,32 @@ export default function AppleFloatBar({
           message_cached: false
         }
       });
-      
     } catch (error) {
       logger.error('Credit check/deduction failed', error);
       toast.error('Failed to process credits. Please try again.');
       return;
     }
-    
     // Add user message
     setThoughts(prev => [...prev, { role: 'user', content: text, timestamp: Date.now() }]);
     setMessage('');
     setIsThinking(true);
     setThinkingStatus('Thinking...');
-    
-    // Save user message to memory
     if (window.electron?.memory?.addMessage) {
       window.electron.memory.addMessage('user', text)
         .catch(err => console.warn('[Chat] Failed to save user message to memory:', err));
     }
-    
-    // Check if user is asking about screen content OR asking ambiguous questions
+    // Screenshot / ambiguity handling
     const screenKeywords = ['screen', 'see', 'what is on', 'what\'s on', 'show me', 'screenshot', 'display'];
     const ambiguousKeywords = ['this', 'that', 'it', 'these', 'those', 'here', 'there'];
-    
     const hasScreenKeyword = screenKeywords.some(keyword => text.toLowerCase().includes(keyword));
     const hasAmbiguousWord = ambiguousKeywords.some(keyword => {
-      // Check for word boundaries to avoid false positives
       const regex = new RegExp(`\\b${keyword}\\b`, 'i');
       return regex.test(text);
     });
-    
     const needsScreenshot = hasScreenKeyword || hasAmbiguousWord;
-    
     if (hasAmbiguousWord) {
       console.log('[Chat] Ambiguous question detected, capturing screenshot for context');
     }
-    
     let screenshotData = null;
     if (needsScreenshot && window.electron?.takeScreenshot) {
       try {
@@ -269,19 +225,13 @@ export default function AppleFloatBar({
         toast.error('Failed to capture screenshot');
       }
     }
-    
-    // Build user context with conversation history and memory
+    // Build user context
     let userContext = {
-      recent_messages: thoughts.map(t => ({
-        role: t.role,
-        content: t.content
-      })),
+      recent_messages: thoughts.map(t => ({ role: t.role, content: t.content })),
       profile: null,
       facts: null,
       preferences: null
     };
-    
-    // Get memory data if available
     if (window.electron?.memory) {
       try {
         const [profile, facts, preferences] = await Promise.all([
@@ -292,17 +242,11 @@ export default function AppleFloatBar({
         userContext.profile = profile;
         userContext.facts = facts;
         userContext.preferences = preferences;
-        console.log('[Chat] Loaded memory context:', {
-          hasProfile: !!profile,
-          hasFacts: !!facts,
-          hasPreferences: !!preferences
-        });
       } catch (error) {
         console.warn('[Chat] Failed to load memory context:', error);
       }
     }
-    
-    // Call real backend API with streaming
+    // Streaming call
     chatAPI.sendMessageStream(text, userContext, screenshotData, (event) => {
       console.log('[Chat] Received SSE event:', event);
       
@@ -413,7 +357,74 @@ export default function AppleFloatBar({
       setIsThinking(false);
       setThinkingStatus('');
     });
-  }, [message, isThinking, apiConnected]);
+  }, [thoughts]);
+
+  // Handle message submit with safety check and potential approval
+  const handleSubmit = useCallback(async (e) => {
+    e?.preventDefault();
+    const text = message.trim();
+    if (!text || isThinking || !apiConnected) return;
+    // Cache check first (cheap)
+    try {
+      const cached = await checkResponseCache(text);
+      if (cached) {
+        const userId = localStorage.getItem('user_id');
+        setThoughts(prev => [
+          ...prev,
+          { role: 'user', content: text, timestamp: Date.now() },
+          { role: 'assistant', content: cached.response, timestamp: Date.now(), cached: true }
+        ]);
+        setMessage('');
+        toast.success('Answer from cache (no credit used)', { icon: '💰' });
+        logger.info('Used cached response, no credit deducted');
+        if (userId) {
+          await supabase.from('telemetry_events').insert({
+            user_id: userId,
+            event_type: 'cache_hit',
+            metadata: { cached_response: true, no_credit_charge: true }
+          });
+        }
+        return;
+      }
+    } catch (err) {
+      logger.warn('Cache check failed', err);
+    }
+    // Safety check based on permission level
+    try {
+      const res = await permissionAPI.check(text, {});
+      const data = res.data || res;
+      if (!data.allowed) {
+        toast.error(data.reason || 'Operation not allowed at current permission level');
+        return;
+      }
+      if (data.requires_approval) {
+        setApprovalDetails({
+          action: text,
+          markers: data.markers || [],
+          reason: data.reason || 'Operation requires approval',
+          isHighRisk: !!data.is_high_risk,
+          onApprove: async () => {
+            try {
+              await permissionAPI.logActivity({
+                action: text,
+                required_approval: true,
+                approved: true,
+                markers: data.markers || [],
+                is_high_risk: !!data.is_high_risk
+              });
+            } catch {}
+            continueSend(text);
+          }
+        });
+        setApprovalOpen(true);
+        return;
+      }
+    } catch (err) {
+      logger.warn('Safety check failed; proceeding cautiously', err);
+    }
+    // No approval needed → continue
+    continueSend(text);
+  }, [message, isThinking, apiConnected, continueSend]);
   
   // Handle clear conversation
   const handleClear = useCallback(() => {
@@ -433,10 +444,58 @@ export default function AppleFloatBar({
     }
   }, []);
   
-  // Handle tools
+  // Tools overlay state for permission selection
+  const [toolMenuOpen, setToolMenuOpen] = useState(false);
+  const toolBtnRef = useRef(null);
+  const overlayRef = useRef(null);
+  const [toolMenuRect, setToolMenuRect] = useState({ top: 0, left: 0, width: 0, height: 0 });
+  const [toolMenuReady, setToolMenuReady] = useState(false);
   const handleTools = useCallback(() => {
+    // Keep prior event dispatch for telemetry/integration
     window.dispatchEvent(new CustomEvent('amx:ui', { detail: { type: 'tools_open' } }));
+    setToolMenuOpen((prev) => {
+      const next = !prev;
+      if (next && toolbarRef.current) {
+        const el = toolbarRef.current;
+        setToolMenuRect({
+          top: el.offsetTop,
+          left: el.offsetLeft,
+          width: el.offsetWidth,
+          height: el.offsetHeight,
+        });
+      }
+      return next;
+    });
   }, []);
+  // Animate open/close
+  useEffect(() => {
+    if (toolMenuOpen) {
+      const id = requestAnimationFrame(() => setToolMenuReady(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setToolMenuReady(false);
+    }
+  }, [toolMenuOpen]);
+  // Click outside to close
+  useEffect(() => {
+    if (!toolMenuOpen) return;
+    const onDown = (e) => {
+      if (overlayRef.current?.contains(e.target) || toolBtnRef.current?.contains(e.target)) return;
+      setToolMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [toolMenuOpen]);
+  const handleSelectLevel = useCallback(async (level) => {
+    try {
+      await updateLevel(level);
+      toast.success(`Permission level set to ${level.charAt(0).toUpperCase()}${level.slice(1)}`);
+    } catch (e) {
+      toast.error('Failed to update permission level');
+    } finally {
+      setToolMenuOpen(false);
+    }
+  }, [updateLevel]);
   
   // Dynamically resize window based on content (no arbitrary caps)
   const updateWindowHeight = useCallback(() => {
@@ -607,18 +666,13 @@ export default function AppleFloatBar({
   return (
     <div className={windowClasses}>
       <div className="apple-bar-container" ref={barRef}>
-        <div className="apple-bar-glass">
+        <div className="apple-bar-glass" style={{ position: 'relative' }}>
           <div className="apple-bar-logo" />
           <div className="apple-drag-strip" />
-          {/* Toolbar */}
-          <div className="apple-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="apple-toolbar" ref={toolbarRef} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ flexGrow: 1 }} />
-            {/* Credits moved to the right, next to other tools */}
-            <CreditDisplay 
-              userId={currentUser?.id || localStorage.getItem('user_id')} 
-              variant="tool"
-            />
-            <button className="apple-tool-btn" onClick={handleTools} title="Tools">
+            <CreditDisplay userId={currentUser?.id || localStorage.getItem('user_id')} variant="tool" />
+            <button className="apple-tool-btn" ref={toolBtnRef} onClick={handleTools} title="Tools">
               <Wrench size={16} />
             </button>
             <button className="apple-tool-btn" onClick={handleSettings} title="Settings">
@@ -631,6 +685,62 @@ export default function AppleFloatBar({
               <Minimize2 size={16} />
             </button>
           </div>
+
+          {/* Spread overlay across toolbar */}
+          {toolMenuOpen && (
+            <div
+              ref={overlayRef}
+              style={{
+                position: 'absolute',
+                left: toolMenuRect.left,
+                top: toolMenuRect.top,
+                width: toolMenuRect.width,
+                height: toolMenuRect.height,
+                zIndex: 70,
+                background: 'linear-gradient(135deg, rgba(18,20,24,0.82), rgba(24,26,30,0.76))',
+                backdropFilter: 'saturate(120%) blur(var(--blur, 18px))',
+                WebkitBackdropFilter: 'saturate(120%) blur(var(--blur, 18px))',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '12px',
+                boxShadow: '0 12px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)',
+                overflow: 'hidden',
+                transform: toolMenuReady ? 'translateY(0px) scale(1)' : 'translateY(-6px) scale(0.98)',
+                opacity: toolMenuReady ? 1 : 0,
+                transition: 'opacity 160ms ease-out, transform 220ms cubic-bezier(.22,.61,.36,1)'
+              }}
+            >
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', height: '100%' }}>
+                {[{ value: 'chatty', title: 'Chatty' }, { value: 'helpful', title: 'Helpful' }, { value: 'powerful', title: 'Advanced' }].map((opt, idx) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleSelectLevel(opt.value)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      border: 'none',
+                      background: permissionLevel === opt.value ? 'rgba(255,255,255,0.08)' : 'transparent',
+                      color: 'rgba(255,255,255,0.55)',
+                      cursor: 'pointer',
+                      borderRight: idx < 2 ? '1px solid rgba(255,255,255,0.08)' : 'none',
+                      boxShadow: permissionLevel === opt.value ? 'inset 0 -2px 8px rgba(255,255,255,0.15)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (permissionLevel !== opt.value) {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                        e.currentTarget.style.color = 'rgba(255,255,255,0.75)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = permissionLevel === opt.value ? 'rgba(255,255,255,0.08)' : 'transparent';
+                      e.currentTarget.style.color = 'rgba(255,255,255,0.55)';
+                    }}
+                  >
+                    <span style={{ fontSize: '0.86rem', fontWeight: 600, letterSpacing: 0.2 }}>{opt.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           
           {/* Fact Tiles (Phase 2: Deterministic Tools) */}
           {factTiles.length > 0 && (
@@ -695,6 +805,21 @@ export default function AppleFloatBar({
           </div>
         </div>
       </div>
+      {/* Approval Dialog */}
+      <ApprovalDialog
+        open={approvalOpen}
+        onClose={() => setApprovalOpen(false)}
+        action={approvalDetails.action}
+        markers={approvalDetails.markers}
+        reason={approvalDetails.reason}
+        isHighRisk={approvalDetails.isHighRisk}
+        onApprove={() => {
+          const fn = approvalDetails.onApprove;
+          setApprovalOpen(false);
+          if (typeof fn === 'function') fn();
+        }}
+        approveButtonText="Approve"
+      />
     </div>
   );
 }

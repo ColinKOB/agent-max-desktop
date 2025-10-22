@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast';
 const logger = createLogger('API');
 
 // DEMO MODE - Set to true to use mock data and disable API calls
-const DEMO_MODE = false; // Changed to false - connecting to real backend
+const DEMO_MODE = false; // Backend is now running with safety endpoints
 
 if (DEMO_MODE) {
   logger.info('🎨 Running in DEMO MODE - Using mock data instead of real API');
@@ -611,6 +611,160 @@ export const creditsAPI = {
     api.post(`/api/v2/credits/deduct/${userId}`, null, {
       params: { amount },
     }),
+};
+
+// ============================================
+// PERMISSION LEVELS & SAFETY
+// ============================================
+export const permissionAPI = {
+  // Internal: try multiple paths, falling back on 404
+  _tryPaths: async (method, paths, payload = null, options = {}) => {
+    let lastErr;
+    for (const p of paths) {
+      try {
+        if (method === 'get') return await api.get(p, options);
+        if (method === 'post') return await api.post(p, payload, options);
+        if (method === 'put') return await api.put(p, payload, options);
+        if (method === 'delete') return await api.delete(p, options);
+        throw new Error(`Unsupported method ${method}`);
+      } catch (err) {
+        // Check status in both raw error and AppError wrapper
+        const status = err?.response?.status || err?.status || err?.statusCode;
+        if (status === 404) {
+          lastErr = err;
+          logger.debug(`Path ${p} returned 404, trying next fallback...`);
+          continue; // try next path
+        }
+        throw err;
+      }
+    }
+    throw lastErr || new Error('All endpoint paths failed');
+  },
+  /**
+   * Get current user's permission level
+   * @returns {Promise<{permission_level: string, name: string, description: string, capabilities: object}>}
+   */
+  getLevel: () => 
+    DEMO_MODE
+      ? Promise.resolve({
+          permission_level: 'helpful',
+          name: 'Helpful (Standard)',
+          description: 'Balanced productivity mode',
+          capabilities: {
+            can_do: ['Write code', 'Run scripts'],
+            requires_approval: ['Send emails', 'Delete files']
+          }
+        })
+      : permissionAPI._tryPaths('get', ['/api/safety/permission-level', '/api/v2/safety/permission-level']),
+
+  /**
+   * Update user's permission level
+   * @param {string} level - 'chatty', 'helpful', or 'powerful'
+   * @returns {Promise<{success: boolean, permission_level: string, message: string}>}
+   */
+  updateLevel: (level) =>
+    DEMO_MODE
+      ? Promise.resolve({ success: true, permission_level: level, message: 'Updated' })
+      : permissionAPI._tryPaths('post', ['/api/safety/permission-level', '/api/v2/safety/permission-level'], { permission_level: level }),
+
+  /**
+   * Check if action requires approval
+   * @param {string} message - The action/message to check
+   * @param {object} context - Optional context
+   * @returns {Promise<object>} Safety check results
+   */
+  check: (message, context = {}) =>
+    DEMO_MODE
+      ? Promise.resolve({
+          allowed: true,
+          requires_approval: false,
+          permission_level: 'helpful',
+          markers: [],
+          reason: 'Demo mode',
+          suggested_flow: null,
+          draft_supported: false,
+          is_high_risk: false
+        })
+      : permissionAPI._tryPaths('post', ['/api/safety/check', '/api/v2/safety/check'], { message, context }),
+
+  /**
+   * Get activity log
+   * @param {string} filter - 'all', 'approvals', 'high_risk', or 'communications'
+   * @param {number} limit - Number of entries to return
+   * @returns {Promise<{activities: array, total: number, page: number}>}
+   */
+  getActivityLog: (filter = 'all', limit = 50) =>
+    DEMO_MODE
+      ? Promise.resolve({ activities: [], total: 0, page: 1 })
+      : permissionAPI._tryPaths('get', ['/api/safety/activity-log', '/api/v2/safety/activity-log'], null, { params: { filter, limit } }),
+
+  /**
+   * Log an activity (internal use)
+   * @param {object} activity - Activity details
+   * @returns {Promise<{success: boolean, activity_id: string}>}
+   */
+  logActivity: (activity) =>
+    DEMO_MODE
+      ? Promise.resolve({ success: true, activity_id: 'demo_123' })
+      : permissionAPI._tryPaths('post', ['/api/safety/log-activity', '/api/v2/safety/log-activity'], activity),
+};
+
+// ============================================
+// DRAFTS MANAGEMENT
+// ============================================
+export const draftsAPI = {
+  /**
+   * Create email draft
+   * @param {object} draft - Email draft details
+   * @returns {Promise<{draft_id: string, created_at: string, preview: object}>}
+   */
+  createEmail: (draft) =>
+    DEMO_MODE
+      ? Promise.resolve({
+          draft_id: 'draft_demo123',
+          created_at: new Date().toISOString(),
+          preview: { to: draft.to, subject: draft.subject }
+        })
+      : api.post('/api/drafts/email', draft),
+
+  /**
+   * List all drafts
+   * @returns {Promise<{drafts: array}>}
+   */
+  list: () =>
+    DEMO_MODE
+      ? Promise.resolve({ drafts: [] })
+      : api.get('/api/drafts'),
+
+  /**
+   * Get draft details
+   * @param {string} draftId - Draft ID
+   * @returns {Promise<object>} Draft details
+   */
+  get: (draftId) =>
+    DEMO_MODE
+      ? Promise.resolve({ draft_id: draftId, type: 'email', status: 'pending' })
+      : api.get(`/api/drafts/${draftId}`),
+
+  /**
+   * Send draft
+   * @param {string} draftId - Draft ID
+   * @returns {Promise<{success: boolean, sent_at: string, message: string}>}
+   */
+  send: (draftId) =>
+    DEMO_MODE
+      ? Promise.resolve({ success: true, sent_at: new Date().toISOString(), message: 'Sent' })
+      : api.post(`/api/drafts/${draftId}/send`),
+
+  /**
+   * Delete draft
+   * @param {string} draftId - Draft ID
+   * @returns {Promise<{success: boolean, message: string}>}
+   */
+  delete: (draftId) =>
+    DEMO_MODE
+      ? Promise.resolve({ success: true, message: 'Deleted' })
+      : api.delete(`/api/drafts/${draftId}`),
 };
 
 // ============================================

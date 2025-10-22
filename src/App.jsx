@@ -7,6 +7,7 @@ import { healthAPI, profileAPI } from './services/api';
 import apiConfigManager from './config/apiConfig';
 import { getOrCreateUser } from './services/supabase';
 import { createLogger } from './services/logger';
+import { PermissionProvider } from './contexts/PermissionContext';
 
 const logger = createLogger('App');
 
@@ -161,7 +162,7 @@ function App({ windowMode = 'single' }) {
   };
 
   return (
-    <>
+    <PermissionProvider>
       <AppleFloatBar
         showWelcome={showWelcome}
         onWelcomeComplete={handleWelcomeComplete}
@@ -181,7 +182,7 @@ function App({ windowMode = 'single' }) {
           },
         }}
       />
-    </>
+    </PermissionProvider>
   );
 }
 
