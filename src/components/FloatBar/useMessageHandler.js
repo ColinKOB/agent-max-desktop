@@ -26,7 +26,7 @@ export function useMessageHandler() {
     if (!text.trim() || isThinking) return;
 
     // Track telemetry
-    telemetry.trackEvent('message_sent', { 
+    telemetry.logEvent('message_sent', { 
       length: text.length,
       hasScreenshot: false 
     });
@@ -99,11 +99,14 @@ export function useMessageHandler() {
         setSessionCost(prev => prev + cost);
         showSuccessWithCost('Response generated successfully', cost);
         
-        // Track success
-        telemetry.trackEvent('response_received', { 
+        // Track success as interaction
+        telemetry.logInteraction({
+          userPrompt: text,
+          aiResponse: response.message,
           success: true,
-          cost,
-          responseLength: response.message.length 
+          executionTime: undefined,
+          model: 'desktop',
+          metadata: { cost }
         });
       }
     } catch (error) {
@@ -111,8 +114,8 @@ export function useMessageHandler() {
         toast.info('Request cancelled');
       } else {
         toast.error(`Error: ${error.message}`);
-        telemetry.trackEvent('response_error', { 
-          error: error.message 
+        telemetry.logError(error instanceof Error ? error : new Error(String(error)), { 
+          severity: 'error'
         });
       }
     } finally {
@@ -179,7 +182,7 @@ export function useMessageHandler() {
       </div>
     ), { duration: 5000 });
     
-    telemetry.trackEvent('conversation_cleared');
+    telemetry.logEvent('conversation_cleared');
   }, [thoughts, sessionCost]);
 
   // Delete single message

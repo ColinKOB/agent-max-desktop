@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 import { CreditDisplay } from '../CreditDisplay';
 import { supabase, checkResponseCache, storeResponseCache } from '../../services/supabase';
 import { createLogger } from '../../services/logger';
+import { FactTileList } from '../FactTileList.jsx';
 import './AppleFloatBar.css';
 
 const logger = createLogger('FloatBar');
@@ -32,6 +33,7 @@ export default function AppleFloatBar({
   const [isThinking, setIsThinking] = useState(false);
   const [thinkingStatus, setThinkingStatus] = useState('');
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [factTiles, setFactTiles] = useState([]);
   
   // Refs
   const barRef = useRef(null);
@@ -43,6 +45,8 @@ export default function AppleFloatBar({
   const composerRef = useRef(null);
   const naturalHeightRef = useRef(0); // last measured natural content height
   const isMiniRef = useRef(true);
+  const tilesRef = useRef(null); // fact tiles container
+  const enrichTileIdRef = useRef(null); // current tile receiving enrichment
   
   // Store
   const { clearMessages, apiConnected, currentUser } = useStore();
@@ -300,7 +304,58 @@ export default function AppleFloatBar({
       console.log('[Chat] Received SSE event:', event);
       
       // Handle SSE events - backend sends {type: string, data: {...}}
-      if (event.type === 'thinking') {
+      if (event.type === 'tool_result') {
+        // Phase 2: Deterministic tool result
+        const toolName = event.tool_name || event.data?.tool_name;
+        const result = event.result || event.data?.result || event.data || {};
+        const displayText = event.display_text || result.display_text || result.formatted || '';
+        const latencyMs = event.latency_ms ?? result.latency_ms ?? 0;
+        const confidence = event.confidence ?? result.confidence ?? 1.0;
+        
+        // Map tool name to friendly title
+        const titleMap = {
+          time: 'Current Time',
+          date: 'Today',
+          math: 'Calculation',
+          unit_conversion: 'Conversion',
+          next_meeting: 'Calendar',
+          weather: 'Weather'
+        };
+        
+        const tile = {
+          id: crypto.randomUUID(),
+          title: titleMap[toolName] || toolName,
+          primary: displayText,
+          meta: {
+            latencyMs,
+            confidence,
+            timestamp: new Date().toISOString()
+          },
+          raw: result,
+          enrichment: event.enrichment || ''
+        };
+
+        // Scope subsequent token events to this tile for enrichment
+        enrichTileIdRef.current = tile.id;
+
+        setFactTiles(prev => [tile, ...prev]);
+        logger.info(`[FactTile] Rendered ${toolName} tile in ${Math.round(latencyMs)}ms`);
+      } else if (event.type === 'token') {
+        // Only append tokens to the tile created by the last tool_result
+        const content = event.content || event.data?.content || '';
+        setFactTiles(prev => {
+          if (!content || prev.length === 0) return prev;
+          const idx = prev.findIndex(t => t.id === enrichTileIdRef.current);
+          if (idx === -1) return prev;
+          const updated = [...prev];
+          const tile = updated[idx];
+          updated[idx] = {
+            ...tile,
+            enrichment: (tile.enrichment || '') + content
+          };
+          return updated;
+        });
+      } else if (event.type === 'thinking') {
         const message = event.data?.message || event.message || 'Processing...';
         setThinkingStatus(message);
       } else if (event.type === 'step') {
@@ -322,6 +377,8 @@ export default function AppleFloatBar({
               .catch(err => console.warn('[Chat] Failed to save message to memory:', err));
           }
         }
+        // Clear enrichment scope at end of stream
+        enrichTileIdRef.current = null;
         setIsThinking(false);
         setThinkingStatus('');
       } else if (event.type === 'error') {
@@ -341,6 +398,8 @@ export default function AppleFloatBar({
   // Handle clear conversation
   const handleClear = useCallback(() => {
     setThoughts([]);
+    setFactTiles([]);
+    enrichTileIdRef.current = null;
     clearMessages();
     toast.success('Conversation cleared');
   }, [clearMessages]);
@@ -378,8 +437,9 @@ export default function AppleFloatBar({
       const gaps = 16; // two gaps between three blocks
       const th = toolbarRef.current?.offsetHeight || 0;
       const ih = composerRef.current?.offsetHeight || 0;
+      const fh = tilesRef.current?.offsetHeight || 0; // fact tiles height
       const mh = messagesRef.current?.scrollHeight || 0;
-      const naturalHeight = padTop + th + mh + ih + padBottom + gaps;
+      const naturalHeight = padTop + th + fh + mh + ih + padBottom + gaps;
       const minHeight = MIN_EXPANDED_HEIGHT;
 
       // Limit by available screen height (minus margin), not a hardcoded app cap
@@ -439,10 +499,10 @@ export default function AppleFloatBar({
     isMiniRef.current = isMini;
   }, [isMini]);
   
-  // Update height when content changes
+  // Update height when content changes (messages, thinking, tiles)
   useEffect(() => {
     updateWindowHeight();
-  }, [thoughts, isThinking, updateWindowHeight]);
+  }, [thoughts, isThinking, factTiles, updateWindowHeight]);
 
   // Auto-scroll to bottom when new messages arrive or thinking indicator toggles
   useEffect(() => {
@@ -552,6 +612,13 @@ export default function AppleFloatBar({
             </button>
           </div>
           
+          {/* Fact Tiles (Phase 2: Deterministic Tools) */}
+          {factTiles.length > 0 && (
+            <div style={{ marginBottom: '8px' }} ref={tilesRef}>
+              <FactTileList tiles={factTiles} />
+            </div>
+          )}
+          
           {/* Messages */}
           <div className="apple-messages" ref={messagesRef}>
             {thoughts.map((thought, idx) => (
@@ -563,8 +630,12 @@ export default function AppleFloatBar({
             ))}
             {isThinking && (
               <div className="apple-message apple-message-thinking">
-                <Loader2 className="animate-spin" size={14} />
-                <span>{thinkingStatus}</span>
+                <div className="typing-indicator">
+                  <span className="typing-dot"></span>
+                  <span className="typing-dot"></span>
+                  <span className="typing-dot"></span>
+                </div>
+                <span className="typing-text">{thinkingStatus || 'Thinking...'}</span>
               </div>
             )}
           </div>

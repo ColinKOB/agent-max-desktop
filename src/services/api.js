@@ -32,6 +32,30 @@ if (!initialConfig.baseURL) {
   logger.warn('apiConfigManager returned undefined baseURL, using fallback: http://localhost:8000');
 }
 
+// Auto-detect local backend and switch if reachable (fast non-blocking)
+// This prevents the UI from silently using production API when local server is up.
+(async () => {
+  try {
+    // Skip if already using localhost
+    const isLocal = (API_BASE_URL || '').includes('localhost:8000') || (API_BASE_URL || '').includes('127.0.0.1:8000');
+    if (isLocal) return;
+
+    // Quick reachability check with 700ms timeout
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 700);
+    const res = await fetch('http://localhost:8000/health', { signal: controller.signal });
+    clearTimeout(t);
+    if (res.ok) {
+      reconfigureAPI('http://localhost:8000');
+      logger.info('🔁 Switched API to local backend at http://localhost:8000');
+      try { toast.success('Connected to local Agent Max API (localhost:8000)'); } catch {}
+    }
+  } catch (e) {
+    // Ignore; stay on existing baseURL
+    logger.debug('Local API not detected; staying on configured base URL');
+  }
+})();
+
 // Connection state management
 const connectionState = {
   isConnected: true,
@@ -315,11 +339,15 @@ export const chatAPI = {
   },
 
   sendMessageStream: async (message, userContext = null, image = null, onEvent) => {
+    // Use NEW consolidated streaming endpoint with router optimizations
+    // This handles both quick questions (deterministic tools, <100ms) and complex tasks
     const payload = {
-      goal: message,
-      user_context: userContext,
-      max_steps: 10,
-      timeout: 300,
+      message: message,  // streaming chat uses "message" not "goal"
+      context: userContext,  // renamed from user_context for consistency
+      max_tokens: 1024,
+      temperature: 0.7,
+      stream: true,
+      memory_mode: 'auto',  // auto-detect whether to use context
     };
 
     if (image) {
@@ -327,13 +355,15 @@ export const chatAPI = {
     }
 
     // Get base URL
-    const { baseURL } = apiConfigManager.getConfig();
+    const cfg = apiConfigManager.getConfig();
+    const baseURL = cfg.baseURL || API_BASE_URL || 'http://localhost:8000';
 
-    // Use fetch for SSE streaming
-    const response = await fetch(`${baseURL}/api/v2/autonomous/execute/stream`, {
+    // Use NEW fast streaming endpoint with router (deterministic tools + progressive context)
+    const response = await fetch(`${baseURL}/api/v2/chat/streaming/stream`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-API-Key': 'dev'  // dev mode key
       },
       body: JSON.stringify(payload),
     });
@@ -376,13 +406,16 @@ export const chatAPI = {
 
         if (line.startsWith('data:')) {
           const data = line.substring(5).trim();
-          if (data) {
-            try {
-              const parsed = JSON.parse(data);
-              onEvent(parsed);
-            } catch (e) {
-              console.error('Failed to parse SSE data:', e);
-            }
+          // Ignore non-JSON markers like [DONE]
+          if (!data || data === '[DONE]') continue;
+          // Best-effort: only parse JSON objects/arrays
+          const firstChar = data[0];
+          if (firstChar !== '{' && firstChar !== '[') continue;
+          try {
+            const parsed = JSON.parse(data);
+            onEvent(parsed);
+          } catch (e) {
+            console.error('Failed to parse SSE data:', e);
           }
         }
       }
