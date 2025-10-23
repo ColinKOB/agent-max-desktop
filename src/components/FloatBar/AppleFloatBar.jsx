@@ -7,9 +7,9 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Settings, RotateCcw, Wrench, Send, Loader2, Minimize2 } from 'lucide-react';
+import { Settings, RotateCcw, Wrench, ArrowUp, Loader2, Minimize2 } from 'lucide-react';
 import useStore from '../../store/useStore';
-import { chatAPI, permissionAPI } from '../../services/api';
+import { chatAPI, permissionAPI, googleAPI, ambiguityAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { CreditDisplay } from '../CreditDisplay';
 import { supabase, checkResponseCache, storeResponseCache } from '../../services/supabase';
@@ -41,6 +41,10 @@ export default function AppleFloatBar({
   // Approval dialog state
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [approvalDetails, setApprovalDetails] = useState({ action: '', markers: [], reason: '', isHighRisk: false, onApprove: null });
+  
+  // Screenshot permission state
+  const [screenshotPermissionOpen, setScreenshotPermissionOpen] = useState(false);
+  const [pendingMessageForScreenshot, setPendingMessageForScreenshot] = useState(null);
   
   // Refs
   const barRef = useRef(null);
@@ -201,29 +205,47 @@ export default function AppleFloatBar({
       window.electron.memory.addMessage('user', text)
         .catch(err => console.warn('[Chat] Failed to save user message to memory:', err));
     }
-    // Screenshot / ambiguity handling
-    const screenKeywords = ['screen', 'see', 'what is on', 'what\'s on', 'show me', 'screenshot', 'display'];
-    const ambiguousKeywords = ['this', 'that', 'it', 'these', 'those', 'here', 'there'];
-    const hasScreenKeyword = screenKeywords.some(keyword => text.toLowerCase().includes(keyword));
-    const hasAmbiguousWord = ambiguousKeywords.some(keyword => {
-      const regex = new RegExp(`\\b${keyword}\\b`, 'i');
-      return regex.test(text);
-    });
-    const needsScreenshot = hasScreenKeyword || hasAmbiguousWord;
-    if (hasAmbiguousWord) {
-      console.log('[Chat] Ambiguous question detected, capturing screenshot for context');
-    }
+    // Screenshot / ambiguity handling - use GPT-4o-mini for intelligent detection
     let screenshotData = null;
-    if (needsScreenshot && window.electron?.takeScreenshot) {
-      try {
-        setThinkingStatus('Capturing screenshot...');
-        const result = await window.electron.takeScreenshot();
-        screenshotData = result.base64;
-        console.log('[Chat] Screenshot captured:', Math.round(result.size / 1024), 'KB');
-      } catch (error) {
-        console.error('[Chat] Failed to capture screenshot:', error);
-        toast.error('Failed to capture screenshot');
+    
+    try {
+      // Call ambiguity API to check if screenshot is needed
+      const ambiguityResult = await ambiguityAPI.checkAmbiguity(text, 5);
+      
+      logger.info('[Ambiguity] Classification result:', {
+        needs_screenshot: ambiguityResult.needs_screenshot,
+        reason: ambiguityResult.reason,
+        latency: `${ambiguityResult.latency_ms.toFixed(1)}ms`,
+        word_count: ambiguityResult.word_count,
+        confidence: ambiguityResult.confidence
+      });
+      
+      // If explicit screen request, take screenshot immediately without asking
+      if (ambiguityResult.reason === 'explicit_request') {
+        if (window.electron?.takeScreenshot) {
+          try {
+            setThinkingStatus('Capturing screenshot...');
+            const result = await window.electron.takeScreenshot();
+            screenshotData = result.base64;
+            logger.info('[Screenshot] Captured for explicit request:', Math.round(result.size / 1024), 'KB');
+          } catch (error) {
+            logger.error('[Screenshot] Failed to capture:', error);
+            toast.error('Failed to capture screenshot');
+          }
+        }
+      } 
+      // If ambiguous, ask permission first
+      else if (ambiguityResult.needs_screenshot && window.electron?.takeScreenshot) {
+        setScreenshotPermissionOpen(true);
+        setPendingMessageForScreenshot({ text, userContext: null });
+        setIsThinking(false);
+        setThinkingStatus('');
+        return; // Wait for user approval
       }
+    } catch (error) {
+      // On API error, fall back to no screenshot (safer than blocking user)
+      logger.error('[Ambiguity] API call failed:', error);
+      screenshotData = null;
     }
     // Build user context
     let userContext = {
@@ -251,7 +273,11 @@ export default function AppleFloatBar({
       console.log('[Chat] Received SSE event:', event);
       
       // Handle SSE events - backend sends {type: string, data: {...}}
-      if (event.type === 'tool_result') {
+      if (event.type === 'ack') {
+        // Stream started - clear buffer and prepare for real-time tokens
+        streamBufferRef.current = '';
+        enrichTileIdRef.current = null;
+      } else if (event.type === 'tool_result') {
         // Phase 2: Deterministic tool result
         const toolName = event.tool_name || event.data?.tool_name;
         const result = event.result || event.data?.result || event.data || {};
@@ -305,8 +331,30 @@ export default function AppleFloatBar({
             return updated;
           });
         } else {
-          // No tile enrichment active: accumulate into plain assistant buffer
+          // No tile enrichment active: show tokens in real-time
           streamBufferRef.current = (streamBufferRef.current || '') + content;
+          
+          // Update or create assistant message in real-time
+          setThoughts(prev => {
+            // Check if last message is an in-progress assistant message
+            if (prev.length > 0 && prev[prev.length - 1].role === 'assistant' && prev[prev.length - 1].streaming) {
+              // Update existing streaming message
+              const updated = [...prev];
+              updated[updated.length - 1] = {
+                ...updated[updated.length - 1],
+                content: streamBufferRef.current
+              };
+              return updated;
+            } else {
+              // Create new streaming assistant message
+              return [...prev, {
+                role: 'assistant',
+                content: streamBufferRef.current,
+                timestamp: Date.now(),
+                streaming: true
+              }];
+            }
+          });
         }
       } else if (event.type === 'thinking') {
         const message = event.data?.message || event.message || 'Processing...';
@@ -315,7 +363,7 @@ export default function AppleFloatBar({
         // Step completed - could show intermediate steps
         setThinkingStatus('Working...');
       } else if (event.type === 'done') {
-        // Final response received
+        // Final response received - mark streaming message as complete
         const d = event.data || {};
         const finalResponse = (
           d.final_response || d.response || d.text || d.content || d.message || d.result ||
@@ -323,19 +371,72 @@ export default function AppleFloatBar({
         );
         const buffered = streamBufferRef.current || '';
         const responseText = (typeof finalResponse === 'string' ? finalResponse : String(finalResponse || '')) || buffered;
-        if (responseText) {
-          setThoughts(prev => [...prev, {
-            role: 'assistant',
-            content: responseText,
-            timestamp: Date.now()
-          }]);
+        
+        setThoughts(prev => {
+          // Check if last message is a streaming assistant message
+          if (prev.length > 0 && prev[prev.length - 1].role === 'assistant' && prev[prev.length - 1].streaming) {
+            // Mark the streaming message as complete
+            const updated = [...prev];
+            updated[updated.length - 1] = {
+              ...updated[updated.length - 1],
+              content: responseText || updated[updated.length - 1].content,
+              streaming: false // Mark as complete
+            };
+            return updated;
+          } else if (responseText) {
+            // No streaming message exists, create a final one
+            return [...prev, {
+              role: 'assistant',
+              content: responseText,
+              timestamp: Date.now()
+            }];
+          }
+          return prev;
+        });
 
-          // Save conversation to memory system
-          if (window.electron?.memory?.addMessage) {
-            window.electron.memory.addMessage('assistant', responseText)
-              .catch(err => console.warn('[Chat] Failed to save message to memory:', err));
+        // Save conversation to memory system
+        if (responseText && window.electron?.memory?.addMessage) {
+          window.electron.memory.addMessage('assistant', responseText)
+            .catch(err => console.warn('[Chat] Failed to save message to memory:', err));
+        }
+        
+        // Parse and execute email commands
+        if (responseText) {
+          try {
+            const emailCommandMatch = responseText.match(/```email_command\s*\n([\s\S]*?)\n```/);
+            if (emailCommandMatch) {
+              const commandJson = emailCommandMatch[1].trim();
+              const command = JSON.parse(commandJson);
+              
+              if (command.action === 'send_email') {
+                logger.info('[Email] Executing email command', command);
+                
+                // Get user's Gmail address from localStorage
+                const userEmail = localStorage.getItem('google_user_email');
+                
+                if (!userEmail) {
+                  toast.error('Gmail not connected. Please connect your Gmail account in settings.');
+                } else {
+                  // Call Gmail API to send email
+                  googleAPI.sendEmail(
+                    command.to,
+                    command.subject,
+                    command.body
+                  ).then(response => {
+                    logger.info('[Email] Sent successfully', response);
+                    toast.success(`Email sent to ${command.to}!`);
+                  }).catch(error => {
+                    logger.error('[Email] Failed to send', error);
+                    toast.error(`Failed to send email: ${error.message}`);
+                  });
+                }
+              }
+            }
+          } catch (err) {
+            logger.error('[Email] Failed to parse email command', err);
           }
         }
+        
         // Clear enrichment scope at end of stream
         enrichTileIdRef.current = null;
         // Clear any accumulated plain text tokens
@@ -360,10 +461,290 @@ export default function AppleFloatBar({
   }, [thoughts]);
 
   // Handle message submit with safety check and potential approval
+  // Handle screenshot permission response
+  const handleScreenshotPermission = useCallback(async (approved) => {
+    setScreenshotPermissionOpen(false);
+    
+    if (!pendingMessageForScreenshot) return;
+    
+    const { text } = pendingMessageForScreenshot;
+    setIsThinking(true);
+    setThinkingStatus(approved ? 'Capturing screenshot...' : 'Thinking...');
+    
+    let screenshotData = null;
+    if (approved && window.electron?.takeScreenshot) {
+      try {
+        const result = await window.electron.takeScreenshot();
+        screenshotData = result.base64;
+        console.log('[Chat] Screenshot captured:', Math.round(result.size / 1024), 'KB');
+      } catch (error) {
+        console.error('[Chat] Failed to capture screenshot:', error);
+        toast.error('Failed to capture screenshot');
+      }
+    }
+    
+    // Continue with message sending
+    continueSendMessage(text, screenshotData);
+    setPendingMessageForScreenshot(null);
+  }, [pendingMessageForScreenshot]);
+  
+  // Continue sending message after screenshot decision
+  const continueSendMessage = useCallback(async (text, screenshotData) => {
+    setThinkingStatus('Thinking...');
+    
+    // Build user context
+    let userContext = {
+      recent_messages: thoughts.map(t => ({ role: t.role, content: t.content })),
+      profile: null,
+      facts: null,
+      preferences: null
+    };
+    if (window.electron?.memory) {
+      try {
+        const [profile, facts, preferences] = await Promise.all([
+          window.electron.memory.getProfile().catch(() => null),
+          window.electron.memory.getFacts().catch(() => null),
+          window.electron.memory.getPreferences().catch(() => null)
+        ]);
+        userContext.profile = profile;
+        userContext.facts = facts;
+        userContext.preferences = preferences;
+      } catch (error) {
+        console.warn('[Chat] Failed to load memory context:', error);
+      }
+    }
+    
+    // Execute the streaming call (reuse the existing sendChat logic)
+    sendChat(text, userContext, screenshotData);
+  }, [thoughts]);
+  
+  // Main streaming chat logic (extracted for reuse)
+  const sendChat = useCallback((text, userContext, screenshotData) => {
+    chatAPI.sendMessageStream(text, userContext, screenshotData, (event) => {
+      console.log('[Chat] Received SSE event:', event);
+      
+      // Handle SSE events - backend sends {type: string, data: {...}}
+      if (event.type === 'ack') {
+        // Stream started - clear buffer and prepare for real-time tokens
+        streamBufferRef.current = '';
+        enrichTileIdRef.current = null;
+      } else if (event.type === 'tool_result') {
+        // Phase 2: Deterministic tool result
+        const toolName = event.tool_name || event.data?.tool_name;
+        const result = event.result || event.data?.result || event.data || {};
+        const displayText = event.display_text || result.display_text || result.formatted || '';
+        const latencyMs = event.latency_ms ?? result.latency_ms ?? 0;
+        const confidence = event.confidence ?? result.confidence ?? 1.0;
+        
+        // Map tool name to friendly title
+        const titleMap = {
+          time: 'Current Time',
+          date: 'Today',
+          math: 'Calculation',
+          unit_conversion: 'Conversion',
+          next_meeting: 'Calendar',
+          weather: 'Weather'
+        };
+        
+        const tile = {
+          id: crypto.randomUUID(),
+          title: titleMap[toolName] || toolName,
+          primary: displayText,
+          meta: {
+            latencyMs,
+            confidence,
+            timestamp: new Date().toISOString()
+          },
+          raw: result,
+          enrichment: event.enrichment || ''
+        };
+
+        // Scope subsequent token events to this tile for enrichment
+        enrichTileIdRef.current = tile.id;
+
+        setFactTiles(prev => [tile, ...prev]);
+        logger.info(`[FactTile] Rendered ${toolName} tile in ${Math.round(latencyMs)}ms`);
+      } else if (event.type === 'token') {
+        const content = event.content || event.data?.content || '';
+        if (!content) return;
+        if (enrichTileIdRef.current) {
+          // Stream into the most recent fact tile enrichment
+          setFactTiles(prev => {
+            if (prev.length === 0) return prev;
+            const idx = prev.findIndex(t => t.id === enrichTileIdRef.current);
+            if (idx === -1) return prev;
+            const updated = [...prev];
+            const tile = updated[idx];
+            updated[idx] = {
+              ...tile,
+              enrichment: (tile.enrichment || '') + content
+            };
+            return updated;
+          });
+        } else {
+          // No tile enrichment active: show tokens in real-time
+          streamBufferRef.current = (streamBufferRef.current || '') + content;
+          
+          // Update or create assistant message in real-time
+          setThoughts(prev => {
+            // Check if last message is an in-progress assistant message
+            if (prev.length > 0 && prev[prev.length - 1].role === 'assistant' && prev[prev.length - 1].streaming) {
+              // Update existing streaming message
+              const updated = [...prev];
+              updated[updated.length - 1] = {
+                ...updated[updated.length - 1],
+                content: streamBufferRef.current
+              };
+              return updated;
+            } else {
+              // Create new streaming assistant message
+              return [...prev, {
+                role: 'assistant',
+                content: streamBufferRef.current,
+                timestamp: Date.now(),
+                streaming: true
+              }];
+            }
+          });
+        }
+      } else if (event.type === 'thinking') {
+        const message = event.data?.message || event.message || 'Processing...';
+        setThinkingStatus(message);
+      } else if (event.type === 'step') {
+        // Step completed - could show intermediate steps
+        setThinkingStatus('Working...');
+      } else if (event.type === 'done') {
+        // Final response received - mark streaming message as complete
+        const d = event.data || {};
+        const finalResponse = (
+          d.final_response || d.response || d.text || d.content || d.message || d.result ||
+          event.final_response || event.response || event.content || event.text || event.message || ''
+        );
+        const buffered = streamBufferRef.current || '';
+        const responseText = (typeof finalResponse === 'string' ? finalResponse : String(finalResponse || '')) || buffered;
+        
+        setThoughts(prev => {
+          // Check if last message is a streaming assistant message
+          if (prev.length > 0 && prev[prev.length - 1].role === 'assistant' && prev[prev.length - 1].streaming) {
+            // Mark the streaming message as complete
+            const updated = [...prev];
+            updated[updated.length - 1] = {
+              ...updated[updated.length - 1],
+              content: responseText || updated[updated.length - 1].content,
+              streaming: false // Mark as complete
+            };
+            return updated;
+          } else if (responseText) {
+            // No streaming message exists, create a final one
+            return [...prev, {
+              role: 'assistant',
+              content: responseText,
+              timestamp: Date.now()
+            }];
+          }
+          return prev;
+        });
+
+        // Save conversation to memory system
+        if (responseText && window.electron?.memory?.addMessage) {
+          window.electron.memory.addMessage('assistant', responseText)
+            .catch(err => console.warn('[Chat] Failed to save message to memory:', err));
+        }
+        
+        // Parse and execute email commands
+        if (responseText) {
+          try {
+            const emailCommandMatch = responseText.match(/```email_command\s*\n([\s\S]*?)\n```/);
+            if (emailCommandMatch) {
+              const commandJson = emailCommandMatch[1].trim();
+              const command = JSON.parse(commandJson);
+              
+              if (command.action === 'send_email') {
+                logger.info('[Email] Executing email command', command);
+                
+                // Get user's Gmail address from localStorage
+                const userEmail = localStorage.getItem('google_user_email');
+                
+                if (!userEmail) {
+                  toast.error('Gmail not connected. Please connect your Gmail account in settings.');
+                } else {
+                  // Call Gmail API to send email
+                  googleAPI.sendEmail(
+                    command.to,
+                    command.subject,
+                    command.body
+                  ).then(response => {
+                    logger.info('[Email] Sent successfully', response);
+                    toast.success(`Email sent to ${command.to}!`);
+                  }).catch(error => {
+                    logger.error('[Email] Failed to send', error);
+                    toast.error(`Failed to send email: ${error.message}`);
+                  });
+                }
+              }
+            }
+          } catch (err) {
+            logger.error('[Email] Failed to parse email command', err);
+          }
+        }
+        
+        // Clear enrichment scope at end of stream
+        enrichTileIdRef.current = null;
+        // Clear any accumulated plain text tokens
+        streamBufferRef.current = '';
+        setIsThinking(false);
+        setThinkingStatus('');
+      } else if (event.type === 'error') {
+        const errorMsg = event.data?.error || event.error || 'Failed to get response';
+        toast.error(errorMsg);
+        // Reset buffers on error
+        enrichTileIdRef.current = null;
+        streamBufferRef.current = '';
+        setIsThinking(false);
+        setThinkingStatus('');
+      }
+    }).catch(error => {
+      toast.error('Failed to send message: ' + error.message);
+      console.error('Chat error:', error);
+      setIsThinking(false);
+      setThinkingStatus('');
+    });
+  }, []);
+  
   const handleSubmit = useCallback(async (e) => {
     e?.preventDefault();
     const text = message.trim();
     if (!text || isThinking || !apiConnected) return;
+
+    // If this is the first prompt and it looks like an email intent, open approval immediately
+    try {
+      const isFirstTurn = thoughts.length === 0;
+      // Simple email intent patterns: "email X", "send email", "send an email", "compose email"
+      const emailRegex = /^(\s*(email|send( an)? email|compose( an)? email)\b|\bemail\b.*\b(to|about)\b)/i;
+      if (isFirstTurn && emailRegex.test(text)) {
+        setApprovalDetails({
+          action: text,
+          markers: ['communication', 'email'],
+          reason: 'Composing and sending email requires your approval.',
+          isHighRisk: false,
+          onApprove: async () => {
+            try {
+              await permissionAPI.logActivity({
+                action: text,
+                category: 'communication',
+                required_approval: true,
+                approved: true,
+                markers: ['email'],
+                is_high_risk: false
+              });
+            } catch {}
+            continueSend(text);
+          }
+        });
+        setApprovalOpen(true);
+        return;
+      }
+    } catch {}
     // Cache check first (cheap)
     try {
       const cached = await checkResponseCache(text);
@@ -500,6 +881,7 @@ export default function AppleFloatBar({
   // Dynamically resize window based on content (no arbitrary caps)
   const updateWindowHeight = useCallback(() => {
     if (!barRef.current || isMiniRef.current) return;
+    if (approvalOpen) return;
 
     if (resizeDebounceRef.current) {
       clearTimeout(resizeDebounceRef.current);
@@ -572,12 +954,27 @@ export default function AppleFloatBar({
       // Update baseline after any attempted resize
       naturalHeightRef.current = naturalHeight;
     }, 100);
-  }, [isMini]);
+  }, [isMini, approvalOpen]);
 
   useEffect(() => {
     isMiniRef.current = isMini;
   }, [isMini]);
   
+  useEffect(() => {
+    (async () => {
+      if (!approvalOpen) return;
+      try {
+        if (isMini) {
+          handleExpand();
+        }
+        if (window.electron?.resizeWindow) {
+          await window.electron.resizeWindow(360, 520);
+          lastHeightRef.current = 520;
+        }
+      } catch {}
+    })();
+  }, [approvalOpen, isMini, handleExpand]);
+
   // Update height when content changes (messages, thinking, tiles)
   useEffect(() => {
     updateWindowHeight();
@@ -710,7 +1107,7 @@ export default function AppleFloatBar({
               }}
             >
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', height: '100%' }}>
-                {[{ value: 'chatty', title: 'Chatty' }, { value: 'helpful', title: 'Helpful' }, { value: 'powerful', title: 'Advanced' }].map((opt, idx) => (
+                {[{ value: 'chatty', title: 'Chatty' }, { value: 'helpful', title: 'Helpful' }, { value: 'powerful', title: 'Autonomous' }].map((opt, idx) => (
                   <button
                     key={opt.value}
                     onClick={() => handleSelectLevel(opt.value)}
@@ -763,7 +1160,7 @@ export default function AppleFloatBar({
                         ),
                       }}
                     >
-                      {thought.content || ''}
+                      {(thought.content || '').trim()}
                     </ReactMarkdown>
                   ) : (
                     thought.content
@@ -800,7 +1197,7 @@ export default function AppleFloatBar({
               onClick={handleSubmit}
               disabled={!message.trim() || !apiConnected || isThinking}
             >
-              <Send size={16} />
+              <ArrowUp size={16} />
             </button>
           </div>
         </div>
@@ -820,6 +1217,83 @@ export default function AppleFloatBar({
         }}
         approveButtonText="Approve"
       />
+      
+      {/* Screenshot Permission Dialog */}
+      {screenshotPermissionOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '100px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10001,
+            display: 'flex',
+            gap: '8px',
+            alignItems: 'center',
+            background: 'rgba(16, 16, 18, 0.96)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '16px',
+            padding: '12px 16px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            animation: 'slideUp 0.2s ease-out'
+          }}
+        >
+          <span style={{ color: '#ffffff', fontSize: '0.95rem', fontWeight: 500, marginRight: '4px' }}>
+            Can I take a screenshot for more context?
+          </span>
+          <button
+            onClick={() => handleScreenshotPermission(false)}
+            style={{
+              padding: '8px 16px',
+              background: 'rgba(0,0,0,0.8)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '10px',
+              color: '#ffffff',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(0,0,0,0.9)';
+              e.currentTarget.style.transform = 'scale(1.02)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(0,0,0,0.8)';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            No
+          </button>
+          <button
+            onClick={() => handleScreenshotPermission(true)}
+            style={{
+              padding: '8px 16px',
+              background: '#007AFF',
+              border: '1px solid #0066DD',
+              borderRadius: '10px',
+              color: '#ffffff',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              boxShadow: '0 2px 8px rgba(0,122,255,0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#0066DD';
+              e.currentTarget.style.transform = 'scale(1.02)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#007AFF';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            Yes
+          </button>
+        </div>
+      )}
     </div>
   );
 }

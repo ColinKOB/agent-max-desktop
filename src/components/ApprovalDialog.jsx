@@ -10,7 +10,7 @@
  * - Buttons: Glass panels with accent for primary action
  * - High risk: Subtle red indicator
  */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function ApprovalDialog({
   open = false,
@@ -24,6 +24,7 @@ export default function ApprovalDialog({
   isHighRisk = false,
   approveButtonText = 'Approve'
 }) {
+  const [showDetails, setShowDetails] = useState(false);
   // Close on Escape key
   useEffect(() => {
     const handleEscape = (e) => {
@@ -74,6 +75,7 @@ export default function ApprovalDialog({
         aria-labelledby="approval-dialog-title"
         aria-describedby="approval-dialog-description"
         onClick={(e) => e.stopPropagation()}
+        className="approval-modal"
         style={{
           position: 'fixed',
           top: '50%',
@@ -83,10 +85,11 @@ export default function ApprovalDialog({
           maxWidth: '600px',
           maxHeight: '90vh',
           overflowY: 'auto',
-          background: 'var(--panel-strong)', // 82% opacity
+          // Use a near-opaque panel to maximize readability over busy backgrounds
+          background: 'rgba(16, 16, 18, 0.96)',
           backdropFilter: 'saturate(120%) blur(var(--blur-strong))',
           WebkitBackdropFilter: 'saturate(120%) blur(var(--blur-strong))',
-          border: '1px solid var(--stroke)',
+          border: '1px solid rgba(255,255,255,0.12)',
           borderRadius: 'calc(var(--radius) + 6px)', // 18px
           padding: '1.5rem',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.03)',
@@ -101,7 +104,7 @@ export default function ApprovalDialog({
             style={{
               fontSize: '1.25rem',
               fontWeight: 600,
-              color: 'var(--text)',
+              color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
@@ -130,9 +133,10 @@ export default function ApprovalDialog({
             style={{
               fontSize: '1rem',
               marginTop: '0.5rem',
-              color: 'var(--text)',
+              color: '#ffffff',
               lineHeight: '1.5',
-              margin: '0.5rem 0 0 0'
+              margin: '0.5rem 0 0 0',
+              fontWeight: 500
             }}
           >
             {action}
@@ -143,44 +147,67 @@ export default function ApprovalDialog({
         <div style={{ marginBottom: '1.5rem' }}>
           <p
             style={{
-              fontSize: '0.875rem',
-              color: 'var(--text-muted)',
+              fontSize: '0.95rem',
+              color: '#ffffff',
               marginBottom: '0.5rem',
-              margin: '0 0 0.5rem 0'
+              margin: '0 0 0.75rem 0',
+              fontWeight: 600
             }}
           >
-            Why approval is needed:
+            Why approval is needed
           </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-            {markers.map((marker, i) => (
-              <span
-                key={i}
-                style={{
-                  padding: '0.25rem 0.5rem',
-                  background: 'var(--panel)',
-                  border: '1px solid var(--stroke)',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '0.75rem',
-                  color: 'var(--text-muted)',
-                  fontFamily: 'monospace'
-                }}
-              >
-                {marker}
-              </span>
-            ))}
-          </div>
+          {/* Friendly summary first */}
           {reason && (
-            <p
+            <div
               style={{
-                fontSize: '0.875rem',
-                color: 'var(--text-muted)',
-                marginTop: '0.75rem',
-                lineHeight: '1.5',
-                margin: '0.75rem 0 0 0'
+                color: 'rgba(255,255,255,0.95)',
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '12px',
+                padding: '0.75rem 0.9rem',
+                lineHeight: 1.5,
+                fontSize: '0.95rem'
               }}
             >
               {reason}
-            </p>
+            </div>
+          )}
+          {/* Toggle for technical details */}
+          <div style={{ marginTop: '0.75rem' }}>
+            <button
+              onClick={() => setShowDetails(v => !v)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#ffffff',
+                textDecoration: 'underline',
+                cursor: 'pointer',
+                padding: 0,
+                fontSize: '0.85rem'
+              }}
+            >
+              {showDetails ? 'Hide details' : 'Show details'}
+            </button>
+          </div>
+          {showDetails && (
+            <div className="chips" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.6rem' }}>
+              {markers.map((marker, i) => (
+                <span
+                  key={i}
+                  style={{
+                    padding: '0.35rem 0.6rem',
+                    background: 'rgba(255,255,255,0.08)',
+                    border: '1px solid rgba(255,255,255,0.16)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.78rem',
+                    color: '#ffffff',
+                    fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif'
+                  }}
+                >
+                  {marker}
+                </span>
+              ))}
+            </div>
           )}
         </div>
         
@@ -227,6 +254,12 @@ export default function ApprovalDialog({
       </div>
       
       <style>{`
+        /* Scoped styles to ensure high-contrast text inside modal */
+        .approval-modal, .approval-modal * { color: var(--text, #ffffff); }
+        .approval-modal a { color: var(--text, #ffffff); text-decoration: none; }
+        .approval-modal .muted { color: rgba(255,255,255,0.85); }
+        .approval-modal .chips span { color: var(--text, #ffffff); }
+
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
@@ -261,12 +294,12 @@ function Button({ onClick, variant = 'secondary', label, isHighRisk = false }) {
         WebkitBackdropFilter: isPrimary ? 'none' : 'saturate(120%) blur(var(--blur))',
         border: isPrimary ? '1px solid var(--accent)' : '1px solid var(--stroke)',
         borderRadius: 'var(--radius)',
-        color: isPrimary ? 'var(--bg)' : 'var(--text)',
+        color: '#ffffff',
         fontSize: '0.875rem',
         fontWeight: isPrimary ? 600 : 500,
         cursor: 'pointer',
         transition: 'var(--transition-fast)',
-        boxShadow: isPrimary ? '0 4px 12px var(--accent-glow)' : 'none',
+        boxShadow: isPrimary ? '0 4px 12px var(--accent-glow)' : '0 0 0 1px rgba(255,255,255,0.08) inset',
         outline: 'none'
       }}
       onMouseEnter={(e) => {
@@ -274,7 +307,7 @@ function Button({ onClick, variant = 'secondary', label, isHighRisk = false }) {
           e.currentTarget.style.filter = 'brightness(1.1)';
           e.currentTarget.style.transform = 'translateY(-1px)';
         } else {
-          e.currentTarget.style.background = 'var(--panel-strong)';
+          e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
         }
       }}
       onMouseLeave={(e) => {

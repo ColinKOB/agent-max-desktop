@@ -78,7 +78,7 @@
 .apple-message-user { align-self: flex-end; }
 .apple-message-assistant { align-self: flex-start; }
 .apple-message-content { padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.4; position: relative; }
-.apple-message-user .apple-message-content { background: linear-gradient(135deg, #007AFF, #0051D5); color: white; box-shadow: 0 2px 8px rgba(0,122,255,0.3); }
+.apple-message-user .apple-message-content { background: #000; border: 2px solid #ac7433; color: #ffffff; box-shadow: 0 2px 8px rgba(255,138,0,0.25); }
 .apple-message-assistant .apple-message-content { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.95); border: 1px solid rgba(255,255,255,0.15); }
 
 /* Markdown styles inside assistant messages */
@@ -90,6 +90,10 @@
 .apple-message-assistant .apple-message-content code { background: rgba(255,255,255,0.08); padding: 1px 4px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
 .apple-message-assistant .apple-message-content pre { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); padding: 8px; border-radius: 8px; overflow: auto; font-size: 12px; }
 .apple-message-assistant .apple-message-content pre code { background: transparent; padding: 0; }
+/* Remove extra bottom gap from last element in assistant bubble */
+.apple-message-assistant .apple-message-content > :last-child { margin-bottom: 0 !important; }
+/* Remove extra top gap from first element in assistant bubble */
+.apple-message-assistant .apple-message-content > :first-child { margin-top: 0 !important; }
 
 /* Markdown styles inside fact tile enrichment */
 .fact-tile-enrichment p { margin: 0 0 6px; }
@@ -100,10 +104,17 @@
 .fact-tile-enrichment code { background: rgba(255,255,255,0.08); padding: 1px 4px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
 .fact-tile-enrichment pre { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); padding: 8px; border-radius: 8px; overflow: auto; font-size: 12px; }
 .fact-tile-enrichment pre code { background: transparent; padding: 0; }
+/* Remove extra bottom gap from last element in enrichment */
+.fact-tile-enrichment > :last-child { margin-bottom: 0 !important; }
+/* Remove extra top gap from first element in enrichment */
+.fact-tile-enrichment > :first-child { margin-top: 0 !important; }
 
 .apple-input-area { display: flex; gap: 8px; padding: 4px; position: relative; z-index: 1; flex-shrink: 0; }
 .apple-input { flex:1; height: 36px; padding: 0 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 18px; color:white; font-size:14px; outline:none; transition: all 0.2s ease; }
-.apple-send-btn { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg,#007AFF,#0051D5); border:none; color:white; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,122,255,0.3); }
+.apple-send-btn { width: 36px; height: 36px; border-radius: 50%; background: #000; border: 2px solid #ff8a00; color:white; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(255,138,0,0.25); }
+.apple-send-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(255,138,0,0.35); }
+.apple-send-btn:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(255,138,0,0.25); }
+.apple-send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 
 @keyframes expandIn { from { opacity:0; transform: scale(0.95) translateY(-10px);} to { opacity:1; transform: scale(1) translateY(0);} }
 @keyframes messageIn { from { opacity:0; transform: translateY(10px);} to { opacity:1; transform: translateY(0);} }

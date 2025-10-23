@@ -710,6 +710,29 @@ export const permissionAPI = {
 };
 
 // ============================================
+// AMBIGUITY DETECTION API
+// ============================================
+export const ambiguityAPI = {
+  /**
+   * Check if a message is ambiguous and needs a screenshot
+   * Uses GPT-4o-mini for intelligent classification
+   * @param {string} message - The user's message
+   * @param {number} wordThreshold - Only classify messages with more than this many words (default: 5)
+   * @returns {Promise<{needs_screenshot: boolean, reason: string, latency_ms: number, word_count: number, confidence: number}>}
+   */
+  checkAmbiguity: (message, wordThreshold = 5) =>
+    DEMO_MODE
+      ? Promise.resolve({ 
+          needs_screenshot: false, 
+          reason: 'none',
+          latency_ms: 0,
+          word_count: message.split(' ').length,
+          confidence: 1.0
+        })
+      : api.post('/api/ambiguity/check', { message, word_threshold: wordThreshold }),
+};
+
+// ============================================
 // DRAFTS MANAGEMENT
 // ============================================
 export const draftsAPI = {
