@@ -22,9 +22,12 @@ export default function ApprovalDialog({
   onApprove,
   onEdit = null,
   isHighRisk = false,
-  approveButtonText = 'Approve'
+  approveButtonText = 'Approve',
+  showDontAskAgain = false,
+  dontAskAgainKey = null
 }) {
   const [showDetails, setShowDetails] = useState(false);
+  const [dontAskAgain, setDontAskAgain] = useState(false);
   // Close on Escape key
   useEffect(() => {
     const handleEscape = (e) => {
@@ -218,6 +221,35 @@ export default function ApprovalDialog({
           </div>
         )}
         
+        {/* Don't ask again checkbox */}
+        {showDontAskAgain && dontAskAgainKey && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                color: 'rgba(255,255,255,0.9)'
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={dontAskAgain}
+                onChange={(e) => setDontAskAgain(e.target.checked)}
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  cursor: 'pointer',
+                  accentColor: 'var(--accent)'
+                }}
+              />
+              Don't ask again
+            </label>
+          </div>
+        )}
+        
         {/* Actions */}
         <div
           style={{
@@ -243,7 +275,11 @@ export default function ApprovalDialog({
           
           <Button
             onClick={() => {
-              onApprove();
+              // If "don't ask again" is checked, store preference
+              if (dontAskAgain && dontAskAgainKey) {
+                localStorage.setItem(`approval_skip_${dontAskAgainKey}`, 'true');
+              }
+              onApprove(dontAskAgain);
               onClose();
             }}
             variant="primary"

@@ -729,7 +729,8 @@ export const ambiguityAPI = {
           word_count: message.split(' ').length,
           confidence: 1.0
         })
-      : api.post('/api/ambiguity/check', { message, word_threshold: wordThreshold }),
+      : api.post('/api/ambiguity/check', { message, word_threshold: wordThreshold })
+          .then(response => response.data),  // Extract data from axios response
 };
 
 // ============================================

@@ -1,102 +1,77 @@
 import { useState } from 'react';
-import { Settings as SettingsIcon, History, X } from 'lucide-react';
-import toast from 'react-hot-toast';
-import SettingsEnhanced from './SettingsEnhanced';
-import ConversationHistory from '../components/ConversationHistory';
-import '../styles/settings-glass.css';
+import SettingsSimple from './SettingsSimple.jsx';
+import BillingSimple from './BillingSimple.jsx';
+import ConversationHistory from '../components/ConversationHistory.jsx';
 
 export default function SettingsApp() {
   const [activeTab, setActiveTab] = useState('settings');
 
   const tabs = [
-    { id: 'settings', label: 'Settings', icon: SettingsIcon, component: SettingsEnhanced },
-    { id: 'history', label: 'History', icon: History, component: ConversationHistory },
+    { id: 'settings', label: 'Settings' },
+    { id: 'billing', label: 'Billing' },
+    { id: 'history', label: 'History' },
   ];
 
-  const ActiveComponent = tabs.find((t) => t.id === activeTab)?.component;
-
-  const handleClose = () => {
-    if (window.electronAPI) {
-      window.close();
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'settings':
+        return <SettingsSimple />;
+      case 'billing':
+        return <BillingSimple />;
+      case 'history':
+        return (
+          <div style={{ background: '#fff', minHeight: '100%', padding: '24px' }}>
+            <div style={{ maxWidth: 900, margin: '0 auto' }}>
+              <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16 }}>History</h1>
+              <div style={{ border: '1px solid #e5e7eb', background: '#ffffff', borderRadius: 12, padding: 20, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+                <ConversationHistory onLoadConversation={() => {}} />
+              </div>
+            </div>
+          </div>
+        );
+      default:
+        return <SettingsSimple />;
     }
   };
 
   return (
-    <>
-      <div className="settings-scope">
-        <div id="backdrop"></div>
-        <div className="main-ui h-screen flex flex-col bg-transparent">
-        {/* Header */}
-        <div className="amx-liquid amx-noise amx-p-panel mx-4 mt-4 mb-2 flex flex-col gap-3 flex-shrink-0 relative z-50">
-          {/* Title row */}
-          <div className="flex items-center justify-between min-w-0">
-            <h1 className="amx-heading text-lg">Agent Max Settings</h1>
+    <div style={{ background: '#fff', color: '#111827', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <header style={{ borderBottom: '1px solid #e5e7eb', background: '#fff' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Agent Max</h1>
 
-            <button
-              onClick={handleClose}
-              className="p-2 rounded-lg text-black/70 hover:text-black hover:bg-black/10 transition-colors"
-              title="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Tabs row */}
-          <div className="overflow-x-auto -mx-2 px-2">
-            <div className="flex gap-3 min-w-max items-center" role="tablist" aria-label="Settings sections">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                const selected = activeTab === tab.id;
-                return (
+          {/* Tabs */}
+          <nav aria-label="Settings navigation">
+            <ul style={{ display: 'flex', gap: 8, listStyle: 'none', margin: 0, padding: 0 }}>
+              {tabs.map((t) => (
+                <li key={t.id}>
                   <button
-                    key={tab.id}
-                    role="tab"
-                    aria-selected={selected}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 border whitespace-nowrap ${
-                      selected
-                        ? 'bg-white/45 border-white/40 text-black shadow-lg'
-                        : 'bg-white/35 hover:bg-white/40 border-white/25 hover:border-white/30 text-black/90'
-                    }`}
+                    onClick={() => setActiveTab(t.id)}
+                    aria-current={activeTab === t.id ? 'page' : undefined}
                     style={{
-                      backdropFilter: selected ? 'blur(12px) saturate(160%)' : 'blur(10px)',
-                      WebkitBackdropFilter: selected ? 'blur(12px) saturate(160%)' : 'blur(10px)',
-                      WebkitAppRegion: 'no-drag',
-                      pointerEvents: 'auto',
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      border: activeTab === t.id ? '1px solid #111827' : '1px solid #e5e7eb',
+                      background: activeTab === t.id ? '#111827' : '#fff',
+                      color: activeTab === t.id ? '#fff' : '#111827',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      boxShadow: activeTab === t.id ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+                      transition: 'background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease',
                     }}
                   >
-                    <Icon className="w-4 h-4" />
-                    {tab.label}
+                    {t.label}
                   </button>
-                );
-              })}
-            </div>
-          </div>
+                </li>
+              ))}
+            </ul>
+          </nav>
         </div>
+      </header>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        {ActiveComponent &&
-          (activeTab === 'history' ? (
-            <div className="h-full">
-              <ActiveComponent
-                onLoadConversation={(conv) => {
-                  // In Settings window, we can't load into FloatBar
-                  // Just show a toast notification
-                  toast('💡 Open the main window to continue this conversation', {
-                    duration: 4000,
-                  });
-                }}
-              />
-            </div>
-          ) : (
-            <div className="max-w-6xl mx-auto">
-              <ActiveComponent />
-            </div>
-          ))}
-      </div>
-        </div>
-      </div>
-    </>
+      <main style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '24px' }}>{renderContent()}</main>
+    </div>
   );
 }

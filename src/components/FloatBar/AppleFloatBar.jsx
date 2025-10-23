@@ -11,6 +11,7 @@ import { Settings, RotateCcw, Wrench, ArrowUp, Loader2, Minimize2 } from 'lucide
 import useStore from '../../store/useStore';
 import { chatAPI, permissionAPI, googleAPI, ambiguityAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 import { CreditDisplay } from '../CreditDisplay';
 import { supabase, checkResponseCache, storeResponseCache } from '../../services/supabase';
 import { createLogger } from '../../services/logger';
@@ -212,12 +213,17 @@ export default function AppleFloatBar({
       // Call ambiguity API to check if screenshot is needed
       const ambiguityResult = await ambiguityAPI.checkAmbiguity(text, 5);
       
+      // Validate response structure
+      if (!ambiguityResult || typeof ambiguityResult.needs_screenshot === 'undefined') {
+        throw new Error('Invalid ambiguity API response');
+      }
+      
       logger.info('[Ambiguity] Classification result:', {
         needs_screenshot: ambiguityResult.needs_screenshot,
-        reason: ambiguityResult.reason,
-        latency: `${ambiguityResult.latency_ms.toFixed(1)}ms`,
-        word_count: ambiguityResult.word_count,
-        confidence: ambiguityResult.confidence
+        reason: ambiguityResult.reason || 'unknown',
+        latency: ambiguityResult.latency_ms ? `${ambiguityResult.latency_ms.toFixed(1)}ms` : 'N/A',
+        word_count: ambiguityResult.word_count || 0,
+        confidence: ambiguityResult.confidence || 0
       });
       
       // If explicit screen request, take screenshot immediately without asking
@@ -252,7 +258,8 @@ export default function AppleFloatBar({
       recent_messages: thoughts.map(t => ({ role: t.role, content: t.content })),
       profile: null,
       facts: null,
-      preferences: null
+      preferences: null,
+      google_user_email: localStorage.getItem('google_user_email') || null  // Add Google connection status
     };
     if (window.electron?.memory) {
       try {
@@ -400,9 +407,10 @@ export default function AppleFloatBar({
             .catch(err => console.warn('[Chat] Failed to save message to memory:', err));
         }
         
-        // Parse and execute email commands
+        // Parse and execute commands (email, browser, etc.)
         if (responseText) {
           try {
+            // Email command
             const emailCommandMatch = responseText.match(/```email_command\s*\n([\s\S]*?)\n```/);
             if (emailCommandMatch) {
               const commandJson = emailCommandMatch[1].trim();
@@ -417,23 +425,73 @@ export default function AppleFloatBar({
                 if (!userEmail) {
                   toast.error('Gmail not connected. Please connect your Gmail account in settings.');
                 } else {
-                  // Call Gmail API to send email
-                  googleAPI.sendEmail(
-                    command.to,
-                    command.subject,
-                    command.body
-                  ).then(response => {
-                    logger.info('[Email] Sent successfully', response);
-                    toast.success(`Email sent to ${command.to}!`);
-                  }).catch(error => {
-                    logger.error('[Email] Failed to send', error);
-                    toast.error(`Failed to send email: ${error.message}`);
+                  // First, check Gmail API health
+                  logger.info('[Email] Checking Gmail API health...');
+                  toast.loading('Verifying Gmail connection...', { id: 'gmail-health' });
+                  
+                  axios.get(`http://localhost:8000/api/v2/google/gmail/health`, {
+                    params: { email: userEmail }
+                  }).then(healthResponse => {
+                    toast.dismiss('gmail-health');
+                    
+                    if (!healthResponse.data.healthy) {
+                      logger.error('[Email] Gmail health check failed:', healthResponse.data);
+                      toast.error(`Gmail error: ${healthResponse.data.message}`);
+                      return;
+                    }
+                    
+                    logger.info('[Email] Gmail healthy, sending email...', healthResponse.data);
+                    
+                    // Gmail is healthy, proceed to send email
+                    googleAPI.sendEmail(
+                      command.to,
+                      command.subject,
+                      command.body
+                    ).then(response => {
+                      logger.info('[Email] Sent successfully', response);
+                      toast.success(`Email sent to ${command.to}!`);
+                    }).catch(error => {
+                      logger.error('[Email] Failed to send', error);
+                      toast.error(`Failed to send email: ${error.message}`);
+                    });
+                  }).catch(healthError => {
+                    toast.dismiss('gmail-health');
+                    logger.error('[Email] Health check failed:', healthError);
+                    toast.error('Failed to verify Gmail connection. Please check your connection in settings.');
                   });
                 }
               }
             }
+            
+            // Browser command - Open URLs in user's native browser
+            const browserCommandMatch = responseText.match(/```browser_command\s*\n([\s\S]*?)\n```/);
+            if (browserCommandMatch) {
+              const commandJson = browserCommandMatch[1].trim();
+              const command = JSON.parse(commandJson);
+              
+              if (command.action === 'open_url') {
+                logger.info('[Browser] Executing browser command', command);
+                
+                // Open URL in user's default browser (native UX)
+                if (window.electron?.openExternal) {
+                  window.electron.openExternal(command.url)
+                    .then(() => {
+                      logger.info('[Browser] Opened URL successfully', command.url);
+                      toast.success('Opened in your browser!');
+                    })
+                    .catch(error => {
+                      logger.error('[Browser] Failed to open URL', error);
+                      toast.error(`Failed to open browser: ${error.message}`);
+                    });
+                } else {
+                  // Fallback for non-Electron environment
+                  window.open(command.url, '_blank');
+                  toast.success('Opened in new tab!');
+                }
+              }
+            }
           } catch (err) {
-            logger.error('[Email] Failed to parse email command', err);
+            logger.error('[Command] Failed to parse command', err);
           }
         }
         
@@ -497,7 +555,8 @@ export default function AppleFloatBar({
       recent_messages: thoughts.map(t => ({ role: t.role, content: t.content })),
       profile: null,
       facts: null,
-      preferences: null
+      preferences: null,
+      google_user_email: localStorage.getItem('google_user_email') || null  // Add Google connection status
     };
     if (window.electron?.memory) {
       try {
@@ -651,9 +710,10 @@ export default function AppleFloatBar({
             .catch(err => console.warn('[Chat] Failed to save message to memory:', err));
         }
         
-        // Parse and execute email commands
+        // Parse and execute commands (email, browser, etc.)
         if (responseText) {
           try {
+            // Email command
             const emailCommandMatch = responseText.match(/```email_command\s*\n([\s\S]*?)\n```/);
             if (emailCommandMatch) {
               const commandJson = emailCommandMatch[1].trim();
@@ -668,23 +728,73 @@ export default function AppleFloatBar({
                 if (!userEmail) {
                   toast.error('Gmail not connected. Please connect your Gmail account in settings.');
                 } else {
-                  // Call Gmail API to send email
-                  googleAPI.sendEmail(
-                    command.to,
-                    command.subject,
-                    command.body
-                  ).then(response => {
-                    logger.info('[Email] Sent successfully', response);
-                    toast.success(`Email sent to ${command.to}!`);
-                  }).catch(error => {
-                    logger.error('[Email] Failed to send', error);
-                    toast.error(`Failed to send email: ${error.message}`);
+                  // First, check Gmail API health
+                  logger.info('[Email] Checking Gmail API health...');
+                  toast.loading('Verifying Gmail connection...', { id: 'gmail-health' });
+                  
+                  axios.get(`http://localhost:8000/api/v2/google/gmail/health`, {
+                    params: { email: userEmail }
+                  }).then(healthResponse => {
+                    toast.dismiss('gmail-health');
+                    
+                    if (!healthResponse.data.healthy) {
+                      logger.error('[Email] Gmail health check failed:', healthResponse.data);
+                      toast.error(`Gmail error: ${healthResponse.data.message}`);
+                      return;
+                    }
+                    
+                    logger.info('[Email] Gmail healthy, sending email...', healthResponse.data);
+                    
+                    // Gmail is healthy, proceed to send email
+                    googleAPI.sendEmail(
+                      command.to,
+                      command.subject,
+                      command.body
+                    ).then(response => {
+                      logger.info('[Email] Sent successfully', response);
+                      toast.success(`Email sent to ${command.to}!`);
+                    }).catch(error => {
+                      logger.error('[Email] Failed to send', error);
+                      toast.error(`Failed to send email: ${error.message}`);
+                    });
+                  }).catch(healthError => {
+                    toast.dismiss('gmail-health');
+                    logger.error('[Email] Health check failed:', healthError);
+                    toast.error('Failed to verify Gmail connection. Please check your connection in settings.');
                   });
                 }
               }
             }
+            
+            // Browser command - Open URLs in user's native browser
+            const browserCommandMatch = responseText.match(/```browser_command\s*\n([\s\S]*?)\n```/);
+            if (browserCommandMatch) {
+              const commandJson = browserCommandMatch[1].trim();
+              const command = JSON.parse(commandJson);
+              
+              if (command.action === 'open_url') {
+                logger.info('[Browser] Executing browser command', command);
+                
+                // Open URL in user's default browser (native UX)
+                if (window.electron?.openExternal) {
+                  window.electron.openExternal(command.url)
+                    .then(() => {
+                      logger.info('[Browser] Opened URL successfully', command.url);
+                      toast.success('Opened in your browser!');
+                    })
+                    .catch(error => {
+                      logger.error('[Browser] Failed to open URL', error);
+                      toast.error(`Failed to open browser: ${error.message}`);
+                    });
+                } else {
+                  // Fallback for non-Electron environment
+                  window.open(command.url, '_blank');
+                  toast.success('Opened in new tab!');
+                }
+              }
+            }
           } catch (err) {
-            logger.error('[Email] Failed to parse email command', err);
+            logger.error('[Command] Failed to parse command', err);
           }
         }
         
@@ -722,11 +832,33 @@ export default function AppleFloatBar({
       // Simple email intent patterns: "email X", "send email", "send an email", "compose email"
       const emailRegex = /^(\s*(email|send( an)? email|compose( an)? email)\b|\bemail\b.*\b(to|about)\b)/i;
       if (isFirstTurn && emailRegex.test(text)) {
+        // Check if user said "don't ask again" for email approvals
+        const skipEmailApproval = localStorage.getItem('approval_skip_email_send') === 'true';
+        
+        if (skipEmailApproval) {
+          // Skip approval - user previously opted out
+          try {
+            await permissionAPI.logActivity({
+              action: text,
+              category: 'communication',
+              required_approval: false, // Auto-approved
+              approved: true,
+              markers: ['email', 'auto_approved'],
+              is_high_risk: false
+            });
+          } catch {}
+          continueSend(text);
+          return;
+        }
+        
+        // Show approval dialog with "Don't ask again" option
         setApprovalDetails({
           action: text,
           markers: ['communication', 'email'],
           reason: 'Composing and sending email requires your approval.',
           isHighRisk: false,
+          showDontAskAgain: true,
+          dontAskAgainKey: 'email_send',
           onApprove: async () => {
             try {
               await permissionAPI.logActivity({
@@ -779,11 +911,32 @@ export default function AppleFloatBar({
         return;
       }
       if (data.requires_approval) {
+        // Check if this is an email operation and user opted out
+        const isEmail = data.markers?.includes('email') || data.markers?.includes('communication');
+        const skipEmailApproval = isEmail && localStorage.getItem('approval_skip_email_send') === 'true';
+        
+        if (skipEmailApproval) {
+          // Skip approval - user previously opted out
+          try {
+            await permissionAPI.logActivity({
+              action: text,
+              required_approval: false, // Auto-approved
+              approved: true,
+              markers: [...(data.markers || []), 'auto_approved'],
+              is_high_risk: !!data.is_high_risk
+            });
+          } catch {}
+          continueSend(text);
+          return;
+        }
+        
         setApprovalDetails({
           action: text,
           markers: data.markers || [],
           reason: data.reason || 'Operation requires approval',
           isHighRisk: !!data.is_high_risk,
+          showDontAskAgain: isEmail, // Only show for email operations
+          dontAskAgainKey: isEmail ? 'email_send' : null,
           onApprove: async () => {
             try {
               await permissionAPI.logActivity({
@@ -1210,7 +1363,9 @@ export default function AppleFloatBar({
         markers={approvalDetails.markers}
         reason={approvalDetails.reason}
         isHighRisk={approvalDetails.isHighRisk}
-        onApprove={() => {
+        showDontAskAgain={approvalDetails.showDontAskAgain || false}
+        dontAskAgainKey={approvalDetails.dontAskAgainKey || null}
+        onApprove={(dontAskAgain) => {
           const fn = approvalDetails.onApprove;
           setApprovalOpen(false);
           if (typeof fn === 'function') fn();
