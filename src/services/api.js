@@ -371,7 +371,8 @@ export const chatAPI = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': 'dev'  // dev mode key
+        'X-API-Key': 'dev',  // dev mode key
+        'X-User-Id': localStorage.getItem('user_id') || 'anonymous'
       },
       body: JSON.stringify(payload),
     });
