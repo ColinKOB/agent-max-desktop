@@ -23,6 +23,9 @@ contextBridge.exposeInMainWorld('electron', {
 
   // Open Settings window
   openSettings: (opts) => ipcRenderer.invoke('open-settings', opts || {}),
+  
+  // Open Test Window (for debugging)
+  openTestWindow: () => ipcRenderer.invoke('open-test-window'),
 
   // Memory management functions
   memory: {

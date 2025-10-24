@@ -12,15 +12,17 @@ export default function BillingSimple() {
   }, []);
 
   return (
-    <div style={{ background: '#fff', color: '#111827', minHeight: '100%', padding: '24px' }}>
+    <div style={{ background: '#f9fafb', color: '#111827', minHeight: '100%', padding: '24px' }}>
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 16 }}>Billing</h1>
+        <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.01em', marginBottom: 16 }}>Billing</h1>
 
-        <section style={{ border: '1px solid #e5e7eb', background: '#ffffff', borderRadius: 12, padding: 20, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
-          <p style={{ fontSize: 14, color: '#4b5563', marginBottom: 16 }}>
+        <section role="region" aria-label="Billing and subscription" style={{ border: '1px solid #d1d5db', background: '#ffffff', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+          <p style={{ fontSize: 14, color: '#374151', marginBottom: 16, lineHeight: 1.5 }}>
             Manage your plan, payment method, and invoices.
           </p>
-          <SubscriptionManager customerEmail={email} />
+          <div style={{ overflowX: 'auto' }}>
+            <SubscriptionManager customerEmail={email} />
+          </div>
         </section>
       </div>
     </div>

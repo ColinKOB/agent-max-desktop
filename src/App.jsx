@@ -81,23 +81,13 @@ function App({ windowMode = 'single' }) {
   const checkApiConnection = async () => {
     try {
       const apiUrl = apiConfigManager.getBaseURL();
-      console.log('[Health] Checking API connection to:', `${apiUrl}/health`);
-
-      // Use axios request with current config
-      const response = await healthAPI.check();
-      console.log('[Health] Health check successful:', response.data);
+      logger.debug('GET /health');
+      await healthAPI.check();
       setApiConnected(true);
       return true;
     } catch (error) {
-      console.error('[Health] API health check failed');
-      console.error('[Health] Error type:', error.constructor.name);
-      console.error('[Health] Error message:', error.message);
-      console.error('[Health] Error code:', error.code);
-      console.error('[Health] Error config:', {
-        url: error.config?.url,
-        baseURL: error.config?.baseURL,
-        method: error.config?.method,
-      });
+      // Health check failed; rely on API interceptors for detailed error logs
+      logger.warn('Health check failed');
       setApiConnected(false);
       return false;
     }

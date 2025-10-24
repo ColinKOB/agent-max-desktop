@@ -138,11 +138,30 @@ class MemoryService {
       }
     }
 
-    // Look for "I like X" pattern
-    const likeMatch = message.match(/I like ([\w\s]+)/i);
+    // Look for favorite food patterns
+    const favFoodPatterns = [
+      /(my\s+favorite\s+food\s+is|my\s+favourite\s+food\s+is)\s+([A-Za-z0-9 .,'\-]+)/i,
+      /favorite\s+food:\s*([A-Za-z0-9 .,'\-]+)/i,
+      /favourite\s+food:\s*([A-Za-z0-9 .,'\-]+)/i,
+    ];
+    for (const pattern of favFoodPatterns) {
+      const m = message.match(pattern);
+      if (m) {
+        const food = (m[2] || m[1] || m[0]).replace(/^(my\s+favorite\s+food\s+is|my\s+favourite\s+food\s+is)\s+/i, '').trim();
+        if (food) {
+          await this.setFact('preferences', 'favorite_food', food);
+          facts.favorite_food = food;
+        }
+        break;
+      }
+    }
+
+    // Look for "I like X" / "I love X" patterns (general preferences)
+    const likeMatch = message.match(/I\s+(like|love|prefer)\s+([\w\s]+)/i);
     if (likeMatch) {
-      await this.setFact('preferences', 'likes', likeMatch[1]);
-      facts.likes = likeMatch[1];
+      const likeVal = likeMatch[2].trim();
+      await this.setFact('preferences', 'likes', likeVal);
+      facts.likes = likeVal;
     }
 
     // Look for "I am X" or "I'm a X" pattern
@@ -161,6 +180,23 @@ class MemoryService {
           facts.description = desc;
           break;
         }
+      }
+    }
+
+    // Education (school/university)
+    const educationPatterns = [
+      /(?:I go to|I attend|I study at|my school is|I am at)\s+([A-Za-z0-9 .,&'\-]+?)(?:\.|,|$)/i
+    ];
+
+    for (const pattern of educationPatterns) {
+      const eduMatch = message.match(pattern);
+      if (eduMatch) {
+        const school = eduMatch[1].trim();
+        if (school) {
+          await this.setFact('education', 'school', school);
+          facts.school = school;
+        }
+        break;
       }
     }
 

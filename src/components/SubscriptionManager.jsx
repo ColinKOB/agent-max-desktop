@@ -154,22 +154,22 @@ export function SubscriptionManager() {
   const currentPlan = subscription?.plan || 'free';
 
   return (
-    <div className="subscription-manager amx-body">
+    <div className="subscription-manager" style={{ color: '#111827' }}>
       <div className="header mb-4">
-        <h2 className="amx-heading text-xl mb-1">Subscription & Billing</h2>
-        <p className="amx-subtle">Choose the plan that works best for you</p>
+        <h2 className="text-xl font-semibold text-gray-900 mb-1" style={{ color: '#111827' }}>Subscription & Billing</h2>
+        <p className="text-sm text-gray-600" style={{ color: '#6b7280' }}>Choose the plan that works best for you</p>
       </div>
 
       {/* Current Subscription Status */}
       {subscription && subscription.plan !== 'free' && (
-        <div className="current-subscription mb-6 p-4 amx-liquid-nested rounded-lg">
+        <div className="current-subscription mb-6 p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="amx-body font-semibold">
+              <h3 className="font-semibold text-gray-900">
                 Current Plan{' '}
                 {subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)}
               </h3>
-              <p className="text-sm amx-subtle">
+              <p className="text-sm text-gray-600">
                 {subscription.status === 'active' ? 'Active' : subscription.status}
                 {subscription.next_billing_date &&
                   ` • Renews ${new Date(subscription.next_billing_date).toLocaleDateString()}`}
@@ -178,7 +178,7 @@ export function SubscriptionManager() {
             <button
               onClick={handleManageBilling}
               disabled={billingPortalLoading}
-              className="btn-secondary flex items-center space-x-2"
+              className="flex items-center space-x-2 bg-white border border-gray-300 text-gray-900 hover:bg-gray-50 shadow-sm rounded-md py-2 px-3"
             >
               <CreditCard className="w-4 h-4" />
               <span>{billingPortalLoading ? 'Loading...' : 'Manage Billing'}</span>
@@ -196,30 +196,28 @@ export function SubscriptionManager() {
           return (
             <div
               key={plan.id}
-              className={`plan-card relative p-5 rounded-xl transition-all amx-liquid-nested ${
-                plan.popular ? 'ring-1 ring-white/30 scale-[1.02]' : ''
+              className={`plan-card relative p-5 rounded-xl transition-all bg-white border border-gray-200 shadow-sm ${
+                plan.popular ? 'scale-[1.02]' : ''
               } ${isCurrentPlan ? '' : ''}`}
             >
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/15 border border-white/25 text-white">
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 border border-gray-300 text-gray-800">
                     Most Popular
                   </span>
                 </div>
               )}
 
               <div className="text-center mb-5">
-                <Icon
-                  className={`w-12 h-12 mx-auto mb-3 text-white/80`}
-                />
-                <h3 className="amx-heading text-lg mb-1">
+                <Icon className={`w-12 h-12 mx-auto mb-3 text-gray-600`} />
+                <h3 className="text-lg mb-1" style={{ color: '#111827', fontWeight: 700 }}>
                   {plan.name}
                 </h3>
                 <div className="mb-2">
-                  <span className="text-3xl font-bold text-white">
+                  <span className="text-3xl font-bold" style={{ color: '#111827' }}>
                     {plan.price}
                   </span>
-                  <span className="amx-subtle ml-2">{plan.period}</span>
+                  <span className="ml-2" style={{ color: '#6b7280' }}>{plan.period}</span>
                 </div>
               </div>
 
@@ -227,7 +225,7 @@ export function SubscriptionManager() {
                 {plan.features.map((feature, idx) => (
                   <li key={idx} className="flex items-start space-x-2">
                     <Check className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm amx-body">{feature}</span>
+                    <span className="text-sm" style={{ color: '#374151' }}>{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -235,9 +233,15 @@ export function SubscriptionManager() {
               <button
                 onClick={() => handleSubscribe(plan.id)}
                 disabled={loading || plan.disabled || isCurrentPlan}
-                className={`w-full py-3 px-4 rounded-lg font-semibold transition-all amx-liquid-nested border border-white/20 text-white hover:bg-white/15 ${
-                  plan.disabled || isCurrentPlan ? 'opacity-50 cursor-not-allowed' : ''
+                className={`w-full py-3 px-4 rounded-lg font-semibold transition-all shadow-sm ${
+                  plan.disabled || isCurrentPlan ? 'opacity-70 cursor-not-allowed' : ''
                 }`}
+                style={{
+                  background: plan.disabled || isCurrentPlan ? '#e5e7eb' : '#111827',
+                  color: plan.disabled || isCurrentPlan ? '#6b7280' : '#ffffff',
+                  border: '1px solid',
+                  borderColor: plan.disabled || isCurrentPlan ? '#d1d5db' : '#111827'
+                }}
               >
                 {isCurrentPlan ? 'Current Plan' : loading ? 'Loading...' : plan.cta}
               </button>
@@ -247,9 +251,9 @@ export function SubscriptionManager() {
       </div>
 
       {/* FAQ or Additional Info */}
-      <div className="mt-8 p-4 amx-liquid-nested rounded-lg">
-        <h4 className="amx-body font-semibold mb-2">Secure Payments</h4>
-        <p className="text-sm amx-subtle">
+      <div className="mt-8 p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+        <h4 className="font-semibold text-gray-900 mb-2">Secure Payments</h4>
+        <p className="text-sm text-gray-600">
           All payments are processed securely through Stripe. We never store your credit card
           information. You can cancel anytime from the billing portal.
         </p>

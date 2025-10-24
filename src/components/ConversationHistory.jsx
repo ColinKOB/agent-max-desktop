@@ -49,23 +49,69 @@ export default function ConversationHistory({ onLoadConversation }) {
         } catch {}
       }
 
-      const convs = (sessions || []).map((session) => {
-        const messages = session.messages || session?.data?.messages || [];
-        const firstUserMsg = messages.find((m) => m.role === 'user');
-        const lastMessage = messages[messages.length - 1];
-        const id = session.sessionId || session.id || session.uuid;
+      const GAP_MS = 2 * 60 * 60 * 1000;
+      const convs = [];
+
+      (sessions || []).forEach((session) => {
+        const all = session.messages || session?.data?.messages || [];
+        const baseId = session.sessionId || session.id || session.uuid || 'session';
         const started = session.started_at || session.created_at || session.startedAt;
 
-        return {
-          id,
-          summary: firstUserMsg
-            ? firstUserMsg.content.substring(0, 60) + (firstUserMsg.content.length > 60 ? '...' : '')
-            : `Conversation (${messages.length} messages)` ,
-          messages,
-          created_at: started,
-          updated_at: lastMessage?.timestamp || session.updated_at || started,
-          message_count: messages.length,
-        };
+        if (!all.length) {
+          convs.push({
+            id: baseId,
+            summary: `Conversation (0 messages)`,
+            messages: [],
+            created_at: started,
+            updated_at: started,
+            message_count: 0,
+          });
+          return;
+        }
+
+        const sorted = [...all].sort((a, b) => {
+          const aTime = a.timestamp || a.created_at || Date.now() - (all.length - all.indexOf(a)) * 1000;
+          const bTime = b.timestamp || b.created_at || Date.now() - (all.length - all.indexOf(b)) * 1000;
+          return aTime - bTime;
+        });
+        const groups = [];
+        let current = [];
+
+        for (const m of sorted) {
+          if (!current.length) {
+            current.push(m);
+            continue;
+          }
+          const prev = current[current.length - 1];
+          const mTime = m.timestamp || m.created_at || 0;
+          const prevTime = prev.timestamp || prev.created_at || 0;
+          const dt = mTime - prevTime;
+          if (dt > GAP_MS) {
+            groups.push(current);
+            current = [m];
+          } else {
+            current.push(m);
+          }
+        }
+        if (current.length) groups.push(current);
+
+        groups.forEach((group, idx) => {
+          const firstUserMsg = group.find((m) => m.role === 'user');
+          const lastMessage = group[group.length - 1];
+          const createdTs = group[0]?.timestamp || group[0]?.created_at || started || Date.now();
+          const updatedTs = lastMessage?.timestamp || lastMessage?.created_at || createdTs;
+          const convId = `${baseId}-${createdTs || idx}`;
+          convs.push({
+            id: convId,
+            summary: firstUserMsg
+              ? firstUserMsg.content.substring(0, 60) + (firstUserMsg.content.length > 60 ? '...' : '')
+              : `Conversation (${group.length} messages)`,
+            messages: group,
+            created_at: createdTs,
+            updated_at: updatedTs,
+            message_count: group.length,
+          });
+        });
       });
 
       setConversations(convs);

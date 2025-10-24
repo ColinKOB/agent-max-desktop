@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Memory Features Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f9fafb;
+    }
+    h1 { color: #111827; }
+    .test-section {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 16px 0;
+    }
+    .status { 
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .status.pass { background: #d1fae5; color: #065f46; }
+    .status.fail { background: #fee2e2; color: #991b1b; }
+    .status.pending { background: #e0e7ff; color: #3730a3; }
+    button {
+      background: #111827;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      margin: 8px 8px 8px 0;
+    }
+    button:hover { background: #1f2937; }
+    pre {
+      background: #f3f4f6;
+      padding: 12px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+    .log { 
+      margin-top: 12px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <h1>Memory & History Features Test</h1>
+  <p>This page tests the memory creation, semantic search, and history features.</p>
+  
+  <div class="test-section">
+    <h2>1. Electron Memory API Check</h2>
+    <div id="api-status" class="status pending">Pending</div>
+    <button onclick="testAPI()">Test API</button>
+    <div id="api-log" class="log"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>2. Memory Facts Test</h2>
+    <div id="facts-status" class="status pending">Pending</div>
+    <button onclick="testFacts()">Check Facts</button>
+    <button onclick="addTestFact()">Add Test Fact</button>
+    <div id="facts-log" class="log"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>3. Conversation History Test</h2>
+    <div id="history-status" class="status pending">Pending</div>
+    <button onclick="testHistory()">Check History</button>
+    <button onclick="addTestMessage()">Add Test Message</button>
+    <div id="history-log" class="log"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>4. Preferences Test</h2>
+    <div id="prefs-status" class="status pending">Pending</div>
+    <button onclick="testPrefs()">Check Preferences</button>
+    <button onclick="toggleDeepMemory()">Toggle Deep Memory</button>
+    <div id="prefs-log" class="log"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>5. Full Diagnostic</h2>
+    <button onclick="runFullDiagnostic()">Run Full Diagnostic</button>
+    <pre id="diagnostic-output"></pre>
+  </div>
+
+  <script>
+    function log(id, html) {
+      document.getElementById(id).innerHTML += html + '<br>';
+    }
+
+    function setStatus(id, status) {
+      const el = document.getElementById(id);
+      el.className = 'status ' + status;
+      el.textContent = status.toUpperCase();
+    }
+
+    async function testAPI() {
+      const logId = 'api-log';
+      document.getElementById(logId).innerHTML = '';
+      
+      try {
+        log(logId, '<strong>Checking window.electron.memory...</strong>');
+        
+        if (!window.electron) {
+          log(logId, '❌ window.electron is not defined');
+          setStatus('api-status', 'fail');
+          return;
+        }
+        
+        if (!window.electron.memory) {
+          log(logId, '❌ window.electron.memory is not defined');
+          setStatus('api-status', 'fail');
+          return;
+        }
+        
+        const methods = [
+          'getFacts', 'setFact', 'getProfile', 
+          'getAllSessions', 'getRecentMessages', 'addMessage'
+        ];
+        
+        log(logId, '<strong>Available methods:</strong>');
+        methods.forEach(m => {
+          const exists = typeof window.electron.memory[m] === 'function';
+          log(logId, `${exists ? '✅' : '❌'} ${m}`);
+        });
+        
+        setStatus('api-status', 'pass');
+      } catch (e) {
+        log(logId, '❌ Error: ' + e.message);
+        setStatus('api-status', 'fail');
+      }
+    }
+
+    async function testFacts() {
+      const logId = 'facts-log';
+      document.getElementById(logId).innerHTML = '';
+      
+      try {
+        log(logId, '<strong>Fetching facts...</strong>');
+        const facts = await window.electron.memory.getFacts();
+        
+        if (!facts || typeof facts !== 'object') {
+          log(logId, '⚠️ No facts found (empty object)');
+          setStatus('facts-status', 'pending');
+          return;
+        }
+        
+        const count = Object.keys(facts).length;
+        log(logId, `✅ Found ${count} fact categories`);
+        
+        // Show facts
+        for (const [category, items] of Object.entries(facts)) {
+          log(logId, `<strong>${category}:</strong>`);
+          if (typeof items === 'object') {
+            for (const [key, value] of Object.entries(items)) {
+              log(logId, `  • ${key}: ${value}`);
+            }
+          }
+        }
+        
+        setStatus('facts-status', count > 0 ? 'pass' : 'pending');
+      } catch (e) {
+        log(logId, '❌ Error: ' + e.message);
+        setStatus('facts-status', 'fail');
+      }
+    }
+
+    async function addTestFact() {
+      const logId = 'facts-log';
+      try {
+        log(logId, '<strong>Adding test fact...</strong>');
+        await window.electron.memory.setFact('test', 'timestamp', Date.now().toString());
+        log(logId, '✅ Test fact added! Refresh to see it.');
+        setTimeout(testFacts, 500);
+      } catch (e) {
+        log(logId, '❌ Error: ' + e.message);
+      }
+    }
+
+    async function testHistory() {
+      const logId = 'history-log';
+      document.getElementById(logId).innerHTML = '';
+      
+      try {
+        log(logId, '<strong>Fetching sessions...</strong>');
+        const sessions = await window.electron.memory.getAllSessions();
+        
+        if (!Array.isArray(sessions) || sessions.length === 0) {
+          log(logId, '⚠️ No sessions found. Have a conversation first.');
+          setStatus('history-status', 'pending');
+          return;
+        }
+        
+        log(logId, `✅ Found ${sessions.length} sessions`);
+        
+        sessions.slice(0, 3).forEach((s, i) => {
+          const msgCount = s.messages?.length || 0;
+          const id = s.sessionId || s.id || 'unknown';
+          log(logId, `<strong>Session ${i+1}:</strong> ${msgCount} messages (ID: ${id})`);
+        });
+        
+        // Check for timestamps
+        const firstSession = sessions[0];
+        const firstMsg = firstSession.messages?.[0];
+        if (firstMsg) {
+          log(logId, '<strong>Sample message:</strong>');
+          log(logId, `  Role: ${firstMsg.role}`);
+          log(logId, `  Has timestamp: ${!!firstMsg.timestamp}`);
+        }
+        
+        setStatus('history-status', 'pass');
+      } catch (e) {
+        log(logId, '❌ Error: ' + e.message);
+        setStatus('history-status', 'fail');
+      }
+    }
+
+    async function addTestMessage() {
+      const logId = 'history-log';
+      try {
+        log(logId, '<strong>Adding test message...</strong>');
+        await window.electron.memory.addMessage('user', 'Test message from diagnostic');
+        log(logId, '✅ Test message added!');
+        setTimeout(testHistory, 500);
+      } catch (e) {
+        log(logId, '❌ Error: ' + e.message);
+      }
+    }
+
+    function testPrefs() {
+      const logId = 'prefs-log';
+      document.getElementById(logId).innerHTML = '';
+      
+      try {
+        log(logId, '<strong>Checking localStorage preferences...</strong>');
+        
+        const prefs = {
+          'pref_theme': localStorage.getItem('pref_theme') || 'not set',
+          'pref_analytics': localStorage.getItem('pref_analytics') === '1' ? 'enabled' : 'disabled',
+          'pref_deep_memory_search': localStorage.getItem('pref_deep_memory_search') === '1' ? 'enabled' : 'disabled',
+        };
+        
+        for (const [key, value] of Object.entries(prefs)) {
+          log(logId, `• ${key}: <strong>${value}</strong>`);
+        }
+        
+        setStatus('prefs-status', 'pass');
+      } catch (e) {
+        log(logId, '❌ Error: ' + e.message);
+        setStatus('prefs-status', 'fail');
+      }
+    }
+
+    function toggleDeepMemory() {
+      const current = localStorage.getItem('pref_deep_memory_search') === '1';
+      localStorage.setItem('pref_deep_memory_search', current ? '0' : '1');
+      log('prefs-log', `✅ Deep memory search ${current ? 'disabled' : 'enabled'}`);
+      setTimeout(testPrefs, 500);
+    }
+
+    async function runFullDiagnostic() {
+      const output = document.getElementById('diagnostic-output');
+      output.textContent = 'Running diagnostic...\n\n';
+      
+      const results = {};
+      
+      // Test 1: API
+      output.textContent += '1. Testing Electron API...\n';
+      results.api = !!(window.electron?.memory);
+      output.textContent += `   Result: ${results.api ? 'PASS' : 'FAIL'}\n\n`;
+      
+      // Test 2: Facts
+      output.textContent += '2. Testing Facts...\n';
+      try {
+        const facts = await window.electron.memory.getFacts();
+        results.factsCount = Object.keys(facts || {}).length;
+        output.textContent += `   Facts found: ${results.factsCount}\n\n`;
+      } catch (e) {
+        output.textContent += `   Error: ${e.message}\n\n`;
+        results.factsCount = 0;
+      }
+      
+      // Test 3: Sessions
+      output.textContent += '3. Testing Sessions...\n';
+      try {
+        const sessions = await window.electron.memory.getAllSessions();
+        results.sessionsCount = sessions?.length || 0;
+        output.textContent += `   Sessions found: ${results.sessionsCount}\n\n`;
+      } catch (e) {
+        output.textContent += `   Error: ${e.message}\n\n`;
+        results.sessionsCount = 0;
+      }
+      
+      // Test 4: Recent messages
+      output.textContent += '4. Testing Recent Messages...\n';
+      try {
+        const msgs = await window.electron.memory.getRecentMessages(5);
+        results.msgsCount = msgs?.length || 0;
+        output.textContent += `   Messages found: ${results.msgsCount}\n\n`;
+      } catch (e) {
+        output.textContent += `   Error: ${e.message}\n\n`;
+        results.msgsCount = 0;
+      }
+      
+      // Test 5: Preferences
+      output.textContent += '5. Testing Preferences...\n';
+      results.deepMemory = localStorage.getItem('pref_deep_memory_search') === '1';
+      output.textContent += `   Deep memory: ${results.deepMemory ? 'ENABLED' : 'DISABLED'}\n\n`;
+      
+      // Summary
+      output.textContent += '========== SUMMARY ==========\n';
+      output.textContent += `API Available: ${results.api ? '✅' : '❌'}\n`;
+      output.textContent += `Facts: ${results.factsCount} categories\n`;
+      output.textContent += `Sessions: ${results.sessionsCount}\n`;
+      output.textContent += `Messages: ${results.msgsCount}\n`;
+      output.textContent += `Deep Memory: ${results.deepMemory ? 'ON' : 'OFF'}\n`;
+      
+      if (!results.api) {
+        output.textContent += '\n⚠️ CRITICAL: Electron memory API not available!\n';
+        output.textContent += 'Try restarting the app.\n';
+      } else if (results.sessionsCount === 0) {
+        output.textContent += '\n⚠️ No conversation history found.\n';
+        output.textContent += 'Have a conversation in the main app first.\n';
+      } else {
+        output.textContent += '\n✅ All systems operational!\n';
+      }
+    }
+
+    // Auto-run on load
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        console.log('Running auto-diagnostic...');
+        runFullDiagnostic();
+      }, 500);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,376 @@
+/* Context Preview Component Styles */
+
+.context-preview {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
+}
+
+.context-preview.expanded {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+/* Header */
+.context-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.context-preview-header:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.context-preview-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  font-size: 13px;
+  color: #333;
+}
+
+.context-icon {
+  font-size: 16px;
+}
+
+.context-preview-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Token Meter */
+.token-meter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.token-bar {
+  width: 80px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.token-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #8BC34A);
+  transition: width 0.3s ease;
+}
+
+.token-fill[style*="width: 9"], 
+.token-fill[style*="width: 10"] {
+  background: linear-gradient(90deg, #FF9800, #F44336);
+}
+
+.token-count {
+  font-size: 11px;
+  color: #666;
+  font-family: 'SF Mono', 'Monaco', monospace;
+}
+
+.expand-button {
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 4px;
+  transition: transform 0.2s ease;
+}
+
+.expand-button:hover {
+  color: #333;
+}
+
+/* Content */
+.context-preview-content {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 12px 14px;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Control Toggles */
+.context-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.context-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #555;
+  cursor: pointer;
+  user-select: none;
+}
+
+.context-control input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.context-control input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.context-control:has(input:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Rationale */
+.context-rationale {
+  background: rgba(33, 150, 243, 0.08);
+  border-left: 3px solid #2196F3;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.context-rationale strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #2196F3;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.context-rationale p {
+  margin: 0;
+  color: #555;
+  line-height: 1.5;
+}
+
+/* Sections */
+.context-section {
+  margin-bottom: 12px;
+}
+
+.context-section:last-child {
+  margin-bottom: 0;
+}
+
+.context-section h4 {
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.context-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Fact Items */
+.fact-item {
+  background: rgba(76, 175, 80, 0.06);
+  border-left: 3px solid #4CAF50;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.fact-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.fact-key {
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-weight: 500;
+  color: #2E7D32;
+  font-size: 11px;
+}
+
+.pinned-badge {
+  font-size: 10px;
+}
+
+.fact-confidence {
+  margin-left: auto;
+  font-size: 10px;
+  color: #666;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.fact-value {
+  color: #555;
+  line-height: 1.4;
+}
+
+/* Semantic Items */
+.semantic-item {
+  background: rgba(156, 39, 176, 0.06);
+  border-left: 3px solid #9C27B0;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.semantic-snippet {
+  color: #555;
+  font-style: italic;
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.semantic-meta {
+  font-size: 10px;
+  color: #666;
+}
+
+/* Messages */
+.messages-collapsed {
+  background: rgba(255, 152, 0, 0.06);
+  border-left: 3px solid #FF9800;
+  padding: 8px 10px;
+  border-radius: 4px;
+}
+
+.messages-summary {
+  font-size: 12px;
+  color: #555;
+  margin-bottom: 6px;
+}
+
+.messages-collapsed details {
+  font-size: 12px;
+}
+
+.messages-collapsed summary {
+  cursor: pointer;
+  color: #FF9800;
+  font-weight: 500;
+  user-select: none;
+  padding: 4px 0;
+}
+
+.messages-collapsed summary:hover {
+  color: #F57C00;
+}
+
+.messages-list {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 152, 0, 0.2);
+}
+
+.message-item {
+  display: flex;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.message-role {
+  font-weight: 600;
+  min-width: 70px;
+  color: #666;
+}
+
+.message-item.user .message-role {
+  color: #2196F3;
+}
+
+.message-item.assistant .message-role {
+  color: #9C27B0;
+}
+
+.message-content {
+  color: #555;
+  flex: 1;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .context-preview {
+    background: rgba(30, 30, 30, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .context-preview-header:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .context-preview-title,
+  .context-section h4 {
+    color: #eee;
+  }
+
+  .token-count,
+  .context-control,
+  .fact-value,
+  .semantic-snippet,
+  .message-content {
+    color: #ccc;
+  }
+
+  .token-bar {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .context-rationale {
+    background: rgba(33, 150, 243, 0.15);
+  }
+
+  .fact-item {
+    background: rgba(76, 175, 80, 0.12);
+  }
+
+  .semantic-item {
+    background: rgba(156, 39, 176, 0.12);
+  }
+
+  .messages-collapsed {
+    background: rgba(255, 152, 0, 0.12);
+  }
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .context-controls {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .token-bar {
+    width: 60px;
+  }
+}

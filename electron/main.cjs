@@ -675,6 +675,13 @@ ipcMain.handle('open-settings', (_event, opts = {}) => {
   return { success: true };
 });
 
+// Open Test Window (for debugging memory features)
+ipcMain.handle('open-test-window', () => {
+  const { createTestWindow } = require('./test-window.cjs');
+  createTestWindow();
+  return { success: true };
+});
+
 // Check for updates (manual trigger)
 ipcMain.handle('check-for-updates', async () => {
   try {

@@ -35,9 +35,9 @@ export default function SettingsApp() {
   };
 
   return (
-    <div style={{ background: '#fff', color: '#111827', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ background: '#fff', color: '#111827', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Header */}
-      <header style={{ borderBottom: '1px solid #e5e7eb', background: '#fff' }}>
+      <header style={{ position: 'sticky', top: 0, zIndex: 10, borderBottom: '1px solid #e5e7eb', background: '#fff' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Agent Max</h1>
 

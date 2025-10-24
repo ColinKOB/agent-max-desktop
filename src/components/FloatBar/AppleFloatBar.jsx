@@ -7,18 +7,25 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Settings, RotateCcw, Wrench, ArrowUp, Loader2, Minimize2 } from 'lucide-react';
+import { Settings, RotateCcw, Wrench, ArrowUp, Loader2, Minimize2, Check } from 'lucide-react';
 import useStore from '../../store/useStore';
-import { chatAPI, permissionAPI, googleAPI, ambiguityAPI } from '../../services/api';
+import { chatAPI, permissionAPI, googleAPI, ambiguityAPI, semanticAPI, factsAPI, addConnectionListener, healthAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { CreditDisplay } from '../CreditDisplay';
 import { supabase, checkResponseCache, storeResponseCache } from '../../services/supabase';
 import { createLogger } from '../../services/logger';
+import memoryService from '../../services/memory';
+import contextSelector from '../../services/contextSelector';
 import { FactTileList } from '../FactTileList.jsx';
 import { usePermission } from '../../contexts/PermissionContext';
 import ApprovalDialog from '../ApprovalDialog';
 import './AppleFloatBar.css';
+
+// Better Memory integration
+import memoryAPI from '../../services/memoryAPI';
+import ContextPreview from './ContextPreview';
+import MemoryToast from '../MemoryToast';
 
 const logger = createLogger('FloatBar');
 
@@ -36,9 +43,18 @@ export default function AppleFloatBar({
   const [message, setMessage] = useState('');
   const [thoughts, setThoughts] = useState([]);
   const [isThinking, setIsThinking] = useState(false);
+  // Better Memory UI state
+  const [contextPack, setContextPack] = useState(null);
+  const [showContextPreview, setShowContextPreview] = useState(false);
+  const [isLoadingContext, setIsLoadingContext] = useState(false);
+  const [contextPreviewExpanded, setContextPreviewExpanded] = useState(false);
+  const [memoryProposals, setMemoryProposals] = useState([]);
+  const [showMemoryToast, setShowMemoryToast] = useState(false);
   const [thinkingStatus, setThinkingStatus] = useState('');
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [factTiles, setFactTiles] = useState([]);
+  const lastUserPromptRef = useRef('');
+  const lastAssistantTsRef = useRef(null);
   // Approval dialog state
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [approvalDetails, setApprovalDetails] = useState({ action: '', markers: [], reason: '', isHighRisk: false, onApprove: null });
@@ -60,9 +76,46 @@ export default function AppleFloatBar({
   const tilesRef = useRef(null); // fact tiles container
   const enrichTileIdRef = useRef(null); // current tile receiving enrichment
   const streamBufferRef = useRef(''); // accumulates tokens when not enriching a tile
+  const offlineRef = useRef(false); // suppress toast spam while offline
+  const [showReconnected, setShowReconnected] = useState(false);
   
   // Store
-  const { clearMessages, apiConnected, currentUser } = useStore();
+  const { clearMessages, apiConnected, currentUser, setApiConnected } = useStore();
+  
+  // Connection status wiring (graceful offline UX)
+  useEffect(() => {
+    // Subscribe to API connection changes
+    const unsub = addConnectionListener((isConnected) => {
+      setApiConnected(!!isConnected);
+      offlineRef.current = !isConnected;
+    });
+    // Initial quick ping to set state on mount
+    healthAPI.check()
+      .then(() => { setApiConnected(true); offlineRef.current = false; })
+      .catch(() => { setApiConnected(false); offlineRef.current = true; });
+    return () => {
+      try { unsub && unsub(); } catch {}
+    };
+  }, [setApiConnected]);
+
+  // While offline, ping every 2s to auto-reconnect without spamming UI
+  useEffect(() => {
+    if (apiConnected) return;
+    let timer = setInterval(() => {
+      healthAPI.check().then(() => setApiConnected(true)).catch(() => {});
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [apiConnected, setApiConnected]);
+
+  // Flash a subtle success pill when we transition offline -> online
+  const prevOnlineRef = useRef(true);
+  useEffect(() => {
+    if (prevOnlineRef.current === false && apiConnected === true) {
+      setShowReconnected(true);
+      setTimeout(() => setShowReconnected(false), 1400);
+    }
+    prevOnlineRef.current = apiConnected;
+  }, [apiConnected]);
   
   // Permission level
   const { level: permissionLevel, updateLevel } = usePermission();
@@ -82,6 +135,15 @@ export default function AppleFloatBar({
     keepRoot();
     window.addEventListener('hashchange', keepRoot);
     return () => window.removeEventListener('hashchange', keepRoot);
+  }, []);
+
+  // Start new session on mount
+  useEffect(() => {
+    if (window.electron?.memory?.startSession) {
+      window.electron.memory.startSession()
+        .then(() => console.log('[Session] New session started on mount'))
+        .catch(err => console.warn('[Session] Failed to start session:', err));
+    }
   }, []);
   
   // Handle expand/collapse
@@ -206,6 +268,13 @@ export default function AppleFloatBar({
       window.electron.memory.addMessage('user', text)
         .catch(err => console.warn('[Chat] Failed to save user message to memory:', err));
     }
+    // Immediately extract and persist facts from the user's message (no confirmation prompt)
+    try {
+      await memoryService.extractFactsFromMessage(text, null);
+      console.log('[Memory] Auto-saved facts from user message');
+    } catch (e) {
+      console.warn('[Memory] Auto-save failed:', e);
+    }
     // Screenshot / ambiguity handling - use GPT-4o-mini for intelligent detection
     let screenshotData = null;
     
@@ -271,12 +340,32 @@ export default function AppleFloatBar({
         userContext.profile = profile;
         userContext.facts = facts;
         userContext.preferences = preferences;
+        // Inject Known Facts directly into semantic_context so the model can use them without extra retrieval
+        try {
+          const f = facts || {};
+          const school = f?.education?.school?.value ?? f?.education?.school ?? null;
+          const city = f?.location?.city?.value ?? f?.location?.city ?? null;
+          const name = f?.personal?.name?.value ?? f?.personal?.name ?? null;
+          const favoriteFood = f?.preferences?.favorite_food?.value ?? f?.preferences?.favorite_food ?? null;
+          const likes = f?.preferences?.likes?.value ?? f?.preferences?.likes ?? null;
+          let known = '';
+          if (school) known += `- School: ${school}\n`;
+          if (city) known += `- Location: ${city}\n`;
+          if (name) known += `- Name: ${name}\n`;
+          if (favoriteFood) known += `- Favorite food: ${favoriteFood}\n`;
+          if (likes) known += `- Likes: ${likes}\n`;
+          if (known) {
+            userContext.semantic_context = (userContext.semantic_context || '') + `\n\n**Known Facts:**\n${known}`;
+          }
+        } catch (e) {
+          console.warn('[Semantic] Failed to inject Known Facts into context:', e);
+        }
       } catch (error) {
         console.warn('[Chat] Failed to load memory context:', error);
       }
     }
     // Streaming call
-    chatAPI.sendMessageStream(text, userContext, screenshotData, (event) => {
+    chatAPI.sendMessageStream(text, userContext, screenshotData, async (event) => {
       console.log('[Chat] Received SSE event:', event);
       
       // Handle SSE events - backend sends {type: string, data: {...}}
@@ -354,10 +443,12 @@ export default function AppleFloatBar({
               return updated;
             } else {
               // Create new streaming assistant message
+              const ts = Date.now();
+              lastAssistantTsRef.current = ts;
               return [...prev, {
                 role: 'assistant',
                 content: streamBufferRef.current,
-                timestamp: Date.now(),
+                timestamp: ts,
                 streaming: true
               }];
             }
@@ -392,10 +483,12 @@ export default function AppleFloatBar({
             return updated;
           } else if (responseText) {
             // No streaming message exists, create a final one
+            const ts = Date.now();
+            lastAssistantTsRef.current = ts;
             return [...prev, {
               role: 'assistant',
               content: responseText,
-              timestamp: Date.now()
+              timestamp: ts
             }];
           }
           return prev;
@@ -405,6 +498,116 @@ export default function AppleFloatBar({
         if (responseText && window.electron?.memory?.addMessage) {
           window.electron.memory.addMessage('assistant', responseText)
             .catch(err => console.warn('[Chat] Failed to save message to memory:', err));
+        }
+        // Persist to Better Memory backend as well
+        try {
+          if (lastUserPromptRef.current) {
+            memoryAPI.saveMessage({ role: 'user', content: lastUserPromptRef.current });
+          }
+          if (responseText) {
+            memoryAPI.saveMessage({ role: 'assistant', content: responseText });
+          }
+        } catch (e) {
+          console.warn('[Memory] Failed to persist messages to backend', e);
+        }
+
+        // Phase 2: Extract facts from assistant response and show toast
+        try {
+          if (responseText) {
+            const proposals = await memoryAPI.extract({ message: responseText });
+            if (Array.isArray(proposals) && proposals.length > 0) {
+              setMemoryProposals(proposals);
+              setShowMemoryToast(true);
+            }
+          }
+        } catch (e) {
+          console.warn('[Memory] Extraction failed', e);
+        }
+
+        // After assistant responds: LLM-based extraction + local persist, then show a delayed badge
+        try {
+          const userPrompt = lastUserPromptRef.current || '';
+          const currentTs = lastAssistantTsRef.current;
+
+          // 1) Ask backend to extract facts (uses small model server-side)
+          // Build a robust extraction message: user + assistant for context
+          const extractMessage = [
+            (userPrompt || '').trim() && `User: ${userPrompt.trim()}`,
+            (responseText || '').trim() && `Assistant: ${responseText.trim()}`,
+          ].filter(Boolean).join('\n');
+
+          if (!extractMessage || extractMessage.trim().length === 0) {
+            console.warn('[Memory] Skipping LLM extraction: empty message would cause 422');
+            throw new Error('EMPTY_MESSAGE_FOR_EXTRACTION');
+          }
+
+          factsAPI.extractFacts(extractMessage, null)
+            .then(async (res) => {
+              const extracted = res?.data?.extracted_facts || res?.data || [];
+              if (!Array.isArray(extracted) || extracted.length === 0) return;
+
+              // 2) Persist each fact to local Electron memory
+              const labels = [];
+              for (const fact of extracted) {
+                const category = fact.category || 'personal';
+                const key = fact.key || 'note';
+                const value = fact.value || '';
+                if (!value) continue;
+                try {
+                  await window.electron?.memory?.setFact?.(category, key, value);
+                } catch (e) {
+                  console.warn('[Memory] Failed to persist fact locally:', category, key, e);
+                }
+                // Build label text for the card
+                if (category === 'education' && key === 'school') labels.push(`School — ${value}`);
+                else if (category === 'location' && key === 'city') labels.push(`Location — ${value}`);
+                else if (category === 'personal' && key === 'name') labels.push(`Name — ${value}`);
+                else if (category === 'preferences' && key === 'likes') labels.push(`Likes — ${value}`);
+                else if (category === 'personal' && key === 'description') labels.push(`About — ${value}`);
+                else labels.push(`${category}.${key} — ${value}`);
+              }
+
+              // 3) Show UI badge a moment later (so it appears after the reply)
+              if (labels.length && currentTs) {
+                const label = `Memory created! ${labels.join(' • ')}`;
+                console.log('[Memory] Created badge (LLM):', label, 'for timestamp:', currentTs);
+                setTimeout(() => {
+                  setThoughts(prev => prev.map(t => 
+                    t.timestamp === currentTs ? { ...t, memoryLabel: label } : t
+                  ));
+                }, 600);
+              }
+            })
+            .catch((e) => {
+              console.warn('[Memory] LLM extraction failed:', e?.message || e);
+            })
+            .finally(async () => {
+              // 4) Fallback: pattern extractor (ensures we still save something offline)
+              try {
+                const fallbackFacts = await memoryService.extractFactsFromMessage(userPrompt, responseText);
+                const currentTs2 = lastAssistantTsRef.current;
+                if (fallbackFacts && Object.keys(fallbackFacts).length > 0 && currentTs2) {
+                  const lbls = [];
+                  if (fallbackFacts.name) lbls.push(`Name — ${fallbackFacts.name}`);
+                  if (fallbackFacts.location) lbls.push(`Location — ${fallbackFacts.location}`);
+                  if (fallbackFacts.school) lbls.push(`School — ${fallbackFacts.school}`);
+                  if (fallbackFacts.likes) lbls.push(`Likes — ${fallbackFacts.likes}`);
+                  if (fallbackFacts.description) lbls.push(`About — ${fallbackFacts.description}`);
+                  if (lbls.length) {
+                    const label2 = `Memory created! ${lbls.join(' • ')}`;
+                    setTimeout(() => {
+                      setThoughts(prev => prev.map(t => 
+                        t.timestamp === currentTs2 ? { ...t, memoryLabel: label2 } : t
+                      ));
+                    }, 600);
+                  }
+                }
+              } catch (e2) {
+                console.warn('[Memory] Fallback extraction failed:', e2);
+              }
+            });
+        } catch (e) {
+          console.warn('[Memory] Extraction pipeline error:', e);
         }
         
         // Parse and execute commands (email, browser, etc.)
@@ -545,10 +748,54 @@ export default function AppleFloatBar({
     continueSendMessage(text, screenshotData);
     setPendingMessageForScreenshot(null);
   }, [pendingMessageForScreenshot]);
+
+  // Helper: retrieve context then proceed to send (optionally auto-send)
+  const continueAfterPreview = useCallback(async (text) => {
+    await retrieveContext(text);
+    if (autoSend) {
+      setTimeout(() => {
+        try { continueSend(text); } catch (e) { console.warn('continueSend not available', e); }
+      }, 800);
+    } else {
+      // Show preview and wait for user to click send again
+      toast.success('Context prepared. Press send to continue.');
+    }
+  }, [retrieveContext, autoSend]);
+
+  // Retrieve Better Memory context pack for a message
+  const retrieveContext = useCallback(async (text) => {
+    try {
+      setIsLoadingContext(true);
+      const pack = await memoryAPI.query({
+        text,
+        k_facts: 8,
+        k_sem: 6,
+        token_budget: 900,
+        allow_vectors: false,
+      });
+      setContextPack(pack);
+      setShowContextPreview(true);
+      setContextPreviewExpanded(true);
+      logger.info('[Memory] Retrieved context pack', {
+        facts: pack?.facts?.length || 0,
+        semantic_hits: pack?.semantic_hits?.length || 0,
+        messages: pack?.recent_messages?.length || 0,
+        tokens: `${pack?.budget?.used_tokens || 0}/${pack?.budget?.cap || 0}`,
+      });
+      return pack;
+    } catch (e) {
+      logger.warn('[Memory] Context retrieval failed', e);
+      return null;
+    } finally {
+      setIsLoadingContext(false);
+    }
+  }, []);
   
   // Continue sending message after screenshot decision
   const continueSendMessage = useCallback(async (text, screenshotData) => {
     setThinkingStatus('Thinking...');
+    // Remember the last user prompt for memory extraction
+    lastUserPromptRef.current = text;
     
     // Build user context
     let userContext = {
@@ -568,18 +815,253 @@ export default function AppleFloatBar({
         userContext.profile = profile;
         userContext.facts = facts;
         userContext.preferences = preferences;
+
+        // Semantic retrieval: build a minimal, relevant context for the current goal
+        try {
+          let recentMsgs = [];
+          if (window.electron.memory.getRecentMessages) {
+            recentMsgs = await window.electron.memory.getRecentMessages(20).catch(() => []);
+          }
+
+          const normalizeFacts = (arr) => {
+            if (!Array.isArray(arr)) return [];
+            return arr.map((f, i) => ({
+              id: f.id || String(i),
+              category: f.category || f.type || 'personal',
+              predicate: f.predicate || f.key || 'value',
+              object: f.object || f.value || '',
+              confidence: f.confidence ?? 0.9,
+              pii_level: f.pii_level ?? 1,
+              consent_scope: f.consent_scope ?? 'default',
+              updated_at: f.updated_at || null,
+              created_at: f.created_at || null,
+            }));
+          };
+
+          const normalizedFacts = normalizeFacts(facts);
+          const normalizedRecent = Array.isArray(recentMsgs)
+            ? recentMsgs.map((m, i) => ({
+                id: m.id || String(i),
+                role: m.role || 'user',
+                content: m.content || m.text || '',
+                created_at: m.created_at || new Date().toISOString(),
+              }))
+            : [];
+
+          const vaultAdapter = {
+            getAllFacts: () => normalizedFacts,
+            getRecentMessages: (n = 10) => normalizedRecent.slice(-n),
+            getFactRelevance: () => 1.0,
+          };
+
+          // Check if deep memory search is enabled
+          const deepMemory = localStorage.getItem('pref_deep_memory_search') === '1';
+          const selection = await contextSelector.selectContext(text, vaultAdapter, {
+            tokenBudget: deepMemory ? 1200 : 600,
+            alpha: deepMemory ? 0.85 : 0.7,
+          });
+          const semanticContext = contextSelector.buildContextString(selection.slices);
+          if (semanticContext) {
+            userContext.semantic_context = semanticContext;
+          }
+
+          // Query local Electron memory for cross-session recall
+          try {
+            const deepMemory = localStorage.getItem('pref_deep_memory_search') === '1';
+            // For local keyword search, use more permissive thresholds
+            const threshold = deepMemory ? 0.3 : 0.4;
+            const limit = deepMemory ? 10 : 6;
+            console.log(`[Semantic] Searching local memory with threshold=${threshold}, limit=${limit}, deepMemory=${deepMemory}`);
+
+            // Utilities: normalize text and expand synonyms
+            const normalize = (s) => (s || '')
+              .toLowerCase()
+              .replace(/[^a-z0-9\s]/g, ' ') // strip punctuation
+              .replace(/\s+/g, ' ') // collapse spaces
+              .trim();
+            const STOP = new Set(['the','a','an','to','of','is','are','am','and','or','for','in','on','at','with','my','your','our','their','what','where','when','how','who','do','does','did','go','went','you','i']);
+            const expandSynonyms = (word) => {
+              if (['school','college','university'].includes(word)) return ['school','college','university'];
+              if (['city','town','location'].includes(word)) return ['city','town','location'];
+              if (['name','called'].includes(word)) return ['name','called'];
+              if (['favorite','favourite','fav'].includes(word)) return ['favorite','favourite','fav','like','love','prefer'];
+              if (['food','cuisine','dish','meal','snack'].includes(word)) return ['food','cuisine','dish','meal','snack'];
+              return [word];
+            };
+            const tokens = normalize(text).split(' ').filter(w => w && !STOP.has(w));
+            const queryTerms = Array.from(new Set(tokens.flatMap(expandSynonyms)));
+
+            let items = [];
+            if (window.electron?.memory?.getAllSessions) {
+              try {
+                // 1) Direct facts recall with high confidence
+                let factsBlock = '';
+                const facts = await window.electron.memory.getFacts().catch(() => null);
+                if (facts) {
+                  const school = facts?.education?.school?.value ?? facts?.education?.school ?? null;
+                  if (school && queryTerms.some(t => ['school','college','university'].includes(t))) {
+                    items.push({ text: `You go to ${school}`, score: 1.0, fact: true });
+                    factsBlock += `- School: ${school}\n`;
+                  }
+                  const city = facts?.location?.city?.value ?? facts?.location?.city ?? null;
+                  if (city && queryTerms.some(t => ['city','town','location'].includes(t))) {
+                    items.push({ text: `You are in ${city}`, score: 0.9, fact: true });
+                    factsBlock += `- Location: ${city}\n`;
+                  }
+                  const name = facts?.personal?.name?.value ?? facts?.personal?.name ?? null;
+                  if (name && queryTerms.includes('name')) {
+                    items.push({ text: `Your name is ${name}`, score: 0.9, fact: true });
+                    factsBlock += `- Name: ${name}\n`;
+                  }
+                  const favoriteFood = facts?.preferences?.favorite_food?.value ?? facts?.preferences?.favorite_food ?? null;
+                  if (favoriteFood && (queryTerms.some(t => ['favorite','favourite','fav'].includes(t)) || queryTerms.some(t => ['food','cuisine','dish','meal'].includes(t)))) {
+                    items.push({ text: `Your favorite food is ${favoriteFood}`, score: 1.0, fact: true });
+                    factsBlock += `- Favorite food: ${favoriteFood}\n`;
+                  }
+                  const likes = facts?.preferences?.likes?.value ?? facts?.preferences?.likes ?? null;
+                  if (likes && queryTerms.some(t => ['favorite','favourite','fav','like','love','prefer'].includes(t))) {
+                    items.push({ text: `You like ${likes}`, score: 0.85, fact: true });
+                    factsBlock += `- Likes: ${likes}\n`;
+                  }
+                  if (factsBlock) {
+                    userContext.semantic_context = (userContext.semantic_context || '') + `\n\n**Known Facts:**\n${factsBlock}`;
+                  }
+                }
+
+                // 2) Scan conversation history for keyword matches
+                const sessions = await window.electron.memory.getAllSessions();
+                console.log(`[Semantic] Searching ${sessions.length} local sessions`);
+                const matches = [];
+                sessions.forEach(session => {
+                  (session.messages || []).forEach(msg => {
+                    if (!msg?.content) return;
+                    const contentNorm = normalize(msg.content);
+                    const hits = queryTerms.filter(k => contentNorm.includes(k));
+                    if (hits.length > 0) {
+                      const score = hits.length / Math.max(queryTerms.length, 1);
+                      if (score >= threshold) {
+                        matches.push({
+                          text: msg.content.slice(0, 200),
+                          score,
+                          timestamp: msg.timestamp || session.started_at,
+                          session: session.sessionId
+                        });
+                      }
+                    }
+                  });
+                });
+
+                // Merge fact items and matched items, de-dup, sort
+                items = [...items, ...matches]
+                  .filter(Boolean)
+                  .sort((a, b) => (b.score || 0) - (a.score || 0))
+                  .slice(0, limit);
+
+                console.log('[Semantic] Found', items.length, 'similar items from local memory');
+              } catch (err) {
+                console.warn('[Semantic] Local search failed:', err);
+              }
+            } else {
+              console.warn('[Semantic] Electron memory API not available');
+            }
+            
+            if (Array.isArray(items) && items.length) {
+              // Dedup by content similarity
+              const seen = new Set();
+              items = items.filter((it) => {
+                const txt = (it.text || it.content || it.snippet || '').toLowerCase().slice(0, 50);
+                if (seen.has(txt)) return false;
+                seen.add(txt);
+                return true;
+              });
+
+              // If >3 items, summarize to 2-3 bullets
+              let lines;
+              if (items.length > 3) {
+                const topItems = items.slice(0, 3);
+                lines = topItems
+                  .map((it) => `- ${it.text || it.content || it.snippet || ''}`)
+                  .filter(Boolean)
+                  .join('\n');
+              } else {
+                lines = items
+                  .map((it, i) => {
+                    const text = it.text || it.content || it.snippet || '';
+                    const score = typeof it.score === 'number' ? ` (${it.score.toFixed(2)})` : '';
+                    return `- ${text}${score}`;
+                  })
+                  .filter(Boolean)
+                  .join('\n');
+              }
+              const block = lines ? `\n\n**Similar Memories:**\n${lines}` : '';
+              userContext.semantic_context = (userContext.semantic_context || '') + block;
+              userContext.semantic_sources = items.map((it) => ({ id: it.id || it.uuid || null, score: it.score || null }));
+            }
+          } catch (e) {
+            console.warn('[Chat] Embedding semantic search failed:', e);
+          }
+        } catch (e) {
+          console.warn('[Chat] Semantic retrieval failed:', e);
+        }
       } catch (error) {
         console.warn('[Chat] Failed to load memory context:', error);
       }
     }
     
+    // If a Better Memory context pack is available, attach it to userContext and clear preview
+    try {
+      if (contextPack) {
+        userContext.memory_pack = {
+          facts: (contextPack.facts || []).map(f => ({
+            category: f.category,
+            key: f.key,
+            value: f.value,
+            confidence: f.confidence,
+            pinned: !!f.pinned,
+          })),
+          semantic_hits: (contextPack.semantic_hits || []).map(h => ({
+            snippet: h.snippet,
+            score: h.score,
+          })),
+          recent_messages: (contextPack.recent_messages || []).map(m => ({ role: m.role, content: m.content })),
+          budget: contextPack.budget,
+          rationale: contextPack.rationale,
+        };
+      }
+    } catch (e) {
+      console.warn('[Memory] Failed to attach memory_pack', e);
+    } finally {
+      if (contextPack) {
+        setShowContextPreview(false);
+        setContextPack(null);
+      }
+    }
+
     // Execute the streaming call (reuse the existing sendChat logic)
     sendChat(text, userContext, screenshotData);
-  }, [thoughts]);
+  }, [thoughts, contextPack]);
+
+  // Memory Toast handlers
+  const handleMemoryApply = useCallback(async (confirmedIds) => {
+    try {
+      await memoryAPI.apply({ proposals: memoryProposals, confirmed: confirmedIds.map(String) });
+      setShowMemoryToast(false);
+      setMemoryProposals([]);
+      window.dispatchEvent(new Event('memory-changed'));
+      toast.success('Memory saved');
+    } catch (e) {
+      toast.error('Failed to save memory');
+      console.warn('[Memory] Apply failed', e);
+    }
+  }, [memoryProposals]);
+
+  const handleMemoryDismiss = useCallback(() => {
+    setShowMemoryToast(false);
+  }, []);
   
   // Main streaming chat logic (extracted for reuse)
   const sendChat = useCallback((text, userContext, screenshotData) => {
-    chatAPI.sendMessageStream(text, userContext, screenshotData, (event) => {
+    chatAPI.sendMessageStream(text, userContext, screenshotData, async (event) => {
       console.log('[Chat] Received SSE event:', event);
       
       // Handle SSE events - backend sends {type: string, data: {...}}
@@ -806,7 +1288,13 @@ export default function AppleFloatBar({
         setThinkingStatus('');
       } else if (event.type === 'error') {
         const errorMsg = event.data?.error || event.error || 'Failed to get response';
-        toast.error(errorMsg);
+        // If backend is down, mark offline and avoid toast spam
+        setApiConnected(false);
+        offlineRef.current = true;
+        if (apiConnected) {
+          // Only toast once when transitioning from online->offline
+          toast.error(errorMsg);
+        }
         // Reset buffers on error
         enrichTileIdRef.current = null;
         streamBufferRef.current = '';
@@ -814,8 +1302,10 @@ export default function AppleFloatBar({
         setThinkingStatus('');
       }
     }).catch(error => {
-      toast.error('Failed to send message: ' + error.message);
       console.error('Chat error:', error);
+      // Network/connection errors should flip to offline state without spamming toasts
+      setApiConnected(false);
+      offlineRef.current = true;
       setIsThinking(false);
       setThinkingStatus('');
     });
@@ -847,7 +1337,7 @@ export default function AppleFloatBar({
               is_high_risk: false
             });
           } catch {}
-          continueSend(text);
+          await continueAfterPreview(text);
           return;
         }
         
@@ -870,7 +1360,7 @@ export default function AppleFloatBar({
                 is_high_risk: false
               });
             } catch {}
-            continueSend(text);
+            await continueAfterPreview(text);
           }
         });
         setApprovalOpen(true);
@@ -926,7 +1416,7 @@ export default function AppleFloatBar({
               is_high_risk: !!data.is_high_risk
             });
           } catch {}
-          continueSend(text);
+          await continueAfterPreview(text);
           return;
         }
         
@@ -947,7 +1437,7 @@ export default function AppleFloatBar({
                 is_high_risk: !!data.is_high_risk
               });
             } catch {}
-            continueSend(text);
+            await continueAfterPreview(text);
           }
         });
         setApprovalOpen(true);
@@ -957,7 +1447,7 @@ export default function AppleFloatBar({
       logger.warn('Safety check failed; proceeding cautiously', err);
     }
     // No approval needed → continue
-    continueSend(text);
+    await continueAfterPreview(text);
   }, [message, isThinking, apiConnected, continueSend]);
   
   // Handle clear conversation
@@ -966,7 +1456,21 @@ export default function AppleFloatBar({
     setFactTiles([]);
     enrichTileIdRef.current = null;
     clearMessages();
-    toast.success('Conversation cleared');
+    
+    // Start new session in memory manager
+    if (window.electron?.memory?.startSession) {
+      window.electron.memory.startSession()
+        .then(() => {
+          console.log('[Session] New session started after clear');
+          toast.success('New conversation started');
+        })
+        .catch(err => {
+          console.warn('[Session] Failed to start new session:', err);
+          toast.success('Conversation cleared');
+        });
+    } else {
+      toast.success('Conversation cleared');
+    }
   }, [clearMessages]);
   
   // Handle settings
@@ -1299,6 +1803,24 @@ export default function AppleFloatBar({
             </div>
           )}
           
+          {/* Better Memory: Context Preview */}
+          {showContextPreview && contextPack && (
+            <div style={{ marginBottom: 8 }}>
+              <ContextPreview
+                pack={contextPack}
+                onToggle={(controls) => logger.info('[Memory] Context controls', controls)}
+                isExpanded={contextPreviewExpanded}
+                onToggleExpand={() => setContextPreviewExpanded(!contextPreviewExpanded)}
+              />
+            </div>
+          )}
+          {isLoadingContext && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', marginBottom: 8, borderRadius: 8, background: 'rgba(33,150,243,0.08)', color: '#2196F3' }}>
+              <Loader2 size={14} className="spin" />
+              <span style={{ fontSize: '0.85rem' }}>Loading context…</span>
+            </div>
+          )}
+          
           {/* Messages */}
           <div className="apple-messages" ref={messagesRef}>
             {thoughts.map((thought, idx) => (
@@ -1317,6 +1839,11 @@ export default function AppleFloatBar({
                     </ReactMarkdown>
                   ) : (
                     thought.content
+                  )}
+                  {thought.role === 'assistant' && thought.memoryLabel && (
+                    <div style={{ marginTop: 6, fontSize: '0.75rem', color: '#065f46', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, padding: '6px 8px' }}>
+                      {thought.memoryLabel}
+                    </div>
                   )}
                 </div>
               </div>
@@ -1368,11 +1895,96 @@ export default function AppleFloatBar({
         onApprove={(dontAskAgain) => {
           const fn = approvalDetails.onApprove;
           setApprovalOpen(false);
-          if (typeof fn === 'function') fn();
+          if (typeof fn === 'function') {
+            try {
+              const ret = fn();
+              if (ret && typeof ret.then === 'function') {
+                ret.catch(() => {});
+              }
+            } catch {}
+          }
         }}
         approveButtonText="Approve"
       />
       
+      {/* Offline/Reconnecting pill */}
+      {!apiConnected && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '86px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10002,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            background: 'linear-gradient(180deg, rgba(22,22,24,0.92), rgba(16,16,18,0.92))',
+            border: '1px solid rgba(255,255,255,0.12)',
+            color: 'rgba(255,255,255,0.9)',
+            borderRadius: 12,
+            padding: '7px 10px',
+            boxShadow: '0 8px 26px rgba(0,0,0,0.28)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)'
+          }}
+        >
+          <Loader2 size={14} className="spin" />
+          <span style={{ fontSize: '0.82rem' }}>Disconnected — retrying…</span>
+          <button
+            onClick={() => healthAPI.check().then(() => setApiConnected(true)).catch(() => {})}
+            style={{
+              marginLeft: 8,
+              padding: '4px 8px',
+              fontSize: '0.78rem',
+              color: '#fff',
+              background: 'linear-gradient(180deg, #2a2a2e 0%, #1a1a1d 100%)',
+              border: '1px solid rgba(255,255,255,0.14)',
+              borderRadius: 8,
+              cursor: 'pointer'
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Better Memory: Extraction Toast */}
+      {showMemoryToast && (
+        <MemoryToast
+          proposals={memoryProposals}
+          onApply={handleMemoryApply}
+          onDismiss={handleMemoryDismiss}
+        />
+      )}
+
+      {/* Reconnected flash */}
+      {showReconnected && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '86px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10002,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            background: 'linear-gradient(180deg, rgba(0,122,85,0.95), rgba(0,122,85,0.9))',
+            border: '1px solid rgba(0,255,170,0.35)',
+            color: '#eafff5',
+            borderRadius: 12,
+            padding: '7px 10px',
+            boxShadow: '0 8px 26px rgba(0,0,0,0.28)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)'
+          }}
+        >
+          <Check size={14} />
+          <span style={{ fontSize: '0.82rem' }}>Reconnected</span>
+        </div>
+      )}
+
       {/* Screenshot Permission Dialog */}
       {screenshotPermissionOpen && (
         <div

@@ -68,6 +68,7 @@ export const addConnectionListener = (callback) => {
   return () => connectionState.listeners.delete(callback);
 };
 
+let _lastOfflineToastAt = 0;
 const notifyConnectionChange = (isConnected) => {
   if (connectionState.isConnected !== isConnected) {
     connectionState.isConnected = isConnected;
@@ -202,12 +203,19 @@ api.interceptors.response.use(
         fallbackMessage: `Rate limit exceeded. Please try again in ${retryAfter || '60'} seconds.`,
       });
     } else if (!error.response) {
-      // Network error
-      handleError(appError, 'API', {
-        severity: 'high',
-        showToast: true,
-        fallbackMessage: 'Cannot connect to server. Please check your internet connection.',
-      });
+      // Network error -> no user toast; UI shows a dedicated reconnect pill.
+      const now = Date.now();
+      const shouldNote = connectionState.isConnected || (now - _lastOfflineToastAt > 10000);
+      if (shouldNote) {
+        _lastOfflineToastAt = now;
+        handleError(appError, 'API', {
+          severity: 'high',
+          showToast: false, // use sleek reconnect pill instead of toast
+          fallbackMessage: 'Disconnected from Agent Max. Reconnecting…',
+        });
+      } else {
+        logger.debug('Suppressed offline note (throttled)');
+      }
     }
 
     return Promise.reject(appError);
@@ -795,7 +803,8 @@ export const draftsAPI = {
 // HEALTH CHECK
 // ============================================
 export const healthAPI = {
-  check: () => api.get('/health'),
+  // Disable axios-retry for health pings to reduce duplicate logs while offline
+  check: () => api.get('/health', { 'axios-retry': { retries: 0 } }),
 };
 
 // Export API URL for use in other modules
