@@ -7,7 +7,17 @@
  * - Messages: Save and retrieve
  */
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+// Resolve API base robustly across Vite (browser), Electron renderer, and Node
+const API_BASE = (
+  // Vite env (recommended): define VITE_API_URL in .env if needed
+  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) ||
+  // Electron preload can inject a global if desired
+  (typeof window !== 'undefined' && window.__API_BASE__) ||
+  // CRA/Node fallback
+  (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) ||
+  // Sensible default for local dev
+  'http://localhost:8000'
+);
 
 /**
  * Query memory retrieval endpoint.

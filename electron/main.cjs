@@ -18,7 +18,7 @@ const os = require('os');
 
 // Simple dev check instead of electron-is-dev
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-const LocalMemoryManager = require('./memory-manager.cjs');
+const LocalMemoryManager = require('./memory-manager-backend-bridge.cjs');
 const IPCValidator = require('./ipc-validator.cjs');
 const { createApplicationMenu } = require('./menu.cjs');
 const { setupAutoUpdater, checkForUpdates } = require('./updater.cjs');

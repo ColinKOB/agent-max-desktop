@@ -77,6 +77,7 @@ export default function AppleFloatBar({
   const enrichTileIdRef = useRef(null); // current tile receiving enrichment
   const streamBufferRef = useRef(''); // accumulates tokens when not enriching a tile
   const offlineRef = useRef(false); // suppress toast spam while offline
+  const continueSendMessageRef = useRef(null); // dispatcher to avoid TDZ
   const [showReconnected, setShowReconnected] = useState(false);
   
   // Store
@@ -145,6 +146,76 @@ export default function AppleFloatBar({
         .catch(err => console.warn('[Session] Failed to start session:', err));
     }
   }, []);
+
+  // Preference: show memory preview UI (default off)
+  const memoryPreviewEnabled = useMemo(() => {
+    try { return localStorage.getItem('pref_memory_preview') === '1'; } catch { return false; }
+  }, []);
+  const memoryAutoApply = useMemo(() => {
+    try { return localStorage.getItem('pref_memory_auto_apply') !== '0'; } catch { return true; }
+  }, []);
+  const memoryReviewEnabled = useMemo(() => {
+    try { return localStorage.getItem('pref_memory_review') === '1'; } catch { return false; }
+  }, []);
+  const memoryDebugEnabled = useMemo(() => {
+    try { return localStorage.getItem('pref_memory_debug') === '1'; } catch { return false; }
+  }, []);
+  // Safety preference: disable PII warnings for local-only reads (default ON)
+  const safetyDisablePII = useMemo(() => {
+    try { const v = localStorage.getItem('pref_safety_disable_pii'); return v !== '0'; } catch { return true; }
+  }, []);
+
+  // Retrieve Better Memory context pack for a message
+  const doRetrieveContext = useCallback(async (text) => {
+    try {
+      setIsLoadingContext(true);
+      const pack = await memoryAPI.query({
+        text,
+        k_facts: 8,
+        k_sem: 6,
+        token_budget: 900,
+        allow_vectors: false,
+      });
+      setContextPack(pack);
+      if (memoryPreviewEnabled) {
+        setShowContextPreview(true);
+        setContextPreviewExpanded(true);
+      }
+      logger.info('[Memory] Retrieved context pack', {
+        facts: pack?.facts?.length || 0,
+        semantic_hits: pack?.semantic_hits?.length || 0,
+        messages: pack?.recent_messages?.length || 0,
+        tokens: `${pack?.budget?.used_tokens || 0}/${pack?.budget?.cap || 0}`,
+      });
+      return pack;
+    } catch (e) {
+      logger.warn('[Memory] Context retrieval failed', e);
+      return null;
+    } finally {
+      setIsLoadingContext(false);
+    }
+  }, [memoryPreviewEnabled]);
+
+  // Helper: retrieve context then proceed to send (optionally auto-send)
+  const continueAfterPreview = useCallback(async (text) => {
+    const pack = await doRetrieveContext(text);
+    if (autoSend) {
+      // Call immediately for instant UI feedback (memory is automatic now)
+      // Pass pack directly to avoid stale state
+      try { 
+        if (continueSendMessageRef.current) {
+          continueSendMessageRef.current(text, null, pack);
+        }
+      } catch (e) { 
+        console.warn('continueSendMessage not available', e); 
+      }
+    } else {
+      // Only show preview UI if enabled; otherwise proceed silently
+      if (memoryPreviewEnabled) {
+        toast.success('Context prepared. Press send to continue.');
+      }
+    }
+  }, [autoSend, doRetrieveContext, memoryPreviewEnabled]);
   
   // Handle expand/collapse
   const handleExpand = useCallback(() => {
@@ -209,854 +280,6 @@ export default function AppleFloatBar({
     setTimeout(() => {
       setIsTransitioning(false);
     }, 300);
-  }, []);
-  
-  // Helper to run the full send flow (credits, screenshots, streaming, memory)
-  const continueSend = useCallback(async (text) => {
-    // Get user ID for credit check
-    const userId = localStorage.getItem('user_id');
-    if (!userId) {
-      toast.error('Please wait for user initialization');
-      return;
-    }
-    // NOT cached - check and deduct credit
-    try {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('metadata')
-        .eq('id', userId)
-        .single();
-      const currentCredits = userData?.metadata?.credits || 0;
-      if (currentCredits <= 0) {
-        toast.error('No credits remaining! Please purchase more.');
-        const openSettings = window.electron?.openSettings || window.electronAPI?.openSettings;
-        if (openSettings) {
-          await openSettings({ route: '#/settings?section=credits' });
-        }
-        return;
-      }
-      await supabase
-        .from('users')
-        .update({
-          metadata: {
-            ...userData.metadata,
-            credits: currentCredits - 1
-          }
-        })
-        .eq('id', userId);
-      logger.info(`Credit deducted: ${currentCredits} → ${currentCredits - 1}`);
-      await supabase.from('telemetry_events').insert({
-        user_id: userId,
-        event_type: 'credit_usage',
-        action: 'message_sent',
-        metadata: {
-          credits_remaining: currentCredits - 1,
-          message_cached: false
-        }
-      });
-    } catch (error) {
-      logger.error('Credit check/deduction failed', error);
-      toast.error('Failed to process credits. Please try again.');
-      return;
-    }
-    // Add user message
-    setThoughts(prev => [...prev, { role: 'user', content: text, timestamp: Date.now() }]);
-    setMessage('');
-    setIsThinking(true);
-    setThinkingStatus('Thinking...');
-    if (window.electron?.memory?.addMessage) {
-      window.electron.memory.addMessage('user', text)
-        .catch(err => console.warn('[Chat] Failed to save user message to memory:', err));
-    }
-    // Immediately extract and persist facts from the user's message (no confirmation prompt)
-    try {
-      await memoryService.extractFactsFromMessage(text, null);
-      console.log('[Memory] Auto-saved facts from user message');
-    } catch (e) {
-      console.warn('[Memory] Auto-save failed:', e);
-    }
-    // Screenshot / ambiguity handling - use GPT-4o-mini for intelligent detection
-    let screenshotData = null;
-    
-    try {
-      // Call ambiguity API to check if screenshot is needed
-      const ambiguityResult = await ambiguityAPI.checkAmbiguity(text, 5);
-      
-      // Validate response structure
-      if (!ambiguityResult || typeof ambiguityResult.needs_screenshot === 'undefined') {
-        throw new Error('Invalid ambiguity API response');
-      }
-      
-      logger.info('[Ambiguity] Classification result:', {
-        needs_screenshot: ambiguityResult.needs_screenshot,
-        reason: ambiguityResult.reason || 'unknown',
-        latency: ambiguityResult.latency_ms ? `${ambiguityResult.latency_ms.toFixed(1)}ms` : 'N/A',
-        word_count: ambiguityResult.word_count || 0,
-        confidence: ambiguityResult.confidence || 0
-      });
-      
-      // If explicit screen request, take screenshot immediately without asking
-      if (ambiguityResult.reason === 'explicit_request') {
-        if (window.electron?.takeScreenshot) {
-          try {
-            setThinkingStatus('Capturing screenshot...');
-            const result = await window.electron.takeScreenshot();
-            screenshotData = result.base64;
-            logger.info('[Screenshot] Captured for explicit request:', Math.round(result.size / 1024), 'KB');
-          } catch (error) {
-            logger.error('[Screenshot] Failed to capture:', error);
-            toast.error('Failed to capture screenshot');
-          }
-        }
-      } 
-      // If ambiguous, ask permission first
-      else if (ambiguityResult.needs_screenshot && window.electron?.takeScreenshot) {
-        setScreenshotPermissionOpen(true);
-        setPendingMessageForScreenshot({ text, userContext: null });
-        setIsThinking(false);
-        setThinkingStatus('');
-        return; // Wait for user approval
-      }
-    } catch (error) {
-      // On API error, fall back to no screenshot (safer than blocking user)
-      logger.error('[Ambiguity] API call failed:', error);
-      screenshotData = null;
-    }
-    // Build user context
-    let userContext = {
-      recent_messages: thoughts.map(t => ({ role: t.role, content: t.content })),
-      profile: null,
-      facts: null,
-      preferences: null,
-      google_user_email: localStorage.getItem('google_user_email') || null  // Add Google connection status
-    };
-    if (window.electron?.memory) {
-      try {
-        const [profile, facts, preferences] = await Promise.all([
-          window.electron.memory.getProfile().catch(() => null),
-          window.electron.memory.getFacts().catch(() => null),
-          window.electron.memory.getPreferences().catch(() => null)
-        ]);
-        userContext.profile = profile;
-        userContext.facts = facts;
-        userContext.preferences = preferences;
-        // Inject Known Facts directly into semantic_context so the model can use them without extra retrieval
-        try {
-          const f = facts || {};
-          const school = f?.education?.school?.value ?? f?.education?.school ?? null;
-          const city = f?.location?.city?.value ?? f?.location?.city ?? null;
-          const name = f?.personal?.name?.value ?? f?.personal?.name ?? null;
-          const favoriteFood = f?.preferences?.favorite_food?.value ?? f?.preferences?.favorite_food ?? null;
-          const likes = f?.preferences?.likes?.value ?? f?.preferences?.likes ?? null;
-          let known = '';
-          if (school) known += `- School: ${school}\n`;
-          if (city) known += `- Location: ${city}\n`;
-          if (name) known += `- Name: ${name}\n`;
-          if (favoriteFood) known += `- Favorite food: ${favoriteFood}\n`;
-          if (likes) known += `- Likes: ${likes}\n`;
-          if (known) {
-            userContext.semantic_context = (userContext.semantic_context || '') + `\n\n**Known Facts:**\n${known}`;
-          }
-        } catch (e) {
-          console.warn('[Semantic] Failed to inject Known Facts into context:', e);
-        }
-      } catch (error) {
-        console.warn('[Chat] Failed to load memory context:', error);
-      }
-    }
-    // Streaming call
-    chatAPI.sendMessageStream(text, userContext, screenshotData, async (event) => {
-      console.log('[Chat] Received SSE event:', event);
-      
-      // Handle SSE events - backend sends {type: string, data: {...}}
-      if (event.type === 'ack') {
-        // Stream started - clear buffer and prepare for real-time tokens
-        streamBufferRef.current = '';
-        enrichTileIdRef.current = null;
-      } else if (event.type === 'tool_result') {
-        // Phase 2: Deterministic tool result
-        const toolName = event.tool_name || event.data?.tool_name;
-        const result = event.result || event.data?.result || event.data || {};
-        const displayText = event.display_text || result.display_text || result.formatted || '';
-        const latencyMs = event.latency_ms ?? result.latency_ms ?? 0;
-        const confidence = event.confidence ?? result.confidence ?? 1.0;
-        
-        // Map tool name to friendly title
-        const titleMap = {
-          time: 'Current Time',
-          date: 'Today',
-          math: 'Calculation',
-          unit_conversion: 'Conversion',
-          next_meeting: 'Calendar',
-          weather: 'Weather'
-        };
-        
-        const tile = {
-          id: crypto.randomUUID(),
-          title: titleMap[toolName] || toolName,
-          primary: displayText,
-          meta: {
-            latencyMs,
-            confidence,
-            timestamp: new Date().toISOString()
-          },
-          raw: result,
-          enrichment: event.enrichment || ''
-        };
-
-        // Scope subsequent token events to this tile for enrichment
-        enrichTileIdRef.current = tile.id;
-
-        setFactTiles(prev => [tile, ...prev]);
-        logger.info(`[FactTile] Rendered ${toolName} tile in ${Math.round(latencyMs)}ms`);
-      } else if (event.type === 'token') {
-        const content = event.content || event.data?.content || '';
-        if (!content) return;
-        if (enrichTileIdRef.current) {
-          // Stream into the most recent fact tile enrichment
-          setFactTiles(prev => {
-            if (prev.length === 0) return prev;
-            const idx = prev.findIndex(t => t.id === enrichTileIdRef.current);
-            if (idx === -1) return prev;
-            const updated = [...prev];
-            const tile = updated[idx];
-            updated[idx] = {
-              ...tile,
-              enrichment: (tile.enrichment || '') + content
-            };
-            return updated;
-          });
-        } else {
-          // No tile enrichment active: show tokens in real-time
-          streamBufferRef.current = (streamBufferRef.current || '') + content;
-          
-          // Update or create assistant message in real-time
-          setThoughts(prev => {
-            // Check if last message is an in-progress assistant message
-            if (prev.length > 0 && prev[prev.length - 1].role === 'assistant' && prev[prev.length - 1].streaming) {
-              // Update existing streaming message
-              const updated = [...prev];
-              updated[updated.length - 1] = {
-                ...updated[updated.length - 1],
-                content: streamBufferRef.current
-              };
-              return updated;
-            } else {
-              // Create new streaming assistant message
-              const ts = Date.now();
-              lastAssistantTsRef.current = ts;
-              return [...prev, {
-                role: 'assistant',
-                content: streamBufferRef.current,
-                timestamp: ts,
-                streaming: true
-              }];
-            }
-          });
-        }
-      } else if (event.type === 'thinking') {
-        const message = event.data?.message || event.message || 'Processing...';
-        setThinkingStatus(message);
-      } else if (event.type === 'step') {
-        // Step completed - could show intermediate steps
-        setThinkingStatus('Working...');
-      } else if (event.type === 'done') {
-        // Final response received - mark streaming message as complete
-        const d = event.data || {};
-        const finalResponse = (
-          d.final_response || d.response || d.text || d.content || d.message || d.result ||
-          event.final_response || event.response || event.content || event.text || event.message || ''
-        );
-        const buffered = streamBufferRef.current || '';
-        const responseText = (typeof finalResponse === 'string' ? finalResponse : String(finalResponse || '')) || buffered;
-        
-        setThoughts(prev => {
-          // Check if last message is a streaming assistant message
-          if (prev.length > 0 && prev[prev.length - 1].role === 'assistant' && prev[prev.length - 1].streaming) {
-            // Mark the streaming message as complete
-            const updated = [...prev];
-            updated[updated.length - 1] = {
-              ...updated[updated.length - 1],
-              content: responseText || updated[updated.length - 1].content,
-              streaming: false // Mark as complete
-            };
-            return updated;
-          } else if (responseText) {
-            // No streaming message exists, create a final one
-            const ts = Date.now();
-            lastAssistantTsRef.current = ts;
-            return [...prev, {
-              role: 'assistant',
-              content: responseText,
-              timestamp: ts
-            }];
-          }
-          return prev;
-        });
-
-        // Save conversation to memory system
-        if (responseText && window.electron?.memory?.addMessage) {
-          window.electron.memory.addMessage('assistant', responseText)
-            .catch(err => console.warn('[Chat] Failed to save message to memory:', err));
-        }
-        // Persist to Better Memory backend as well
-        try {
-          if (lastUserPromptRef.current) {
-            memoryAPI.saveMessage({ role: 'user', content: lastUserPromptRef.current });
-          }
-          if (responseText) {
-            memoryAPI.saveMessage({ role: 'assistant', content: responseText });
-          }
-        } catch (e) {
-          console.warn('[Memory] Failed to persist messages to backend', e);
-        }
-
-        // Phase 2: Extract facts from assistant response and show toast
-        try {
-          if (responseText) {
-            const proposals = await memoryAPI.extract({ message: responseText });
-            if (Array.isArray(proposals) && proposals.length > 0) {
-              setMemoryProposals(proposals);
-              setShowMemoryToast(true);
-            }
-          }
-        } catch (e) {
-          console.warn('[Memory] Extraction failed', e);
-        }
-
-        // After assistant responds: LLM-based extraction + local persist, then show a delayed badge
-        try {
-          const userPrompt = lastUserPromptRef.current || '';
-          const currentTs = lastAssistantTsRef.current;
-
-          // 1) Ask backend to extract facts (uses small model server-side)
-          // Build a robust extraction message: user + assistant for context
-          const extractMessage = [
-            (userPrompt || '').trim() && `User: ${userPrompt.trim()}`,
-            (responseText || '').trim() && `Assistant: ${responseText.trim()}`,
-          ].filter(Boolean).join('\n');
-
-          if (!extractMessage || extractMessage.trim().length === 0) {
-            console.warn('[Memory] Skipping LLM extraction: empty message would cause 422');
-            throw new Error('EMPTY_MESSAGE_FOR_EXTRACTION');
-          }
-
-          factsAPI.extractFacts(extractMessage, null)
-            .then(async (res) => {
-              const extracted = res?.data?.extracted_facts || res?.data || [];
-              if (!Array.isArray(extracted) || extracted.length === 0) return;
-
-              // 2) Persist each fact to local Electron memory
-              const labels = [];
-              for (const fact of extracted) {
-                const category = fact.category || 'personal';
-                const key = fact.key || 'note';
-                const value = fact.value || '';
-                if (!value) continue;
-                try {
-                  await window.electron?.memory?.setFact?.(category, key, value);
-                } catch (e) {
-                  console.warn('[Memory] Failed to persist fact locally:', category, key, e);
-                }
-                // Build label text for the card
-                if (category === 'education' && key === 'school') labels.push(`School — ${value}`);
-                else if (category === 'location' && key === 'city') labels.push(`Location — ${value}`);
-                else if (category === 'personal' && key === 'name') labels.push(`Name — ${value}`);
-                else if (category === 'preferences' && key === 'likes') labels.push(`Likes — ${value}`);
-                else if (category === 'personal' && key === 'description') labels.push(`About — ${value}`);
-                else labels.push(`${category}.${key} — ${value}`);
-              }
-
-              // 3) Show UI badge a moment later (so it appears after the reply)
-              if (labels.length && currentTs) {
-                const label = `Memory created! ${labels.join(' • ')}`;
-                console.log('[Memory] Created badge (LLM):', label, 'for timestamp:', currentTs);
-                setTimeout(() => {
-                  setThoughts(prev => prev.map(t => 
-                    t.timestamp === currentTs ? { ...t, memoryLabel: label } : t
-                  ));
-                }, 600);
-              }
-            })
-            .catch((e) => {
-              console.warn('[Memory] LLM extraction failed:', e?.message || e);
-            })
-            .finally(async () => {
-              // 4) Fallback: pattern extractor (ensures we still save something offline)
-              try {
-                const fallbackFacts = await memoryService.extractFactsFromMessage(userPrompt, responseText);
-                const currentTs2 = lastAssistantTsRef.current;
-                if (fallbackFacts && Object.keys(fallbackFacts).length > 0 && currentTs2) {
-                  const lbls = [];
-                  if (fallbackFacts.name) lbls.push(`Name — ${fallbackFacts.name}`);
-                  if (fallbackFacts.location) lbls.push(`Location — ${fallbackFacts.location}`);
-                  if (fallbackFacts.school) lbls.push(`School — ${fallbackFacts.school}`);
-                  if (fallbackFacts.likes) lbls.push(`Likes — ${fallbackFacts.likes}`);
-                  if (fallbackFacts.description) lbls.push(`About — ${fallbackFacts.description}`);
-                  if (lbls.length) {
-                    const label2 = `Memory created! ${lbls.join(' • ')}`;
-                    setTimeout(() => {
-                      setThoughts(prev => prev.map(t => 
-                        t.timestamp === currentTs2 ? { ...t, memoryLabel: label2 } : t
-                      ));
-                    }, 600);
-                  }
-                }
-              } catch (e2) {
-                console.warn('[Memory] Fallback extraction failed:', e2);
-              }
-            });
-        } catch (e) {
-          console.warn('[Memory] Extraction pipeline error:', e);
-        }
-        
-        // Parse and execute commands (email, browser, etc.)
-        if (responseText) {
-          try {
-            // Email command
-            const emailCommandMatch = responseText.match(/```email_command\s*\n([\s\S]*?)\n```/);
-            if (emailCommandMatch) {
-              const commandJson = emailCommandMatch[1].trim();
-              const command = JSON.parse(commandJson);
-              
-              if (command.action === 'send_email') {
-                logger.info('[Email] Executing email command', command);
-                
-                // Get user's Gmail address from localStorage
-                const userEmail = localStorage.getItem('google_user_email');
-                
-                if (!userEmail) {
-                  toast.error('Gmail not connected. Please connect your Gmail account in settings.');
-                } else {
-                  // First, check Gmail API health
-                  logger.info('[Email] Checking Gmail API health...');
-                  toast.loading('Verifying Gmail connection...', { id: 'gmail-health' });
-                  
-                  axios.get(`http://localhost:8000/api/v2/google/gmail/health`, {
-                    params: { email: userEmail }
-                  }).then(healthResponse => {
-                    toast.dismiss('gmail-health');
-                    
-                    if (!healthResponse.data.healthy) {
-                      logger.error('[Email] Gmail health check failed:', healthResponse.data);
-                      toast.error(`Gmail error: ${healthResponse.data.message}`);
-                      return;
-                    }
-                    
-                    logger.info('[Email] Gmail healthy, sending email...', healthResponse.data);
-                    
-                    // Gmail is healthy, proceed to send email
-                    googleAPI.sendEmail(
-                      command.to,
-                      command.subject,
-                      command.body
-                    ).then(response => {
-                      logger.info('[Email] Sent successfully', response);
-                      toast.success(`Email sent to ${command.to}!`);
-                    }).catch(error => {
-                      logger.error('[Email] Failed to send', error);
-                      toast.error(`Failed to send email: ${error.message}`);
-                    });
-                  }).catch(healthError => {
-                    toast.dismiss('gmail-health');
-                    logger.error('[Email] Health check failed:', healthError);
-                    toast.error('Failed to verify Gmail connection. Please check your connection in settings.');
-                  });
-                }
-              }
-            }
-            
-            // Browser command - Open URLs in user's native browser
-            const browserCommandMatch = responseText.match(/```browser_command\s*\n([\s\S]*?)\n```/);
-            if (browserCommandMatch) {
-              const commandJson = browserCommandMatch[1].trim();
-              const command = JSON.parse(commandJson);
-              
-              if (command.action === 'open_url') {
-                logger.info('[Browser] Executing browser command', command);
-                
-                // Open URL in user's default browser (native UX)
-                if (window.electron?.openExternal) {
-                  window.electron.openExternal(command.url)
-                    .then(() => {
-                      logger.info('[Browser] Opened URL successfully', command.url);
-                      toast.success('Opened in your browser!');
-                    })
-                    .catch(error => {
-                      logger.error('[Browser] Failed to open URL', error);
-                      toast.error(`Failed to open browser: ${error.message}`);
-                    });
-                } else {
-                  // Fallback for non-Electron environment
-                  window.open(command.url, '_blank');
-                  toast.success('Opened in new tab!');
-                }
-              }
-            }
-          } catch (err) {
-            logger.error('[Command] Failed to parse command', err);
-          }
-        }
-        
-        // Clear enrichment scope at end of stream
-        enrichTileIdRef.current = null;
-        // Clear any accumulated plain text tokens
-        streamBufferRef.current = '';
-        setIsThinking(false);
-        setThinkingStatus('');
-      } else if (event.type === 'error') {
-        const errorMsg = event.data?.error || event.error || 'Failed to get response';
-        toast.error(errorMsg);
-        // Reset buffers on error
-        enrichTileIdRef.current = null;
-        streamBufferRef.current = '';
-        setIsThinking(false);
-        setThinkingStatus('');
-      }
-    }).catch(error => {
-      toast.error('Failed to send message: ' + error.message);
-      console.error('Chat error:', error);
-      setIsThinking(false);
-      setThinkingStatus('');
-    });
-  }, [thoughts]);
-
-  // Handle message submit with safety check and potential approval
-  // Handle screenshot permission response
-  const handleScreenshotPermission = useCallback(async (approved) => {
-    setScreenshotPermissionOpen(false);
-    
-    if (!pendingMessageForScreenshot) return;
-    
-    const { text } = pendingMessageForScreenshot;
-    setIsThinking(true);
-    setThinkingStatus(approved ? 'Capturing screenshot...' : 'Thinking...');
-    
-    let screenshotData = null;
-    if (approved && window.electron?.takeScreenshot) {
-      try {
-        const result = await window.electron.takeScreenshot();
-        screenshotData = result.base64;
-        console.log('[Chat] Screenshot captured:', Math.round(result.size / 1024), 'KB');
-      } catch (error) {
-        console.error('[Chat] Failed to capture screenshot:', error);
-        toast.error('Failed to capture screenshot');
-      }
-    }
-    
-    // Continue with message sending
-    continueSendMessage(text, screenshotData);
-    setPendingMessageForScreenshot(null);
-  }, [pendingMessageForScreenshot]);
-
-  // Helper: retrieve context then proceed to send (optionally auto-send)
-  const continueAfterPreview = useCallback(async (text) => {
-    await retrieveContext(text);
-    if (autoSend) {
-      setTimeout(() => {
-        try { continueSend(text); } catch (e) { console.warn('continueSend not available', e); }
-      }, 800);
-    } else {
-      // Show preview and wait for user to click send again
-      toast.success('Context prepared. Press send to continue.');
-    }
-  }, [retrieveContext, autoSend]);
-
-  // Retrieve Better Memory context pack for a message
-  const retrieveContext = useCallback(async (text) => {
-    try {
-      setIsLoadingContext(true);
-      const pack = await memoryAPI.query({
-        text,
-        k_facts: 8,
-        k_sem: 6,
-        token_budget: 900,
-        allow_vectors: false,
-      });
-      setContextPack(pack);
-      setShowContextPreview(true);
-      setContextPreviewExpanded(true);
-      logger.info('[Memory] Retrieved context pack', {
-        facts: pack?.facts?.length || 0,
-        semantic_hits: pack?.semantic_hits?.length || 0,
-        messages: pack?.recent_messages?.length || 0,
-        tokens: `${pack?.budget?.used_tokens || 0}/${pack?.budget?.cap || 0}`,
-      });
-      return pack;
-    } catch (e) {
-      logger.warn('[Memory] Context retrieval failed', e);
-      return null;
-    } finally {
-      setIsLoadingContext(false);
-    }
-  }, []);
-  
-  // Continue sending message after screenshot decision
-  const continueSendMessage = useCallback(async (text, screenshotData) => {
-    setThinkingStatus('Thinking...');
-    // Remember the last user prompt for memory extraction
-    lastUserPromptRef.current = text;
-    
-    // Build user context
-    let userContext = {
-      recent_messages: thoughts.map(t => ({ role: t.role, content: t.content })),
-      profile: null,
-      facts: null,
-      preferences: null,
-      google_user_email: localStorage.getItem('google_user_email') || null  // Add Google connection status
-    };
-    if (window.electron?.memory) {
-      try {
-        const [profile, facts, preferences] = await Promise.all([
-          window.electron.memory.getProfile().catch(() => null),
-          window.electron.memory.getFacts().catch(() => null),
-          window.electron.memory.getPreferences().catch(() => null)
-        ]);
-        userContext.profile = profile;
-        userContext.facts = facts;
-        userContext.preferences = preferences;
-
-        // Semantic retrieval: build a minimal, relevant context for the current goal
-        try {
-          let recentMsgs = [];
-          if (window.electron.memory.getRecentMessages) {
-            recentMsgs = await window.electron.memory.getRecentMessages(20).catch(() => []);
-          }
-
-          const normalizeFacts = (arr) => {
-            if (!Array.isArray(arr)) return [];
-            return arr.map((f, i) => ({
-              id: f.id || String(i),
-              category: f.category || f.type || 'personal',
-              predicate: f.predicate || f.key || 'value',
-              object: f.object || f.value || '',
-              confidence: f.confidence ?? 0.9,
-              pii_level: f.pii_level ?? 1,
-              consent_scope: f.consent_scope ?? 'default',
-              updated_at: f.updated_at || null,
-              created_at: f.created_at || null,
-            }));
-          };
-
-          const normalizedFacts = normalizeFacts(facts);
-          const normalizedRecent = Array.isArray(recentMsgs)
-            ? recentMsgs.map((m, i) => ({
-                id: m.id || String(i),
-                role: m.role || 'user',
-                content: m.content || m.text || '',
-                created_at: m.created_at || new Date().toISOString(),
-              }))
-            : [];
-
-          const vaultAdapter = {
-            getAllFacts: () => normalizedFacts,
-            getRecentMessages: (n = 10) => normalizedRecent.slice(-n),
-            getFactRelevance: () => 1.0,
-          };
-
-          // Check if deep memory search is enabled
-          const deepMemory = localStorage.getItem('pref_deep_memory_search') === '1';
-          const selection = await contextSelector.selectContext(text, vaultAdapter, {
-            tokenBudget: deepMemory ? 1200 : 600,
-            alpha: deepMemory ? 0.85 : 0.7,
-          });
-          const semanticContext = contextSelector.buildContextString(selection.slices);
-          if (semanticContext) {
-            userContext.semantic_context = semanticContext;
-          }
-
-          // Query local Electron memory for cross-session recall
-          try {
-            const deepMemory = localStorage.getItem('pref_deep_memory_search') === '1';
-            // For local keyword search, use more permissive thresholds
-            const threshold = deepMemory ? 0.3 : 0.4;
-            const limit = deepMemory ? 10 : 6;
-            console.log(`[Semantic] Searching local memory with threshold=${threshold}, limit=${limit}, deepMemory=${deepMemory}`);
-
-            // Utilities: normalize text and expand synonyms
-            const normalize = (s) => (s || '')
-              .toLowerCase()
-              .replace(/[^a-z0-9\s]/g, ' ') // strip punctuation
-              .replace(/\s+/g, ' ') // collapse spaces
-              .trim();
-            const STOP = new Set(['the','a','an','to','of','is','are','am','and','or','for','in','on','at','with','my','your','our','their','what','where','when','how','who','do','does','did','go','went','you','i']);
-            const expandSynonyms = (word) => {
-              if (['school','college','university'].includes(word)) return ['school','college','university'];
-              if (['city','town','location'].includes(word)) return ['city','town','location'];
-              if (['name','called'].includes(word)) return ['name','called'];
-              if (['favorite','favourite','fav'].includes(word)) return ['favorite','favourite','fav','like','love','prefer'];
-              if (['food','cuisine','dish','meal','snack'].includes(word)) return ['food','cuisine','dish','meal','snack'];
-              return [word];
-            };
-            const tokens = normalize(text).split(' ').filter(w => w && !STOP.has(w));
-            const queryTerms = Array.from(new Set(tokens.flatMap(expandSynonyms)));
-
-            let items = [];
-            if (window.electron?.memory?.getAllSessions) {
-              try {
-                // 1) Direct facts recall with high confidence
-                let factsBlock = '';
-                const facts = await window.electron.memory.getFacts().catch(() => null);
-                if (facts) {
-                  const school = facts?.education?.school?.value ?? facts?.education?.school ?? null;
-                  if (school && queryTerms.some(t => ['school','college','university'].includes(t))) {
-                    items.push({ text: `You go to ${school}`, score: 1.0, fact: true });
-                    factsBlock += `- School: ${school}\n`;
-                  }
-                  const city = facts?.location?.city?.value ?? facts?.location?.city ?? null;
-                  if (city && queryTerms.some(t => ['city','town','location'].includes(t))) {
-                    items.push({ text: `You are in ${city}`, score: 0.9, fact: true });
-                    factsBlock += `- Location: ${city}\n`;
-                  }
-                  const name = facts?.personal?.name?.value ?? facts?.personal?.name ?? null;
-                  if (name && queryTerms.includes('name')) {
-                    items.push({ text: `Your name is ${name}`, score: 0.9, fact: true });
-                    factsBlock += `- Name: ${name}\n`;
-                  }
-                  const favoriteFood = facts?.preferences?.favorite_food?.value ?? facts?.preferences?.favorite_food ?? null;
-                  if (favoriteFood && (queryTerms.some(t => ['favorite','favourite','fav'].includes(t)) || queryTerms.some(t => ['food','cuisine','dish','meal'].includes(t)))) {
-                    items.push({ text: `Your favorite food is ${favoriteFood}`, score: 1.0, fact: true });
-                    factsBlock += `- Favorite food: ${favoriteFood}\n`;
-                  }
-                  const likes = facts?.preferences?.likes?.value ?? facts?.preferences?.likes ?? null;
-                  if (likes && queryTerms.some(t => ['favorite','favourite','fav','like','love','prefer'].includes(t))) {
-                    items.push({ text: `You like ${likes}`, score: 0.85, fact: true });
-                    factsBlock += `- Likes: ${likes}\n`;
-                  }
-                  if (factsBlock) {
-                    userContext.semantic_context = (userContext.semantic_context || '') + `\n\n**Known Facts:**\n${factsBlock}`;
-                  }
-                }
-
-                // 2) Scan conversation history for keyword matches
-                const sessions = await window.electron.memory.getAllSessions();
-                console.log(`[Semantic] Searching ${sessions.length} local sessions`);
-                const matches = [];
-                sessions.forEach(session => {
-                  (session.messages || []).forEach(msg => {
-                    if (!msg?.content) return;
-                    const contentNorm = normalize(msg.content);
-                    const hits = queryTerms.filter(k => contentNorm.includes(k));
-                    if (hits.length > 0) {
-                      const score = hits.length / Math.max(queryTerms.length, 1);
-                      if (score >= threshold) {
-                        matches.push({
-                          text: msg.content.slice(0, 200),
-                          score,
-                          timestamp: msg.timestamp || session.started_at,
-                          session: session.sessionId
-                        });
-                      }
-                    }
-                  });
-                });
-
-                // Merge fact items and matched items, de-dup, sort
-                items = [...items, ...matches]
-                  .filter(Boolean)
-                  .sort((a, b) => (b.score || 0) - (a.score || 0))
-                  .slice(0, limit);
-
-                console.log('[Semantic] Found', items.length, 'similar items from local memory');
-              } catch (err) {
-                console.warn('[Semantic] Local search failed:', err);
-              }
-            } else {
-              console.warn('[Semantic] Electron memory API not available');
-            }
-            
-            if (Array.isArray(items) && items.length) {
-              // Dedup by content similarity
-              const seen = new Set();
-              items = items.filter((it) => {
-                const txt = (it.text || it.content || it.snippet || '').toLowerCase().slice(0, 50);
-                if (seen.has(txt)) return false;
-                seen.add(txt);
-                return true;
-              });
-
-              // If >3 items, summarize to 2-3 bullets
-              let lines;
-              if (items.length > 3) {
-                const topItems = items.slice(0, 3);
-                lines = topItems
-                  .map((it) => `- ${it.text || it.content || it.snippet || ''}`)
-                  .filter(Boolean)
-                  .join('\n');
-              } else {
-                lines = items
-                  .map((it, i) => {
-                    const text = it.text || it.content || it.snippet || '';
-                    const score = typeof it.score === 'number' ? ` (${it.score.toFixed(2)})` : '';
-                    return `- ${text}${score}`;
-                  })
-                  .filter(Boolean)
-                  .join('\n');
-              }
-              const block = lines ? `\n\n**Similar Memories:**\n${lines}` : '';
-              userContext.semantic_context = (userContext.semantic_context || '') + block;
-              userContext.semantic_sources = items.map((it) => ({ id: it.id || it.uuid || null, score: it.score || null }));
-            }
-          } catch (e) {
-            console.warn('[Chat] Embedding semantic search failed:', e);
-          }
-        } catch (e) {
-          console.warn('[Chat] Semantic retrieval failed:', e);
-        }
-      } catch (error) {
-        console.warn('[Chat] Failed to load memory context:', error);
-      }
-    }
-    
-    // If a Better Memory context pack is available, attach it to userContext and clear preview
-    try {
-      if (contextPack) {
-        userContext.memory_pack = {
-          facts: (contextPack.facts || []).map(f => ({
-            category: f.category,
-            key: f.key,
-            value: f.value,
-            confidence: f.confidence,
-            pinned: !!f.pinned,
-          })),
-          semantic_hits: (contextPack.semantic_hits || []).map(h => ({
-            snippet: h.snippet,
-            score: h.score,
-          })),
-          recent_messages: (contextPack.recent_messages || []).map(m => ({ role: m.role, content: m.content })),
-          budget: contextPack.budget,
-          rationale: contextPack.rationale,
-        };
-      }
-    } catch (e) {
-      console.warn('[Memory] Failed to attach memory_pack', e);
-    } finally {
-      if (contextPack) {
-        setShowContextPreview(false);
-        setContextPack(null);
-      }
-    }
-
-    // Execute the streaming call (reuse the existing sendChat logic)
-    sendChat(text, userContext, screenshotData);
-  }, [thoughts, contextPack]);
-
-  // Memory Toast handlers
-  const handleMemoryApply = useCallback(async (confirmedIds) => {
-    try {
-      await memoryAPI.apply({ proposals: memoryProposals, confirmed: confirmedIds.map(String) });
-      setShowMemoryToast(false);
-      setMemoryProposals([]);
-      window.dispatchEvent(new Event('memory-changed'));
-      toast.success('Memory saved');
-    } catch (e) {
-      toast.error('Failed to save memory');
-      console.warn('[Memory] Apply failed', e);
-    }
-  }, [memoryProposals]);
-
-  const handleMemoryDismiss = useCallback(() => {
-    setShowMemoryToast(false);
   }, []);
   
   // Main streaming chat logic (extracted for reuse)
@@ -1156,13 +379,38 @@ export default function AppleFloatBar({
         setThinkingStatus('Working...');
       } else if (event.type === 'done') {
         // Final response received - mark streaming message as complete
-        const d = event.data || {};
-        const finalResponse = (
-          d.final_response || d.response || d.text || d.content || d.message || d.result ||
-          event.final_response || event.response || event.content || event.text || event.message || ''
-        );
+        const d = event.data || event || {};
+        // Try common keys first
+        const primaryKeys = ['final_response','final','response','text','content','message','result','answer','output'];
+        let finalResponse = null;
+        for (const k of primaryKeys) {
+          const v = d?.[k];
+          if (typeof v === 'string' && v.trim()) { finalResponse = v; break; }
+        }
+        // Model-runner style structures
+        if (!finalResponse) {
+          const nested = d?.choices?.[0]?.message?.content || d?.choices?.[0]?.delta?.content || d?.data?.text || d?.data?.content;
+          if (typeof nested === 'string' && nested.trim()) finalResponse = nested;
+        }
+        // Generic fallback: scan object for first non-empty string
+        if (!finalResponse && d && typeof d === 'object') {
+          const stack = [d];
+          const seen = new Set();
+          while (stack.length && !finalResponse) {
+            const cur = stack.pop();
+            if (!cur || typeof cur !== 'object' || seen.has(cur)) continue;
+            seen.add(cur);
+            for (const [key, val] of Object.entries(cur)) {
+              if (typeof val === 'string' && val.trim()) { finalResponse = val; break; }
+              if (val && typeof val === 'object') stack.push(val);
+            }
+          }
+        }
         const buffered = streamBufferRef.current || '';
-        const responseText = (typeof finalResponse === 'string' ? finalResponse : String(finalResponse || '')) || buffered;
+        const responseText = (typeof finalResponse === 'string' && finalResponse.trim()) ? finalResponse : buffered;
+        if (!responseText) {
+          try { console.warn('[Chat] Done event had no response text. data keys:', Object.keys(d || {})); } catch {}
+        }
         
         setThoughts(prev => {
           // Check if last message is a streaming assistant message
@@ -1190,6 +438,37 @@ export default function AppleFloatBar({
         if (responseText && window.electron?.memory?.addMessage) {
           window.electron.memory.addMessage('assistant', responseText)
             .catch(err => console.warn('[Chat] Failed to save message to memory:', err));
+        }
+        
+        // Option A: Automatic memory extraction and apply (no user prompts)
+        try {
+          const userPrompt = (lastUserPromptRef.current || '').trim();
+          const assistantText = (responseText || '').trim();
+          const extractMessage = [
+            userPrompt && `User: ${userPrompt}`,
+            assistantText && `Assistant: ${assistantText}`,
+          ].filter(Boolean).join('\n');
+          if (extractMessage && extractMessage.trim().length > 0) {
+            const proposals = await memoryAPI.extract({ message: extractMessage });
+            if (Array.isArray(proposals) && proposals.length > 0) {
+              if (memoryAutoApply && !memoryReviewEnabled) {
+                const confirmed = proposals.map((p, i) => String(p.id || p.uuid || i));
+                try {
+                  await memoryAPI.apply({ proposals, confirmed });
+                  window.dispatchEvent(new Event('memory-changed'));
+                } catch (e) {
+                  console.warn('[Memory] Auto-apply failed', e);
+                }
+              } else {
+                try {
+                  setMemoryProposals(proposals);
+                  setShowMemoryToast(true);
+                } catch {}
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[Memory] Extraction failed', e);
         }
         
         // Parse and execute commands (email, browser, etc.)
@@ -1310,6 +589,564 @@ export default function AppleFloatBar({
       setThinkingStatus('');
     });
   }, []);
+
+  // Helper to run the full send flow (credits, screenshots, streaming, memory)
+  const continueSend = useCallback(async (text) => {
+    // Get user ID for credit check
+    const userId = localStorage.getItem('user_id');
+    if (!userId) {
+      toast.error('Please wait for user initialization');
+      return;
+    }
+    // NOT cached - check and deduct credit
+    try {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('metadata')
+        .eq('id', userId)
+        .single();
+      const currentCredits = userData?.metadata?.credits || 0;
+      if (currentCredits <= 0) {
+        toast.error('No credits remaining! Please purchase more.');
+        const openSettings = window.electron?.openSettings || window.electronAPI?.openSettings;
+        if (openSettings) {
+          await openSettings({ route: '#/settings?section=credits' });
+        }
+        return;
+      }
+      await supabase
+        .from('users')
+        .update({
+          metadata: {
+            ...userData.metadata,
+            credits: currentCredits - 1
+          }
+        })
+        .eq('id', userId);
+      logger.info(`Credit deducted: ${currentCredits} → ${currentCredits - 1}`);
+      await supabase.from('telemetry_events').insert({
+        user_id: userId,
+        event_type: 'credit_usage',
+        action: 'message_sent',
+        metadata: {
+          credits_remaining: currentCredits - 1,
+          message_cached: false
+        }
+      });
+    } catch (error) {
+      logger.error('Credit check/deduction failed', error);
+      toast.error('Failed to process credits. Please try again.');
+      return;
+    }
+    // Add user message
+    setThoughts(prev => [...prev, { role: 'user', content: text, timestamp: Date.now() }]);
+    setMessage('');
+    setIsThinking(true);
+    setThinkingStatus('Thinking...');
+    // Remember last user prompt for extraction
+    try { lastUserPromptRef.current = text; } catch {}
+    if (window.electron?.memory?.addMessage) {
+      window.electron.memory.addMessage('user', text)
+        .catch(err => console.warn('[Chat] Failed to save user message to memory:', err));
+    }
+    // Immediately extract and persist facts from the user's message (no confirmation prompt)
+    try {
+      await memoryService.extractFactsFromMessage(text, null);
+      console.log('[Memory] Auto-saved facts from user message');
+    } catch (e) {
+      console.warn('[Memory] Auto-save failed:', e);
+    }
+    // Screenshot / ambiguity handling - use GPT-4o-mini for intelligent detection
+    let screenshotData = null;
+    
+    try {
+      // Call ambiguity API to check if screenshot is needed
+      const ambiguityResult = await ambiguityAPI.checkAmbiguity(text, 5);
+      
+      // Validate response structure
+      if (!ambiguityResult || typeof ambiguityResult.needs_screenshot === 'undefined') {
+        throw new Error('Invalid ambiguity API response');
+      }
+      
+      logger.info('[Ambiguity] Classification result:', {
+        needs_screenshot: ambiguityResult.needs_screenshot,
+        reason: ambiguityResult.reason || 'unknown',
+        latency: ambiguityResult.latency_ms ? `${ambiguityResult.latency_ms.toFixed(1)}ms` : 'N/A',
+        word_count: ambiguityResult.word_count || 0,
+        confidence: ambiguityResult.confidence || 0
+      });
+      
+      // If explicit screen request, take screenshot immediately without asking
+      if (ambiguityResult.reason === 'explicit_request') {
+        if (window.electron?.takeScreenshot) {
+          try {
+            setThinkingStatus('Capturing screenshot...');
+            const result = await window.electron.takeScreenshot();
+            screenshotData = result.base64;
+            logger.info('[Screenshot] Captured for explicit request:', Math.round(result.size / 1024), 'KB');
+          } catch (error) {
+            logger.error('[Screenshot] Failed to capture:', error);
+            toast.error('Failed to capture screenshot');
+          }
+        }
+      } 
+      // If ambiguous, ask permission first
+      else if (ambiguityResult.needs_screenshot && window.electron?.takeScreenshot) {
+        setScreenshotPermissionOpen(true);
+        setPendingMessageForScreenshot({ text, userContext: null });
+        setIsThinking(false);
+        setThinkingStatus('');
+        return; // Wait for user approval
+      }
+    } catch (error) {
+      // On API error, fall back to no screenshot (safer than blocking user)
+      logger.error('[Ambiguity] API call failed:', error);
+      screenshotData = null;
+    }
+    // Build user context
+    let userContext = {
+      recent_messages: thoughts.map(t => ({ role: t.role, content: t.content })),
+      profile: null,
+      facts: null,
+      preferences: null,
+      google_user_email: localStorage.getItem('google_user_email') || null  // Add Google connection status
+    };
+    if (window.electron?.memory) {
+      try {
+        const [profile, facts, preferences] = await Promise.all([
+          window.electron.memory.getProfile().catch(() => null),
+          window.electron.memory.getFacts().catch(() => null),
+          window.electron.memory.getPreferences().catch(() => null)
+        ]);
+        userContext.profile = profile;
+        userContext.facts = facts;
+        userContext.preferences = preferences;
+        // Inject Known Facts directly into semantic_context so the model can use them without extra retrieval
+        try {
+          const f = facts || {};
+          const school = f?.education?.school?.value ?? f?.education?.school ?? null;
+          const city = f?.location?.city?.value ?? f?.location?.city ?? null;
+          const name = f?.personal?.name?.value ?? f?.personal?.name ?? null;
+          const favoriteFood = f?.preferences?.favorite_food?.value ?? f?.preferences?.favorite_food ?? null;
+          const likes = f?.preferences?.likes?.value ?? f?.preferences?.likes ?? null;
+          let known = '';
+          if (school) known += `- School: ${school}\n`;
+          if (city) known += `- Location: ${city}\n`;
+          if (name) known += `- Name: ${name}\n`;
+          if (favoriteFood) known += `- Favorite food: ${favoriteFood}\n`;
+          if (likes) known += `- Likes: ${likes}\n`;
+          if (known) {
+            userContext.semantic_context = (userContext.semantic_context || '') + `\n\n**Known Facts:**\n${known}`;
+          }
+        } catch (e) {
+          console.warn('[Chat] Embedding semantic search failed:', e);
+        }
+      } catch (e) {
+        console.warn('[Chat] Semantic retrieval failed:', e);
+      }
+    }
+    // Streaming call
+    sendChat(text, userContext, screenshotData);
+  }, [thoughts]);
+  // Handle message submit with safety check and potential approval
+  // Handle screenshot permission response
+  const handleScreenshotPermission = useCallback(async (approved) => {
+    setScreenshotPermissionOpen(false);
+    if (!pendingMessageForScreenshot) return;
+    const { text } = pendingMessageForScreenshot;
+    setIsThinking(true);
+    setThinkingStatus(approved ? 'Capturing screenshot...' : 'Thinking...');
+    let screenshotData = null;
+    if (approved && window.electron?.takeScreenshot) {
+      try {
+        const result = await window.electron.takeScreenshot();
+        screenshotData = result.base64;
+        console.log('[Chat] Screenshot captured:', Math.round(result.size / 1024), 'KB');
+      } catch (error) {
+        console.error('[Chat] Failed to capture screenshot:', error);
+        toast.error('Failed to capture screenshot');
+      }
+    }
+    // Continue with message sending (use ref to avoid TDZ)
+    if (continueSendMessageRef.current) {
+      continueSendMessageRef.current(text, screenshotData);
+    } else {
+      console.warn('continueSendMessage not ready');
+    }
+    setPendingMessageForScreenshot(null);
+  }, [pendingMessageForScreenshot]);
+
+  // Continue sending message after screenshot decision
+  const continueSendMessage = useCallback(async (text, screenshotData, memoryPack = null) => {
+    // Add user message to chat immediately
+    setThoughts(prev => [...prev, { role: 'user', content: text, timestamp: Date.now() }]);
+    setMessage('');
+    setIsThinking(true);
+    setThinkingStatus('Thinking...');
+    // Remember the last user prompt for memory extraction
+    lastUserPromptRef.current = text;
+    
+    // Save user message to electron memory
+    if (window.electron?.memory?.addMessage) {
+      window.electron.memory.addMessage('user', text)
+        .catch(err => console.warn('[Chat] Failed to save user message to memory:', err));
+    }
+    
+    // Build user context
+    let userContext = {
+      recent_messages: thoughts.map(t => ({ role: t.role, content: t.content })),
+      profile: null,
+      facts: null,
+      preferences: null,
+      google_user_email: localStorage.getItem('google_user_email') || null  // Add Google connection status
+    };
+    if (window.electron?.memory) {
+      try {
+        const [profile, facts, preferences] = await Promise.all([
+          window.electron.memory.getProfile().catch(() => null),
+          window.electron.memory.getFacts().catch(() => null),
+          window.electron.memory.getPreferences().catch(() => null)
+        ]);
+        userContext.profile = profile;
+        userContext.facts = facts;
+        userContext.preferences = preferences;
+
+        // Semantic retrieval: build a minimal, relevant context for the current goal
+        try {
+          let recentMsgs = [];
+          if (window.electron.memory.getRecentMessages) {
+            recentMsgs = await window.electron.memory.getRecentMessages(20).catch(() => []);
+          }
+
+          const normalizeFacts = (arr) => {
+            if (!Array.isArray(arr)) return [];
+            return arr.map((f, i) => ({
+              id: f.id || String(i),
+              category: f.category || f.type || 'personal',
+              predicate: f.predicate || f.key || 'value',
+              object: f.object || f.value || '',
+              confidence: f.confidence ?? 0.9,
+              pii_level: f.pii_level ?? 1,
+              consent_scope: f.consent_scope ?? 'default',
+              updated_at: f.updated_at || null,
+              created_at: f.created_at || null,
+            }));
+          };
+
+          const normalizedFacts = normalizeFacts(facts);
+          const normalizedRecent = Array.isArray(recentMsgs)
+            ? recentMsgs.map((m, i) => ({
+                id: m.id || String(i),
+                role: m.role || 'user',
+                content: m.content || m.text || '',
+                created_at: m.created_at || new Date().toISOString(),
+              }))
+            : [];
+
+          const vaultAdapter = {
+            getAllFacts: () => normalizedFacts,
+            getRecentMessages: (n = 10) => normalizedRecent.slice(-n),
+            getFactRelevance: () => 1.0,
+          };
+
+          // Check if deep memory search is enabled
+          const deepMemory = localStorage.getItem('pref_deep_memory_search') === '1';
+          const selection = await contextSelector.selectContext(text, vaultAdapter, {
+            tokenBudget: deepMemory ? 1200 : 600,
+            alpha: deepMemory ? 0.85 : 0.7,
+          });
+          const semanticContext = contextSelector.buildContextString(selection.slices);
+          if (semanticContext) {
+            userContext.semantic_context = semanticContext;
+          }
+          if (memoryDebugEnabled) {
+            try {
+              logger.info('[Semantic][Selector] meta', selection.meta || {});
+              logger.info('[Semantic][Selector] slices', (selection.slices || []).map(s => ({ id: s.id, kind: s.kind, score: s.score, tokens: s.tokens, text: (s.text||'').slice(0,80) })));
+            } catch {}
+          }
+
+          // Query local Electron memory for cross-session recall
+          try {
+            const deepMemory = localStorage.getItem('pref_deep_memory_search') === '1';
+            // For local keyword search, use more permissive thresholds
+            const threshold = deepMemory ? 0.3 : 0.4;
+            const limit = deepMemory ? 10 : 6;
+            console.log(`[Semantic] Searching local memory with threshold=${threshold}, limit=${limit}, deepMemory=${deepMemory}`);
+
+            // Utilities: normalize text and expand synonyms
+            const normalize = (s) => (s || '')
+              .toLowerCase()
+              .replace(/[^a-z0-9\s]/g, ' ') // strip punctuation
+              .replace(/\s+/g, ' ') // collapse spaces
+              .trim();
+            const STOP = new Set(['the','a','an','to','of','is','are','am','and','or','for','in','on','at','with','my','your','our','their','what','where','when','how','who','do','does','did','go','went','you','i']);
+            const expandSynonyms = (word) => {
+              if (['school','college','university'].includes(word)) return ['school','college','university'];
+              if (['city','town','location'].includes(word)) return ['city','town','location'];
+              if (['name','called'].includes(word)) return ['name','called'];
+              if (['favorite','favourite','fav'].includes(word)) return ['favorite','favourite','fav','like','love','prefer'];
+              if (['food','cuisine','dish','meal','snack'].includes(word)) return ['food','cuisine','dish','meal','snack'];
+              return [word];
+            };
+            const tokens = normalize(text).split(' ').filter(w => w && !STOP.has(w));
+            const queryTerms = Array.from(new Set(tokens.flatMap(expandSynonyms)));
+            if (memoryDebugEnabled) {
+              logger.info('[Semantic][Local] queryTerms', queryTerms);
+            }
+
+            let items = [];
+            if (window.electron?.memory?.getAllSessions) {
+              try {
+                // 1) Direct facts recall with high confidence
+                let factsBlock = '';
+                const facts = await window.electron.memory.getFacts().catch(() => null);
+                if (facts) {
+                  const school = facts?.education?.school?.value ?? facts?.education?.school ?? null;
+                  if (school && queryTerms.some(t => ['school','college','university'].includes(t))) {
+                    items.push({ text: `You go to ${school}`, score: 1.0, fact: true });
+                    factsBlock += `- School: ${school}\n`;
+                  }
+                  const city = facts?.location?.city?.value ?? facts?.location?.city ?? null;
+                  if (city && queryTerms.some(t => ['city','town','location'].includes(t))) {
+                    items.push({ text: `You are in ${city}`, score: 0.9, fact: true });
+                    factsBlock += `- Location: ${city}\n`;
+                  }
+                  const name = facts?.personal?.name?.value ?? facts?.personal?.name ?? null;
+                  if (name && queryTerms.includes('name')) {
+                    items.push({ text: `Your name is ${name}`, score: 0.9, fact: true });
+                    factsBlock += `- Name: ${name}\n`;
+                  }
+                  const favoriteFood = facts?.preferences?.favorite_food?.value ?? facts?.preferences?.favorite_food ?? null;
+                  if (favoriteFood && (queryTerms.some(t => ['favorite','favourite','fav'].includes(t)) || queryTerms.some(t => ['food','cuisine','dish','meal'].includes(t)))) {
+                    items.push({ text: `Your favorite food is ${favoriteFood}`, score: 1.0, fact: true });
+                    factsBlock += `- Favorite food: ${favoriteFood}\n`;
+                  }
+                  const likes = facts?.preferences?.likes?.value ?? facts?.preferences?.likes ?? null;
+                  if (likes && queryTerms.some(t => ['favorite','favourite','fav','like','love','prefer'].includes(t))) {
+                    items.push({ text: `You like ${likes}`, score: 0.85, fact: true });
+                    factsBlock += `- Likes: ${likes}\n`;
+                  }
+                  if (factsBlock) {
+                    userContext.semantic_context = (userContext.semantic_context || '') + `\n\n**Known Facts:**\n${factsBlock}`;
+                    if (memoryDebugEnabled) {
+                      logger.info('[Semantic][Facts] appended', factsBlock);
+                    }
+                  }
+                }
+
+                // 2) Scan conversation history for keyword matches
+                const sessions = await window.electron.memory.getAllSessions();
+                console.log(`[Semantic] Searching ${sessions.length} local sessions`);
+                const matches = [];
+                sessions.forEach(session => {
+                  (session.messages || []).forEach(msg => {
+                    if (!msg?.content) return;
+                    const contentNorm = normalize(msg.content);
+                    const hits = queryTerms.filter(k => contentNorm.includes(k));
+                    if (hits.length > 0) {
+                      const score = hits.length / Math.max(queryTerms.length, 1);
+                      if (score >= threshold) {
+                        matches.push({
+                          text: msg.content.slice(0, 200),
+                          score,
+                          timestamp: msg.timestamp || session.started_at,
+                          session: session.sessionId
+                        });
+                      }
+                    }
+                  });
+                });
+
+                // Merge fact items and matched items, de-dup, sort
+                items = [...items, ...matches]
+                  .filter(Boolean)
+                  .sort((a, b) => (b.score || 0) - (a.score || 0))
+                  .slice(0, limit);
+
+                console.log('[Semantic] Found', items.length, 'similar items from local memory');
+                if (memoryDebugEnabled && items.length) {
+                  logger.info('[Semantic][Local] top', items.slice(0,5));
+                }
+              } catch (err) {
+                console.warn('[Semantic] Local search failed:', err);
+              }
+            } else {
+              console.warn('[Semantic] Electron memory API not available');
+            }
+            
+            if (Array.isArray(items) && items.length) {
+              // Dedup by content similarity
+              const seen = new Set();
+              items = items.filter((it) => {
+                const txt = (it.text || it.content || it.snippet || '').toLowerCase().slice(0, 50);
+                if (seen.has(txt)) return false;
+                seen.add(txt);
+                return true;
+              });
+
+              // If >3 items, summarize to 2-3 bullets
+              let lines;
+              if (items.length > 3) {
+                const topItems = items.slice(0, 3);
+                lines = topItems
+                  .map((it) => `- ${it.text || it.content || it.snippet || ''}`)
+                  .filter(Boolean)
+                  .join('\n');
+              } else {
+                lines = items
+                  .map((it, i) => {
+                    const text = it.text || it.content || it.snippet || '';
+                    const score = typeof it.score === 'number' ? ` (${it.score.toFixed(2)})` : '';
+                    return `- ${text}${score}`;
+                  })
+                  .filter(Boolean)
+                  .join('\n');
+              }
+              const block = lines ? `\n\n**Similar Memories:**\n${lines}` : '';
+              userContext.semantic_context = (userContext.semantic_context || '') + block;
+              userContext.semantic_sources = items.map((it) => ({ id: it.id || it.uuid || null, score: it.score || null }));
+            }
+          } catch (e) {
+            console.warn('[Chat] Embedding semantic search failed:', e);
+          }
+        } catch (e) {
+          console.warn('[Chat] Semantic retrieval failed:', e);
+        }
+      } catch (error) {
+        console.warn('[Chat] Failed to load memory context:', error);
+      }
+    }
+    
+    // If a Better Memory context pack is available (passed directly or from state), attach it to userContext
+    const packToUse = memoryPack || contextPack;
+    try {
+      if (packToUse) {
+        userContext.memory_pack = {
+          facts: (packToUse.facts || []).map(f => ({
+            category: f.category,
+            key: f.key,
+            value: f.value,
+            confidence: f.confidence,
+            pinned: !!f.pinned,
+          })),
+          semantic_hits: (packToUse.semantic_hits || []).map(h => ({
+            snippet: h.snippet,
+            score: h.score,
+          })),
+          recent_messages: (packToUse.recent_messages || []).map(m => ({ role: m.role, content: m.content })),
+          budget: packToUse.budget,
+          rationale: packToUse.rationale,
+        };
+        console.log('[Memory] Attached context pack:', {
+          facts: userContext.memory_pack.facts.length,
+          semantic_hits: userContext.memory_pack.semantic_hits.length,
+          recent_messages: userContext.memory_pack.recent_messages.length,
+        });
+
+        // Merge memory_pack into top-level context so backend can use it
+        try {
+          // 1) Merge facts into dict-of-dicts expected by normalize_context()
+          userContext.facts = userContext.facts || {};
+          for (const f of userContext.memory_pack.facts) {
+            const cat = f.category || 'general';
+            if (!userContext.facts[cat]) userContext.facts[cat] = {};
+            // Store as object with value so backend flattener can unwrap
+            userContext.facts[cat][f.key] = { value: f.value, confidence: f.confidence, pinned: !!f.pinned };
+          }
+
+          // 2) Merge recent messages (cap at 10, dedup by role+content)
+          const packMsgs = userContext.memory_pack.recent_messages || [];
+          if (Array.isArray(packMsgs) && packMsgs.length) {
+            const existing = Array.isArray(userContext.recent_messages) ? userContext.recent_messages : [];
+            const merged = [...existing, ...packMsgs].filter(Boolean);
+            const seen = new Set();
+            userContext.recent_messages = merged.filter((m) => {
+              const key = `${m.role}:${(m.content || '').slice(0, 120)}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            }).slice(-10);
+          }
+
+          // 3) Promote top semantic hit snippets as memory facts (helps progressive lane)
+          const topHits = (userContext.memory_pack.semantic_hits || []).slice(0, 2);
+          if (topHits.length) {
+            if (!userContext.facts.memory) userContext.facts.memory = {};
+            topHits.forEach((hit, idx) => {
+              const k = `semantic_hit_${idx + 1}`;
+              if (!userContext.facts.memory[k]) {
+                userContext.facts.memory[k] = { value: hit.snippet, score: hit.score };
+              }
+            });
+
+            // Heuristic: if education.school is missing, try to infer from hit snippet
+            const hasSchool = !!(userContext.facts?.education?.school);
+            if (!hasSchool) {
+              try {
+                const text = (topHits[0]?.snippet || '') + ' ' + (topHits[1]?.snippet || '');
+                const patterns = [
+                  /\bI\s+(?:went to|go to|attend|study at|studied at|am at)\s+([A-Za-z0-9 .,&'\-]+?)(?:\s+for\s+college|\s+college|\s+university|[\.,!]|$)/i,
+                  /\bmy\s+school\s+is\s+([A-Za-z0-9 .,&'\-]+?)(?:[\.,!]|$)/i,
+                ];
+                let school = null;
+                for (const p of patterns) {
+                  const m = text.match(p);
+                  if (m && m[1]) { school = m[1].trim(); break; }
+                }
+                if (school) {
+                  if (!userContext.facts.education) userContext.facts.education = {};
+                  if (!userContext.facts.education.school) {
+                    userContext.facts.education.school = { value: school, inferred: true };
+                    if (memoryDebugEnabled) {
+                      logger.info('[Semantic][Heuristic] inferred education.school', school);
+                    }
+                  }
+                }
+              } catch (_) {}
+            }
+          }
+        } catch (mergeErr) {
+          console.warn('[Memory] Failed to merge memory_pack into userContext', mergeErr);
+        }
+      }
+    } catch (e) {
+      console.warn('[Memory] Failed to attach memory_pack', e);
+    } finally {
+      if (packToUse) {
+        setShowContextPreview(false);
+        setContextPack(null);
+      }
+    }
+
+    // Execute the streaming call (reuse the existing sendChat logic)
+    sendChat(text, userContext, screenshotData);
+  }, [thoughts, contextPack]);
+
+  // Keep dispatcher ref in sync
+  useEffect(() => {
+    continueSendMessageRef.current = continueSendMessage;
+  }, [continueSendMessage]);
+
+  // Memory Toast handlers
+  const handleMemoryApply = useCallback(async (confirmedIds) => {
+    try {
+      await memoryAPI.apply({ proposals: memoryProposals, confirmed: confirmedIds.map(String) });
+      setShowMemoryToast(false);
+      setMemoryProposals([]);
+      window.dispatchEvent(new Event('memory-changed'));
+      toast.success('Memory saved');
+    } catch (e) {
+      toast.error('Failed to save memory');
+      console.warn('[Memory] Apply failed', e);
+    }
+  }, [memoryProposals]);
+
+  const handleMemoryDismiss = useCallback(() => {
+    setShowMemoryToast(false);
+  }, []);
+  
+  // (moved above)
   
   const handleSubmit = useCallback(async (e) => {
     e?.preventDefault();
@@ -1401,6 +1238,27 @@ export default function AppleFloatBar({
         return;
       }
       if (data.requires_approval) {
+        // Auto-approve PII-only self queries if enabled
+        try {
+          const markersSet = new Set(data.markers || []);
+          const piiMarkers = new Set(['pii','high_risk_context','location','address','geo','coordinates','name','email','phone','dob','ssn','profile','contact']);
+          const actionMarkers = new Set(['email','communication','network','http','web','browser','filesystem','file','process','shell','exec','payment','purchase','sms','call','external','upload','download']);
+          const hasAction = [...markersSet].some(m => actionMarkers.has(m));
+          const isPIIOnly = [...markersSet].length > 0 && [...markersSet].every(m => piiMarkers.has(m));
+          if (safetyDisablePII && isPIIOnly && !hasAction) {
+            try {
+              await permissionAPI.logActivity({
+                action: text,
+                required_approval: false,
+                approved: true,
+                markers: [...markersSet, 'auto_approved_pii_only'],
+                is_high_risk: false
+              });
+            } catch {}
+            await continueAfterPreview(text);
+            return;
+          }
+        } catch {}
         // Check if this is an email operation and user opted out
         const isEmail = data.markers?.includes('email') || data.markers?.includes('communication');
         const skipEmailApproval = isEmail && localStorage.getItem('approval_skip_email_send') === 'true';
@@ -1448,7 +1306,7 @@ export default function AppleFloatBar({
     }
     // No approval needed → continue
     await continueAfterPreview(text);
-  }, [message, isThinking, apiConnected, continueSend]);
+  }, [message, isThinking, apiConnected, continueSend, safetyDisablePII]);
   
   // Handle clear conversation
   const handleClear = useCallback(() => {
@@ -1804,7 +1662,7 @@ export default function AppleFloatBar({
           )}
           
           {/* Better Memory: Context Preview */}
-          {showContextPreview && contextPack && (
+          {memoryPreviewEnabled && showContextPreview && contextPack && (
             <div style={{ marginBottom: 8 }}>
               <ContextPreview
                 pack={contextPack}

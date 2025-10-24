@@ -339,9 +339,14 @@ class ContextSelector {
     const sorted = [...slices].sort((a, b) => a.id.localeCompare(b.id));
     const stable = sorted.map(s => `${s.id}:${s.text.slice(0, 20)}`).join('|');
     
-    // Real SHA-256 (not demo hash)
-    const crypto = require('crypto');
-    return crypto.createHash('sha256').update(stable, 'utf8').digest('hex').slice(0, 12);
+    // Simple deterministic hash (browser-compatible)
+    // FNV-1a hash algorithm - fast and good distribution
+    let hash = 2166136261;
+    for (let i = 0; i < stable.length; i++) {
+      hash ^= stable.charCodeAt(i);
+      hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0').slice(0, 12);
   }
 
   /**
