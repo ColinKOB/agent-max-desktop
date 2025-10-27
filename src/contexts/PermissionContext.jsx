@@ -96,7 +96,33 @@ export function usePermission() {
   const context = useContext(PermissionContext);
   
   if (!context) {
-    throw new Error('usePermission must be used within a PermissionProvider');
+    // Graceful fallback if Provider is not mounted (e.g., alternate entry points or HMR)
+    const fallbackLevel = (() => {
+      try { return localStorage.getItem('permission_level') || 'helpful'; } catch { return 'helpful'; }
+    })();
+    return {
+      level: fallbackLevel,
+      capabilities: { can_do: [], requires_approval: [] },
+      loading: false,
+      error: null,
+      updateLevel: async (newLevel) => {
+        try {
+          await permissionAPI.updateLevel(newLevel);
+          try { localStorage.setItem('permission_level', newLevel); } catch {}
+        } catch {}
+      },
+      checkSafety: async () => ({
+        allowed: true,
+        requires_approval: false,
+        permission_level: fallbackLevel,
+        markers: [],
+        reason: 'fallback',
+        suggested_flow: null,
+        draft_supported: false,
+        is_high_risk: false
+      }),
+      reload: async () => {}
+    };
   }
   
   return context;

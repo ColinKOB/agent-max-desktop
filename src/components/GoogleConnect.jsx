@@ -13,8 +13,26 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import apiConfigManager from '../config/apiConfig';
 
-const API_URL = 'http://localhost:8000';
+// Helper function to get API URL dynamically
+function getApiUrl() {
+  try {
+    // Try to get from apiConfigManager
+    if (apiConfigManager && typeof apiConfigManager.getBaseURL === 'function') {
+      const baseUrl = apiConfigManager.getBaseURL();
+      if (baseUrl) {
+        // Normalize localhost to 127.0.0.1 to avoid IPv6 issues
+        return baseUrl.includes('localhost') ? baseUrl.replace('localhost', '127.0.0.1') : baseUrl;
+      }
+    }
+  } catch (err) {
+    console.warn('[GoogleConnect] Failed to get API URL from config:', err);
+  }
+  
+  // Fallback to default
+  return 'http://127.0.0.1:8000';
+}
 
 export function GoogleConnect() {
   const [connected, setConnected] = useState(false);
@@ -25,12 +43,37 @@ export function GoogleConnect() {
   const [testingService, setTestingService] = useState(null);
   const [serviceStatus, setServiceStatus] = useState({});
 
-  // Check connection status on mount
+  // Version stamp to verify new code is loaded
   useEffect(() => {
+    console.log('[GoogleConnect] Component loaded - Version 2025-10-27-v3');
+    console.log('[GoogleConnect] axios available:', !!axios);
+    console.log('[GoogleConnect] apiConfigManager available:', !!apiConfigManager);
+    console.log('[GoogleConnect] getApiUrl function:', typeof getApiUrl);
+    
+    // Immediate connectivity test
+    const testUrl = getApiUrl();
+    console.log('[GoogleConnect] Resolved API URL on mount:', testUrl);
+    
+    // Test if we can reach the backend
+    axios.get(`${testUrl}/health`)
+      .then(res => {
+        console.log('[GoogleConnect] ✅ Backend health check passed:', res.data);
+      })
+      .catch(err => {
+        console.error('[GoogleConnect] ❌ Backend health check failed:', err.message);
+        console.error('[GoogleConnect] Error details:', {
+          code: err.code,
+          message: err.message,
+          response: err.response?.data
+        });
+      });
+    
     checkConnectionStatus();
   }, []);
 
   const checkConnectionStatus = async () => {
+    const API_URL = getApiUrl();
+    console.log('[GoogleConnect] Checking connection status, API_URL:', API_URL);
     try {
       // Call status API without email to get any connected account
       const { data } = await axios.get(`${API_URL}/api/v2/google/status`);
@@ -46,7 +89,7 @@ export function GoogleConnect() {
         // Check localStorage as fallback
         const storedEmail = localStorage.getItem('google_user_email');
         if (storedEmail) {
-          // Verify with backend
+          // Verify with backend  
           const response = await axios.get(`${API_URL}/api/v2/google/status`, {
             params: { email: storedEmail },
           });
@@ -64,39 +107,64 @@ export function GoogleConnect() {
   };
 
   const connectGoogle = async () => {
+    console.log('[GoogleConnect] =================================');
     console.log('[GoogleConnect] Connect button clicked');
+    
+    const API_URL = getApiUrl();
+    console.log('[GoogleConnect] API_URL:', API_URL);
+    console.log('[GoogleConnect] apiConfigManager available:', !!apiConfigManager);
+    console.log('[GoogleConnect] apiConfigManager.getBaseURL:', typeof apiConfigManager?.getBaseURL);
     setLoading(true);
     setError('');
 
     try {
       // Get auth URL from backend
-      console.log('[GoogleConnect] Fetching auth URL from:', `${API_URL}/api/v2/google/auth/url`);
-      const { data } = await axios.get(`${API_URL}/api/v2/google/auth/url`);
-      console.log('[GoogleConnect] Auth URL received:', `${data.auth_url.substring(0, 100)}...`);
+      const authUrlEndpoint = `${API_URL}/api/v2/google/auth/url`;
+      console.log('[GoogleConnect] Fetching auth URL from:', authUrlEndpoint);
+      console.log('[GoogleConnect] Using axios to fetch...');
+      
+      const { data } = await axios.get(authUrlEndpoint);
+      console.log('[GoogleConnect] Auth URL response:', data);
+      console.log('[GoogleConnect] Auth URL (first 100 chars):', data.auth_url?.substring(0, 100));
 
       // Open system browser for OAuth
+      console.log('[GoogleConnect] Available APIs:');
+      console.log('[GoogleConnect]   - window.electronAPI:', !!window.electronAPI);
+      console.log('[GoogleConnect]   - window.electron:', !!window.electron);
+      console.log('[GoogleConnect]   - window.electronAPI.openExternal:', !!window.electronAPI?.openExternal);
+      console.log('[GoogleConnect]   - window.electron.openExternal:', !!window.electron?.openExternal);
+      
       if (window.electronAPI && window.electronAPI.openExternal) {
-        console.log('[GoogleConnect] Opening in external browser via Electron');
-        await window.electronAPI.openExternal(data.auth_url);
+        console.log('[GoogleConnect] Calling window.electronAPI.openExternal...');
+        const result = await window.electronAPI.openExternal(data.auth_url);
+        console.log('[GoogleConnect] openExternal result:', result);
       } else if (window.electron && window.electron.openExternal) {
-        console.log('[GoogleConnect] Opening in external browser via electron.openExternal');
-        await window.electron.openExternal(data.auth_url);
+        console.log('[GoogleConnect] Calling window.electron.openExternal...');
+        const result = await window.electron.openExternal(data.auth_url);
+        console.log('[GoogleConnect] openExternal result:', result);
       } else {
         // Fallback for web
         console.log('[GoogleConnect] Opening in new window (fallback)');
         window.open(data.auth_url, '_blank');
       }
 
-      console.log('[GoogleConnect] Browser opened, starting polling...');
+      console.log('[GoogleConnect] Browser should be open now, starting polling...');
+      const statusEndpoint = `${API_URL}/api/v2/google/status`;
+      console.log('[GoogleConnect] Polling endpoint:', statusEndpoint);
 
       // Poll for connection status
+      let pollAttempts = 0;
       const pollInterval = setInterval(async () => {
+        pollAttempts++;
+        console.log(`[GoogleConnect] Poll attempt ${pollAttempts}...`);
         try {
           // Check all connected accounts by calling status without email
-          const statusResponse = await axios.get(`${API_URL}/api/v2/google/status`);
+          const statusResponse = await axios.get(statusEndpoint);
+          console.log('[GoogleConnect] Poll response:', statusResponse.data);
 
           // If connected, the backend returns the connected account
           if (statusResponse.data.connected && statusResponse.data.email) {
+            console.log('[GoogleConnect] ✅ Connection successful!', statusResponse.data.email);
             setConnected(true);
             setUserEmail(statusResponse.data.email);
             setScopes(statusResponse.data.scopes || []);
@@ -110,23 +178,35 @@ export function GoogleConnect() {
           }
         } catch (err) {
           // Continue polling if error
-          console.log('Polling...', err.message);
+          console.log('[GoogleConnect] Poll error (will retry):', err.message);
+          if (err.response) {
+            console.log('[GoogleConnect] Error response:', err.response.status, err.response.data);
+          }
         }
       }, 2000);
 
       // Stop polling after 2 minutes
       setTimeout(() => {
+        console.log('[GoogleConnect] Polling timeout reached (2 minutes)');
         clearInterval(pollInterval);
         setLoading(false);
+        setError('Authentication timeout. Please try again.');
       }, 120000);
     } catch (err) {
-      console.error('Failed to connect Google:', err);
-      setError('Failed to start Google authentication. Please try again.');
+      console.error('[GoogleConnect] ❌ Connection failed:', err);
+      console.error('[GoogleConnect] Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        stack: err.stack
+      });
+      setError(`Failed to start Google authentication: ${err.message}`);
       setLoading(false);
     }
   };
 
   const disconnectGoogle = async () => {
+    const API_URL = getApiUrl();
     try {
       await axios.post(`${API_URL}/api/v2/google/disconnect`, null, {
         params: { email: userEmail },
@@ -151,6 +231,7 @@ export function GoogleConnect() {
       return;
     }
 
+    const API_URL = getApiUrl();
     setTestingService(serviceName);
 
     try {

@@ -53,6 +53,10 @@ export default function AppleFloatBar({
   const [thinkingStatus, setThinkingStatus] = useState('');
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [factTiles, setFactTiles] = useState([]);
+  // Autonomous mode state
+  const [executionPlan, setExecutionPlan] = useState(null);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [totalSteps, setTotalSteps] = useState(0);
   const lastUserPromptRef = useRef('');
   const lastAssistantTsRef = useRef(null);
   // Approval dialog state
@@ -120,6 +124,13 @@ export default function AppleFloatBar({
   
   // Permission level
   const { level: permissionLevel, updateLevel } = usePermission();
+  // Helper to map UI level to backend mode
+  const resolveMode = useCallback(() => {
+    const lvl = (permissionLevel || '').toLowerCase();
+    if (lvl === 'powerful') return 'autonomous';
+    if (lvl === 'chatty') return 'chatty';
+    return 'helpful';
+  }, [permissionLevel]);
   
   // Hard route guard: the FloatBar window should never navigate to /settings
   useEffect(() => {
@@ -284,6 +295,9 @@ export default function AppleFloatBar({
   
   // Main streaming chat logic (extracted for reuse)
   const sendChat = useCallback((text, userContext, screenshotData) => {
+    // Track token usage for credit calculation
+    let totalOutputTokens = 0;
+    
     chatAPI.sendMessageStream(text, userContext, screenshotData, async (event) => {
       console.log('[Chat] Received SSE event:', event);
       
@@ -331,6 +345,10 @@ export default function AppleFloatBar({
       } else if (event.type === 'token') {
         const content = event.content || event.data?.content || '';
         if (!content) return;
+        
+        // Track tokens for credit calculation (approximate: ~4 chars per token)
+        totalOutputTokens += Math.ceil(content.length / 4);
+        
         if (enrichTileIdRef.current) {
           // Stream into the most recent fact tile enrichment
           setFactTiles(prev => {
@@ -371,11 +389,42 @@ export default function AppleFloatBar({
             }
           });
         }
+      } else if (event.type === 'plan') {
+        // Autonomous mode: AI generated execution plan
+        const planData = event.data || event;
+        console.log('[Chat] Execution plan received:', planData);
+        setExecutionPlan(planData);
+        setTotalSteps(planData.total_steps || planData.steps?.length || 0);
+        setCurrentStep(0);
+        setThinkingStatus(`📋 Plan ready: ${planData.total_steps || 0} steps`);
+        
+        // Show plan as a special message
+        const planSteps = (planData.steps || []).map((step, idx) => 
+          `${idx + 1}. ${step.description || step.command || 'Processing...'}`
+        ).join('\n');
+        
+        setThoughts(prev => [...prev, {
+          role: 'assistant',
+          content: `**Execution Plan:**\n${planSteps}${planData.reasoning ? `\n\n*${planData.reasoning}*` : ''}`,
+          timestamp: Date.now(),
+          type: 'plan'
+        }]);
       } else if (event.type === 'thinking') {
         const message = event.data?.message || event.message || 'Processing...';
+        const step = event.data?.step || 0;
+        const totalSteps = event.data?.total_steps || 0;
+        
+        // Update current step for progress tracking
+        if (step > 0) {
+          setCurrentStep(step);
+          setTotalSteps(totalSteps);
+        }
+        
         setThinkingStatus(message);
       } else if (event.type === 'step') {
         // Step completed - could show intermediate steps
+        const stepData = event.data || event;
+        console.log('[Chat] Step completed:', stepData);
         setThinkingStatus('Working...');
       } else if (event.type === 'done') {
         // Final response received - mark streaming message as complete
@@ -559,6 +608,72 @@ export default function AppleFloatBar({
           }
         }
         
+        // Deduct credits based on token usage (1 credit per 500 output tokens)
+        const userId = localStorage.getItem('user_id');
+        if (userId && totalOutputTokens > 0) {
+          try {
+            const creditsToDeduct = Math.ceil(totalOutputTokens / 500);
+            logger.info(`[Credits] Output tokens: ${totalOutputTokens}, deducting ${creditsToDeduct} credit(s)`);
+            
+            const { data: userData } = await supabase
+              .from('users')
+              .select('metadata')
+              .eq('id', userId)
+              .single();
+            
+            const currentCredits = userData?.metadata?.credits || 0;
+            const newCredits = Math.max(0, currentCredits - creditsToDeduct);
+            
+            await supabase
+              .from('users')
+              .update({
+                metadata: {
+                  ...userData.metadata,
+                  credits: newCredits
+                }
+              })
+              .eq('id', userId);
+            
+            logger.info(`[Credits] Deducted ${creditsToDeduct}: ${currentCredits} → ${newCredits}`);
+            
+            // Log telemetry
+            await supabase.from('telemetry_events').insert({
+              user_id: userId,
+              event_type: 'credit_usage',
+              action: 'tokens_consumed',
+              metadata: {
+                output_tokens: totalOutputTokens,
+                credits_deducted: creditsToDeduct,
+                credits_remaining: newCredits
+              }
+            });
+            
+            // Show toast notification
+            if (creditsToDeduct > 0) {
+              toast.success(`${creditsToDeduct} credit${creditsToDeduct > 1 ? 's' : ''} used (${totalOutputTokens} tokens)`, {
+                icon: '💰',
+                duration: 2000
+              });
+            }
+          } catch (error) {
+            logger.error('[Credits] Failed to deduct credits:', error);
+            // Don't block user experience on credit deduction errors
+            // Log the specific error for debugging
+            if (error.code === 'PGRST116') {
+              logger.error('[Credits] User record not found in database');
+              toast.error('User account not found. Please sign in again.');
+            } else if (error.message?.includes('metadata')) {
+              logger.error('[Credits] Invalid metadata structure');
+              toast.error('Credit data corrupted. Please contact support.');
+            } else if (error.code === '500' || error.status === 500) {
+              logger.error('[Credits] Database server error:', error.message);
+              toast.error('Server error updating credits. Your usage was tracked.');
+            } else {
+              toast.error('Failed to update credits. Please check your account.');
+            }
+          }
+        }
+        
         // Clear enrichment scope at end of stream
         enrichTileIdRef.current = null;
         // Clear any accumulated plain text tokens
@@ -590,15 +705,15 @@ export default function AppleFloatBar({
     });
   }, []);
 
-  // Helper to run the full send flow (credits, screenshots, streaming, memory)
+  // Helper to run the full send flow (screenshots, streaming, memory)
   const continueSend = useCallback(async (text) => {
-    // Get user ID for credit check
+    // Get user ID for credit check (check balance only, don't deduct yet)
     const userId = localStorage.getItem('user_id');
     if (!userId) {
       toast.error('Please wait for user initialization');
       return;
     }
-    // NOT cached - check and deduct credit
+    // Check if user has any credits (warning only)
     try {
       const { data: userData } = await supabase
         .from('users')
@@ -614,28 +729,19 @@ export default function AppleFloatBar({
         }
         return;
       }
-      await supabase
-        .from('users')
-        .update({
-          metadata: {
-            ...userData.metadata,
-            credits: currentCredits - 1
-          }
-        })
-        .eq('id', userId);
-      logger.info(`Credit deducted: ${currentCredits} → ${currentCredits - 1}`);
+      // Log that message was sent (credit deduction happens after response)
       await supabase.from('telemetry_events').insert({
         user_id: userId,
-        event_type: 'credit_usage',
-        action: 'message_sent',
+        event_type: 'message_sent',
+        action: 'message_initiated',
         metadata: {
-          credits_remaining: currentCredits - 1,
+          credits_before: currentCredits,
           message_cached: false
         }
       });
     } catch (error) {
-      logger.error('Credit check/deduction failed', error);
-      toast.error('Failed to process credits. Please try again.');
+      logger.error('Credit check failed', error);
+      toast.error('Failed to check credits. Please try again.');
       return;
     }
     // Add user message
@@ -709,8 +815,11 @@ export default function AppleFloatBar({
       profile: null,
       facts: null,
       preferences: null,
-      google_user_email: localStorage.getItem('google_user_email') || null  // Add Google connection status
+      google_user_email: localStorage.getItem('google_user_email') || null,
+      __mode: (typeof resolveMode === 'function' ? resolveMode() : (localStorage.getItem('permission_level') || 'helpful'))
     };
+    // NEW: include current mode so backend can enable tools appropriately
+    try { userContext.__mode = resolveMode(); } catch {}
     if (window.electron?.memory) {
       try {
         const [profile, facts, preferences] = await Promise.all([
@@ -783,6 +892,8 @@ export default function AppleFloatBar({
     setMessage('');
     setIsThinking(true);
     setThinkingStatus('Thinking...');
+    // Reset autonomous progress state
+    try { setExecutionPlan(null); setCurrentStep(0); setTotalSteps(0); } catch {}
     // Remember the last user prompt for memory extraction
     lastUserPromptRef.current = text;
     
@@ -1386,6 +1497,10 @@ export default function AppleFloatBar({
     try {
       await updateLevel(level);
       toast.success(`Permission level set to ${level.charAt(0).toUpperCase()}${level.slice(1)}`);
+      try {
+        // Persist selection so API client can fall back if userContext not present
+        localStorage.setItem('permission_level', level);
+      } catch {}
     } catch (e) {
       toast.error('Failed to update permission level');
     } finally {
@@ -1583,6 +1698,21 @@ export default function AppleFloatBar({
           <div className="apple-drag-strip" />
           <div className="apple-toolbar" ref={toolbarRef} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ flexGrow: 1 }} />
+            {/* Mode Badge */}
+            <div
+              title={`Mode: ${resolveMode()}`}
+              style={{
+                fontSize: '0.78rem',
+                color: 'rgba(255,255,255,0.8)',
+                background: resolveMode()==='autonomous' ? 'rgba(255,165,0,0.18)' : resolveMode()==='chatty' ? 'rgba(147,197,253,0.18)' : 'rgba(34,197,94,0.18)',
+                border: '1px solid rgba(255,255,255,0.14)',
+                padding: '4px 8px',
+                borderRadius: 8,
+                textTransform: 'capitalize'
+              }}
+            >
+              {resolveMode()}
+            </div>
             <CreditDisplay userId={currentUser?.id || localStorage.getItem('user_id')} variant="tool" />
             <button className="apple-tool-btn" ref={toolBtnRef} onClick={handleTools} title="Tools">
               <Wrench size={16} />
@@ -1679,12 +1809,25 @@ export default function AppleFloatBar({
             </div>
           )}
           
+          {/* Autonomous Execution Progress */}
+          {(executionPlan || currentStep > 0) && (
+            <div className="amx-progress-card">
+              <div className="amx-progress-head">
+                <span className="label">🚀 {currentStep > 0 ? `Step ${currentStep}/${totalSteps}` : 'Planning...'}</span>
+                <span className="percent">{totalSteps > 0 ? `${Math.round((currentStep / totalSteps) * 100)}%` : '0%'}</span>
+              </div>
+              <div className="amx-progress-bar">
+                <div className="amx-progress-fill" style={{ width: totalSteps > 0 ? `${(currentStep / totalSteps) * 100}%` : '0%' }} />
+              </div>
+            </div>
+          )}
+          
           {/* Messages */}
           <div className="apple-messages" ref={messagesRef}>
             {thoughts.map((thought, idx) => (
               <div key={idx} className={`apple-message apple-message-${thought.role}`}>
-                <div className="apple-message-content">
-                  {thought.role === 'assistant' ? (
+                <div className={`apple-message-content ${thought.type === 'plan' ? 'plan-message' : ''}`}>
+                  {thought.role === 'assistant' || thought.role === 'system' ? (
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{

@@ -29,6 +29,7 @@ import { reconfigureAPI, permissionAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import '../styles/premium-glass.css';
 import PermissionLevelSelector from '../components/settings/PermissionLevelSelector';
+import { GoogleConnect } from '../components/GoogleConnect';
 import { usePermission } from '../contexts/PermissionContext';
 
 // Helper: Recent activity list (mini)
@@ -338,6 +339,11 @@ export default function SettingsPremium() {
         {/* Activity Log (recent) */}
         <SettingsSection icon={Monitor} title="Recent Activity">
           <RecentActivityList />
+        </SettingsSection>
+
+        {/* Google Services */}
+        <SettingsSection icon={Globe} title="Google Services" badge="Connect">
+          <GoogleConnect />
         </SettingsSection>
 
         {/* API Configuration */}

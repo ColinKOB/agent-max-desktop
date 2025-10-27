@@ -19,7 +19,7 @@ contextBridge.exposeInMainWorld('electron', {
   setBounds: (bounds) => ipcRenderer.invoke('set-bounds', bounds),
 
   // Open URL in external browser
-  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  openExternal: (url) => ipcRenderer.invoke('open-external', { url }),
 
   // Open Settings window
   openSettings: (opts) => ipcRenderer.invoke('open-settings', opts || {}),
@@ -85,6 +85,6 @@ contextBridge.exposeInMainWorld('electron', {
 
 // Also expose as electronAPI for compatibility
 contextBridge.exposeInMainWorld('electronAPI', {
-  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  openExternal: (url) => ipcRenderer.invoke('open-external', { url }),
   openSettings: (opts) => ipcRenderer.invoke('open-settings', opts || {}),
 });

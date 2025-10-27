@@ -126,3 +126,54 @@
 .typing-dot:nth-child(2) { animation-delay: 0.15s; }
 .typing-dot:nth-child(3) { animation-delay: 0.3s; }
 @keyframes typingBounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.6; } 40% { transform: translateY(-4px); opacity: 1; } }
+
+/* Autonomous plan/progress glass cards */
+.amx-progress-card {
+  margin: 8px 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05)), rgba(26,26,31,0.35);
+  border: 1px solid rgba(255,255,255,0.16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.amx-progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.amx-progress-head .label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.95);
+}
+
+.amx-progress-head .percent {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.65);
+}
+
+.amx-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.amx-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  transition: width 0.35s ease;
+}
+
+/* Plan message bubble variant */
+.apple-message .plan-message {
+  background: linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05)), rgba(26,26,31,0.35);
+  border: 1px solid rgba(59,130,246,0.25);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}

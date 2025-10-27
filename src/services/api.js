@@ -347,31 +347,62 @@ export const chatAPI = {
   },
 
   sendMessageStream: async (message, userContext = null, image = null, onEvent) => {
-    // Use NEW consolidated streaming endpoint with router optimizations
-    // This handles both quick questions (deterministic tools, <100ms) and complex tasks
-    const payload = {
-      message: message,  // streaming chat uses "message" not "goal"
-      context: userContext,  // renamed from user_context for consistency
-      max_tokens: 1024,
-      temperature: 0.7,
-      stream: true,
-      memory_mode: 'auto',  // auto-detect whether to use context
-    };
-
-    if (image) {
-      payload.image = image;
-    }
-
     // Get base URL
     const cfg = apiConfigManager.getConfig();
     const baseURL = cfg.baseURL || API_BASE_URL || 'http://localhost:8000';
 
-    // Use NEW fast streaming endpoint with router (deterministic tools + progressive context)
-    const response = await fetch(`${baseURL}/api/v2/chat/streaming/stream`, {
+    // Derive mode from user context or localStorage
+    let requestedMode = 'helpful';
+    try {
+      requestedMode = (userContext && userContext.__mode) || localStorage.getItem('permission_level') || 'helpful';
+      if (requestedMode === 'powerful') requestedMode = 'autonomous';
+      const allowed = new Set(['chatty', 'helpful', 'autonomous']);
+      requestedMode = allowed.has(requestedMode) ? requestedMode : 'helpful';
+    } catch (_) {
+      requestedMode = 'helpful';
+    }
+
+    // CRITICAL: Use different endpoint based on mode
+    // - autonomous mode → /api/v2/autonomous/execute/stream (ACTUALLY EXECUTES TOOLS)
+    // - chatty/helpful → /api/v2/chat/streaming/stream (text generation only)
+    const isAutonomous = requestedMode === 'autonomous';
+    const endpoint = isAutonomous 
+      ? `${baseURL}/api/v2/autonomous/execute/stream`
+      : `${baseURL}/api/v2/chat/streaming/stream`;
+
+    // Build payload based on endpoint
+    const payload = isAutonomous ? {
+      // Autonomous endpoint expects 'goal' not 'message'
+      goal: message,
+      mode: requestedMode,
+      user_context: userContext ? {
+        profile: userContext.profile || {},
+        facts: userContext.facts || {},
+        preferences: userContext.preferences || {},
+        recent_messages: userContext.recent_messages || []
+      } : null,
+      image: image || null,
+      max_steps: 10,
+      timeout: 300
+    } : {
+      // Chat endpoint
+      message: message,
+      context: userContext,
+      max_tokens: 1024,
+      temperature: 0.7,
+      stream: true,
+      memory_mode: 'auto',
+      mode: requestedMode,
+      image: image || null
+    };
+
+    logger.info(`[API] Using ${isAutonomous ? 'AUTONOMOUS' : 'CHAT'} endpoint:`, endpoint);
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': 'dev',  // dev mode key
+        'X-API-Key': 'dev',
         'X-User-Id': localStorage.getItem('user_id') || 'anonymous'
       },
       body: JSON.stringify(payload),
@@ -422,7 +453,61 @@ export const chatAPI = {
           if (firstChar !== '{' && firstChar !== '[') continue;
           try {
             const parsed = JSON.parse(data);
-            onEvent(parsed);
+            
+            // Handle autonomous endpoint events (different format)
+            if (isAutonomous) {
+              // Autonomous events: backend flattens payload: { type, id, ...data }
+              const eventType = parsed.type;
+
+              // Helper: normalize payload to always return a data object
+              const getPayloadData = (obj) => {
+                if (obj && typeof obj.data === 'object' && obj.data !== null) return obj.data;
+                if (obj && typeof obj === 'object') {
+                  const { type, id, ...rest } = obj;
+                  return rest;
+                }
+                return {};
+              };
+
+              if (eventType === 'plan') {
+                // Plan event - show execution plan
+                const planData = getPayloadData(parsed);
+                onEvent({ type: 'plan', data: planData });
+              } else if (eventType === 'thinking') {
+                // Enhanced thinking with step context
+                const thinkingData = getPayloadData(parsed);
+                onEvent({ type: 'thinking', data: thinkingData });
+              } else if (eventType === 'step') {
+                // Step event - update thinking and optionally stream result
+                const stepData = getPayloadData(parsed);
+                onEvent({
+                  type: 'thinking',
+                  data: {
+                    message: stepData.reasoning || stepData.action || 'Processing...',
+                    step: stepData.step || stepData.step_number,
+                    total_steps: stepData.total_steps
+                  }
+                });
+                if (stepData.result) {
+                  onEvent({ type: 'token', content: `${stepData.result}\n` });
+                }
+              } else if (eventType === 'done') {
+                // Done event - emit final response
+                const doneData = getPayloadData(parsed);
+                const finalResponse =
+                  doneData.final_response || doneData.response || parsed.final_response || '';
+                onEvent({ type: 'done', data: { final_response: finalResponse } });
+              } else if (eventType === 'error') {
+                const errData = getPayloadData(parsed);
+                onEvent({ type: 'error', data: { error: errData.error || 'Unknown error' } });
+              } else {
+                // Pass through other events (stream_init, heartbeat, etc.)
+                onEvent(parsed);
+              }
+            } else {
+              // Chat endpoint - pass through as-is
+              onEvent(parsed);
+            }
           } catch (e) {
             console.error('Failed to parse SSE data:', e);
           }
