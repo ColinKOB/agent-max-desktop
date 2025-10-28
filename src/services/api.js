@@ -229,7 +229,10 @@ export const profileAPI = {
   getProfile: () => api.get('/api/v2/profile'),
   getGreeting: () => api.get('/api/v2/profile/greeting'),
   setName: (name) => api.post('/api/v2/profile/name', { name }),
-  getName: () => api.get('/api/v2/profile/name'),
+  getName: () => api.get('/api/v2/profile/name').then(res => ({
+    name: res.data.user_name || res.data.name,
+    is_set: res.data.is_set
+  })),
   getContext: (goal = null) => api.get('/api/v2/profile/context', { params: { goal } }),
   getInsights: () => api.get('/api/v2/profile/insights'),
 };
@@ -238,9 +241,18 @@ export const profileAPI = {
 // FACTS API
 // ============================================
 export const factsAPI = {
-  extractFacts: (message, goal = null) => api.post('/api/v2/facts/extract', { message, goal }),
+  extractFacts: (message, goal = null) => 
+    api.post('/api/v2/facts/extract', { message, goal }).then(res => ({
+      facts: res.data.extracted_facts || res.data.facts || [],
+      count: res.data.count || (res.data.facts || []).length
+    })),
   getFacts: (category = null, goal = null) =>
-    api.get('/api/v2/facts', { params: { category, goal } }),
+    api.get('/api/v2/facts', { params: { category, goal } }).then(res => {
+      // Handle both array and object responses
+      if (res.data.facts) return res.data.facts;
+      if (Array.isArray(res.data)) return res.data;
+      return [];
+    }),
   setFact: (category, key, value) => api.put(`/api/v2/facts/${category}/${key}`, { value }),
   deleteFact: (category, key) => api.delete(`/api/v2/facts/${category}/${key}`),
   getSummary: () => api.get('/api/v2/facts/summary'),
@@ -251,7 +263,17 @@ export const factsAPI = {
 // ============================================
 export const semanticAPI = {
   findSimilar: (goal, threshold = 0.75, limit = 5) =>
-    api.post('/api/v2/semantic/similar', { goal, threshold, limit }),
+    api.post('/api/v2/semantic/similar', { goal, threshold, limit }).then(res => {
+      // Handle both array and object responses
+      if (res.data.similar_goals) {
+        return {
+          goals: res.data.similar_goals,
+          count: res.data.count
+        };
+      }
+      if (Array.isArray(res.data)) return { goals: res.data, count: res.data.length };
+      return { goals: [], count: 0 };
+    }),
   getEmbedding: (text) => api.post('/api/v2/semantic/embedding', { text }),
   getPatterns: () => api.get('/api/v2/semantic/patterns'),
   getCacheStats: () => api.get('/api/v2/semantic/cache/stats'),
@@ -298,6 +320,16 @@ export const conversationAPI = {
   getHistory: (limit = 10, offset = 0) =>
     api.get('/api/v2/conversation/history', {
       params: { limit, offset },
+    }).then(res => {
+      // Handle paginated response format
+      if (res.data.conversations) {
+        return {
+          conversations: res.data.conversations,
+          total: res.data.total,
+          hasMore: res.data.has_more
+        };
+      }
+      return res.data;
     }),
 
   getConversationById: (conversationId) =>
@@ -308,7 +340,11 @@ export const conversationAPI = {
 // PREFERENCES API
 // ============================================
 export const preferencesAPI = {
-  getPreferences: () => api.get('/api/v2/preferences'),
+  getPreferences: () => api.get('/api/v2/preferences').then(res => {
+    // Handle both nested and flat responses
+    if (res.data.preferences) return res.data.preferences;
+    return res.data;
+  }),
 
   analyzePreferences: (steps, goal, success) =>
     api.post('/api/v2/preferences/analyze', { steps, goal, success }),

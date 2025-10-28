@@ -24,6 +24,7 @@ const { createApplicationMenu } = require('./menu.cjs');
 const { setupAutoUpdater, checkForUpdates } = require('./updater.cjs');
 const { setupCrashReporter, captureError } = require('./crash-reporter.cjs');
 const autonomousIPC = require('./autonomousIPC.cjs');
+const { HandsOnDesktopClient } = require('./hands-on-desktop-client.cjs');
 
 let mainWindow;
 let memoryVault;
@@ -33,6 +34,7 @@ let settingsWindow;
 let ffmpegProcess;
 let memoryManager;
 let cardWindow;
+let handsOnDesktopClient = null;
 
 // Screen magnet (edge snap) state
 let magnetTimer = null;
@@ -302,6 +304,9 @@ app.whenReady().then(() => {
   // Initialize desktop features
   createApplicationMenu(mainWindow);
   setupAutoUpdater(mainWindow);
+  
+  // Initialize Hands on Desktop client (connects to backend for remote execution)
+  initializeHandsOnDesktop();
 });
 
 app.on('window-all-closed', () => {
@@ -908,6 +913,58 @@ ipcMain.handle('memory:test-preferences', async () => {
       stack: error.stack,
     };
   }
+});
+
+// Initialize Hands on Desktop client
+function initializeHandsOnDesktop() {
+  // Get backend URL and device credentials from environment or storage
+  const backendUrl = process.env.AGENT_MAX_BACKEND_URL || 'http://localhost:8000';
+  const deviceToken = process.env.DEVICE_TOKEN;
+  const deviceSecret = process.env.DEVICE_SECRET;
+  
+  if (!deviceToken || !deviceSecret) {
+    console.log('[HandsOnDesktop] Device not paired yet. Skipping initialization.');
+    console.log('[HandsOnDesktop] Use device pairing flow to connect to backend.');
+    return;
+  }
+  
+  console.log('[HandsOnDesktop] Initializing client...');
+  handsOnDesktopClient = new HandsOnDesktopClient(backendUrl, deviceToken, deviceSecret);
+  
+  handsOnDesktopClient.onConnected = () => {
+    console.log('[HandsOnDesktop] Connected to backend');
+    // Could show notification to user
+  };
+  
+  handsOnDesktopClient.onDisconnected = (error) => {
+    console.log('[HandsOnDesktop] Disconnected from backend:', error?.message);
+    // Could show notification to user
+  };
+  
+  // Start connection
+  handsOnDesktopClient.connect();
+}
+
+// IPC handler to get Hands on Desktop status
+ipcMain.handle('hands-on-desktop:status', async () => {
+  if (!handsOnDesktopClient) {
+    return { enabled: false, connected: false };
+  }
+  return {
+    enabled: true,
+    ...handsOnDesktopClient.getStatus()
+  };
+});
+
+// IPC handler to start/stop Hands on Desktop client
+ipcMain.handle('hands-on-desktop:toggle', async (event, enabled) => {
+  if (enabled && !handsOnDesktopClient) {
+    initializeHandsOnDesktop();
+  } else if (!enabled && handsOnDesktopClient) {
+    handsOnDesktopClient.disconnect();
+    handsOnDesktopClient = null;
+  }
+  return { success: true };
 });
 
 // Take screenshot and return base64
