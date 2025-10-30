@@ -72,9 +72,9 @@ The migration implements:
 ### Integration Tasks
 
 1. **Frontend**:
-   - [ ] Install `@supabase/supabase-js`
-   - [ ] Create `src/services/supabase.js`
-   - [ ] Update `src/services/responseCache.js` to check Supabase first
+   - [x] Install `@supabase/supabase-js`
+   - [x] Create `src/services/supabase.js`
+   - [x] Update `src/services/responseCache.js` to check Supabase first
    - [ ] Replace `electron/memory-manager.cjs` with Supabase calls
    - [ ] Add consent UI for data collection scopes
 
