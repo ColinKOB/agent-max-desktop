@@ -15,6 +15,8 @@ import axios from 'axios';
 import { CreditDisplay } from '../CreditDisplay';
 import { supabase, checkResponseCache, storeResponseCache } from '../../services/supabase';
 import { createLogger } from '../../services/logger';
+import { getProfile, getFacts, getPreferences, setPreference, startSession, addMessage, getRecentMessages, getAllSessions } from '../../services/supabaseMemory';
+import { searchContext as hybridSearchContext } from '../../services/hybridSearch';
 import memoryService from '../../services/memory';
 import contextSelector from '../../services/contextSelector';
 import { FactTileList } from '../FactTileList.jsx';
@@ -151,8 +153,8 @@ export default function AppleFloatBar({
 
   // Start new session on mount
   useEffect(() => {
-    if (window.electron?.memory?.startSession) {
-      window.electron.memory.startSession()
+    if (localStorage.getItem('user_id')) {
+      startSession()
         .then(() => console.log('[Session] New session started on mount'))
         .catch(err => console.warn('[Session] Failed to start session:', err));
     }
@@ -484,8 +486,8 @@ export default function AppleFloatBar({
         });
 
         // Save conversation to memory system
-        if (responseText && window.electron?.memory?.addMessage) {
-          window.electron.memory.addMessage('assistant', responseText)
+        if (responseText && localStorage.getItem('user_id')) {
+          addMessage('assistant', responseText)
             .catch(err => console.warn('[Chat] Failed to save message to memory:', err));
         }
         
@@ -751,8 +753,8 @@ export default function AppleFloatBar({
     setThinkingStatus('Thinking...');
     // Remember last user prompt for extraction
     try { lastUserPromptRef.current = text; } catch {}
-    if (window.electron?.memory?.addMessage) {
-      window.electron.memory.addMessage('user', text)
+    if (localStorage.getItem('user_id')) {
+      addMessage('user', text)
         .catch(err => console.warn('[Chat] Failed to save user message to memory:', err));
     }
     // Immediately extract and persist facts from the user's message (no confirmation prompt)
@@ -820,12 +822,12 @@ export default function AppleFloatBar({
     };
     // NEW: include current mode so backend can enable tools appropriately
     try { userContext.__mode = resolveMode(); } catch {}
-    if (window.electron?.memory) {
+    if (localStorage.getItem('user_id')) {
       try {
         const [profile, facts, preferences] = await Promise.all([
-          window.electron.memory.getProfile().catch(() => null),
-          window.electron.memory.getFacts().catch(() => null),
-          window.electron.memory.getPreferences().catch(() => null)
+          getProfile().catch(() => null),
+          getFacts().catch(() => null),
+          getPreferences().catch(() => null)
         ]);
         userContext.profile = profile;
         userContext.facts = facts;
@@ -897,9 +899,9 @@ export default function AppleFloatBar({
     // Remember the last user prompt for memory extraction
     lastUserPromptRef.current = text;
     
-    // Save user message to electron memory
-    if (window.electron?.memory?.addMessage) {
-      window.electron.memory.addMessage('user', text)
+    // Save user message to memory
+    if (localStorage.getItem('user_id')) {
+      addMessage('user', text)
         .catch(err => console.warn('[Chat] Failed to save user message to memory:', err));
     }
     
@@ -911,12 +913,12 @@ export default function AppleFloatBar({
       preferences: null,
       google_user_email: localStorage.getItem('google_user_email') || null  // Add Google connection status
     };
-    if (window.electron?.memory) {
+    if (localStorage.getItem('user_id')) {
       try {
         const [profile, facts, preferences] = await Promise.all([
-          window.electron.memory.getProfile().catch(() => null),
-          window.electron.memory.getFacts().catch(() => null),
-          window.electron.memory.getPreferences().catch(() => null)
+          getProfile().catch(() => null),
+          getFacts().catch(() => null),
+          getPreferences().catch(() => null)
         ]);
         userContext.profile = profile;
         userContext.facts = facts;
@@ -925,8 +927,9 @@ export default function AppleFloatBar({
         // Semantic retrieval: build a minimal, relevant context for the current goal
         try {
           let recentMsgs = [];
-          if (window.electron.memory.getRecentMessages) {
-            recentMsgs = await window.electron.memory.getRecentMessages(20).catch(() => []);
+          const sessionId = localStorage.getItem('session_id');
+          if (sessionId) {
+            recentMsgs = await getRecentMessages(20, sessionId).catch(() => []);
           }
 
           const normalizeFacts = (arr) => {
@@ -1046,36 +1049,105 @@ export default function AppleFloatBar({
                   }
                 }
 
-                // 2) Scan conversation history for keyword matches
-                const sessions = await window.electron.memory.getAllSessions();
-                console.log(`[Semantic] Searching ${sessions.length} local sessions`);
-                const matches = [];
-                sessions.forEach(session => {
-                  (session.messages || []).forEach(msg => {
-                    if (!msg?.content) return;
-                    const contentNorm = normalize(msg.content);
-                    const hits = queryTerms.filter(k => contentNorm.includes(k));
-                    if (hits.length > 0) {
-                      const score = hits.length / Math.max(queryTerms.length, 1);
-                      if (score >= threshold) {
-                        matches.push({
-                          text: msg.content.slice(0, 200),
-                          score,
-                          timestamp: msg.timestamp || session.started_at,
-                          session: session.sessionId
+                // 2) Search conversation history using hybrid search (semantic + keyword)
+                // Check if hybrid search is enabled (default: true for better results)
+                const useHybridSearch = localStorage.getItem('use_hybrid_search') !== '0';
+                
+                if (useHybridSearch) {
+                  try {
+                    const userId = localStorage.getItem('user_id');
+                    if (userId) {
+                      console.log('[Semantic] Using hybrid search (embeddings + keywords)...');
+                      const startTime = Date.now();
+                      
+                      // Use hybrid search for semantic + keyword matching
+                      const searchResults = await hybridSearchContext(text, userId, {
+                        includeMessages: true,
+                        includeFacts: true,
+                        messageLimit: limit,
+                        factLimit: Math.floor(limit / 2)
+                      });
+                      
+                      const searchDuration = Date.now() - startTime;
+                      console.log(`[Semantic] Hybrid search completed in ${searchDuration}ms:`, {
+                        messages: searchResults.messages.length,
+                        facts: searchResults.facts.length,
+                        source: searchResults.stats?.source || 'unknown'
+                      });
+                      
+                      // Convert hybrid search results to items format
+                      const messageItems = searchResults.messages.map(m => ({
+                        text: m.content?.slice(0, 200) || '',
+                        score: m.score || 0,
+                        timestamp: m.created_at,
+                        session: m.session_id,
+                        source: m.source || 'hybrid'
+                      }));
+                      
+                      const factItems = searchResults.facts.map(f => ({
+                        text: `${f.key}: ${f.value}`,
+                        score: f.score || 0,
+                        category: f.category,
+                        source: 'fact-hybrid'
+                      }));
+                      
+                      // Merge and sort all items
+                      items = [...items, ...messageItems, ...factItems]
+                        .filter(Boolean)
+                        .sort((a, b) => (b.score || 0) - (a.score || 0))
+                        .slice(0, limit);
+                      
+                      if (memoryDebugEnabled) {
+                        logger.info('[Semantic][Hybrid] results', {
+                          total: items.length,
+                          duration: searchDuration,
+                          sources: items.reduce((acc, it) => {
+                            acc[it.source] = (acc[it.source] || 0) + 1;
+                            return acc;
+                          }, {})
                         });
                       }
+                    } else {
+                      console.warn('[Semantic] User ID not found, falling back to keyword search');
                     }
+                  } catch (hybridErr) {
+                    console.warn('[Semantic] Hybrid search failed, falling back to keyword:', hybridErr);
+                  }
+                }
+                
+                // Fallback to keyword-based search if hybrid disabled or failed
+                if (!useHybridSearch || items.length === 0) {
+                  const sessions = await getAllSessions();
+                  console.log(`[Semantic] Using keyword search on ${sessions.length} local sessions`);
+                  const matches = [];
+                  sessions.forEach(session => {
+                    (session.messages || []).forEach(msg => {
+                      if (!msg?.content) return;
+                      const contentNorm = normalize(msg.content);
+                      const hits = queryTerms.filter(k => contentNorm.includes(k));
+                      if (hits.length > 0) {
+                        const score = hits.length / Math.max(queryTerms.length, 1);
+                        if (score >= threshold) {
+                          matches.push({
+                            text: msg.content.slice(0, 200),
+                            score,
+                            timestamp: msg.timestamp || session.started_at,
+                            session: session.sessionId,
+                            source: 'keyword-fallback'
+                          });
+                        }
+                      }
+                    });
                   });
-                });
 
-                // Merge fact items and matched items, de-dup, sort
-                items = [...items, ...matches]
-                  .filter(Boolean)
-                  .sort((a, b) => (b.score || 0) - (a.score || 0))
-                  .slice(0, limit);
+                  // Merge fact items and matched items, de-dup, sort
+                  items = [...items, ...matches]
+                    .filter(Boolean)
+                    .sort((a, b) => (b.score || 0) - (a.score || 0))
+                    .slice(0, limit);
+                }
 
-                console.log('[Semantic] Found', items.length, 'similar items from local memory');
+                console.log('[Semantic] Found', items.length, 'similar items from memory');
                 if (memoryDebugEnabled && items.length) {
                   logger.info('[Semantic][Local] top', items.slice(0,5));
                 }
@@ -1098,6 +1170,8 @@ export default function AppleFloatBar({
 
               // If >3 items, summarize to 2-3 bullets
               let lines;
+              const hasHybridResults = items.some(it => it.source && it.source.includes('hybrid'));
+              
               if (items.length > 3) {
                 const topItems = items.slice(0, 3);
                 lines = topItems
@@ -1109,14 +1183,25 @@ export default function AppleFloatBar({
                   .map((it, i) => {
                     const text = it.text || it.content || it.snippet || '';
                     const score = typeof it.score === 'number' ? ` (${it.score.toFixed(2)})` : '';
-                    return `- ${text}${score}`;
+                    // Add source badge for debugging if enabled
+                    const sourceBadge = (memoryDebugEnabled && it.source) ? ` [${it.source}]` : '';
+                    return `- ${text}${score}${sourceBadge}`;
                   })
                   .filter(Boolean)
                   .join('\n');
               }
-              const block = lines ? `\n\n**Similar Memories:**\n${lines}` : '';
+              
+              // Add header with search method attribution
+              const searchMethod = hasHybridResults ? 'Semantic + Keyword' : 'Keyword';
+              const header = `**Similar Memories** _(${searchMethod} search)_`;
+              const block = lines ? `\n\n${header}\n${lines}` : '';
+              
               userContext.semantic_context = (userContext.semantic_context || '') + block;
-              userContext.semantic_sources = items.map((it) => ({ id: it.id || it.uuid || null, score: it.score || null }));
+              userContext.semantic_sources = items.map((it) => ({ 
+                id: it.id || it.uuid || null, 
+                score: it.score || null,
+                source: it.source || 'unknown'
+              }));
             }
           } catch (e) {
             console.warn('[Chat] Embedding semantic search failed:', e);
@@ -1427,8 +1512,8 @@ export default function AppleFloatBar({
     clearMessages();
     
     // Start new session in memory manager
-    if (window.electron?.memory?.startSession) {
-      window.electron.memory.startSession()
+    if (localStorage.getItem('user_id')) {
+      startSession()
         .then(() => {
           console.log('[Session] New session started after clear');
           toast.success('New conversation started');

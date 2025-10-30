@@ -69,11 +69,14 @@ class Logger {
    * Get environment information
    */
   getEnvironmentInfo() {
+    // Handle both browser and Node.js environments
+    const isNode = typeof window === 'undefined';
+    
     return {
       env: process.env.NODE_ENV,
-      platform: navigator?.platform,
-      userAgent: navigator?.userAgent,
-      url: window?.location?.href,
+      platform: isNode ? 'node' : (navigator?.platform || 'unknown'),
+      userAgent: isNode ? 'node' : (navigator?.userAgent || 'unknown'),
+      url: isNode ? 'node-environment' : (window?.location?.href || 'unknown'),
     };
   }
 
@@ -123,7 +126,7 @@ class Logger {
     }
 
     // Save critical errors to file (Electron only)
-    if (level >= LogLevel.ERROR && window.electron?.logger) {
+    if (typeof window !== 'undefined' && level >= LogLevel.ERROR && window.electron?.logger) {
       window.electron.logger.writeToFile(entry);
     }
 
@@ -258,13 +261,13 @@ export const createLogger = (context, options = {}) => {
 // Performance monitoring utilities
 export const performance = {
   mark: (name) => {
-    if (window.performance?.mark) {
+    if (typeof window !== 'undefined' && window.performance?.mark) {
       window.performance.mark(name);
     }
   },
 
   measure: (name, startMark, endMark) => {
-    if (window.performance?.measure) {
+    if (typeof window !== 'undefined' && window.performance?.measure) {
       window.performance.measure(name, startMark, endMark);
       const entries = window.performance.getEntriesByName(name, 'measure');
       const duration = entries[entries.length - 1]?.duration;
@@ -274,7 +277,7 @@ export const performance = {
   },
 
   clearMarks: () => {
-    if (window.performance?.clearMarks) {
+    if (typeof window !== 'undefined' && window.performance?.clearMarks) {
       window.performance.clearMarks();
     }
   },

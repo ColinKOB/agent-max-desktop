@@ -6,6 +6,8 @@ import useStore from './store/useStore';
 import { healthAPI, profileAPI } from './services/api';
 import apiConfigManager from './config/apiConfig';
 import { getOrCreateUser } from './services/supabase';
+import { getProfile, getPreference, syncLocalIndex } from './services/supabaseMemory';
+import { preloadModel } from './services/embeddings';
 import { createLogger } from './services/logger';
 import { PermissionProvider } from './contexts/PermissionContext';
 
@@ -19,6 +21,9 @@ function App({ windowMode = 'single' }) {
   useEffect(() => {
     // Initialize user in Supabase
     initializeUser();
+    
+    // Initialize hybrid search (async, non-blocking)
+    initializeHybridSearch();
     
     // Check API connection
     checkApiConnection();
@@ -78,6 +83,30 @@ function App({ windowMode = 'single' }) {
     }
   };
 
+  const initializeHybridSearch = async () => {
+    try {
+      logger.info('Initializing hybrid search system...');
+      
+      // Preload embedding model in background (non-blocking)
+      preloadModel().catch(err => {
+        logger.warn('Failed to preload embedding model:', err);
+      });
+      
+      // Sync local search index with Supabase data
+      // This runs after a short delay to not block initial render
+      setTimeout(async () => {
+        try {
+          await syncLocalIndex();
+          logger.info('Local search index synced successfully');
+        } catch (error) {
+          logger.warn('Failed to sync local search index:', error);
+        }
+      }, 2000);  // 2 second delay
+    } catch (error) {
+      logger.error('Failed to initialize hybrid search:', error);
+    }
+  };
+
   const checkApiConnection = async () => {
     try {
       const apiUrl = apiConfigManager.getBaseURL();
@@ -95,35 +124,23 @@ function App({ windowMode = 'single' }) {
 
   const loadProfile = async () => {
     try {
-      // Load profile from local memory (Electron)
-      if (window.electron?.memory) {
-        const profileData = await window.electron.memory.getProfile();
+      // Load profile from Supabase (with Electron fallback)
+      const profileData = await getProfile();
 
-        // Check if onboarding is completed
-        const onboardingCompleted =
-          await window.electron.memory.getPreference('onboarding_completed');
-        setShowWelcome(!onboardingCompleted);
+      // Check if onboarding is completed
+      const onboardingCompleted = await getPreference('onboarding_completed');
+      setShowWelcome(!onboardingCompleted);
 
-        setProfile({
-          name: profileData.name || 'User',
-          interaction_count: profileData.interaction_count || 0,
-          temporal_info: {},
-          top_preferences: [],
-        });
+      setProfile({
+        name: profileData.name || 'User',
+        interaction_count: profileData.interaction_count || 0,
+        temporal_info: profileData.temporal_info || {},
+        top_preferences: profileData.top_preferences || [],
+      });
 
-        // Generate greeting
-        const greeting = profileData.name ? `Hi, ${profileData.name}!` : 'Hi there!';
-        setGreeting(greeting);
-      } else {
-        // Fallback: try API (for non-Electron environments)
-        const { data: profileData } = await profileAPI.getProfile();
-        setProfile(profileData);
-
-        const { data: greetingData } = await profileAPI.getGreeting();
-        setGreeting(greetingData.greeting);
-
-        setShowWelcome(false); // No welcome for web version
-      }
+      // Generate greeting
+      const greeting = profileData.name ? `Hi, ${profileData.name}!` : 'Hi there!';
+      setGreeting(greeting);
     } catch (error) {
       console.error('Failed to load profile:', error);
       // Set default profile if everything fails

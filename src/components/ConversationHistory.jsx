@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { History, Clock, MessageSquare, Loader2, Search, X } from 'lucide-react';
 import { conversationAPI } from '../services/api';
+import { getAllSessions } from '../services/supabaseMemory';
 import toast from 'react-hot-toast';
 
 export default function ConversationHistory({ onLoadConversation }) {
@@ -19,24 +20,14 @@ export default function ConversationHistory({ onLoadConversation }) {
     try {
       let sessions = [];
 
-      if (window.electron?.memory?.getAllSessions) {
+      // Try Supabase-first memory (with Electron fallback)
+      if (localStorage.getItem('user_id')) {
         try {
-          const all = await window.electron.memory.getAllSessions();
+          const all = await getAllSessions();
           if (Array.isArray(all) && all.length) sessions = all;
-        } catch {}
-      }
-
-      // Fallback: try full export and extract sessions
-      if ((!sessions || sessions.length === 0) && window.electron?.memory?.export) {
-        try {
-          const dump = await window.electron.memory.export();
-          const fromDump = Array.isArray(dump?.sessions)
-            ? dump.sessions
-            : Array.isArray(dump?.conversations)
-            ? dump.conversations
-            : [];
-          if (fromDump.length) sessions = fromDump;
-        } catch {}
+        } catch (err) {
+          console.warn('[History] Failed to load sessions from Supabase:', err);
+        }
       }
 
       // Web/API fallback

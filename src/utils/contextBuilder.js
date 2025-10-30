@@ -1,7 +1,11 @@
 /**
  * Context Builder Utility
  * Builds context from Memory Vault for AI requests
+ * Uses hybrid search (local + Supabase) for fast, comprehensive results
  */
+
+import { getProfile, getFacts, getRecentMessages, getPreferences } from '../services/supabaseMemory';
+import { searchContext } from '../services/hybridSearch';
 
 /**
  * Build complete context for chat request
@@ -9,19 +13,19 @@
  */
 export async function buildChatContext(sessionId = null, messageLimit = 10) {
   try {
-    if (!window.electron?.memory) {
-      console.warn('[Context] Memory API not available');
+    if (!localStorage.getItem('user_id')) {
+      console.warn('[Context] User not initialized');
       return null;
     }
 
-    // Gather context from Memory Vault
+    // Gather context from Supabase-first memory
     const [profile, facts, recentMessages, preferences] = await Promise.all([
-      window.electron.memory.getProfile().catch(() => null),
-      window.electron.memory.getFacts().catch(() => ({})),
+      getProfile().catch(() => null),
+      getFacts().catch(() => ({})),
       sessionId
-        ? window.electron.memory.getRecentMessages(messageLimit, sessionId).catch(() => [])
+        ? getRecentMessages(messageLimit, sessionId).catch(() => [])
         : Promise.resolve([]),
-      window.electron.memory.getPreferences().catch(() => ({})),
+      getPreferences().catch(() => ({})),
     ]);
 
     // Build context object
@@ -51,6 +55,74 @@ export async function buildChatContext(sessionId = null, messageLimit = 10) {
     return context;
   } catch (error) {
     console.error('[Context] Failed to build context:', error);
+    return null;
+  }
+}
+
+/**
+ * Build enriched context using hybrid semantic search
+ * @param {string} query - User's current query for relevant context retrieval
+ * @param {string} sessionId - Optional session ID
+ * @param {number} messageLimit - Max messages to include
+ * @returns {Promise<Object>} Enriched context with semantically relevant items
+ */
+export async function buildEnrichedContext(query, sessionId = null, messageLimit = 10) {
+  try {
+    const userId = localStorage.getItem('user_id');
+    
+    if (!userId) {
+      console.warn('[Context] User not initialized');
+      return null;
+    }
+
+    // Get basic context
+    const [profile, preferences] = await Promise.all([
+      getProfile().catch(() => null),
+      getPreferences().catch(() => ({})),
+    ]);
+
+    // Use hybrid search to find relevant messages and facts
+    const searchResults = await searchContext(query, userId, {
+      includeMessages: true,
+      includeFacts: true,
+      messageLimit,
+      factLimit: 10
+    });
+
+    // Build enriched context
+    const context = {
+      profile: profile
+        ? {
+            name: profile.name || 'User',
+            interaction_count: profile.interaction_count || 0,
+          }
+        : null,
+      facts: searchResults.facts.map(f => ({
+        category: f.category,
+        key: f.key,
+        value: f.value,
+        relevance: f.score || 0
+      })),
+      relevant_messages: searchResults.messages.map(m => ({
+        role: m.role,
+        content: m.content?.substring(0, 500) || '',
+        relevance: m.score || 0,
+        source: m.source || 'unknown'
+      })),
+      preferences: preferences,
+      search_stats: searchResults.stats
+    };
+
+    console.log('[Context] Built enriched context:', {
+      hasProfile: !!context.profile,
+      factCount: context.facts.length,
+      relevantMessageCount: context.relevant_messages.length,
+      searchDuration: searchResults.stats?.duration || 0
+    });
+
+    return context;
+  } catch (error) {
+    console.error('[Context] Failed to build enriched context:', error);
     return null;
   }
 }
@@ -118,17 +190,6 @@ export async function reinforceUsedFacts(usedFactIds) {
     return;
   }
 
-  if (!window.electron?.memory?.reinforceFact) {
-    console.warn('[Context] reinforceFact API not available');
-    return;
-  }
-
-  try {
-    for (const factId of usedFactIds) {
-      await window.electron.memory.reinforceFact(factId);
-    }
-    console.log('[Context] Reinforced', usedFactIds.length, 'facts');
-  } catch (error) {
-    console.error('[Context] Failed to reinforce facts:', error);
-  }
+  // TODO: Implement fact reinforcement in supabaseMemory
+  console.log('[Context] Fact reinforcement not yet implemented in Supabase-first memory');
 }

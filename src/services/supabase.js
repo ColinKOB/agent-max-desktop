@@ -4,7 +4,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { createLogger } from './logger';
+import { createLogger } from './logger.js';
 
 const logger = createLogger('Supabase');
 
