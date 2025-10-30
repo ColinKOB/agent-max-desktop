@@ -50,7 +50,7 @@
 
     <script>
         const SUPABASE_URL = 'https://rburoajxsyfousnleydw.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidXJvYWp4c3lmb3VzbmxleWR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5OTE2MTgsImV4cCI6MjA3NjU2NzYxOH0.sWHCQpHiQvI_whjLKF8ybR3mr9BNtPF68MgKT1LLuSc';
+        const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'test-anon-key';
 
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 

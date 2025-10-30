@@ -18,6 +18,46 @@ const os = require('os');
 
 // Simple dev check instead of electron-is-dev
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+
+// ===========================================
+// RUNTIME SECURITY CHECKS
+// ===========================================
+
+function performSecurityChecks() {
+  // Only enforce in production
+  if (process.env.NODE_ENV === 'production') {
+    // Prevent debugging in production
+    if (process.env.NODE_OPTIONS?.includes('--inspect') || 
+        process.env.NODE_OPTIONS?.includes('--debug')) {
+      console.error('[SECURITY] Debug flags detected in production - exiting');
+      app.exit(1);
+    }
+    
+    // Validate environment
+    if (!process.env.VITE_SUPABASE_URL) {
+      console.error('[SECURITY] Missing required environment variables');
+      app.exit(1);
+    }
+    
+    // Check for suspicious processes
+    const suspiciousProcesses = ['gdb', 'lldb', 'frida', 'xposed'];
+    const { execSync } = require('child_process');
+    try {
+      const processes = execSync('ps aux', { encoding: 'utf8' });
+      const foundSuspicious = suspiciousProcesses.some(proc => 
+        processes.toLowerCase().includes(proc)
+      );
+      if (foundSuspicious && !isDev) {
+        console.warn('[SECURITY] Suspicious debugging process detected');
+      }
+    } catch (error) {
+      // Ignore process check errors
+    }
+  }
+}
+
+// Run security checks on startup
+performSecurityChecks();
 const LocalMemoryManager = require('./memory-manager-backend-bridge.cjs');
 const IPCValidator = require('./ipc-validator.cjs');
 const { createApplicationMenu } = require('./menu.cjs');

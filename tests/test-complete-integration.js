@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
 
 const supabaseUrl = 'https://rburoajxsyfousnleydw.supabase.co';
-const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidXJvYWp4c3lmb3VzbmxleWR3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDk5MTYxOCwiZXhwIjoyMDc2NTY3NjE4fQ.no4IKU5bR7q-rXb_bvo1pM3sqtegJBv8Jb6TChuDLag';
+const supabaseServiceKey = process.env.VITE_SUPABASE_SERVICE_KEY || 'test-service-key';
 const backendUrl = 'http://localhost:8000';
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);

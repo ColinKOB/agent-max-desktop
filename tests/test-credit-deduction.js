@@ -7,7 +7,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 // Initialize Supabase client
 const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://bqfqvfpapfclbwbygvwx.supabase.co';
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxZnF2ZnBhcGZjbGJ3Ynlndnd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU0MjE5MzUsImV4cCI6MjA1MDk5NzkzNX0.FLXtDJR3BL8bOEzQh5tXwmq5k6I-uZ8NxR-TZh5v8gM';
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'test-anon-key';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function testCreditDeduction() {
