@@ -65,7 +65,7 @@
   left: 15px; /* moved right 5px */
   width: 26px;
   height: 26px;
-  background-image: url('/AgentMaxLogo.png');
+  /* background-image moved inline via JS for proper Vite/Electron resolution */
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;

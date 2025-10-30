@@ -11,7 +11,9 @@ import './CreditPurchase.css';
 
 export function CreditPurchase({ userId, onClose, onSuccess }) {
   const [packages, setPackages] = useState([]);
+  const [subscriptionPlans, setSubscriptionPlans] = useState([]);
   const [selectedPackage, setSelectedPackage] = useState(null);
+  const [mode, setMode] = useState('one_time'); // 'one_time' | 'subscription'
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   const [currentCredits, setCurrentCredits] = useState(0);
@@ -24,11 +26,15 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
   const loadPackages = async () => {
     try {
       const response = await creditsAPI.getPackages();
-      const pkgs = response?.data?.packages || response?.data || [];
-      setPackages(pkgs);
-      // Pre-select the middle package (pro)
-      if (pkgs.length > 0) {
-        setSelectedPackage(pkgs[1]?.id || pkgs[0]?.id);
+      const oneTime = response?.data?.one_time || [];
+      const subs = response?.data?.subscriptions || [];
+      setPackages(oneTime);
+      setSubscriptionPlans(subs);
+      // Default selections
+      if (mode === 'one_time') {
+        if (oneTime.length > 0) setSelectedPackage(oneTime[1]?.id || oneTime[0]?.id);
+      } else {
+        if (subs.length > 0) setSelectedPackage(subs[1]?.id || subs[0]?.id);
       }
     } catch (error) {
       console.error('Failed to load packages:', error);
@@ -58,14 +64,14 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
 
     try {
       setPurchasing(true);
-      
-      // Create checkout session
-      const response = await creditsAPI.createCheckout(
-        selectedPackage,
-        userId,
-        `${window.location.origin}/#/settings?purchase=success`,
-        `${window.location.origin}/#/settings?purchase=cancel`
-      );
+      const successUrl = `${window.location.origin}/#/settings?purchase=success`;
+      const cancelUrl = `${window.location.origin}/#/settings?purchase=cancel`;
+
+      // Route based on mode: one-time vs subscription
+      const response =
+        mode === 'subscription'
+          ? await creditsAPI.createSubscription(selectedPackage, userId, successUrl, cancelUrl)
+          : await creditsAPI.createCheckout(selectedPackage, userId, successUrl, cancelUrl);
 
       const checkoutUrl = response?.data?.url;
       
@@ -92,7 +98,8 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
     );
   }
 
-  const selectedPkg = packages.find(p => p.id === selectedPackage);
+  const list = mode === 'one_time' ? packages : subscriptionPlans;
+  const selectedPkg = list.find(p => p.id === selectedPackage);
 
   return (
     <div className="credit-purchase">
@@ -104,7 +111,7 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              Purchase Credits
+              {mode === 'subscription' ? 'Subscribe Monthly' : 'Purchase Credits'}
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Current balance: <span className="font-semibold text-blue-600">{currentCredits} credits</span>
@@ -122,9 +129,31 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
         )}
       </div>
 
+      {/* Toggle One-Time vs Subscription */}
+      <div className="flex items-center gap-2 mb-4">
+        <button
+          className={`px-3 py-1.5 rounded-md text-sm font-medium ${mode === 'one_time' ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
+          onClick={() => {
+            setMode('one_time');
+            if (packages.length > 0) setSelectedPackage(packages[1]?.id || packages[0]?.id);
+          }}
+        >
+          One-Time
+        </button>
+        <button
+          className={`px-3 py-1.5 rounded-md text-sm font-medium ${mode === 'subscription' ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
+          onClick={() => {
+            setMode('subscription');
+            if (subscriptionPlans.length > 0) setSelectedPackage(subscriptionPlans[1]?.id || subscriptionPlans[0]?.id);
+          }}
+        >
+          Monthly Subscription
+        </button>
+      </div>
+
       {/* Package Selection */}
       <div className="package-grid">
-        {packages.map((pkg) => (
+        {list.map((pkg) => (
           <button
             key={pkg.id}
             onClick={() => setSelectedPackage(pkg.id)}
@@ -151,10 +180,10 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
               <h3 className="package-name">{pkg.name}</h3>
               <div className="package-credits">
                 <Coins className="w-5 h-5" />
-                <span>{pkg.credits.toLocaleString()} credits</span>
+                <span>{pkg.credits.toLocaleString()} credits{mode === 'subscription' ? ' / mo' : ''}</span>
               </div>
               <div className="package-price">
-                <span className="price-amount">${pkg.price_usd.toFixed(2)}</span>
+                <span className="price-amount">${pkg.price_usd.toFixed(2)}{mode === 'subscription' ? '/mo' : ''}</span>
                 <span className="price-per">${pkg.price_per_credit.toFixed(3)}/credit</span>
               </div>
             </div>
@@ -163,11 +192,13 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
             <ul className="package-features">
               <li>
                 <Check className="w-4 h-4" />
-                <span>{pkg.credits} AI conversations</span>
+                <span>
+                  {pkg.credits} AI credits {mode === 'subscription' ? '(~turns per month)' : ''}
+                </span>
               </li>
               <li>
                 <Check className="w-4 h-4" />
-                <span>Never expires</span>
+                <span>{mode === 'subscription' ? 'Renews monthly' : 'Never expires'}</span>
               </li>
               <li>
                 <Check className="w-4 h-4" />
@@ -187,11 +218,11 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
           </div>
           <div className="summary-row">
             <span className="summary-label">Credits:</span>
-            <span className="summary-value">{selectedPkg.credits.toLocaleString()}</span>
+            <span className="summary-value">{selectedPkg.credits.toLocaleString()} {mode === 'subscription' ? '/ month' : ''}</span>
           </div>
           <div className="summary-row total">
             <span className="summary-label">Total:</span>
-            <span className="summary-value">${selectedPkg.price_usd.toFixed(2)}</span>
+            <span className="summary-value">${selectedPkg.price_usd.toFixed(2)}{mode === 'subscription' ? '/month' : ''}</span>
           </div>
         </div>
       )}
@@ -218,7 +249,7 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
         ) : (
           <>
             <Coins className="w-5 h-5" />
-            Continue to Checkout
+            {mode === 'subscription' ? 'Subscribe' : 'Continue to Checkout'}
           </>
         )}
       </button>

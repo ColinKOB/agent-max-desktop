@@ -392,6 +392,9 @@
   width: 36px;
   height: 36px;
   object-fit: contain;
+  /* Ensure clicks work: logo should not be draggable region */
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
   user-select: none;
   -webkit-user-drag: none;
 }

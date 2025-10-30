@@ -15,6 +15,7 @@ import axios from 'axios';
 import { CreditDisplay } from '../CreditDisplay';
 import { supabase, checkResponseCache, storeResponseCache } from '../../services/supabase';
 import { createLogger } from '../../services/logger';
+import LogoPng from '../../assets/AgentMaxLogo.png';
 import { getProfile, getFacts, getPreferences, setPreference, startSession, addMessage, getRecentMessages, getAllSessions } from '../../services/supabaseMemory';
 import { searchContext as hybridSearchContext } from '../../services/hybridSearch';
 import memoryService from '../../services/memory';
@@ -23,6 +24,7 @@ import { FactTileList } from '../FactTileList.jsx';
 import { usePermission } from '../../contexts/PermissionContext';
 import ApprovalDialog from '../ApprovalDialog';
 import './AppleFloatBar.css';
+import './FloatBar.css';
 
 // Better Memory integration
 import memoryAPI from '../../services/memoryAPI';
@@ -1761,7 +1763,13 @@ export default function AppleFloatBar({
           handleExpand();
         }}
       >
-        <img src="/AgentMaxLogo.png" alt="Agent Max" className="amx-mini-logo" />
+        <img
+          src={LogoPng}
+          alt="Agent Max"
+          className="amx-mini-logo"
+          draggable={false}
+          style={{ WebkitAppRegion: 'no-drag' }}
+        />
         <div className="amx-drag-handle-mini">
           <span className="amx-dot"></span>
           <span className="amx-dot"></span>
@@ -1779,7 +1787,10 @@ export default function AppleFloatBar({
     <div className={windowClasses}>
       <div className="apple-bar-container" ref={barRef}>
         <div className="apple-bar-glass" style={{ position: 'relative' }}>
-          <div className="apple-bar-logo" />
+          <div
+            className="apple-bar-logo"
+            style={{ backgroundImage: `url(${LogoPng})` }}
+          />
           <div className="apple-drag-strip" />
           <div className="apple-toolbar" ref={toolbarRef} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ flexGrow: 1 }} />

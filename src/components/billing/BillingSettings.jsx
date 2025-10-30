@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { CreditPurchase } from './CreditPurchase';
+import SubscriptionManager from './SubscriptionManager';
 
 export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialTab = 'overview' }) {
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -238,58 +239,7 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
           <Shield className="w-5 h-5 text-purple-600" />
           Subscription
         </h3>
-
-        {settings.subscription ? (
-          <div className="subscription-info space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600 dark:text-gray-400">Plan</span>
-              <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">
-                {settings.subscription.plan}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600 dark:text-gray-400">Status</span>
-              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                settings.subscription.status === 'active' 
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                  : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
-              }`}>
-                <Check className="w-3 h-3" />
-                {settings.subscription.status.charAt(0).toUpperCase() + settings.subscription.status.slice(1)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600 dark:text-gray-400">Next Billing Date</span>
-              <span className="font-medium text-gray-900 dark:text-gray-100">
-                {settings.subscription.nextBillingDate 
-                  ? new Date(settings.subscription.nextBillingDate).toLocaleDateString()
-                  : 'N/A'
-                }
-              </span>
-            </div>
-            
-            <button
-              onClick={openStripePortal}
-              disabled={portalLoading}
-              className="w-full mt-4 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Manage Subscription
-            </button>
-          </div>
-        ) : (
-          <div className="no-subscription text-center py-4">
-            <p className="text-gray-600 dark:text-gray-400 mb-3">
-              No active subscription
-            </p>
-            <button
-              onClick={() => window.location.href = '/pricing'}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              View Plans
-            </button>
-          </div>
-        )}
+        <SubscriptionManager userId={userId} />
       </div>
 
       {/* Usage Alerts Section */}

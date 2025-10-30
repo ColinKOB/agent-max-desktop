@@ -44,12 +44,34 @@ const testData = {
   usagePercent: 65
 };
 
-export default function UITestDashboard() {
+export default function UITestDashboard({ 
+  showWelcome = null, 
+  onWelcomeComplete = () => {}, 
+  isLoading: appIsLoading = false,
+  windowMode = 'single' 
+}) {
   const [activeSection, setActiveSection] = useState('overview');
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [testResults, setTestResults] = useState({});
   const notifications = useNotifications();
+
+  // Show loading state while app initializes
+  if (appIsLoading || showWelcome === null) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Loading Agent Max...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show onboarding flow if user hasn't completed it
+  if (showWelcome === true) {
+    return <OnboardingFlow onComplete={onWelcomeComplete} />;
+  }
 
   // Sections for testing
   const sections = [

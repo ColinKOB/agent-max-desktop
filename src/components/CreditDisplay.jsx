@@ -87,6 +87,19 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
         return;
       }
 
+      if (credits === 0) {
+        const successUrl = `${window.location.origin}/#/settings?purchase=success`;
+        const cancelUrl = `${window.location.origin}/#/settings?purchase=cancel`;
+        const res = await creditsAPI.emergencyTopup(uid, successUrl, cancelUrl);
+        const url = res?.data?.url;
+        if (url) {
+          window.location.href = url;
+          return;
+        }
+        toast.error('Failed to start emergency top-up');
+        return;
+      }
+
       // Open the dedicated Settings window directly to the Credits section (desktop)
       if (window.electron?.openSettings || window.electronAPI?.openSettings) {
         const openSettings = window.electron?.openSettings || window.electronAPI?.openSettings;

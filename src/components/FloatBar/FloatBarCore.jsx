@@ -13,6 +13,7 @@ import FloatBarActions from './FloatBarActions';
 import { useFloatBarState } from './useFloatBarState';
 import { useMessageHandler } from './useMessageHandler';
 import './FloatBar.css';
+import LogoPng from '../../assets/AgentMaxLogo.png';
 
 export default function FloatBarCore({
   showWelcome,
@@ -190,10 +191,11 @@ export default function FloatBarCore({
       <div className={windowClasses}>
         <div className="amx-mini-content" onClick={handleExpand}>
           <img
-            src="/logo.svg"
+            src={LogoPng}
             alt="Agent Max"
             className="amx-mini-logo"
             draggable={false}
+            style={{ WebkitAppRegion: 'no-drag' }}
           />
         </div>
         <div className="amx-drag-handle-mini">

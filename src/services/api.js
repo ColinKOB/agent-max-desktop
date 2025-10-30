@@ -63,6 +63,21 @@ const connectionState = {
   listeners: new Set(),
 };
 
+// ============================================
+// SUBSCRIPTION MANAGEMENT (Option B)
+// ============================================
+export const subscriptionAPI = {
+  // Get subscription status by email
+  getStatus: (email) => api.get(`/api/subscription/status`, { params: { email } }),
+
+  // Open Stripe billing portal
+  createPortal: (email, returnUrl) =>
+    api.post(`/api/subscription/billing-portal`, { email, return_url: returnUrl }),
+
+  // Cancel subscription at period end
+  cancel: (email) => api.post(`/api/subscription/cancel`, null, { params: { email } }),
+};
+
 export const addConnectionListener = (callback) => {
   connectionState.listeners.add(callback);
   return () => connectionState.listeners.delete(callback);
@@ -740,6 +755,24 @@ export const creditsAPI = {
   deductCredits: (userId, amount = 1) =>
     api.post(`/api/v2/credits/deduct/${userId}`, null, {
       params: { amount },
+    }),
+
+  // Create emergency top-up ($5 for 50 credits)
+  emergencyTopup: (userId, successUrl, cancelUrl) =>
+    api.post('/api/v2/credits/emergency-topup', {
+      package: 'emergency',
+      user_id: userId,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+    }),
+
+  // Create subscription checkout session (monthly plans)
+  createSubscription: (plan, userId, successUrl, cancelUrl) =>
+    api.post('/api/v2/credits/checkout-subscription', {
+      plan,
+      user_id: userId,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
     }),
 };
 

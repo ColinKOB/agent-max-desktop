@@ -26,6 +26,7 @@ import { CardSkeleton } from '../components/ui/SkeletonLoader';
 import { ErrorState } from '../components/ui/ErrorState';
 import { CommandPalette } from '../components/CommandPalette';
 import useStore from '../store/useStore';
+import LogoPng from '../assets/AgentMaxLogo.png';
 
 // SVG Goo Filter for liquid effects
 const GooFilter = () => (
@@ -538,9 +539,10 @@ export default function SettingsAppEnhanced() {
         return (
           <div className="space-y-6 text-center">
             <img 
-              src="/logo.svg" 
+              src={LogoPng}
               alt="Agent Max" 
               className="w-24 h-24 mx-auto"
+              draggable={false}
             />
             
             <div>
