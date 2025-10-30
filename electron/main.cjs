@@ -698,6 +698,42 @@ ipcMain.handle('check-for-updates', async () => {
   }
 });
 
+// Update management handlers
+ipcMain.handle('download-update', async () => {
+  try {
+    const { autoUpdater } = require('./updater.cjs');
+    await autoUpdater.downloadUpdate();
+    return { success: true };
+  } catch (error) {
+    captureError(error, { context: 'download-update' });
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('install-update', async () => {
+  try {
+    const { autoUpdater } = require('./updater.cjs');
+    autoUpdater.quitAndInstall(false, true);
+    return { success: true };
+  } catch (error) {
+    captureError(error, { context: 'install-update' });
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('restart-for-update', async () => {
+  try {
+    const { app } = require('electron');
+    app.removeAllListeners('window-all-closed');
+    const { autoUpdater } = require('./updater.cjs');
+    autoUpdater.quitAndInstall(false, true);
+    return { success: true };
+  } catch (error) {
+    captureError(error, { context: 'restart-for-update' });
+    return { success: false, error: error.message };
+  }
+});
+
 // ============================================
 // MEMORY MANAGEMENT IPC HANDLERS
 // ============================================

@@ -83,6 +83,13 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "ColinKOB",
+      "repo": "agent-max-desktop",
+      "private": false,
+      "releaseType": "release"
     }
   },
   "dependencies": {

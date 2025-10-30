@@ -10,6 +10,7 @@ import { getProfile, getPreference, syncLocalIndex } from './services/supabaseMe
 import { preloadModel } from './services/embeddings';
 import { createLogger } from './services/logger';
 import { PermissionProvider } from './contexts/PermissionContext';
+import UpdateNotification from './components/UpdateNotification';
 
 const logger = createLogger('App');
 
@@ -17,6 +18,8 @@ function App({ windowMode = 'single' }) {
   const { setApiConnected, setProfile, setGreeting } = useStore();
   const [showWelcome, setShowWelcome] = useState(null); // null = checking, true = show, false = hide
   const [isLoading, setIsLoading] = useState(true);
+  const [updateInfo, setUpdateInfo] = useState(null);
+  const [updateProgress, setUpdateProgress] = useState(null);
 
   useEffect(() => {
     // Initialize user in Supabase
@@ -30,6 +33,9 @@ function App({ windowMode = 'single' }) {
 
     // Load initial profile
     loadProfile();
+
+    // Set up update listeners
+    setupUpdateListeners();
 
     // Adaptive health check with exponential backoff
     let checkInterval = 30000; // Start with 30 seconds
@@ -87,23 +93,40 @@ function App({ windowMode = 'single' }) {
     try {
       logger.info('Initializing hybrid search system...');
       
-      // Preload embedding model in background (non-blocking)
-      preloadModel().catch(err => {
-        logger.warn('Failed to preload embedding model:', err);
-      });
-      
-      // Sync local search index with Supabase data
-      // This runs after a short delay to not block initial render
-      setTimeout(async () => {
-        try {
-          await syncLocalIndex();
-          logger.info('Local search index synced successfully');
-        } catch (error) {
-          logger.warn('Failed to sync local search index:', error);
-        }
-      }, 2000);  // 2 second delay
+      // Preload the embedding model
+      await preloadModel();
+      logger.info('Hybrid search initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize hybrid search:', error);
+    }
+  };
+
+  const setupUpdateListeners = () => {
+    // Only set up listeners in Electron environment
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      // Listen for update available
+      window.electronAPI.onUpdateAvailable?.((info) => {
+        logger.info('Update available:', info);
+        setUpdateInfo(info);
+      });
+
+      // Listen for download progress
+      window.electronAPI.onUpdateDownloadProgress?.((progress) => {
+        logger.info('Update download progress:', progress);
+        setUpdateProgress(progress);
+      });
+
+      // Listen for update downloaded
+      window.electronAPI.onUpdateDownloaded?.((info) => {
+        logger.info('Update downloaded:', info);
+        setUpdateInfo({ ...info, downloaded: true });
+      });
+
+      // Listen for update errors
+      window.electronAPI.onUpdateError?.((error) => {
+        logger.error('Update error:', error);
+        setUpdateInfo({ error: error.message });
+      });
     }
   };
 
@@ -170,11 +193,16 @@ function App({ windowMode = 'single' }) {
 
   return (
     <PermissionProvider>
-      <AppleFloatBar
+      <UITestDashboard
         showWelcome={showWelcome}
         onWelcomeComplete={handleWelcomeComplete}
         isLoading={isLoading}
         windowMode={windowMode}
+      />
+      <UpdateNotification
+        updateInfo={updateInfo}
+        updateProgress={updateProgress}
+        onDismiss={() => setUpdateInfo(null)}
       />
       <Toaster
         position="bottom-right"
