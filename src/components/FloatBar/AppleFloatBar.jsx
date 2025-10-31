@@ -30,6 +30,7 @@ import './FloatBar.css';
 import memoryAPI from '../../services/memoryAPI';
 import ContextPreview from './ContextPreview';
 import MemoryToast from '../MemoryToast';
+import { OnboardingFlow } from '../onboarding/OnboardingFlow';
 
 const logger = createLogger('FloatBar');
 
@@ -242,7 +243,8 @@ export default function AppleFloatBar({
     (async () => {
       try {
         const hasMessages = thoughts.length > 0;
-        const base = MIN_EXPANDED_HEIGHT;
+        const onboarding = showWelcome === true;
+        const base = onboarding ? 520 : MIN_EXPANDED_HEIGHT;
         let limit = Infinity;
         try {
           const size = await window.electron?.getScreenSize?.();
@@ -1824,6 +1826,13 @@ export default function AppleFloatBar({
             </button>
           </div>
 
+          {/* Onboarding overlay: only after expansion and when requested */}
+          {showWelcome === true && !isTransitioning && (
+            <div style={{ position: 'absolute', inset: 0, zIndex: 80 }}>
+              <OnboardingFlow onComplete={onWelcomeComplete} />
+            </div>
+          )}
+
           {/* Spread overlay across toolbar */}
           {toolMenuOpen && (
             <div
@@ -2004,8 +2013,8 @@ export default function AppleFloatBar({
         approveButtonText="Approve"
       />
       
-      {/* Offline/Reconnecting pill */}
-      {!apiConnected && (
+      {/* Offline/Reconnecting pill (hidden during onboarding) */}
+      {!apiConnected && !showWelcome && (
         <div
           style={{
             position: 'fixed',

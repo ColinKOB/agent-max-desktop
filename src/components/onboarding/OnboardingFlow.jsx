@@ -20,6 +20,10 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { healthAPI, googleAPI } from '../../services/api';
+import apiConfigManager from '../../config/apiConfig';
+import LogoPng from '../../assets/AgentMaxLogo.png';
+import { setName as setProfileName, setPreference as setUserPreference, updateProfile as updateUserProfile } from '../../services/supabaseMemory';
 
 const stripePublishableKey = (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '').trim();
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
@@ -38,11 +42,30 @@ export function OnboardingFlow({ onComplete, onSkip }) {
     hasPaymentMethod: false,
     firstGoal: ''
   });
+  const [serverConnected, setServerConnected] = useState(false);
+  const [checkingServer, setCheckingServer] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    const attemptOnce = async () => {
+      try {
+        await healthAPI.check();
+        if (mounted) setServerConnected(true);
+      } catch (_) {
+        if (mounted) setServerConnected(false);
+      } finally {
+        if (mounted) setCheckingServer(false);
+      }
+    };
+    attemptOnce();
+    const id = setInterval(attemptOnce, 4000);
+    return () => { mounted = false; clearInterval(id); };
+  }, []);
 
   const steps = [
-    { id: 'welcome', title: 'Welcome', component: WelcomeStep },
-    { id: 'payment', title: 'Payment Setup', component: PaymentStep },
-    { id: 'firstGoal', title: 'First Goal', component: FirstGoalStep },
+    { id: 'name', title: 'Your Name', component: NameStep },
+    { id: 'usecase', title: 'How can I help?', component: HelpCategoryStep },
+    { id: 'google', title: 'Connect Google', component: GoogleConnectStep },
     { id: 'complete', title: 'Ready to Go!', component: CompleteStep }
   ];
 
@@ -61,94 +84,87 @@ export function OnboardingFlow({ onComplete, onSkip }) {
     }
   };
 
-  const handleComplete = () => {
-    // Save onboarding completion
-    localStorage.setItem('onboarding_completed', 'true');
-    localStorage.setItem('user_data', JSON.stringify(userData));
+  const handleComplete = async () => {
+    try {
+      await setUserPreference('onboarding_completed', 'true');
+    } catch {}
+    try { localStorage.setItem('onboarding_completed', 'true'); } catch {}
+    try { localStorage.setItem('user_data', JSON.stringify(userData)); } catch {}
     onComplete(userData);
   };
 
   const CurrentStepComponent = steps[currentStep].component;
 
   return (
-    <div className="onboarding-flow fixed inset-0 z-50 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="h-full flex flex-col">
-        {/* Header */}
-        <div className="p-6 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <img src="/logo.png" alt="Agent Max" className="w-10 h-10" />
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              Agent Max Setup
-            </h1>
-          </div>
-          
-          {currentStep > 0 && currentStep < steps.length - 1 && (
-            <button
-              onClick={() => onSkip && onSkip()}
-              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            >
-              Skip for now
-            </button>
-          )}
-        </div>
-
-        {/* Progress Bar */}
-        <div className="px-6 pb-6">
-          <div className="flex items-center justify-between mb-2">
-            {steps.map((step, index) => (
-              <div key={step.id} className="flex items-center flex-1">
-                <div className={`
-                  w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all
-                  ${index < currentStep 
-                    ? 'bg-green-600 text-white' 
-                    : index === currentStep 
-                    ? 'bg-blue-600 text-white scale-110' 
-                    : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
-                  }
-                `}>
-                  {index < currentStep ? <Check className="w-4 h-4" /> : index + 1}
-                </div>
-                {index < steps.length - 1 && (
-                  <div className={`
-                    flex-1 h-1 mx-2 rounded transition-all
-                    ${index < currentStep 
-                      ? 'bg-green-600' 
-                      : 'bg-gray-300 dark:bg-gray-600'
-                    }
-                  `} />
-                )}
+    <div className="absolute inset-0 z-50">
+      <div className="h-full w-full flex flex-col px-4 py-4">
+        <div className="flex-1 w-full mx-auto" style={{maxWidth: 720}}>
+          <div
+            className="w-full h-full rounded-2xl"
+            style={{
+              position: 'relative',
+              background: 'linear-gradient(135deg, rgba(18,20,24,0.82), rgba(24,26,30,0.76))',
+              border: '1px solid rgba(255,255,255,0.12)',
+              boxShadow: '0 12px 50px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
+              backdropFilter: 'saturate(120%) blur(18px)',
+              WebkitBackdropFilter: 'saturate(120%) blur(18px)'
+            }}
+          >
+            <div className="flex items-center justify-between px-6 pt-6">
+              <div className="flex items-center gap-3">
+                <img src={LogoPng} alt="Agent Max" className="h-6 w-auto object-contain" />
+                <h1 className="text-[15px] font-semibold" style={{color: 'rgba(255,255,255,0.9)'}}>
+                  Agent Max Setup
+                </h1>
               </div>
-            ))}
-          </div>
-          <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
-            {steps.map((step) => (
-              <span key={step.id} className="text-center flex-1">
-                {step.title}
-              </span>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-auto">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentStep}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-              className="h-full"
-            >
-              <CurrentStepComponent
-                userData={userData}
-                onNext={handleNext}
-                onBack={handleBack}
-                isFirst={currentStep === 0}
-                isLast={currentStep === steps.length - 1}
-              />
-            </motion.div>
-          </AnimatePresence>
+            <div className="px-6 pb-6 pt-2" style={{color: 'rgba(255,255,255,0.9)'}}>
+              <div className="flex-1 overflow-auto" style={{minHeight: 300}}>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentStep}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.22 }}
+                  >
+                    <CurrentStepComponent
+                      userData={userData}
+                      onNext={handleNext}
+                      onBack={handleBack}
+                      isFirst={currentStep === 0}
+                      isLast={currentStep === steps.length - 1}
+                      serverConnected={serverConnected}
+                      checkingServer={checkingServer}
+                    />
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+
+              {/* Bottom progress, compact */}
+              <div className="pt-6">
+                <div className="flex items-center justify-between">
+                  {steps.map((step, index) => (
+                    <div key={step.id} className="flex items-center flex-1">
+                      <div
+                        className={
+                          `${index < currentStep ? 'bg-green-500' : index === currentStep ? 'bg-blue-500' : 'bg-white/16'} ` +
+                          'rounded-full flex items-center justify-center'
+                        }
+                        style={{ width: 20, height: 20, color: '#fff', fontSize: 10, fontWeight: 600 }}
+                      >
+                        {index < currentStep ? '✓' : index + 1}
+                      </div>
+                      {index < steps.length - 1 && (
+                        <div className="flex-1 mx-1 rounded" style={{ height: 2, background: index < currentStep ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.18)' }} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -156,70 +172,75 @@ export function OnboardingFlow({ onComplete, onSkip }) {
 }
 
 /**
- * Step 1: Welcome
+ * Step 1: Your Name
  */
-function WelcomeStep({ onNext, isFirst }) {
-  const features = [
-    { icon: Sparkles, title: 'Autonomous Actions', description: 'AI that works for you' },
-    { icon: Shield, title: 'Secure & Private', description: 'Your data stays yours' },
-    { icon: Zap, title: 'Lightning Fast', description: 'Real-time responses' },
-    { icon: Users, title: 'Team Collaboration', description: 'Work together seamlessly' }
-  ];
+function NameStep({ userData, onNext }) {
+  const [name, setName] = useState(userData.name || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleContinue = async () => {
+    setSaving(true);
+    try {
+      if (name.trim()) {
+        try { await setProfileName(name.trim()); } catch {}
+        try { await updateUserProfile({ name: name.trim() }); } catch {}
+      }
+      onNext({ name: name.trim() });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-12">
-      <div className="text-center mb-12">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", bounce: 0.5 }}
-          className="inline-block mb-6"
-        >
-          <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-            <Sparkles className="w-12 h-12 text-white" />
-          </div>
-        </motion.div>
-        
-        <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-          Welcome to Agent Max!
-        </h1>
-        <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-          Your AI assistant for automating computer tasks. Let's get you set up in just a few steps.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
-        {features.map((feature, index) => {
-          const Icon = feature.icon;
-          return (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="text-center"
-            >
-              <div className="w-16 h-16 bg-white dark:bg-gray-800 rounded-lg shadow-md flex items-center justify-center mx-auto mb-3">
-                <Icon className="w-8 h-8 text-blue-600" />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                {feature.title}
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {feature.description}
-              </p>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      <div className="text-center">
+    <div className="max-w-xl mx-auto px-6 py-10">
+      <h2 style={{ color: 'rgba(255,255,255,0.94)', fontSize: 28, fontWeight: 800, letterSpacing: 0.2 }}>
+        What is your name?
+      </h2>
+      <p style={{ color: 'rgba(255,255,255,0.65)', marginTop: 6, marginBottom: 20 }}>
+        I’ll use this to personalize your experience.
+      </p>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+          alignItems: 'stretch',
+          overflowX: 'hidden'
+        }}
+      >
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Your name"
+          style={{
+            width: '100%',
+            height: 56,
+            padding: '0 14px',
+            color: 'rgba(255,255,255,0.92)',
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.28))',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 12,
+            outline: 'none'
+          }}
+        />
         <button
-          onClick={() => onNext()}
-          className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-lg inline-flex items-center gap-2"
+          onClick={handleContinue}
+          disabled={!name.trim() || saving}
+          style={{
+            width: '100%',
+            height: 28,
+            padding: '0 16px',
+            color: '#fff',
+            background: 'linear-gradient(180deg, #3b82f6, #2563eb)',
+            border: '1px solid rgba(255,255,255,0.14)',
+            borderRadius: 12,
+            fontWeight: 600,
+            opacity: !name.trim() || saving ? 0.6 : 1,
+            cursor: !name.trim() || saving ? 'not-allowed' : 'pointer',
+            alignSelf: 'flex-end'
+          }}
         >
-          Get Started
-          <ArrowRight className="w-5 h-5" />
+          Continue
         </button>
       </div>
     </div>
@@ -227,7 +248,170 @@ function WelcomeStep({ onNext, isFirst }) {
 }
 
 /**
- * Step 2: Payment Setup
+ * Step 2: How can I help?
+ */
+function HelpCategoryStep({ userData, onNext, onBack }) {
+  const [selected, setSelected] = useState(userData.helpCategory || '');
+
+  const options = [
+    'Help with school',
+    'Help with coding',
+    'Help with work',
+    'Help with writing',
+    'Help with day to day life',
+  ];
+
+  const handleContinue = async () => {
+    try { await setUserPreference('help_category', selected); } catch {}
+    onNext({ helpCategory: selected });
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto px-6 py-10" style={{ paddingBottom: 16 }}>
+      <h2 style={{ color: 'rgba(255,255,255,0.94)', fontSize: 26, fontWeight: 800, marginBottom: 6 }}>How can I help best?</h2>
+      <p style={{ color: 'rgba(255,255,255,0.65)', marginBottom: 18 }}>
+        Choose one focus to get the most relevant tips and defaults. You can change this later.
+      </p>
+
+      <div className="grid grid-cols-1 gap-12" style={{ marginTop: 6 }}>
+        {options.map(opt => (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => setSelected(opt)}
+            style={{
+              textAlign: 'left',
+              padding: '16px 16px',
+              borderRadius: 14,
+              color: 'rgba(255,255,255,0.92)',
+              background: selected === opt ? 'rgba(59,130,246,0.16)' : 'rgba(255,255,255,0.06)',
+              border: selected === opt ? '1px solid rgba(59,130,246,0.45)' : '1px solid rgba(255,255,255,0.12)'
+            }}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-8 flex gap-3 justify-end">
+        <button
+          onClick={onBack}
+          style={{
+            padding: '10px 16px',
+            color: 'rgba(255,255,255,0.9)',
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.14)',
+            borderRadius: 12,
+            fontWeight: 600
+          }}
+        >
+          Back
+        </button>
+        <button
+          onClick={handleContinue}
+          disabled={!selected}
+          style={{
+            padding: '10px 16px',
+            color: '#fff',
+            background: 'linear-gradient(180deg, #3b82f6, #2563eb)',
+            border: '1px solid rgba(255,255,255,0.14)',
+            borderRadius: 12,
+            fontWeight: 600,
+            opacity: !selected ? 0.6 : 1,
+            cursor: !selected ? 'not-allowed' : 'pointer'
+          }}
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Step 3: Google OAuth
+ */
+function GoogleConnectStep({ userData, onNext, onBack, serverConnected, checkingServer }) {
+  const [opening, setOpening] = useState(false);
+
+  const connect = async () => {
+    setOpening(true);
+    try {
+      const cfg = apiConfigManager.getConfig();
+      const base = cfg.baseURL || 'http://localhost:8000';
+      // Try a few conventional endpoints; backend isn’t up yet so this may open when available
+      const candidates = [
+        `${base}/api/v2/google/oauth/start`,
+        `${base}/api/v2/google/oauth`,
+        `${base}/api/v2/google/connect`,
+      ];
+      const url = candidates[0];
+      if (window.electron?.openExternal) await window.electron.openExternal(url);
+      else if (window.electronAPI?.openExternal) await window.electronAPI.openExternal(url);
+    } catch (_) {
+      // Non-blocking
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto px-6 py-10">
+      <h2 style={{ color: 'rgba(255,255,255,0.94)', fontSize: 26, fontWeight: 800 }}>Connect Google</h2>
+      <p style={{ color: 'rgba(255,255,255,0.65)', marginTop: 6 }}>
+        We use Google to draft and send emails and manage your calendar on your behalf when you ask.
+      </p>
+      <p style={{ color: 'rgba(255,255,255,0.65)', marginBottom: 16 }}>
+        You control permissions at all times and can disconnect in settings with one click.
+      </p>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
+        <span style={{ width: 8, height: 8, borderRadius: 9999, background: serverConnected ? '#10b981' : '#f59e0b' }} />
+        <span>
+          {checkingServer ? 'Checking server…' : serverConnected ? 'Server connected' : 'Server offline — you can continue and connect later'}
+        </span>
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          style={{
+            padding: '10px 16px',
+            color: 'rgba(255,255,255,0.9)',
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.14)',
+            borderRadius: 12,
+            fontWeight: 600
+          }}
+        >
+          Back
+        </button>
+
+        <button
+          type="button"
+          onClick={connect}
+          disabled={!serverConnected || opening}
+          style={{
+            padding: '10px 16px',
+            color: '#fff',
+            background: 'linear-gradient(180deg, #3b82f6, #2563eb)',
+            border: '1px solid rgba(255,255,255,0.14)',
+            borderRadius: 12,
+            fontWeight: 600,
+            opacity: !serverConnected || opening ? 0.6 : 1,
+            cursor: !serverConnected || opening ? 'not-allowed' : 'pointer'
+          }}
+        >
+          {opening ? 'Opening…' : 'Connect Google'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Legacy steps below (Payment, FirstGoal) are kept for reference but not used
  */
 function PaymentStepContent({ userData, onNext, onBack }) {
   const stripe = useStripe();

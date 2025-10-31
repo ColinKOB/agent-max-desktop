@@ -11,7 +11,6 @@ import { preloadModel } from './services/embeddings';
 import { createLogger } from './services/logger';
 import { PermissionProvider } from './contexts/PermissionContext';
 import UpdateNotification from './components/UpdateNotification';
-import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
 
 const logger = createLogger('App');
 
@@ -198,8 +197,6 @@ function App({ windowMode = 'single' }) {
         <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
           <div style={{ color:'#7a7a85' }}>Loading Agent Max...</div>
         </div>
-      ) : showWelcome ? (
-        <OnboardingFlow onComplete={handleWelcomeComplete} />
       ) : (
         <AppleFloatBar
           showWelcome={showWelcome}
