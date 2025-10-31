@@ -110,7 +110,7 @@ export function OnboardingFlow({ onComplete, onSkip }) {
               WebkitBackdropFilter: 'saturate(120%) blur(18px)'
             }}
           >
-            <div className="flex items-center justify-between px-6 pt-6">
+            <div className="flex items-center justify-center px-3 pt-4 pb-3 w-full">
               <div className="flex items-center gap-3">
                 <img src={LogoPng} alt="Agent Max" className="h-6 w-auto object-contain" />
                 <h1 className="text-[15px] font-semibold" style={{color: 'rgba(255,255,255,0.9)'}}>
@@ -119,8 +119,8 @@ export function OnboardingFlow({ onComplete, onSkip }) {
               </div>
             </div>
 
-            <div className="px-6 pb-6 pt-2" style={{color: 'rgba(255,255,255,0.9)'}}>
-              <div className="flex-1 overflow-auto" style={{minHeight: 300}}>
+            <div className="px-3 pb-3 pt-1" style={{color: 'rgba(255,255,255,0.9)', display: 'flex', flexDirection: 'column', height: '100%'}}>
+              <div className="flex-1 overflow-auto" style={{minHeight: 0, paddingBottom: 8}}>
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={currentStep}
@@ -140,28 +140,6 @@ export function OnboardingFlow({ onComplete, onSkip }) {
                     />
                   </motion.div>
                 </AnimatePresence>
-              </div>
-
-              {/* Bottom progress, compact */}
-              <div className="pt-6">
-                <div className="flex items-center justify-between">
-                  {steps.map((step, index) => (
-                    <div key={step.id} className="flex items-center flex-1">
-                      <div
-                        className={
-                          `${index < currentStep ? 'bg-green-500' : index === currentStep ? 'bg-blue-500' : 'bg-white/16'} ` +
-                          'rounded-full flex items-center justify-center'
-                        }
-                        style={{ width: 20, height: 20, color: '#fff', fontSize: 10, fontWeight: 600 }}
-                      >
-                        {index < currentStep ? '✓' : index + 1}
-                      </div>
-                      {index < steps.length - 1 && (
-                        <div className="flex-1 mx-1 rounded" style={{ height: 2, background: index < currentStep ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.18)' }} />
-                      )}
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
@@ -184,6 +162,16 @@ function NameStep({ userData, onNext }) {
       if (name.trim()) {
         try { await setProfileName(name.trim()); } catch {}
         try { await updateUserProfile({ name: name.trim() }); } catch {}
+        try {
+          const profile = {
+            name: name.trim(),
+            help_category: userData?.helpCategory || '',
+            google_oauth: 'unknown'
+          };
+          await setUserPreference('prompt_profile', JSON.stringify(profile));
+          const ctx = `User name: ${profile.name}`;
+          try { await setUserPreference('prompt_context', ctx); } catch {}
+        } catch {}
       }
       onNext({ name: name.trim() });
     } finally {
@@ -192,7 +180,7 @@ function NameStep({ userData, onNext }) {
   };
 
   return (
-    <div className="max-w-xl mx-auto px-6 py-10">
+    <div className="max-w-xl mx-auto px-4 py-8" style={{ maxWidth: 340, textAlign: 'center' }}>
       <h2 style={{ color: 'rgba(255,255,255,0.94)', fontSize: 28, fontWeight: 800, letterSpacing: 0.2 }}>
         What is your name?
       </h2>
@@ -205,7 +193,9 @@ function NameStep({ userData, onNext }) {
           flexDirection: 'column',
           gap: 10,
           alignItems: 'stretch',
-          overflowX: 'hidden'
+          overflowX: 'hidden',
+          maxWidth: 340,
+          margin: '0 auto'
         }}
       >
         <input
@@ -262,38 +252,60 @@ function HelpCategoryStep({ userData, onNext, onBack }) {
   ];
 
   const handleContinue = async () => {
-    try { await setUserPreference('help_category', selected); } catch {}
+    try {
+      await setUserPreference('help_category', selected);
+      const profile = {
+        name: (userData?.name || '').trim(),
+        help_category: selected,
+        google_oauth: 'unknown'
+      };
+      try { await setUserPreference('prompt_profile', JSON.stringify(profile)); } catch {}
+      try {
+        const ctx = `User name: ${profile.name || 'Unknown'}\nPrimary focus: ${profile.help_category}.`;
+        await setUserPreference('prompt_context', ctx);
+      } catch {}
+    } catch {}
     onNext({ helpCategory: selected });
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-10" style={{ paddingBottom: 16 }}>
-      <h2 style={{ color: 'rgba(255,255,255,0.94)', fontSize: 26, fontWeight: 800, marginBottom: 6 }}>How can I help best?</h2>
-      <p style={{ color: 'rgba(255,255,255,0.65)', marginBottom: 18 }}>
-        Choose one focus to get the most relevant tips and defaults. You can change this later.
-      </p>
-
-      <div className="grid grid-cols-1 gap-12" style={{ marginTop: 6 }}>
-        {options.map(opt => (
-          <button
-            key={opt}
-            type="button"
-            onClick={() => setSelected(opt)}
-            style={{
-              textAlign: 'left',
-              padding: '16px 16px',
-              borderRadius: 14,
-              color: 'rgba(255,255,255,0.92)',
-              background: selected === opt ? 'rgba(59,130,246,0.16)' : 'rgba(255,255,255,0.06)',
-              border: selected === opt ? '1px solid rgba(59,130,246,0.45)' : '1px solid rgba(255,255,255,0.12)'
-            }}
-          >
-            {opt}
-          </button>
-        ))}
+    <div className="max-w-2xl mx-auto px-3 py-4" style={{ textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div>
+        <h2 style={{ color: 'rgba(255,255,255,0.94)', fontSize: 20, fontWeight: 800, marginBottom: 2 }}>How can I help best?</h2>
+        <p style={{ color: 'rgba(255,255,255,0.68)', marginBottom: 6 }}>
+          Choose one focus to get the most relevant tips and defaults. You can change this later.
+        </p>
       </div>
 
-      <div className="mt-8 flex gap-3 justify-end">
+      <div style={{ flex: 1, overflowY: 'auto', paddingTop: 2 }}>
+        <div className="grid grid-cols-1 gap-2" style={{ justifyItems: 'center' }}>
+          {options.map(opt => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => setSelected(opt)}
+              style={{
+                textAlign: 'left',
+                width: '100%',
+                maxWidth: 240,
+                alignSelf: 'center',
+                padding: '8px 12px',
+                borderRadius: 10,
+                color: 'rgba(255,255,255,0.92)',
+                background: selected === opt ? 'rgba(59,130,246,0.16)' : 'rgba(255,255,255,0.06)',
+                border: selected === opt ? '1px solid rgba(59,130,246,0.45)' : '1px solid rgba(255,255,255,0.12)',
+                fontSize: 14,
+                lineHeight: '18px',
+                fontWeight: 600
+              }}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-3 justify-center" style={{ paddingTop: 8 }}>
         <button
           onClick={onBack}
           style={{
@@ -346,6 +358,16 @@ function GoogleConnectStep({ userData, onNext, onBack, serverConnected, checking
         `${base}/api/v2/google/connect`,
       ];
       const url = candidates[0];
+      try {
+        await setUserPreference('google_oauth_started', 'true');
+        await setUserPreference('google_oauth_status', 'started');
+        const profile = {
+          name: (userData?.name || '').trim(),
+          help_category: userData?.helpCategory || '',
+          google_oauth: 'pending'
+        };
+        try { await setUserPreference('prompt_profile', JSON.stringify(profile)); } catch {}
+      } catch {}
       if (window.electron?.openExternal) await window.electron.openExternal(url);
       else if (window.electronAPI?.openExternal) await window.electronAPI.openExternal(url);
     } catch (_) {
@@ -356,54 +378,88 @@ function GoogleConnectStep({ userData, onNext, onBack, serverConnected, checking
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-10">
-      <h2 style={{ color: 'rgba(255,255,255,0.94)', fontSize: 26, fontWeight: 800 }}>Connect Google</h2>
-      <p style={{ color: 'rgba(255,255,255,0.65)', marginTop: 6 }}>
+    <div className="max-w-2xl mx-auto px-3 py-6" style={{ textAlign: 'center' }}>
+      <h2 style={{ color: 'rgba(255,255,255,0.94)', fontSize: 20, fontWeight: 800 }}>Connect Google</h2>
+      <p style={{ color: 'rgba(255,255,255,0.65)', marginTop: 4 }}>
         We use Google to draft and send emails and manage your calendar on your behalf when you ask.
       </p>
-      <p style={{ color: 'rgba(255,255,255,0.65)', marginBottom: 16 }}>
+      <p style={{ color: 'rgba(255,255,255,0.65)', marginBottom: 10 }}>
         You control permissions at all times and can disconnect in settings with one click.
       </p>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12, fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
         <span style={{ width: 8, height: 8, borderRadius: 9999, background: serverConnected ? '#10b981' : '#f59e0b' }} />
         <span>
           {checkingServer ? 'Checking server…' : serverConnected ? 'Server connected' : 'Server offline — you can continue and connect later'}
         </span>
       </div>
 
-      <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={onBack}
-          style={{
-            padding: '10px 16px',
-            color: 'rgba(255,255,255,0.9)',
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.14)',
-            borderRadius: 12,
-            fontWeight: 600
-          }}
-        >
-          Back
-        </button>
+      <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 8, width: '100%', maxWidth: 340, margin: '0 auto', boxSizing: 'border-box' }}>
+        <div style={{ display: 'flex', gap: 12, width: '100%', maxWidth: 300, justifyContent: 'center', boxSizing: 'border-box' }}>
+          <button
+            type="button"
+            onClick={onBack}
+            style={{
+              height: 40,
+              padding: '0 16px',
+              color: 'rgba(255,255,255,0.9)',
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.14)',
+              borderRadius: 12,
+              fontWeight: 600
+            }}
+          >
+            Back
+          </button>
+
+          <button
+            type="button"
+            onClick={connect}
+            disabled={!serverConnected || opening}
+            style={{
+              height: 40,
+              padding: '0 16px',
+              color: '#fff',
+              background: 'linear-gradient(180deg, #3b82f6, #2563eb)',
+              border: '1px solid rgba(255,255,255,0.14)',
+              borderRadius: 12,
+              fontWeight: 600,
+              opacity: !serverConnected || opening ? 0.6 : 1,
+              cursor: !serverConnected || opening ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {opening ? 'Opening…' : 'Connect Google'}
+          </button>
+        </div>
 
         <button
           type="button"
-          onClick={connect}
-          disabled={!serverConnected || opening}
+          onClick={async () => {
+            try {
+              await setUserPreference('google_oauth_status', 'skipped');
+              await setUserPreference('google_oauth_connected', 'false');
+              const profile = {
+                name: (userData?.name || '').trim(),
+                help_category: userData?.helpCategory || '',
+                google_oauth: 'skipped'
+              };
+              try { await setUserPreference('prompt_profile', JSON.stringify(profile)); } catch {}
+            } catch {}
+            onNext({ googleConnected: false });
+          }}
           style={{
-            padding: '10px 16px',
-            color: '#fff',
-            background: 'linear-gradient(180deg, #3b82f6, #2563eb)',
-            border: '1px solid rgba(255,255,255,0.14)',
+            width: '100%',
+            maxWidth: 300,
+            height: 40,
+            color: 'rgba(255,255,255,0.85)',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.12)',
             borderRadius: 12,
             fontWeight: 600,
-            opacity: !serverConnected || opening ? 0.6 : 1,
-            cursor: !serverConnected || opening ? 'not-allowed' : 'pointer'
+            boxSizing: 'border-box'
           }}
         >
-          {opening ? 'Opening…' : 'Connect Google'}
+          Skip for now
         </button>
       </div>
     </div>
@@ -706,51 +762,41 @@ function FirstGoalStep({ userData, onNext, onBack }) {
  */
 function CompleteStep({ userData, onNext }) {
   return (
-    <div className="max-w-2xl mx-auto px-6 py-12 text-center">
+    <div className="mx-auto text-center" style={{ maxWidth: 340, padding: '12px 10px', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', boxSizing: 'border-box' }}>
       <motion.div
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
-        transition={{ type: "spring", bounce: 0.5 }}
-        className="inline-block mb-6"
+        transition={{ type: 'spring', bounce: 0.5 }}
+        className="inline-block mb-4"
       >
-        <div className="w-24 h-24 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
-          <Check className="w-12 h-12 text-white" />
+        <div className="rounded-full flex items-center justify-center" style={{ width: 72, height: 72, background: 'linear-gradient(180deg,#22c55e,#16a34a)' }}>
+          <Check className="text-white" style={{ width: 36, height: 36 }} />
         </div>
       </motion.div>
 
-      <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+      <h2 className="font-bold text-gray-100 mb-2" style={{ fontSize: 20 }}>
         You're All Set!
       </h2>
-      <p className="text-xl text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
+      <p className="mx-auto text-gray-300" style={{ fontSize: 14, lineHeight: '20px', marginBottom: 10 }}>
         Agent Max is ready to help you automate your tasks and boost your productivity.
       </p>
 
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-8 text-left max-w-md mx-auto">
-        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">
-          Quick Tips:
-        </h3>
-        <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-          <li className="flex items-start gap-2">
-            <span className="text-blue-600">•</span>
-            <span>Be specific about what you want to accomplish</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-blue-600">•</span>
-            <span>Review actions before confirming them</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-blue-600">•</span>
-            <span>You can pause or stop at any time</span>
-          </li>
+      <div className="rounded-lg text-left mx-auto" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', padding: 10, marginBottom: 12, maxWidth: 320, boxSizing: 'border-box' }}>
+        <h3 className="font-semibold text-gray-100 mb-2" style={{ fontSize: 14 }}>Quick Tips:</h3>
+        <ul className="text-gray-300" style={{ fontSize: 13, display: 'grid', rowGap: 6 }}>
+          <li className="flex items-start gap-2"><span className="text-blue-500">•</span><span>Be specific about what you want to accomplish</span></li>
+          <li className="flex items-start gap-2"><span className="text-blue-500">•</span><span>Review actions before confirming them</span></li>
+          <li className="flex items-start gap-2"><span className="text-blue-500">•</span><span>You can pause or stop at any time</span></li>
         </ul>
       </div>
 
       <button
         onClick={() => onNext()}
-        className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all font-medium text-lg inline-flex items-center gap-2 shadow-lg"
+        className="text-white rounded-lg inline-flex items-center justify-center gap-2"
+        style={{ width: 300, height: 40, background: 'linear-gradient(180deg,#3b82f6,#2563eb)', border: '1px solid rgba(255,255,255,0.14)', fontWeight: 600, marginTop: 'auto' }}
       >
         Launch Agent Max
-        <Sparkles className="w-5 h-5" />
+        <Sparkles style={{ width: 18, height: 18 }} />
       </button>
     </div>
   );
