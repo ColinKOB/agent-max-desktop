@@ -32,29 +32,35 @@ if (!initialConfig.baseURL) {
   logger.warn('apiConfigManager returned undefined baseURL, using fallback: http://localhost:8000');
 }
 
-// Auto-detect local backend and switch if reachable (fast non-blocking)
-// This prevents the UI from silently using production API when local server is up.
-(async () => {
-  try {
-    // Skip if already using localhost
-    const isLocal = (API_BASE_URL || '').includes('localhost:8000') || (API_BASE_URL || '').includes('127.0.0.1:8000');
-    if (isLocal) return;
+// In production builds, never auto-switch to localhost
+const envSetting = import.meta.env.VITE_ENVIRONMENT;
+const isProdBuild = envSetting === 'production' || envSetting === 'beta' || (!import.meta.env.DEV && import.meta.env.MODE === 'production');
 
-    // Quick reachability check with 700ms timeout
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 700);
-    const res = await fetch('http://localhost:8000/health', { signal: controller.signal });
-    clearTimeout(t);
-    if (res.ok) {
-      reconfigureAPI('http://localhost:8000');
-      logger.info('🔁 Switched API to local backend at http://localhost:8000');
-      try { toast.success('Connected to local Agent Max API (localhost:8000)'); } catch {}
+if (!isProdBuild) {
+  // Auto-detect local backend and switch if reachable (fast non-blocking)
+  // This prevents the UI from silently using production API when local server is up.
+  (async () => {
+    try {
+      // Skip if already using localhost
+      const isLocal = (API_BASE_URL || '').includes('localhost:8000') || (API_BASE_URL || '').includes('127.0.0.1:8000');
+      if (isLocal) return;
+
+      // Quick reachability check with 700ms timeout
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 700);
+      const res = await fetch('http://localhost:8000/health', { signal: controller.signal });
+      clearTimeout(t);
+      if (res.ok) {
+        reconfigureAPI('http://localhost:8000');
+        logger.info('🔁 Switched API to local backend at http://localhost:8000');
+        try { toast.success('Connected to local Agent Max API (localhost:8000)'); } catch {}
+      }
+    } catch (e) {
+      // Ignore; stay on existing baseURL
+      logger.debug('Local API not detected; staying on configured base URL');
     }
-  } catch (e) {
-    // Ignore; stay on existing baseURL
-    logger.debug('Local API not detected; staying on configured base URL');
-  }
-})();
+  })();
+}
 
 // Connection state management
 const connectionState = {
@@ -125,7 +131,17 @@ axiosRetry(api, {
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // No API key needed - backend uses server-side keys
+    // Add API key if available
+    const apiKey = apiConfigManager.getApiKey();
+    if (apiKey) {
+      config.headers['X-API-Key'] = apiKey;
+    }
+
+    // Add user ID if available
+    const userId = localStorage.getItem('user_id');
+    if (userId) {
+      config.headers['X-User-Id'] = userId;
+    }
 
     // Add request metadata
     config.metadata = {
@@ -793,9 +809,10 @@ export const permissionAPI = {
       } catch (err) {
         // Check status in both raw error and AppError wrapper
         const status = err?.response?.status || err?.status || err?.statusCode;
-        if (status === 404) {
+        // For some deployments, older paths/methods return 404/405/400; try the next path
+        if (status === 404 || status === 405 || status === 400) {
           lastErr = err;
-          logger.debug(`Path ${p} returned 404, trying next fallback...`);
+          logger.debug(`Path ${p} returned ${status}, trying next fallback...`);
           continue; // try next path
         }
         throw err;
@@ -818,7 +835,17 @@ export const permissionAPI = {
             requires_approval: ['Send emails', 'Delete files']
           }
         })
-      : permissionAPI._tryPaths('get', ['/api/safety/permission-level', '/api/v2/safety/permission-level']),
+      : (async () => {
+          try {
+            return await permissionAPI._tryPaths('get', ['/api/v2/safety/permission-level', '/api/safety/permission-level']);
+          } catch (_) {
+            try {
+              return await permissionAPI._tryPaths('post', ['/api/v2/safety/permission-level', '/api/safety/permission-level'], {});
+            } catch (err2) {
+              throw err2;
+            }
+          }
+        })(),
 
   /**
    * Update user's permission level
@@ -892,7 +919,7 @@ export const ambiguityAPI = {
           word_count: message.split(' ').length,
           confidence: 1.0
         })
-      : api.post('/api/ambiguity/check', { message, word_threshold: wordThreshold })
+      : permissionAPI._tryPaths('post', ['/api/ambiguity/check', '/api/v2/ambiguity/check'], { message, word_threshold: wordThreshold })
           .then(response => response.data),  // Extract data from axios response
 };
 

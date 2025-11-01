@@ -24,8 +24,8 @@ const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 // ===========================================
 
 function performSecurityChecks() {
-  // Only enforce in production
-  if (process.env.NODE_ENV === 'production') {
+  // Only enforce in packaged production (allow prod-like dev runs)
+  if (process.env.NODE_ENV === 'production' && app.isPackaged) {
     // Prevent debugging in production
     if (process.env.NODE_OPTIONS?.includes('--inspect') || 
         process.env.NODE_OPTIONS?.includes('--debug')) {
@@ -65,6 +65,7 @@ const { setupAutoUpdater, checkForUpdates } = require('./updater.cjs');
 const { setupCrashReporter, captureError } = require('./crash-reporter.cjs');
 const autonomousIPC = require('./autonomousIPC.cjs');
 const { HandsOnDesktopClient } = require('./hands-on-desktop-client.cjs');
+const telemetry = require('./telemetry.cjs');
 
 let mainWindow;
 let memoryVault;
@@ -150,8 +151,8 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.cjs'),
-      // Only disable web security in development
-      webSecurity: process.env.NODE_ENV !== 'development',
+      // Disable CORS to permit desktop app to call trusted backend from file://
+      webSecurity: false,
       sandbox: true,
       // Disallow running insecure content in production
       allowRunningInsecureContent: false,
@@ -177,8 +178,14 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
-    if (process.env.NODE_ENV === 'development') {
-      mainWindow.webContents.openDevTools({ mode: 'detach' });
+    const wantDevtools = (
+      process.env.NODE_ENV === 'development' ||
+      process.env.AMX_DEVTOOLS === '1' ||
+      process.env.OPEN_DEVTOOLS === '1' ||
+      process.env.ELECTRON_OPEN_DEVTOOLS === '1'
+    );
+    if (wantDevtools) {
+      try { mainWindow.webContents.openDevTools({ mode: 'detach' }); } catch {}
     }
   });
 
@@ -200,7 +207,7 @@ function createWindow() {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
             "img-src 'self' data: https: blob:; " +
-            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://accounts.google.com https://www.googleapis.com https://api.stripe.com https://js.stripe.com https://m.stripe.network https://*.supabase.co https://*.supabase.in wss://*.supabase.co wss://*.supabase.in; " +
+            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://agentmax-production.up.railway.app https://api.agentmax.com https://accounts.google.com https://www.googleapis.com https://api.stripe.com https://js.stripe.com https://m.stripe.network https://*.supabase.co https://*.supabase.in https://huggingface.co https://*.huggingface.co https://cdn.jsdelivr.net https://cdn-lfs.huggingface.co https://*.hf.co https://*.xethub.hf.co https://cas-bridge.xethub.hf.co wss://agentmax-production.up.railway.app wss://*.supabase.co wss://*.supabase.in; " +
             "frame-src 'self' https://js.stripe.com https://hooks.stripe.com; " +
             "object-src 'none'; " +
             "base-uri 'self'; " +
@@ -251,7 +258,7 @@ function ensureCardWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.cjs'),
-      webSecurity: process.env.NODE_ENV !== 'development',
+      webSecurity: false,
       sandbox: true,
       allowRunningInsecureContent: false,
     },
@@ -271,6 +278,21 @@ function ensureCardWindow() {
     cardWindow.loadURL('http://localhost:5173/#/card');
   } else {
     cardWindow.loadFile(path.join(__dirname, '../dist/index.html'), { hash: '/card' });
+  }
+
+  // Auto-open devtools (detached) when enabled via env flags
+  const wantDevtools = (
+    process.env.NODE_ENV === 'development' ||
+    process.env.AMX_DEVTOOLS === '1' ||
+    process.env.OPEN_DEVTOOLS === '1' ||
+    process.env.ELECTRON_OPEN_DEVTOOLS === '1'
+  );
+  if (wantDevtools) {
+    try {
+      cardWindow.webContents.once('did-finish-load', () => {
+        try { cardWindow.webContents.openDevTools({ mode: 'detach' }); } catch {}
+      });
+    } catch {}
   }
 
   cardWindow.on('close', (event) => {
@@ -328,6 +350,7 @@ function showPillWindow() {
 }
 
 app.whenReady().then(() => {
+  telemetry.initialize({ app, ipcMain });
   // Initialize crash reporter first (to catch any startup errors)
   setupCrashReporter();
   
@@ -347,6 +370,13 @@ app.whenReady().then(() => {
   
   // Initialize Hands on Desktop client (connects to backend for remote execution)
   initializeHandsOnDesktop();
+});
+
+app.on('before-quit', () => {
+  telemetry.captureEvent('app.lifecycle.before-quit', {
+    openWindows: BrowserWindow.getAllWindows().length,
+  });
+  telemetry.flush();
 });
 
 app.on('window-all-closed', () => {
@@ -407,7 +437,7 @@ function createSettingsWindow(route) {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.cjs'),
-      webSecurity: process.env.NODE_ENV !== 'development',
+      webSecurity: false,
       sandbox: true,
       backgroundThrottling: false,
     },
@@ -418,6 +448,15 @@ function createSettingsWindow(route) {
 
   settingsWindow.once('ready-to-show', () => {
     settingsWindow.show();
+    const wantDevtools = (
+      process.env.NODE_ENV === 'development' ||
+      process.env.AMX_DEVTOOLS === '1' ||
+      process.env.OPEN_DEVTOOLS === '1' ||
+      process.env.ELECTRON_OPEN_DEVTOOLS === '1'
+    );
+    if (wantDevtools) {
+      try { settingsWindow.webContents.openDevTools({ mode: 'detach' }); } catch {}
+    }
   });
 
   // Add Content Security Policy for settings window (only our app origins)
@@ -437,7 +476,7 @@ function createSettingsWindow(route) {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
             "img-src 'self' data: https: blob:; " +
-            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://accounts.google.com https://www.googleapis.com https://api.stripe.com https://js.stripe.com https://m.stripe.network https://*.supabase.co https://*.supabase.in wss://*.supabase.co wss://*.supabase.in; " +
+            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://agentmax-production.up.railway.app https://api.agentmax.com https://accounts.google.com https://www.googleapis.com https://api.stripe.com https://js.stripe.com https://m.stripe.network https://*.supabase.co https://*.supabase.in https://huggingface.co https://*.huggingface.co https://cdn.jsdelivr.net https://cdn-lfs.huggingface.co https://*.hf.co https://*.xethub.hf.co https://cas-bridge.xethub.hf.co wss://agentmax-production.up.railway.app wss://*.supabase.co wss://*.supabase.in; " +
             "frame-src 'self' https://js.stripe.com https://hooks.stripe.com; " +
             "object-src 'none'; " +
             "base-uri 'self'; " +

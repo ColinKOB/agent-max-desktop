@@ -108,6 +108,15 @@ export default function AppleFloatBar({
     };
   }, [setApiConnected]);
 
+  // If onboarding should be shown, auto-expand the bar so the overlay is visible
+  useEffect(() => {
+    if (showWelcome === true && isMiniRef.current) {
+      try {
+        handleExpand();
+      } catch {}
+    }
+  }, [showWelcome, handleExpand]);
+
   // While offline, ping every 2s to auto-reconnect without spamming UI
   useEffect(() => {
     if (apiConnected) return;
@@ -141,10 +150,10 @@ export default function AppleFloatBar({
   useEffect(() => {
     const keepRoot = () => {
       try {
-        const h = window.location?.hash || '#/';
+
         if (h.startsWith('#/settings')) {
           // Replace without adding history entries or causing flashes
-          if (history?.replaceState) history.replaceState(null, '', '#/');
+          if (window.history?.replaceState) window.history.replaceState(null, '', '#/');
           else window.location.hash = '#/';
         }
       } catch {}

@@ -3,7 +3,8 @@
  * 
  * Progressive onboarding experience for new users
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import useStore from '../../store/useStore';
 import { 
   ChevronRight, 
   ChevronLeft,
@@ -36,6 +37,7 @@ if (!stripePublishableKey) {
 
 export function OnboardingFlow({ onComplete, onSkip }) {
   const [currentStep, setCurrentStep] = useState(0);
+  const { setApiConnected } = useStore();
   const [userData, setUserData] = useState({
     name: '',
     email: '',
@@ -44,6 +46,30 @@ export function OnboardingFlow({ onComplete, onSkip }) {
   });
   const [serverConnected, setServerConnected] = useState(false);
   const [checkingServer, setCheckingServer] = useState(true);
+
+  useEffect(() => {
+    // Ensure the float bar expands fully for onboarding in production builds
+    try {
+      window.localStorage?.removeItem?.('amx:floatbar:lastHeight');
+      window.electron?.resizeWindow?.(360, 520);
+    } catch (error) {
+      console.warn('[Onboarding] Failed to expand window for onboarding', error);
+    }
+
+    // Make sure API appears connected (the health check runs separately below)
+    setApiConnected(true);
+
+    // If a lingering localhost override exists, reset to production Railway API
+    try {
+      const config = apiConfigManager.getConfig();
+      const prodUrl = import.meta.env.VITE_API_URL || 'https://agentmax-production.up.railway.app';
+      if (!config.baseURL || config.baseURL.includes('localhost')) {
+        apiConfigManager.updateConfig(prodUrl);
+      }
+    } catch (error) {
+      console.warn('[Onboarding] Failed to ensure production API config', error);
+    }
+  }, [setApiConnected]);
 
   useEffect(() => {
     let mounted = true;
@@ -60,6 +86,13 @@ export function OnboardingFlow({ onComplete, onSkip }) {
     attemptOnce();
     const id = setInterval(attemptOnce, 4000);
     return () => { mounted = false; clearInterval(id); };
+  }, []);
+
+  useEffect(() => {
+    const lastStep = localStorage.getItem('amx:onboarding:currentStep');
+    if (lastStep) {
+      setCurrentStep(Number(lastStep));
+    }
   }, []);
 
   const steps = [
@@ -90,6 +123,7 @@ export function OnboardingFlow({ onComplete, onSkip }) {
     } catch {}
     try { localStorage.setItem('onboarding_completed', 'true'); } catch {}
     try { localStorage.setItem('user_data', JSON.stringify(userData)); } catch {}
+    try { localStorage.removeItem('amx:onboarding:currentStep'); } catch {}
     onComplete(userData);
   };
 

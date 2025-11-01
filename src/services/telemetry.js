@@ -6,6 +6,8 @@
 
 import axios from 'axios';
 
+const globalWindow = typeof window !== 'undefined' ? window : undefined;
+
 // Simple UUID generator (no external dependency)
 function generateUUID() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -29,12 +31,97 @@ class TelemetryService {
     this.userId = this.getUserId();
     this.sessionId = generateUUID();
     this.batch = [];
-    this.apiKey = import.meta.env.VITE_TELEMETRY_API_KEY || 'dev-key';
+    this.apiKey =
+      import.meta.env.VITE_TELEMETRY_API_KEY ||
+      import.meta.env.VITE_API_KEY ||
+      'dev-key';
+    this.bridge = this.resolveBridge();
+    this.bridgeAvailable = Boolean(this.bridge);
+    this.bootstrapPromise = this.bootstrapFromElectron();
 
-    // Start batch sender
-    if (this.enabled) {
+    if (this.enabled && !this.bridgeAvailable) {
       this.startBatchSender();
     }
+
+    if (this.bootstrapPromise) {
+      this.bootstrapPromise
+        .then((bootstrap) => {
+          if (!bootstrap) return;
+
+          if (typeof bootstrap.enabled === 'boolean') {
+            this.enabled = bootstrap.enabled;
+          }
+          if (bootstrap.userId) {
+            this.userId = bootstrap.userId;
+          }
+          if (bootstrap.sessionId) {
+            this.sessionId = bootstrap.sessionId;
+          }
+
+          this.bridge = this.resolveBridge();
+          this.bridgeAvailable = Boolean(this.bridge);
+
+          if (this.bridgeAvailable && this.batchInterval) {
+            clearInterval(this.batchInterval);
+            this.batchInterval = null;
+          }
+
+          if (this.enabled && !this.bridgeAvailable && !this.batchInterval) {
+            this.startBatchSender();
+          }
+
+          this.logEvent('renderer.bootstrap', {
+            sessionId: this.sessionId,
+            bridge: this.bridgeAvailable ? 'electron-ipc' : 'direct-http',
+            endpoint: bootstrap.endpoint,
+            environment: bootstrap.environment,
+            install: bootstrap.install,
+          });
+        })
+        .catch(() => {
+          // Ignore bootstrap errors; fall back to legacy behaviour
+        });
+    }
+  }
+
+  resolveBridge() {
+    if (!globalWindow) return null;
+
+    if (
+      globalWindow.telemetry &&
+      typeof globalWindow.telemetry.record === 'function'
+    ) {
+      return globalWindow.telemetry;
+    }
+
+    if (
+      globalWindow.electron &&
+      globalWindow.electron.telemetry &&
+      typeof globalWindow.electron.telemetry.record === 'function'
+    ) {
+      return globalWindow.electron.telemetry;
+    }
+
+    return null;
+  }
+
+  async bootstrapFromElectron() {
+    const bridge = this.resolveBridge();
+    if (!bridge || typeof bridge.getBootstrap !== 'function') {
+      return null;
+    }
+
+    try {
+      const bootstrap = await bridge.getBootstrap();
+      if (bootstrap) {
+        this.bridge = bridge;
+        this.bridgeAvailable = true;
+        return bootstrap;
+      }
+    } catch (error) {
+      // Ignore bootstrap errors; legacy mode will continue
+    }
+    return null;
   }
 
   /**
@@ -61,7 +148,15 @@ class TelemetryService {
       localStorage.setItem('telemetry_enabled', enabled.toString());
     }
 
-    if (enabled && !this.batchInterval) {
+    if (this.bridgeAvailable && this.bridge && typeof this.bridge.setEnabled === 'function') {
+      this.bridge
+        .setEnabled(enabled)
+        .catch(() => {
+          // Ignore IPC failures - renderer state is authoritative fallback
+        });
+    }
+
+    if (enabled && !this.batchInterval && !this.bridgeAvailable) {
       this.startBatchSender();
     } else if (!enabled && this.batchInterval) {
       clearInterval(this.batchInterval);
@@ -187,6 +282,26 @@ class TelemetryService {
    * Add event to batch
    */
   addToBatch(event) {
+    if (
+      this.bridgeAvailable &&
+      this.bridge &&
+      typeof this.bridge.record === 'function'
+    ) {
+      // Route through main-process broker
+      try {
+        const result = this.bridge.record(event);
+        if (result && typeof result.catch === 'function') {
+          result.catch(() => {
+            this.batch.push(event);
+          });
+        }
+      } catch (error) {
+        // Fall back to local queue if IPC fails
+        this.batch.push(event);
+      }
+      return;
+    }
+
     this.batch.push(event);
 
     // Send immediately if batch is full
@@ -199,6 +314,25 @@ class TelemetryService {
    * Send batch to server (async, non-blocking)
    */
   async sendBatch() {
+    if (
+      this.bridgeAvailable &&
+      this.bridge &&
+      typeof this.bridge.record === 'function'
+    ) {
+      if (this.batch.length === 0) return;
+
+      const eventsToSend = [...this.batch];
+      this.batch = [];
+
+      try {
+        await this.bridge.record(eventsToSend);
+      } catch (error) {
+        // If IPC fails, restore events to local queue for retry
+        this.batch = [...eventsToSend, ...this.batch];
+      }
+      return;
+    }
+
     if (this.batch.length === 0) return;
 
     const eventsToSend = [...this.batch];
@@ -207,7 +341,7 @@ class TelemetryService {
     try {
       // Fire and forget - don't wait for response
       axios
-        .post(
+        .put(
           `${TELEMETRY_API}/api/telemetry/batch`,
           {
             events: eventsToSend,
@@ -237,15 +371,53 @@ class TelemetryService {
    * Start batch sender interval
    */
   startBatchSender() {
+    if (this.batchInterval) {
+      return;
+    }
+
     this.batchInterval = setInterval(() => {
       this.sendBatch();
     }, BATCH_INTERVAL);
+
+    if (this.batchInterval && typeof this.batchInterval.unref === 'function') {
+      this.batchInterval.unref();
+    }
   }
 
   /**
    * Force send all pending events
    */
   flush() {
+    if (
+      this.bridgeAvailable &&
+      this.bridge &&
+      typeof this.bridge.record === 'function'
+    ) {
+      if (this.batch.length > 0) {
+        const eventsToSend = [...this.batch];
+        this.batch = [];
+        try {
+          const result = this.bridge.record(eventsToSend);
+          if (result && typeof result.catch === 'function') {
+            result.catch(() => {
+              this.batch = [...eventsToSend, ...this.batch];
+            });
+          }
+        } catch (error) {
+          this.batch = [...eventsToSend, ...this.batch];
+        }
+      }
+
+      if (typeof this.bridge.flush === 'function') {
+        try {
+          return this.bridge.flush();
+        } catch (error) {
+          // Ignore flush errors; renderer queue already handled
+        }
+      }
+      return Promise.resolve();
+    }
+
     return this.sendBatch();
   }
 

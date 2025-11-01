@@ -55,6 +55,7 @@ export default function FloatBarCore({
   const shrinkBtnRef = useRef(null);
   const [escPrimed, setEscPrimed] = useState(false);
   const barContentRef = useRef(null);
+  const autoMinTimerRef = useRef(null);
 
   // Compute window classes
   const windowClasses = useMemo(() => {
@@ -168,6 +169,19 @@ export default function FloatBarCore({
   }, [thoughts.length, isThinking, resizeToContent]);
 
   useEffect(() => {
+    if (isMini && autoMinTimerRef.current) {
+      clearTimeout(autoMinTimerRef.current);
+      autoMinTimerRef.current = null;
+    }
+    return () => {
+      if (autoMinTimerRef.current) {
+        clearTimeout(autoMinTimerRef.current);
+        autoMinTimerRef.current = null;
+      }
+    };
+  }, [isMini]);
+
+  useEffect(() => {
     // Resize on input changes to accommodate multi-line growth if any
     const id = requestAnimationFrame(() => resizeToContent());
     return () => cancelAnimationFrame(id);
@@ -187,9 +201,19 @@ export default function FloatBarCore({
 
   // Render mini pill state
   if (isMini) {
+    const handleMiniClick = () => {
+      handleExpand();
+      if (autoMinTimerRef.current) {
+        clearTimeout(autoMinTimerRef.current);
+        autoMinTimerRef.current = null;
+      }
+      autoMinTimerRef.current = setTimeout(() => {
+        try { handleMinimize(); } catch {}
+      }, 180000);
+    };
     return (
       <div className={windowClasses}>
-        <div className="amx-mini-content" onClick={handleExpand}>
+        <div className="amx-mini-content" onClick={handleMiniClick}>
           <img
             src={LogoPng}
             alt="Agent Max"

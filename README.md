@@ -116,6 +116,9 @@ All events include \`ux_schema: 'v1'\` for future-proof metrics.
 
 See [UX_IMPROVEMENT_PLAN.md](docs/design/UX_IMPROVEMENT_PLAN.md) for full event list.
 
+The new desktop telemetry broker, including configuration steps for beta
+distribution, lives in [docs/TELEMETRY_PIPELINE.md](docs/TELEMETRY_PIPELINE.md).
+
 ---
 
 ## 🧪 Development

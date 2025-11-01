@@ -7,7 +7,19 @@ const Database = require('better-sqlite3');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+// Local RFC4122 v4 UUID generator (avoid ESM-only 'uuid' in CJS)
+function genUUID() {
+  try {
+    if (crypto && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch (_) {}
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 const VaultKeychain = require('./vault-keychain.cjs');
 
 class MemoryVault {
@@ -41,7 +53,7 @@ class MemoryVault {
       // Get/generate identity_id from keychain (single source of truth)
       let identityId = await this.keychain.getIdentityId();
       if (!identityId) {
-        identityId = uuidv4();
+        identityId = genUUID();
         await this.keychain.storeIdentityId(identityId);
         console.log('✓ Generated new identity ID');
       } else {
@@ -232,7 +244,7 @@ class MemoryVault {
   // ============================================
 
   createSession(goal = null) {
-    const id = uuidv4();
+    const id = genUUID();
 
     this.db
       .prepare(
@@ -304,7 +316,7 @@ class MemoryVault {
       throw new Error('No active session');
     }
 
-    const id = uuidv4();
+    const id = genUUID();
 
     // Encrypt message content (field-level encryption)
     const encryptedContent = this._encryptField(content);

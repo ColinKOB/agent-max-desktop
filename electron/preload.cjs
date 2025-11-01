@@ -70,7 +70,17 @@ contextBridge.exposeInMainWorld('electron', {
 
     // Telemetry (legacy support)
     telemetry: {
-      record: (eventType, data) => ipcRenderer.invoke('telemetry:record', { eventType, data }),
+      record: (eventOrType, data) => {
+        if (typeof eventOrType === 'string') {
+          return ipcRenderer.invoke('telemetry:record', {
+            eventType: eventOrType,
+            data,
+            source: 'renderer-memory',
+          });
+        }
+        return ipcRenderer.invoke('telemetry:record', eventOrType);
+      },
+      flush: () => ipcRenderer.invoke('telemetry:flush'),
     },
 
     // Autonomous execution
@@ -97,4 +107,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   installUpdate: () => ipcRenderer.invoke('install-update'),
   restartForUpdate: () => ipcRenderer.invoke('restart-for-update'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+});
+
+contextBridge.exposeInMainWorld('telemetry', {
+  getBootstrap: () => ipcRenderer.invoke('telemetry:get-bootstrap'),
+  setEnabled: (enabled) => ipcRenderer.invoke('telemetry:set-enabled', enabled),
+  flush: () => ipcRenderer.invoke('telemetry:flush'),
+  record: (eventOrType, data) => {
+    if (typeof eventOrType === 'string') {
+      return ipcRenderer.invoke('telemetry:record', {
+        eventType: eventOrType,
+        data,
+        source: 'renderer',
+      });
+    }
+    return ipcRenderer.invoke('telemetry:record', eventOrType);
+  },
 });

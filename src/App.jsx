@@ -69,7 +69,14 @@ function App({ windowMode = 'single' }) {
       // Generate or retrieve device_id
       let deviceId = localStorage.getItem('device_id');
       if (!deviceId) {
-        deviceId = crypto.randomUUID();
+        const gen = () => (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function')
+          ? globalThis.crypto.randomUUID()
+          : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+              const r = (Math.random() * 16) | 0;
+              const v = c === 'x' ? r : (r & 0x3) | 0x8;
+              return v.toString(16);
+            });
+        deviceId = gen();
         localStorage.setItem('device_id', deviceId);
         logger.info('Generated new device ID', { deviceId });
       }
@@ -150,9 +157,17 @@ function App({ windowMode = 'single' }) {
       // Load profile from Supabase (with Electron fallback)
       const profileData = await getProfile();
 
-      // Check if onboarding is completed
-      const onboardingCompleted = await getPreference('onboarding_completed');
-      setShowWelcome(!onboardingCompleted);
+      // Check onboarding completion with local-first logic
+      let localCompleted = false;
+      try { localCompleted = localStorage.getItem('onboarding_completed') === 'true'; } catch {}
+      const firstRun = (() => {
+        try {
+          return !localStorage.getItem('user_data') || !localStorage.getItem('device_id');
+        } catch { return false; }
+      })();
+
+      // Show onboarding if it's first run OR locally not completed
+      setShowWelcome(firstRun || !localCompleted);
 
       setProfile({
         name: profileData.name || 'User',
