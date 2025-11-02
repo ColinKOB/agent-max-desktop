@@ -12,5 +12,5 @@
   - Update `docs/contracts/feature_flags.schema.json` for documentation
 
 Notes
-- The sync script requires Python with `pydantic` available (per backend requirements). If unavailable, the pre-bootstrapped `src/types/featureFlags.ts` remains as a fallback.
-  - Source-of-truth stays the backend model.
+- The sync script requires Python with `pydantic` available (per backend requirements). If unavailable, it will reuse the checked-in schema and regenerate TypeScript types from that copy.
+  - Source-of-truth stays the backend model; run `pip install -r Agent_Max/requirements.txt` (or activate the existing venv) before syncing to keep the schema fresh.

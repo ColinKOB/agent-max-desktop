@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentmax.app/schema/feature-flags-response.json",
+  "title": "FeatureFlagsResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "FeatureFlagsRolloutInfo": {
+      "title": "FeatureFlagsRolloutInfo",
+      "type": "object",
+      "properties": {
+        "websocket_enabled": {
+          "type": "boolean",
+          "title": "Websocket Enabled",
+          "description": "Whether WebSocket execution is active"
+        },
+        "evidence_validation_enabled": {
+          "type": "boolean",
+          "title": "Evidence Validation Enabled",
+          "description": "Whether evidence validation is enforced"
+        },
+        "billing_enabled": {
+          "type": "boolean",
+          "title": "Billing Enabled",
+          "description": "Whether billing enforcement is active"
+        },
+        "hmac_enabled": {
+          "type": "boolean",
+          "title": "Hmac Enabled",
+          "description": "Whether HMAC security is required"
+        }
+      },
+      "required": [
+        "websocket_enabled",
+        "evidence_validation_enabled",
+        "billing_enabled",
+        "hmac_enabled"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "flags": {
+      "title": "Flags",
+      "type": "object",
+      "additionalProperties": {
+        "type": "boolean"
+      },
+      "description": "Raw feature flag map keyed by flag name"
+    },
+    "user_id": {
+      "title": "User Id",
+      "description": "Optional user identifier if supplied",
+      "anyOf": [
+        { "type": "string" },
+        { "type": "null" }
+      ],
+      "default": null
+    },
+    "rollout_info": {
+      "$ref": "#/$defs/FeatureFlagsRolloutInfo",
+      "description": "Rollout metadata derived from the current flag set"
+    }
+  },
+  "required": ["flags", "rollout_info"]
+}
