@@ -34,3 +34,10 @@ out
 
 # Electron
 release
+
+# Tests and screenshots (transient)
+test-results/
+screenshots/
+
+# Supabase temp
+supabase/.temp/

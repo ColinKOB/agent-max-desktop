@@ -2,6 +2,11 @@
 Pydantic models for Feature Flag responses.
 Ensures consistent structure for frontend consumers
 and avoids response validation errors upstream.
+
+Note: Quarantined for documentation/contracts only.
+Source-of-truth lives in Agent_Max/api/models/feature_flags.py.
+This desktop copy is not used at runtime and exists to aid
+type/schema generation and human review.
 """
 
 from typing import Dict, Optional
