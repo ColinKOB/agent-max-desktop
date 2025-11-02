@@ -64,6 +64,8 @@ class DesktopTelemetry {
       process.env.TELEMETRY_API ||
       process.env.TELEMETRY_ENDPOINT ||
       process.env.VITE_TELEMETRY_API ||
+      // Fallback to general API URL if a dedicated telemetry endpoint isn't set
+      process.env.VITE_API_URL ||
       '';
     this.apiKey =
       process.env.TELEMETRY_API_KEY ||
@@ -486,29 +488,59 @@ class DesktopTelemetry {
     const events = [...this.queue];
     this.queue = [];
 
-    try {
-      await axios.put(
-        `${this.endpoint.replace(/\/$/, '')}/api/telemetry/batch`,
-        { events },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': this.apiKey,
-          },
-          timeout: parseInt(process.env.TELEMETRY_TIMEOUT_MS || '6000', 10),
-          validateStatus: () => true,
-        }
-      );
+    const base = (this.endpoint || '').replace(/\/$/, '');
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-API-Key': this.apiKey,
+    };
+    const timeout = parseInt(process.env.TELEMETRY_TIMEOUT_MS || '6000', 10);
 
-      return { sent: events.length };
-    } catch (error) {
-      log.warn('[Telemetry] Failed to send batch:', error.message);
-      // Return events to queue for retry
-      this.queue = [...events, ...this.queue];
-      if (this.queue.length > MAX_QUEUE_LENGTH) {
-        this.queue = this.queue.slice(-MAX_QUEUE_LENGTH);
+    const sendOnce = async (url, body) => {
+      try {
+        const res = await axios.put(url, body, {
+          headers,
+          timeout,
+          validateStatus: () => true,
+        });
+        return res;
+      } catch (err) {
+        return { status: 0, data: { error: err.message } };
       }
-      return { sent: 0, error: error.message };
+    };
+
+    // 1) Try legacy prefix first (existing behavior)
+    let url = `${base}/api/telemetry/batch`;
+    let res = await sendOnce(url, { events });
+
+    // If the server complains about missing "value", retry with legacy wrapper
+    const bodyText = typeof res.data === 'string' ? res.data : JSON.stringify(res.data || {});
+    const needsLegacy = res.status === 422 && /value/i.test(bodyText);
+    if (needsLegacy) {
+      res = await sendOnce(url, { value: { events } });
+    }
+
+    // If 404/405 or still failing, try the v2 prefix
+    if ((res.status === 404 || res.status === 405 || res.status === 0) || (res.status >= 400 && res.status < 600)) {
+      url = `${base}/api/v2/telemetry/batch`;
+      res = await sendOnce(url, { events });
+      const bodyText2 = typeof res.data === 'string' ? res.data : JSON.stringify(res.data || {});
+      const needsLegacy2 = res.status === 422 && /value/i.test(bodyText2);
+      if (needsLegacy2) {
+        res = await sendOnce(url, { value: { events } });
+      }
+    }
+
+    if (res.status >= 200 && res.status < 300) {
+      return { sent: events.length };
+    }
+
+    log.warn('[Telemetry] Failed to send batch:', res.status, res.data);
+    // Return events to queue for retry
+    this.queue = [...events, ...this.queue];
+    if (this.queue.length > MAX_QUEUE_LENGTH) {
+      this.queue = this.queue.slice(-MAX_QUEUE_LENGTH);
+    }
+    return { sent: 0, error: res.data };
     }
   }
 }
