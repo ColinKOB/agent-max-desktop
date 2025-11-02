@@ -12,20 +12,21 @@
 const axios = require('axios');
 
 class BackendBridgedMemoryManager {
-  constructor(apiBaseUrl = 'http://localhost:8000') {
+  constructor(apiBaseUrl = 'http://localhost:8000', apiKey = null) {
     this.apiBase = apiBaseUrl;
+    this.apiKey = apiKey;
     this.currentSessionId = null;
     
     // Create axios instance with timeout
+    const headers = { 'Content-Type': 'application/json' };
+    if (this.apiKey) headers['X-API-Key'] = this.apiKey;
     this.client = axios.create({
       baseURL: this.apiBase,
       timeout: 10000,
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers
     });
     
-    console.log('[MemoryManager] Initialized with backend bridge:', this.apiBase);
+    console.log('[MemoryManager] Initialized with backend bridge:', this.apiBase, 'withApiKey:', !!this.apiKey);
   }
 
   // ============================================

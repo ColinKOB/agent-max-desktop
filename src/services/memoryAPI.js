@@ -212,11 +212,10 @@ export async function deleteFact(id, hardDelete = false) {
  * @returns {Promise<Object>} Saved Message object
  */
 export async function saveMessage(messageData) {
-  const response = await fetch(`${API_BASE}/api/memory/messages`, {
+  const base = getApiBase();
+  const response = await fetch(`${base}/api/memory/messages`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: buildHeaders(),
     body: JSON.stringify(messageData),
   });
 

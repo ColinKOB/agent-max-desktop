@@ -215,7 +215,7 @@ function createWindow() {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
             "img-src 'self' data: https: blob:; " +
-            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://agentmax-production.up.railway.app https://api.agentmax.com https://accounts.google.com https://www.googleapis.com https://api.stripe.com https://js.stripe.com https://m.stripe.network https://*.supabase.co https://*.supabase.in https://huggingface.co https://*.huggingface.co https://cdn.jsdelivr.net https://cdn-lfs.huggingface.co https://*.hf.co https://*.xethub.hf.co https://cas-bridge.xethub.hf.co wss://agentmax-production.up.railway.app wss://*.supabase.co wss://*.supabase.in; " +
+            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://agentmax-production.up.railway.app https://agentmax.app https://api.agentmax.com https://accounts.google.com https://www.googleapis.com https://api.stripe.com https://js.stripe.com https://m.stripe.network https://*.supabase.co https://*.supabase.in https://huggingface.co https://*.huggingface.co https://cdn.jsdelivr.net https://cdn-lfs.huggingface.co https://*.hf.co https://*.xethub.hf.co https://cas-bridge.xethub.hf.co wss://agentmax-production.up.railway.app wss://agentmax.app wss://*.supabase.co wss://*.supabase.in; " +
             "frame-src 'self' https://js.stripe.com https://hooks.stripe.com; " +
             "object-src 'none'; " +
             "base-uri 'self'; " +
@@ -486,7 +486,7 @@ function createSettingsWindow(route) {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
             "img-src 'self' data: https: blob:; " +
-            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://agentmax-production.up.railway.app https://api.agentmax.com https://accounts.google.com https://www.googleapis.com https://api.stripe.com https://js.stripe.com https://m.stripe.network https://*.supabase.co https://*.supabase.in https://huggingface.co https://*.huggingface.co https://cdn.jsdelivr.net https://cdn-lfs.huggingface.co https://*.hf.co https://*.xethub.hf.co https://cas-bridge.xethub.hf.co wss://agentmax-production.up.railway.app wss://*.supabase.co wss://*.supabase.in; " +
+            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://agentmax-production.up.railway.app https://agentmax.app https://api.agentmax.com https://accounts.google.com https://www.googleapis.com https://api.stripe.com https://js.stripe.com https://m.stripe.network https://*.supabase.co https://*.supabase.in https://huggingface.co https://*.huggingface.co https://cdn.jsdelivr.net https://cdn-lfs.huggingface.co https://*.hf.co https://*.xethub.hf.co https://cas-bridge.xethub.hf.co wss://agentmax-production.up.railway.app wss://agentmax.app wss://*.supabase.co wss://*.supabase.in; " +
             "frame-src 'self' https://js.stripe.com https://hooks.stripe.com; " +
             "object-src 'none'; " +
             "base-uri 'self'; " +
