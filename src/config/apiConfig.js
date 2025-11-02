@@ -87,12 +87,16 @@ class ApiConfigManager {
 
     // Save to localStorage
     localStorage.setItem('api_url', baseURL);
-    localStorage.removeItem('api_key'); // Clean up old API keys
-
-    // Update internal config
-    this.config = { baseURL };
+    // Preserve existing apiKey in memory
+    const prevKey = this.config.apiKey || null;
+    this.config = { baseURL, apiKey: prevKey };
 
     // Notify all listeners
+    this.notifyListeners();
+  }
+
+  updateApiKey(apiKey) {
+    this.config = { ...this.config, apiKey };
     this.notifyListeners();
   }
 

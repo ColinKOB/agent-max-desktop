@@ -136,12 +136,12 @@ function createWindow() {
     y: margin,
     minWidth: 80,
     minHeight: 80,
-    maxWidth: 360,
-    maxHeight: 700,
+    maxWidth: 600,
+    maxHeight: 900,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
-    resizable: false,
+    resizable: true,
     skipTaskbar: false,
     // Native glass
     vibrancy: isMac ? 'fullscreen-ui' : undefined,
@@ -174,6 +174,14 @@ function createWindow() {
   mainWindow.on('move', () => {
     if (isMagnetizing) return; // ignore our own snap
     scheduleMagnet(mainWindow);
+  });
+
+  // Notify renderer when the user resizes the window (to avoid auto-resize fights)
+  mainWindow.on('resize', () => {
+    try {
+      const b = mainWindow.getBounds();
+      mainWindow.webContents.send('window:user-resized', { width: b.width, height: b.height, ts: Date.now() });
+    } catch {}
   });
 
   mainWindow.once('ready-to-show', () => {
@@ -357,8 +365,10 @@ app.whenReady().then(() => {
   // Register autonomous IPC handlers
   autonomousIPC.register();
   
-  // Initialize memory manager
-  memoryManager = new LocalMemoryManager();
+  // Initialize memory manager with API base and key
+  const mmApiBase = process.env.AMX_API_URL || process.env.AGENTMAX_API_URL || (process.env.NODE_ENV === 'production' ? 'https://agentmax-production.up.railway.app' : 'http://localhost:8000');
+  const mmApiKey = process.env.AMX_API_KEY || process.env.VITE_API_KEY || null;
+  memoryManager = new LocalMemoryManager(mmApiBase, mmApiKey);
   console.log('✓ Memory manager initialized');
   console.log('  Storage location:', memoryManager.getMemoryLocation());
 

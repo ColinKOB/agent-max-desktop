@@ -6,18 +6,30 @@
  * - Facts: CRUD operations
  * - Messages: Save and retrieve
  */
+import apiConfigManager from '../config/apiConfig';
 
-// Resolve API base robustly across Vite (browser), Electron renderer, and Node
-const API_BASE = (
-  // Vite env (recommended): define VITE_API_URL in .env if needed
-  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) ||
-  // Electron preload can inject a global if desired
-  (typeof window !== 'undefined' && window.__API_BASE__) ||
-  // CRA/Node fallback
-  (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) ||
-  // Sensible default for local dev
-  'http://localhost:8000'
-);
+// Resolve API base consistently with the rest of the app
+function getApiBase() {
+  try {
+    const cfg = apiConfigManager.getConfig?.() || {};
+    return cfg.baseURL || (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:8000';
+  } catch (_) {
+    return (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:8000';
+  }
+}
+
+function buildHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  try {
+    const key = apiConfigManager.getApiKey?.();
+    if (key) headers['X-API-Key'] = key;
+  } catch {}
+  try {
+    const userId = (typeof localStorage !== 'undefined' && localStorage.getItem('user_id')) || null;
+    if (userId) headers['X-User-Id'] = userId;
+  } catch {}
+  return headers;
+}
 
 /**
  * Query memory retrieval endpoint.
@@ -33,27 +45,42 @@ const API_BASE = (
  * @returns {Promise<Object>} RetrievalPack with facts, semantic_hits, recent_messages, rationale, budget
  */
 export async function query(params) {
-  const response = await fetch(`${API_BASE}/api/memory/retrieval/query`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      text: params.text,
-      k_facts: params.k_facts || 8,
-      k_sem: params.k_sem || 6,
-      token_budget: params.token_budget || 900,
-      allow_vectors: params.allow_vectors || false,
-      workspace_id: params.workspace_id || null,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(error.detail || `Retrieval failed: ${response.status}`);
+  const base = getApiBase();
+  const endpoints = [
+    `${base}/api/v2/memory/retrieval/query`,
+    `${base}/api/memory/retrieval/query`,
+  ];
+  const payload = {
+    text: params.text,
+    k_facts: params.k_facts || 8,
+    k_sem: params.k_sem || 6,
+    token_budget: params.token_budget || 900,
+    allow_vectors: params.allow_vectors || false,
+    workspace_id: params.workspace_id || null,
+  };
+  let lastStatus = 0;
+  let lastBody = '';
+  for (const url of endpoints) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: buildHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (response.ok) {
+      return response.json();
+    }
+    lastStatus = response.status;
+    try { lastBody = await response.text(); } catch {}
+    if (lastStatus === 404 || lastStatus === 405) continue;
+    // For 401, no benefit to try alternative path without auth
+    if (lastStatus === 401) break;
   }
-
-  return response.json();
+  let message = `Retrieval failed: ${lastStatus}`;
+  try {
+    const parsed = lastBody && JSON.parse(lastBody);
+    if (parsed && (parsed.detail || parsed.error)) message = parsed.detail || parsed.error;
+  } catch {}
+  throw new Error(message);
 }
 
 /**
@@ -71,8 +98,9 @@ export async function getFacts(filters = {}) {
   if (filters.pinned_only) params.append('pinned_only', 'true');
   if (filters.include_tombstoned) params.append('include_tombstoned', 'true');
 
-  const url = `${API_BASE}/api/memory/facts${params.toString() ? '?' + params.toString() : ''}`;
-  const response = await fetch(url);
+  const base = getApiBase();
+  const url = `${base}/api/memory/facts${params.toString() ? '?' + params.toString() : ''}`;
+  const response = await fetch(url, { headers: buildHeaders() });
 
   if (!response.ok) {
     throw new Error(`Failed to get facts: ${response.status}`);
@@ -88,7 +116,8 @@ export async function getFacts(filters = {}) {
  * @returns {Promise<Object>} Fact object
  */
 export async function getFact(id) {
-  const response = await fetch(`${API_BASE}/api/memory/facts/${id}`);
+  const base = getApiBase();
+  const response = await fetch(`${base}/api/memory/facts/${id}`, { headers: buildHeaders() });
 
   if (!response.ok) {
     if (response.status === 404) {
@@ -112,11 +141,10 @@ export async function getFact(id) {
  * @returns {Promise<Object>} Created Fact object
  */
 export async function createFact(factData) {
-  const response = await fetch(`${API_BASE}/api/memory/facts`, {
+  const base = getApiBase();
+  const response = await fetch(`${base}/api/memory/facts`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: buildHeaders(),
     body: JSON.stringify(factData),
   });
 
@@ -136,11 +164,10 @@ export async function createFact(factData) {
  * @returns {Promise<Object>} Updated Fact object
  */
 export async function updateFact(id, updates) {
-  const response = await fetch(`${API_BASE}/api/memory/facts/${id}`, {
+  const base = getApiBase();
+  const response = await fetch(`${base}/api/memory/facts/${id}`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: buildHeaders(),
     body: JSON.stringify(updates),
   });
 
@@ -161,8 +188,10 @@ export async function updateFact(id, updates) {
  */
 export async function deleteFact(id, hardDelete = false) {
   const params = hardDelete ? '?hard_delete=true' : '';
-  const response = await fetch(`${API_BASE}/api/memory/facts/${id}${params}`, {
+  const base = getApiBase();
+  const response = await fetch(`${base}/api/memory/facts/${id}${params}`, {
     method: 'DELETE',
+    headers: buildHeaders(),
   });
 
   if (!response.ok) {
@@ -212,8 +241,9 @@ export async function getMessages(options = {}) {
   if (options.limit) params.append('limit', options.limit.toString());
   if (options.session_id) params.append('session_id', options.session_id);
 
-  const url = `${API_BASE}/api/memory/messages${params.toString() ? '?' + params.toString() : ''}`;
-  const response = await fetch(url);
+  const base = getApiBase();
+  const url = `${base}/api/memory/messages${params.toString() ? '?' + params.toString() : ''}`;
+  const response = await fetch(url, { headers: buildHeaders() });
 
   if (!response.ok) {
     throw new Error(`Failed to get messages: ${response.status}`);
@@ -228,7 +258,8 @@ export async function getMessages(options = {}) {
  * @returns {Promise<Object>} Stats object with total_facts, pinned_facts, total_messages, categories
  */
 export async function getStats() {
-  const response = await fetch(`${API_BASE}/api/memory/stats`);
+  const base = getApiBase();
+  const response = await fetch(`${base}/api/memory/stats`, { headers: buildHeaders() });
 
   if (!response.ok) {
     throw new Error(`Failed to get stats: ${response.status}`);
@@ -243,7 +274,8 @@ export async function getStats() {
  * @returns {Promise<Object>} Health status
  */
 export async function checkHealth() {
-  const response = await fetch(`${API_BASE}/api/memory/health`);
+  const base = getApiBase();
+  const response = await fetch(`${base}/api/memory/health`, { headers: buildHeaders() });
 
   if (!response.ok) {
     throw new Error(`Health check failed: ${response.status}`);
@@ -258,9 +290,10 @@ export async function checkHealth() {
  * @returns {Promise<Array>} Array of ExtractionProposal
  */
 export async function extract(payload) {
-  const response = await fetch(`${API_BASE}/api/memory/extract`, {
+  const base = getApiBase();
+  const response = await fetch(`${base}/api/memory/extract`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -278,9 +311,10 @@ export async function extract(payload) {
  * @returns {Promise<Object>} Apply result summary
  */
 export async function apply(payload) {
-  const response = await fetch(`${API_BASE}/api/memory/apply`, {
+  const base = getApiBase();
+  const response = await fetch(`${base}/api/memory/apply`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHeaders(),
     body: JSON.stringify(payload),
   });
 

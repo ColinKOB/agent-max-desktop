@@ -112,10 +112,26 @@ export default function AppleFloatBar({
   useEffect(() => {
     if (showWelcome === true && isMiniRef.current) {
       try {
-        handleExpand();
+        // Inline minimal expansion to avoid referencing handleExpand before init
+        setIsTransitioning(true);
+        setIsMini(false);
+        isMiniRef.current = false;
+        (async () => {
+          try {
+            const base = MIN_EXPANDED_HEIGHT;
+            if (window.electron?.resizeWindow) {
+              await window.electron.resizeWindow(360, base);
+              lastHeightRef.current = base;
+            }
+          } catch {}
+          setTimeout(() => {
+            inputRef.current?.focus();
+            setIsTransitioning(false);
+          }, 300);
+        })();
       } catch {}
     }
-  }, [showWelcome, handleExpand]);
+  }, [showWelcome]);
 
   // While offline, ping every 2s to auto-reconnect without spamming UI
   useEffect(() => {
@@ -150,6 +166,7 @@ export default function AppleFloatBar({
   useEffect(() => {
     const keepRoot = () => {
       try {
+        const h = window.location?.hash || '#/'
 
         if (h.startsWith('#/settings')) {
           // Replace without adding history entries or causing flashes

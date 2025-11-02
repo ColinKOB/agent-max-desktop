@@ -17,6 +17,16 @@ contextBridge.exposeInMainWorld('electron', {
   takeScreenshot: () => ipcRenderer.invoke('take-screenshot'),
   getBounds: () => ipcRenderer.invoke('get-bounds'),
   setBounds: (bounds) => ipcRenderer.invoke('set-bounds', bounds),
+  // Subscribe to manual-resize notifications from main
+  onUserResized: (callback) => {
+    try {
+      if (typeof callback === 'function') {
+        ipcRenderer.on('window:user-resized', (_evt, payload) => {
+          try { callback(payload); } catch {}
+        });
+      }
+    } catch {}
+  },
 
   // Open URL in external browser
   openExternal: (url) => ipcRenderer.invoke('open-external', { url }),

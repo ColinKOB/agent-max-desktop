@@ -55,7 +55,7 @@ export default function FloatBarCore({
   const shrinkBtnRef = useRef(null);
   const [escPrimed, setEscPrimed] = useState(false);
   const barContentRef = useRef(null);
-  const autoMinTimerRef = useRef(null);
+  const lastManualResizeTsRef = useRef(0);
 
   // Compute window classes
   const windowClasses = useMemo(() => {
@@ -67,6 +67,17 @@ export default function FloatBarCore({
     if (isBar && isExpanding) classes.push('amx-bar-expanding');
     return classes.join(' ');
   }, [isMini, isBar, isOpen, isTransitioning, isExpanding]);
+
+  // Listen for manual window resizes from main process and record timestamp
+  useEffect(() => {
+    try {
+      if (window.electron?.onUserResized) {
+        window.electron.onUserResized(({ ts }) => {
+          lastManualResizeTsRef.current = ts || Date.now();
+        });
+      }
+    } catch {}
+  }, []);
 
   // Handle input submission
   const handleSubmit = useCallback((e) => {
@@ -148,6 +159,11 @@ export default function FloatBarCore({
   // Dynamically resize window height based on content
   const resizeToContent = useCallback(async () => {
     try {
+      // Skip auto-resize shortly after a manual resize to avoid fighting the user
+      const now = Date.now();
+      if (now - (lastManualResizeTsRef.current || 0) < 1500) {
+        return;
+      }
       const el = barContentRef.current;
       if (!el) return;
       // Measure content height
@@ -169,19 +185,6 @@ export default function FloatBarCore({
   }, [thoughts.length, isThinking, resizeToContent]);
 
   useEffect(() => {
-    if (isMini && autoMinTimerRef.current) {
-      clearTimeout(autoMinTimerRef.current);
-      autoMinTimerRef.current = null;
-    }
-    return () => {
-      if (autoMinTimerRef.current) {
-        clearTimeout(autoMinTimerRef.current);
-        autoMinTimerRef.current = null;
-      }
-    };
-  }, [isMini]);
-
-  useEffect(() => {
     // Resize on input changes to accommodate multi-line growth if any
     const id = requestAnimationFrame(() => resizeToContent());
     return () => cancelAnimationFrame(id);
@@ -201,19 +204,9 @@ export default function FloatBarCore({
 
   // Render mini pill state
   if (isMini) {
-    const handleMiniClick = () => {
-      handleExpand();
-      if (autoMinTimerRef.current) {
-        clearTimeout(autoMinTimerRef.current);
-        autoMinTimerRef.current = null;
-      }
-      autoMinTimerRef.current = setTimeout(() => {
-        try { handleMinimize(); } catch {}
-      }, 180000);
-    };
     return (
       <div className={windowClasses}>
-        <div className="amx-mini-content" onClick={handleMiniClick}>
+        <div className="amx-mini-content" onClick={handleExpand}>
           <img
             src={LogoPng}
             alt="Agent Max"

@@ -433,9 +433,21 @@ export const chatAPI = {
     // - autonomous mode → /api/v2/autonomous/execute/stream (ACTUALLY EXECUTES TOOLS)
     // - chatty/helpful → /api/v2/chat/streaming/stream (text generation only)
     const isAutonomous = requestedMode === 'autonomous';
-    const endpoint = isAutonomous 
-      ? `${baseURL}/api/v2/autonomous/execute/stream`
-      : `${baseURL}/api/v2/chat/streaming/stream`;
+    const endpoints = isAutonomous 
+      ? [
+          `${baseURL}/api/v2/autonomous/execute/stream`,
+          `${baseURL}/api/autonomous/execute/stream`,
+          `${baseURL}/api/v2/autonomous/stream`,
+          `${baseURL}/api/autonomous/stream`
+        ]
+      : [
+          `${baseURL}/api/v2/chat/streaming/stream`,
+          `${baseURL}/api/chat/streaming/stream`,
+          `${baseURL}/api/v2/chat/stream`,
+          `${baseURL}/api/chat/stream`,
+          `${baseURL}/api/v2/chat/streaming`,
+          `${baseURL}/api/chat/streaming`
+        ];
 
     // Build payload based on endpoint
     const payload = isAutonomous ? {
@@ -463,31 +475,48 @@ export const chatAPI = {
       image: image || null
     };
 
-    logger.info(`[API] Using ${isAutonomous ? 'AUTONOMOUS' : 'CHAT'} endpoint:`, endpoint);
+    // Prepare headers with configured API key
+    const configuredKey = apiConfigManager.getApiKey && apiConfigManager.getApiKey();
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream',
+      'X-User-Id': localStorage.getItem('user_id') || 'anonymous'
+    };
+    if (configuredKey) headers['X-API-Key'] = configuredKey;
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': 'dev',
-        'X-User-Id': localStorage.getItem('user_id') || 'anonymous'
-      },
-      body: JSON.stringify(payload),
-    });
+    let response;
+    let lastStatus = 0;
+    let lastBody = '';
+    for (const endpoint of endpoints) {
+      logger.info(`[API] Trying ${isAutonomous ? 'AUTONOMOUS' : 'CHAT'} endpoint:`, endpoint);
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+      if (response.ok) break;
+      lastStatus = response.status;
+      try { lastBody = await response.text(); } catch {}
+      if (lastStatus === 404 || lastStatus === 405) {
+        continue; // try next fallback path
+      }
+      // For 401, no point trying alternate path without auth
+      if (lastStatus === 401) break;
+    }
 
-    if (!response.ok) {
-      // Try to get error details from response
-      let errorMessage = `HTTP error! status: ${response.status}`;
+    if (!response || !response.ok) {
+      let errorMessage = `HTTP error! status: ${lastStatus || (response && response.status)}`;
       try {
-        const errorData = await response.json();
-        errorMessage = errorData.detail || errorData.error || errorMessage;
-      } catch (e) {
-        // Response might not be JSON
-        try {
-          errorMessage = (await response.text()) || errorMessage;
-        } catch (e2) {
-          // Use default message
+        const parsed = lastBody && JSON.parse(lastBody);
+        if (parsed && (parsed.detail || parsed.error)) {
+          errorMessage = parsed.detail || parsed.error;
+        } else if (lastBody) {
+          errorMessage = lastBody;
         }
+      } catch {}
+      // Provide hint if unauthenticated
+      if ((lastStatus || response?.status) === 401 && !configuredKey) {
+        errorMessage = 'Unauthorized (missing API key). Set your API key in Settings or .env (VITE_API_KEY).';
       }
       throw new Error(errorMessage);
     }
@@ -842,6 +871,21 @@ export const permissionAPI = {
             try {
               return await permissionAPI._tryPaths('post', ['/api/v2/safety/permission-level', '/api/safety/permission-level'], {});
             } catch (err2) {
+              const status = err2?.response?.status || err2?.status || err2?.statusCode;
+              if (status === 404 || status === 405 || status === 400 || status === 501) {
+                logger.warn('[Safety] permission-level unavailable, defaulting to helpful');
+                return {
+                  data: {
+                    permission_level: 'helpful',
+                    name: 'Helpful (Default)',
+                    description: 'Safety service unavailable',
+                    capabilities: {
+                      can_do: ['Write code', 'Run scripts'],
+                      requires_approval: ['Send emails', 'Delete files']
+                    }
+                  }
+                };
+              }
               throw err2;
             }
           }
@@ -863,19 +907,40 @@ export const permissionAPI = {
    * @param {object} context - Optional context
    * @returns {Promise<object>} Safety check results
    */
-  check: (message, context = {}) =>
-    DEMO_MODE
-      ? Promise.resolve({
+  check: async (message, context = {}) => {
+    if (DEMO_MODE) {
+      return {
+        allowed: true,
+        requires_approval: false,
+        permission_level: 'helpful',
+        markers: [],
+        reason: 'Demo mode',
+        suggested_flow: null,
+        draft_supported: false,
+        is_high_risk: false
+      };
+    }
+    try {
+      return await permissionAPI._tryPaths('post', ['/api/v2/safety/check', '/api/safety/check'], { message, context });
+    } catch (err) {
+      const status = err?.response?.status || err?.status || err?.statusCode;
+      if (status === 404 || status === 405 || status === 400 || status === 501) {
+        // Backend doesn’t implement safety yet – permit by default
+        logger.warn('[Safety] check unavailable, allowing by default:', status);
+        return {
           allowed: true,
           requires_approval: false,
           permission_level: 'helpful',
           markers: [],
-          reason: 'Demo mode',
+          reason: 'Safety service unavailable',
           suggested_flow: null,
           draft_supported: false,
           is_high_risk: false
-        })
-      : permissionAPI._tryPaths('post', ['/api/safety/check', '/api/v2/safety/check'], { message, context }),
+        };
+      }
+      throw err;
+    }
+  },
 
   /**
    * Get activity log

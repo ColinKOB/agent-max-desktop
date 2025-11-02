@@ -385,13 +385,48 @@ function GoogleConnectStep({ userData, onNext, onBack, serverConnected, checking
     try {
       const cfg = apiConfigManager.getConfig();
       const base = cfg.baseURL || 'http://localhost:8000';
-      // Try a few conventional endpoints; backend isn’t up yet so this may open when available
+      // Try multiple conventional endpoints (v2 then v1). Open the first that exists.
       const candidates = [
         `${base}/api/v2/google/oauth/start`,
+        `${base}/api/google/oauth/start`,
         `${base}/api/v2/google/oauth`,
+        `${base}/api/google/oauth`,
         `${base}/api/v2/google/connect`,
+        `${base}/api/google/connect`,
       ];
-      const url = candidates[0];
+      let url = null;
+      for (const c of candidates) {
+        try {
+          const res = await fetch(c, { method: 'GET', redirect: 'manual' });
+          // Consider 2xx and 3xx as valid (oauth usually redirects)
+          if (res.status >= 200 && res.status < 400) {
+            url = c;
+            break;
+          }
+        } catch (_) {
+          // Ignore and try next
+        }
+      }
+      // If no GET endpoint works, try POST endpoints that return a JSON auth URL
+      if (!url) {
+        for (const c of candidates) {
+          try {
+            const res = await fetch(c, { method: 'POST', headers: { 'Content-Type': 'application/json' }, redirect: 'manual' });
+            if (res.ok) {
+              // Try to parse an auth URL from JSON
+              let authUrl = null;
+              try {
+                const data = await res.clone().json();
+                authUrl = data.url || data.auth_url || data.authorize_url || null;
+              } catch {}
+              if (authUrl && typeof authUrl === 'string') {
+                url = authUrl;
+                break;
+              }
+            }
+          } catch (_) {}
+        }
+      }
       try {
         await setUserPreference('google_oauth_started', 'true');
         await setUserPreference('google_oauth_status', 'started');
@@ -402,8 +437,12 @@ function GoogleConnectStep({ userData, onNext, onBack, serverConnected, checking
         };
         try { await setUserPreference('prompt_profile', JSON.stringify(profile)); } catch {}
       } catch {}
-      if (window.electron?.openExternal) await window.electron.openExternal(url);
-      else if (window.electronAPI?.openExternal) await window.electronAPI.openExternal(url);
+      if (url) {
+        if (window.electron?.openExternal) await window.electron.openExternal(url);
+        else if (window.electronAPI?.openExternal) await window.electronAPI.openExternal(url);
+      } else {
+        console.warn('[Onboarding] No working Google OAuth endpoint found');
+      }
     } catch (_) {
       // Non-blocking
     } finally {
