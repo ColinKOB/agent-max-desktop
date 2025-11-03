@@ -1,0 +1,5 @@
+{"timestamp":"2025-11-03T00:45:07.521Z","test_run_id":"2025-11-03T00-45-07-379Z","event_type":"health_check","duration_ms":127,"data":{"success":true,"status":"healthy"}}
+{"timestamp":"2025-11-03T00:45:08.633Z","test_run_id":"2025-11-03T00-45-07-379Z","event_type":"fact_create","duration_ms":1111,"data":{"success":true,"fact_id":"c11f1d26-65ba-405c-ba58-cbf7b09993a8","category":"e2e_test_2025-11-03T00-45-07-379Z"}}
+{"timestamp":"2025-11-03T00:45:10.376Z","test_run_id":"2025-11-03T00-45-07-379Z","event_type":"retrieval_query","duration_ms":775,"data":{"success":true,"query":"What are my preferences?","facts_count":0,"semantic_count":0}}
+{"timestamp":"2025-11-03T00:45:10.406Z","test_run_id":"2025-11-03T00-45-07-379Z","event_type":"retrieval_query","duration_ms":30,"data":{"success":true,"query":"Tell me about my project","facts_count":0,"semantic_count":0}}
+{"timestamp":"2025-11-03T00:45:10.434Z","test_run_id":"2025-11-03T00-45-07-379Z","event_type":"retrieval_query","duration_ms":28,"data":{"success":true,"query":"What do I like?","facts_count":0,"semantic_count":0}}
