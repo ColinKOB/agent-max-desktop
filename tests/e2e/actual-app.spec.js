@@ -6,6 +6,15 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Agent Max Desktop - Actual Features', () => {
   test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      try {
+        localStorage.setItem('onboarding_completed', 'true');
+        localStorage.setItem('user_data', JSON.stringify({ name: 'E2E User' }));
+        if (!localStorage.getItem('device_id')) {
+          localStorage.setItem('device_id', 'e2e-device-0001');
+        }
+      } catch {}
+    });
     await page.goto('http://localhost:5173');
     await page.waitForTimeout(2000); // Wait for React to render
   });

@@ -20,6 +20,17 @@ async function captureApiCalls(page, paths) {
 const BASE = process.env.BASE_URL || 'http://localhost:5173';
 const API_URL = process.env.API_URL || 'http://localhost:8000';
 
+// Bypass onboarding overlay in tests
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('onboarding_completed', 'true');
+      localStorage.setItem('user_data', JSON.stringify({ name: 'E2E User' }));
+      if (!localStorage.getItem('device_id')) localStorage.setItem('device_id', 'e2e-device-0001');
+    } catch {}
+  });
+});
+
 // Robust click helper for Tools button to handle pointer interception overlays
 async function clickToolsRobustly(page) {
   const toolsBtn = page.locator('button[title="Tools"], button[aria-label="Tools"]');
