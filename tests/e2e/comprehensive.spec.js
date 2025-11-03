@@ -15,7 +15,9 @@ import { test, expect } from '@playwright/test';
  */
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
-const API_URL = 'http://localhost:8000';
+const API_URL = process.env.API_URL || process.env.VITE_API_URL || 'http://localhost:8000';
+const SKIP_SCREEN = !!process.env.SKIP_SCREEN;
+const SKIP_AI = !!process.env.SKIP_AI;
 
 // Helper to wait for network idle
 async function waitForNetworkIdle(page, timeout = 2000) {
@@ -39,7 +41,7 @@ function captureResponse(page, endpoint) {
 }
 
 test.describe('Chat & Messaging Features', () => {
-  test('Chat streaming endpoint responds with SSE events', async ({ request }) => {
+  (SKIP_AI ? test.skip : test)('Chat streaming endpoint responds with SSE events', async ({ request }) => {
     // Test the streaming endpoint that powers the chat UI
     const response = await fetch(`${API_URL}/api/v2/autonomous/execute/stream`, {
       method: 'POST',
@@ -78,7 +80,7 @@ test.describe('Chat & Messaging Features', () => {
     await reader.cancel();
   });
 
-  test('Chat UI expands and sends message via autonomous endpoint', async ({ page }) => {
+  (SKIP_AI ? test.skip : test)('Chat UI expands and sends message via autonomous endpoint', async ({ page }) => {
     await page.goto(`${BASE_URL}/#/card`);
     
     // Track autonomous API calls
@@ -266,7 +268,7 @@ test.describe('Agent Management Features', () => {
   });
 });
 
-test.describe('Screen Control Features', () => {
+(SKIP_SCREEN ? test.describe.skip : test.describe)('Screen Control Features', () => {
   test('Screen capabilities endpoint returns available actions', async ({ request }) => {
     const capabilitiesRes = await request.get(`${API_URL}/api/v2/screen/capabilities`);
     expect(capabilitiesRes.ok()).toBeTruthy();

@@ -18,6 +18,7 @@ async function captureApiCalls(page, paths) {
 
 // Use the dev server configured in playwright.config.js
 const BASE = process.env.BASE_URL || 'http://localhost:5173';
+const API_URL = process.env.API_URL || 'http://localhost:8000';
 
 test.describe('Frontend ↔ Backend Connectivity', () => {
   test('Settings can point to API and health responds', async ({ page, request }) => {
@@ -36,7 +37,7 @@ test.describe('Frontend ↔ Backend Connectivity', () => {
     }
 
     // Directly verify backend health
-    const res = await request.get('http://localhost:8000/health');
+    const res = await request.get(`${API_URL}/health`);
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
     expect(body.status).toBe('healthy');
@@ -74,36 +75,36 @@ test.describe('Frontend ↔ Backend Connectivity', () => {
 
   test('Conversation memory API stores and returns context', async ({ request }) => {
     // Add a message to conversation memory (backend)
-    const addRes = await request.post('http://localhost:8000/api/v2/conversation/message', {
+    const addRes = await request.post(`${API_URL}/api/v2/conversation/message`, {
       data: { role: 'user', content: 'Hello from E2E test' },
     });
     expect(addRes.ok()).toBeTruthy();
 
     // Fetch recent context and verify message count >= 1
-    const ctxRes = await request.get('http://localhost:8000/api/v2/conversation/context?last_n=1');
+    const ctxRes = await request.get(`${API_URL}/api/v2/conversation/context?last_n=1`);
     expect(ctxRes.ok()).toBeTruthy();
     const ctx = await ctxRes.json();
     expect(ctx.message_count).toBeGreaterThan(0);
   });
 
   test('Profile endpoints respond with greeting and profile data', async ({ request }) => {
-    const profileRes = await request.get('http://localhost:8000/api/v2/profile');
+    const profileRes = await request.get(`${API_URL}/api/v2/profile`);
     expect(profileRes.ok()).toBeTruthy();
     const profile = await profileRes.json();
     expect(typeof profile.user_name).toBeDefined();
 
-    const greetRes = await request.get('http://localhost:8000/api/v2/profile/greeting');
+    const greetRes = await request.get(`${API_URL}/api/v2/profile/greeting`);
     expect(greetRes.ok()).toBeTruthy();
     const greet = await greetRes.json();
     expect(typeof greet.greeting).toBe('string');
   });
 
   test('Agents REST endpoints respond (providers, roles, list)', async ({ request }) => {
-    const providers = await request.get('http://localhost:8000/api/v2/agents/providers');
+    const providers = await request.get(`${API_URL}/api/v2/agents/providers`);
     expect(providers.ok()).toBeTruthy();
-    const roles = await request.get('http://localhost:8000/api/v2/agents/roles');
+    const roles = await request.get(`${API_URL}/api/v2/agents/roles`);
     expect(roles.ok()).toBeTruthy();
-    const list = await request.get('http://localhost:8000/api/v2/agents/list');
+    const list = await request.get(`${API_URL}/api/v2/agents/list`);
     expect(list.ok()).toBeTruthy();
   });
 });

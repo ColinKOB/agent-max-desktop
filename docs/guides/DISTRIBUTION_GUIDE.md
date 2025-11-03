@@ -235,3 +235,7 @@ Before releasing to users:
 4. **Share the download link!**
 
 Your users can now install Agent Max like any other desktop app! 🎉
+
+App specific password is: fujq-zrci-bnes-wxxq
+My email is Colinkobrien@me.com
+The apple team ID is Q3Q2BF22GL

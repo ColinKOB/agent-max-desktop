@@ -18,6 +18,9 @@
     <key>com.apple.security.device.microphone</key>
     <true/>
     
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    
     <!-- NOTE: Removed dangerous permissions -->
     <!-- Removed: com.apple.security.cs.allow-unsigned-executable-memory -->
     <!-- Removed: com.apple.security.cs.allow-jit -->

@@ -514,10 +514,54 @@ export const chatAPI = {
           errorMessage = lastBody;
         }
       } catch {}
-      // Provide hint if unauthenticated
       if ((lastStatus || response?.status) === 401 && !configuredKey) {
         errorMessage = 'Unauthorized (missing API key). Set your API key in Settings or .env (VITE_API_KEY).';
       }
+
+      // Fallback to non-streaming chat endpoint when streaming is unavailable
+      try {
+        const jsonHeaders = {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-User-Id': localStorage.getItem('user_id') || 'anonymous'
+        };
+        if (configuredKey) jsonHeaders['X-API-Key'] = configuredKey;
+
+        const fallbackPayload = {
+          message: message,
+          session_id: (userContext && userContext.session_id) || 'default',
+          include_context: true,
+          user_context: userContext ? {
+            profile: userContext.profile || {},
+            facts: userContext.facts || {},
+            preferences: userContext.preferences || {},
+            recent_messages: userContext.recent_messages || []
+          } : null,
+          image: image || null,
+          memory_mode: 'auto'
+        };
+
+        const jsonEndpoints = [
+          `${baseURL}/api/v2/chat/message`,
+          `${baseURL}/api/chat/message`
+        ];
+
+        for (const ep of jsonEndpoints) {
+          const jsonResp = await fetch(ep, {
+            method: 'POST',
+            headers: jsonHeaders,
+            body: JSON.stringify(fallbackPayload)
+          });
+          if (jsonResp.ok) {
+            const data = await jsonResp.json();
+            if (onEvent) {
+              onEvent({ type: 'done', data: { final_response: data.response || '' } });
+            }
+            return;
+          }
+        }
+      } catch {}
+
       throw new Error(errorMessage);
     }
 

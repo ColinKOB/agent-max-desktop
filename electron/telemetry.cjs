@@ -541,7 +541,6 @@ class DesktopTelemetry {
       this.queue = this.queue.slice(-MAX_QUEUE_LENGTH);
     }
     return { sent: 0, error: res.data };
-    }
   }
 }
 
