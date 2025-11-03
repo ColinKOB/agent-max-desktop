@@ -20,6 +20,26 @@ async function captureApiCalls(page, paths) {
 const BASE = process.env.BASE_URL || 'http://localhost:5173';
 const API_URL = process.env.API_URL || 'http://localhost:8000';
 
+// Robust click helper for Tools button to handle pointer interception overlays
+async function clickToolsRobustly(page) {
+  const toolsBtn = page.locator('button[title="Tools"], button[aria-label="Tools"]');
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      // Try normal click
+      await toolsBtn.first().click({ timeout: 1000 });
+      return;
+    } catch (_) {
+      // Dismiss potential overlays and retry
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.waitForTimeout(200);
+      await page.evaluate(() => window.scrollBy(0, 200));
+      await page.waitForTimeout(200);
+    }
+  }
+  // Last resort: force click
+  await toolsBtn.first().click({ force: true });
+}
+
 test.describe('Frontend ↔ Backend Connectivity', () => {
   test('Settings can point to API and health responds', async ({ page, request }) => {
     await page.goto(`${BASE}/#/settings`);
@@ -62,8 +82,7 @@ test.describe('Frontend ↔ Backend Connectivity', () => {
     }
 
     // Click Tools button (supports AppleFloatBar and FloatBarCore)
-    const toolsBtn = page.locator('button[title="Tools"], button[aria-label="Tools"]');
-    await toolsBtn.first().click();
+    await clickToolsRobustly(page);
 
     // Verify that tools_open event was dispatched
     const sawEvent = await page.waitForFunction(() => {

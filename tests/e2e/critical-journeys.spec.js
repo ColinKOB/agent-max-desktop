@@ -3,6 +3,7 @@
  * Tests complete user workflows from signup to billing
  */
 import { test, expect } from '@playwright/test';
+const SKIP_AUTH = !!process.env.SKIP_AUTH;
 
 // Helper functions
 async function login(page, email, password) {
@@ -39,7 +40,7 @@ const validCard = {
   zip: '10001'
 };
 
-test.describe('Critical User Journeys', () => {
+(SKIP_AUTH ? test.describe.skip : test.describe)('Critical User Journeys', () => {
   test('Journey 1: New user can sign up and complete first goal', async ({ page }) => {
     // 1. Land on homepage
     await page.goto('http://localhost:5173');

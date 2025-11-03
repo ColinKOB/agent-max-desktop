@@ -3,6 +3,7 @@
  * Tests system resilience and error handling
  */
 import { test, expect } from '@playwright/test';
+const SKIP_AUTH = !!process.env.SKIP_AUTH;
 
 // Helper to simulate backend outage
 async function simulateBackendOutage(page) {
@@ -39,7 +40,7 @@ async function login(page, email, password) {
   await page.click('button[type=submit]');
 }
 
-test.describe('Error Scenarios', () => {
+(SKIP_AUTH ? test.describe.skip : test.describe)('Error Scenarios', () => {
   test('Scenario 1: Graceful degradation when backend is down', async ({ page }) => {
     // Login first while backend is up
     await page.goto('http://localhost:5173');

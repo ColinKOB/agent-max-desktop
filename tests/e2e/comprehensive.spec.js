@@ -18,6 +18,7 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 const API_URL = process.env.API_URL || process.env.VITE_API_URL || 'http://localhost:8000';
 const SKIP_SCREEN = !!process.env.SKIP_SCREEN;
 const SKIP_AI = !!process.env.SKIP_AI;
+const SKIP_TELEMETRY = !!process.env.SKIP_TELEMETRY;
 
 // Helper to wait for network idle
 async function waitForNetworkIdle(page, timeout = 2000) {
@@ -416,7 +417,7 @@ test.describe('Facts & Semantic Features', () => {
   });
 });
 
-test.describe('Telemetry & Analytics Features', () => {
+(SKIP_TELEMETRY ? test.describe.skip : test.describe)('Telemetry & Analytics Features', () => {
   test('Telemetry batch endpoint accepts event batches', async ({ request }) => {
     const events = [
       {

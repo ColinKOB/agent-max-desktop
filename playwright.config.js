@@ -3,6 +3,7 @@
  * E2E testing setup
  */
 import { defineConfig, devices } from '@playwright/test';
+const extraHeaders = process.env.TEST_API_KEY ? { 'X-API-Key': process.env.TEST_API_KEY } : {};
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -19,6 +20,7 @@ export default defineConfig({
     video: 'retain-on-failure',
     actionTimeout: 10000,
     navigationTimeout: 30000,
+    extraHTTPHeaders: extraHeaders,
   },
 
   projects: [
