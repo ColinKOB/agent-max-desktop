@@ -737,26 +737,66 @@ export const telemetryAPI = {
 // SCREEN CONTROL API
 // ============================================
 export const screenAPI = {
-  getCapabilities: () => api.get('/api/v2/screen/capabilities'),
-  getInfo: () => api.get('/api/v2/screen/info'),
-  getStatus: () => api.get('/api/v2/screen/status'),
+  getCapabilities: () => permissionAPI._tryPaths('get', [
+    '/api/v2/screen/capabilities',
+    '/api/screen/capabilities',
+    '/screen/capabilities'
+  ]),
+  getInfo: () => permissionAPI._tryPaths('get', [
+    '/api/v2/screen/info',
+    '/api/screen/info',
+    '/screen/info'
+  ]),
+  getStatus: () => permissionAPI._tryPaths('get', [
+    '/api/v2/screen/status',
+    '/api/screen/status',
+    '/screen/status'
+  ]),
 
   click: (x, y, button = 'left', clicks = 1) =>
-    api.post('/api/v2/screen/click', { x, y, button, clicks }),
+    permissionAPI._tryPaths('post', [
+      '/api/v2/screen/click',
+      '/api/screen/click',
+      '/screen/click'
+    ], { x, y, button, clicks }),
 
-  clickText: (text, clicks = 1) => api.post('/api/v2/screen/click-text', { text, clicks }),
+  clickText: (text, clicks = 1) => permissionAPI._tryPaths('post', [
+    '/api/v2/screen/click-text',
+    '/api/screen/click-text',
+    '/screen/click-text'
+  ], { text, clicks }),
 
   clickElement: (description, clicks = 1) =>
-    api.post('/api/v2/screen/click-element', { description, clicks }),
+    permissionAPI._tryPaths('post', [
+      '/api/v2/screen/click-element',
+      '/api/screen/click-element',
+      '/screen/click-element'
+    ], { description, clicks }),
 
-  typeText: (text, clear_first = false) => api.post('/api/v2/screen/type', { text, clear_first }),
+  typeText: (text, clear_first = false) => permissionAPI._tryPaths('post', [
+    '/api/v2/screen/type',
+    '/api/screen/type',
+    '/screen/type'
+  ], { text, clear_first }),
 
-  pressKey: (keys) => api.post('/api/v2/screen/press-key', { keys }),
+  pressKey: (keys) => permissionAPI._tryPaths('post', [
+    '/api/v2/screen/press-key',
+    '/api/screen/press-key',
+    '/screen/press-key'
+  ], { keys }),
 
   scroll: (direction = 'down', amount = 3) =>
-    api.post('/api/v2/screen/scroll', { direction, amount }),
+    permissionAPI._tryPaths('post', [
+      '/api/v2/screen/scroll',
+      '/api/screen/scroll',
+      '/screen/scroll'
+    ], { direction, amount }),
 
-  takeScreenshot: (save_name = null) => api.post('/api/v2/screen/screenshot', { save_name }),
+  takeScreenshot: (save_name = null) => permissionAPI._tryPaths('post', [
+    '/api/v2/screen/screenshot',
+    '/api/screen/screenshot',
+    '/screen/screenshot'
+  ], { save_name }),
 };
 
 // ============================================
@@ -1061,15 +1101,31 @@ export { API_BASE_URL };
  * Reconfigure the axios instance with new base URL
  * Called when user updates settings
  */
-export const reconfigureAPI = (newBaseURL) => {
-  logger.info('Reconfiguring with new base URL', { newBaseURL });
+export const reconfigureAPI = (newBaseURL, newApiKey = undefined) => {
+  logger.info('Reconfiguring with new base URL', { newBaseURL, hasApiKey: newApiKey !== undefined });
 
   // Update config manager
   apiConfigManager.updateConfig(newBaseURL);
+  try {
+    // Persist API key change if provided (undefined = no change, null = clear)
+    if (typeof newApiKey !== 'undefined') {
+      apiConfigManager.updateApiKey(newApiKey);
+    }
+  } catch {}
 
   // Update axios instance
   api.defaults.baseURL = newBaseURL;
   API_BASE_URL = newBaseURL;
+  // Sync default auth header immediately for consumers using api.defaults
+  try {
+    if (typeof newApiKey !== 'undefined') {
+      if (newApiKey) {
+        api.defaults.headers['X-API-Key'] = newApiKey;
+      } else {
+        delete api.defaults.headers['X-API-Key'];
+      }
+    }
+  } catch {}
 
   logger.info('Reconfiguration complete');
   toast.success('API configuration updated');
@@ -1080,6 +1136,13 @@ apiConfigManager.onChange((config) => {
   logger.info('Config changed externally, updating axios instance', config);
   api.defaults.baseURL = config.baseURL;
   API_BASE_URL = config.baseURL;
+  try {
+    if (config.apiKey) {
+      api.defaults.headers['X-API-Key'] = config.apiKey;
+    } else {
+      delete api.defaults.headers['X-API-Key'];
+    }
+  } catch {}
 });
 
 export default api;
