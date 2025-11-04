@@ -30,6 +30,8 @@
     "test:e2e": "playwright test",
     "test:e2e:json": "playwright test --reporter=list",
     "test:e2e:triage": "npm run test:e2e:json && node scripts/e2e_triage.mjs",
+    "test:api": "playwright test -c playwright.api.config.js",
+    "test:api:triage": "npm run test:api -s && node scripts/e2e_triage.mjs",
     "test:e2e:ui": "playwright test --ui",
     "test:all": "node scripts/run-all-tests.js",
     "lint": "eslint . --ext .js,.jsx,.cjs",
