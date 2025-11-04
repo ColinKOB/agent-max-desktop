@@ -152,7 +152,7 @@ export default function ScreenControl() {
         )}
       </div>
 
-      {/* Tabs */}
+      
       <div className="flex gap-1 p-2 bg-gray-800 border-b border-gray-700 overflow-x-auto">
         {[
           { id: 'click', label: 'Click', icon: Mouse },
@@ -162,14 +162,18 @@ export default function ScreenControl() {
           { id: 'screenshot', label: 'Screenshot', icon: Camera },
         ].map((tab) => {
           const Icon = tab.icon;
+          const unavailable = capabilities && capabilities.available === false;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              disabled={unavailable}
               className={`flex items-center gap-1 px-3 py-1.5 rounded text-xs transition-colors whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                unavailable
+                  ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                  : activeTab === tab.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -207,7 +211,7 @@ export default function ScreenControl() {
             </div>
             <button
               onClick={handleClick}
-              disabled={loading || !clickX || !clickY}
+              disabled={loading || !clickX || !clickY || (capabilities && capabilities.available === false)}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-2"
             >
               {loading ? (
@@ -234,7 +238,7 @@ export default function ScreenControl() {
             </div>
             <button
               onClick={handleType}
-              disabled={loading || !textToType}
+              disabled={loading || !textToType || (capabilities && capabilities.available === false)}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-2"
             >
               {loading ? (
@@ -261,7 +265,7 @@ export default function ScreenControl() {
             </div>
             <button
               onClick={handleClickText}
-              disabled={loading || !textToFind}
+              disabled={loading || !textToFind || (capabilities && capabilities.available === false)}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
@@ -284,7 +288,7 @@ export default function ScreenControl() {
             </div>
             <button
               onClick={handleClickElement}
-              disabled={loading || !elementDesc}
+              disabled={loading || !elementDesc || (capabilities && capabilities.available === false)}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
@@ -297,7 +301,7 @@ export default function ScreenControl() {
           <div className="space-y-3">
             <button
               onClick={handleScreenshot}
-              disabled={loading}
+              disabled={loading || (capabilities && capabilities.available === false)}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white py-3 rounded text-sm font-medium transition-colors flex items-center justify-center gap-2"
             >
               {loading ? (

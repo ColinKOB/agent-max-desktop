@@ -4,6 +4,7 @@ import apiConfigManager from '../config/apiConfig';
 import { handleError, parseApiError, ErrorCodes } from './errorHandler';
 import { createLogger } from './logger';
 import { toast } from 'react-hot-toast';
+import telemetry from './telemetry';
 
 const logger = createLogger('API');
 
@@ -182,6 +183,14 @@ api.interceptors.response.use(
         url: response.config.url,
         duration: `${duration}ms`,
       });
+      try {
+        telemetry.logEvent('api.slow_request', {
+          url: response.config.url,
+          method: response.config.method,
+          duration_ms: duration,
+          baseURL: api.defaults.baseURL,
+        });
+      } catch {}
     }
 
     return response;
@@ -429,25 +438,50 @@ export const chatAPI = {
       requestedMode = 'helpful';
     }
 
+    // Runtime flag: allow disabling legacy fallbacks to surface drift
+    const disableLegacyFallbacks = (() => {
+      // Default behavior: in production builds, disable legacy fallbacks
+      let defaultValue = isProdBuild ? true : false;
+      try {
+        const v = localStorage.getItem('disable_legacy_fallbacks');
+        if (v === '1' || v === 'true') return true;
+        if (v === '0' || v === 'false') return false;
+      } catch {}
+      try {
+        const env = import.meta.env.VITE_DISABLE_LEGACY_FALLBACKS;
+        if (env === 'true') return true;
+        if (env === 'false') return false;
+      } catch {}
+      return defaultValue;
+    })();
+
     // CRITICAL: Use different endpoint based on mode
     // - autonomous mode → /api/v2/autonomous/execute/stream (ACTUALLY EXECUTES TOOLS)
     // - chatty/helpful → /api/v2/chat/streaming/stream (text generation only)
     const isAutonomous = requestedMode === 'autonomous';
     const endpoints = isAutonomous 
-      ? [
-          `${baseURL}/api/v2/autonomous/execute/stream`,
-          `${baseURL}/api/autonomous/execute/stream`,
-          `${baseURL}/api/v2/autonomous/stream`,
-          `${baseURL}/api/autonomous/stream`
-        ]
-      : [
-          `${baseURL}/api/v2/chat/streaming/stream`,
-          `${baseURL}/api/chat/streaming/stream`,
-          `${baseURL}/api/v2/chat/stream`,
-          `${baseURL}/api/chat/stream`,
-          `${baseURL}/api/v2/chat/streaming`,
-          `${baseURL}/api/chat/streaming`
-        ];
+      ? (
+          disableLegacyFallbacks
+            ? [ `${baseURL}/api/v2/autonomous/execute/stream` ]
+            : [
+                `${baseURL}/api/v2/autonomous/execute/stream`,
+                `${baseURL}/api/autonomous/execute/stream`,
+                `${baseURL}/api/v2/autonomous/stream`,
+                `${baseURL}/api/autonomous/stream`
+              ]
+        )
+      : (
+          disableLegacyFallbacks
+            ? [ `${baseURL}/api/v2/chat/streaming/stream` ]
+            : [
+                `${baseURL}/api/v2/chat/streaming/stream`,
+                `${baseURL}/api/chat/streaming/stream`,
+                `${baseURL}/api/v2/chat/stream`,
+                `${baseURL}/api/chat/stream`,
+                `${baseURL}/api/v2/chat/streaming`,
+                `${baseURL}/api/chat/streaming`
+              ]
+        );
 
     // Build payload based on endpoint
     const payload = isAutonomous ? {
@@ -489,15 +523,60 @@ export const chatAPI = {
     let lastBody = '';
     for (const endpoint of endpoints) {
       logger.info(`[API] Trying ${isAutonomous ? 'AUTONOMOUS' : 'CHAT'} endpoint:`, endpoint);
-      response = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-      });
-      if (response.ok) break;
+      try {
+        telemetry.logEvent('api.chat_stream.try_endpoint', {
+          endpoint,
+          mode: isAutonomous ? 'autonomous' : 'chat',
+        });
+      } catch {}
+      try {
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload),
+        });
+      } catch (netErr) {
+        lastStatus = 0;
+        lastBody = String(netErr?.message || netErr);
+        try {
+          telemetry.logEvent('api.chat_stream.network_error', {
+            endpoint,
+            mode: isAutonomous ? 'autonomous' : 'chat',
+            error: lastBody,
+          });
+        } catch {}
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('api:fallback', { detail: { area: 'chat_stream', endpoint, status: 0 } }));
+          }
+        } catch {}
+        continue; // try next endpoint
+      }
+      if (response.ok) {
+        try {
+          telemetry.logEvent('api.chat_stream.endpoint_selected', {
+            endpoint,
+            mode: isAutonomous ? 'autonomous' : 'chat',
+            status: response.status,
+          });
+        } catch {}
+        break;
+      }
       lastStatus = response.status;
       try { lastBody = await response.text(); } catch {}
       if (lastStatus === 404 || lastStatus === 405) {
+        try {
+          telemetry.logEvent('api.chat_stream.endpoint_fallback', {
+            endpoint,
+            mode: isAutonomous ? 'autonomous' : 'chat',
+            status: lastStatus,
+          });
+        } catch {}
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('api:fallback', { detail: { area: 'chat_stream', endpoint, status: lastStatus } }));
+          }
+        } catch {}
         continue; // try next fallback path
       }
       // For 401, no point trying alternate path without auth
@@ -520,6 +599,17 @@ export const chatAPI = {
 
       // Fallback to non-streaming chat endpoint when streaming is unavailable
       try {
+        try {
+          telemetry.logEvent('api.chat_stream.fallback_to_json', {
+            mode: isAutonomous ? 'autonomous' : 'chat',
+            last_status: lastStatus || (response && response.status),
+          });
+        } catch {}
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('api:fallback', { detail: { area: 'chat_stream', endpoint: 'json_fallback', status: lastStatus || (response && response.status) } }));
+          }
+        } catch {}
         const jsonHeaders = {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -541,10 +631,9 @@ export const chatAPI = {
           memory_mode: 'auto'
         };
 
-        const jsonEndpoints = [
-          `${baseURL}/api/v2/chat/message`,
-          `${baseURL}/api/chat/message`
-        ];
+        const jsonEndpoints = disableLegacyFallbacks
+          ? [ `${baseURL}/api/v2/chat/message` ]
+          : [ `${baseURL}/api/v2/chat/message`, `${baseURL}/api/chat/message` ];
 
         for (const ep of jsonEndpoints) {
           const jsonResp = await fetch(ep, {
@@ -734,6 +823,16 @@ export const googleAPI = {
     const email = localStorage.getItem('google_user_email');
     return api.get(`/api/v2/google/docs/${documentId}`, { params: { email } });
   },
+  
+  // OAuth support: prefer server-provided auth URL
+  getAuthUrl: (userId = null, deviceId = null, state = null) =>
+    api.get('/api/v2/google/auth/url', {
+      params: { user_id: userId, device_id: deviceId, state },
+    }),
+
+  // Disconnect account
+  disconnect: (email) =>
+    api.post('/api/v2/google/disconnect', null, { params: { email } }),
 };
 
 // ============================================
@@ -917,8 +1016,25 @@ export const creditsAPI = {
 export const permissionAPI = {
   // Internal: try multiple paths, falling back on 404
   _tryPaths: async (method, paths, payload = null, options = {}) => {
+    // In production or when explicitly enabled, prefer v2-only to surface drift
+    const legacyDisabled = (() => {
+      let d = isProdBuild ? true : false;
+      try {
+        const v = localStorage.getItem('disable_legacy_fallbacks');
+        if (v === '1' || v === 'true') return true;
+        if (v === '0' || v === 'false') return false;
+      } catch {}
+      try {
+        const env = import.meta.env.VITE_DISABLE_LEGACY_FALLBACKS;
+        if (env === 'true') return true;
+        if (env === 'false') return false;
+      } catch {}
+      return d;
+    })();
+
+    const effectivePaths = legacyDisabled ? paths.filter(p => typeof p === 'string' && p.includes('/api/v2/')) : paths;
     let lastErr;
-    for (const p of paths) {
+    for (const p of effectivePaths) {
       try {
         if (method === 'get') return await api.get(p, options);
         if (method === 'post') return await api.post(p, payload, options);
@@ -932,6 +1048,20 @@ export const permissionAPI = {
         if (status === 404 || status === 405 || status === 400) {
           lastErr = err;
           logger.debug(`Path ${p} returned ${status}, trying next fallback...`);
+          try {
+            telemetry.logEvent('api.fallback_path', {
+              method,
+              path: p,
+              status,
+              baseURL: api.defaults.baseURL,
+              component: 'permissionAPI',
+            });
+          } catch {}
+          try {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('api:fallback', { detail: { method, path: p, status, area: 'permissionAPI' } }));
+            }
+          } catch {}
           continue; // try next path
         }
         throw err;

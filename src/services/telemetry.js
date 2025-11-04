@@ -17,11 +17,22 @@ function generateUUID() {
   });
 }
 
-const TELEMETRY_API = import.meta.env.VITE_TELEMETRY_API || 'http://localhost:8000';
+// Canonical endpoint resolution: prefer dedicated telemetry URL, fall back to general API URL, then localhost
+const TELEMETRY_API =
+  import.meta.env.VITE_TELEMETRY_API ||
+  import.meta.env.VITE_API_URL ||
+  'http://localhost:8000';
+// Enablement policy: default ON in dev, default OFF in production unless user opted in
+const isProd = (import.meta.env.VITE_ENVIRONMENT || import.meta.env.MODE || import.meta.env.MODE) === 'production';
 const TELEMETRY_ENABLED =
   typeof localStorage !== 'undefined'
-    ? localStorage.getItem('telemetry_enabled') !== 'false'
-    : true; // Opt-in by default
+    ? (() => {
+        const stored = localStorage.getItem('telemetry_enabled');
+        if (stored === 'true') return true;
+        if (stored === 'false') return false;
+        return !isProd; // default off in prod, on in dev
+      })()
+    : !isProd;
 const BATCH_SIZE = 10;
 const BATCH_INTERVAL = 5000; // 5 seconds
 
@@ -339,28 +350,37 @@ class TelemetryService {
     this.batch = [];
 
     try {
-      // Fire and forget - don't wait for response
-      axios
-        .put(
-          `${TELEMETRY_API}/api/telemetry/batch`,
-          {
-            events: eventsToSend,
-          },
-          {
-            headers: {
-              'X-API-Key': this.apiKey,
-              'Content-Type': 'application/json',
-            },
-            timeout: 5000, // 5 second timeout
-            validateStatus: (status) => {
-              // Accept any status code - we don't want to throw on 401/500
-              return true;
-            },
+      const base = (TELEMETRY_API || '').replace(/\/$/, '');
+      const headers = {
+        'X-API-Key': this.apiKey,
+        'Content-Type': 'application/json',
+      };
+      const options = {
+        headers,
+        timeout: 5000,
+        validateStatus: () => true,
+      };
+
+      // Try legacy first
+      axios.put(`${base}/api/telemetry/batch`, { events: eventsToSend }, options)
+        .then((res) => {
+          if (res.status === 401) {
+            try { window.dispatchEvent(new CustomEvent('telemetry:unauthorized')); } catch {}
           }
-        )
+          if (res.status === 404 || res.status === 405 || res.status === 0 || (res.status >= 400 && res.status < 600)) {
+            // Try v2 as fallback
+            return axios.post(`${base}/api/v2/telemetry/batch`, { events: eventsToSend }, options)
+              .then((res2) => {
+                if (res2.status === 401) {
+                  try { window.dispatchEvent(new CustomEvent('telemetry:unauthorized')); } catch {}
+                }
+                return res2;
+              });
+          }
+          return res;
+        })
         .catch(() => {
           // Silently fail - don't interrupt user experience
-          // Don't log to avoid console spam in development
         });
     } catch (error) {
       // Silently fail - telemetry is optional

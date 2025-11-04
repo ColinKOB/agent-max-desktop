@@ -15,6 +15,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import apiConfigManager from '../config/apiConfig';
 import { googleAPI } from '../services/api';
+import { generateOAuthState, hashOAuthState, storeOAuthStateHash } from '../services/oauth';
 
 // Helper function to get API URL dynamically
 function getApiUrl() {
@@ -76,6 +77,8 @@ export function GoogleConnect({ compact = false }) {
     const API_URL = getApiUrl();
     console.log('[GoogleConnect] Checking connection status, API_URL:', API_URL);
     try {
+      const envSetting = import.meta.env.VITE_ENVIRONMENT;
+      const isProdBuild = envSetting === 'production' || envSetting === 'beta' || (!import.meta.env.DEV && import.meta.env.MODE === 'production');
       // Use configured API wrapper (adds API key & user headers)
       const { data } = await googleAPI.getStatus();
 
@@ -117,13 +120,17 @@ export function GoogleConnect({ compact = false }) {
     setError('');
 
     try {
-      // Get auth URL from backend
+      const envSetting = import.meta.env.VITE_ENVIRONMENT;
+      const isProdBuild = envSetting === 'production' || envSetting === 'beta' || (!import.meta.env.DEV && import.meta.env.MODE === 'production');
+      // Candidate start endpoints (dev fallback only)
       const startCandidates = [
         `${API_URL}/api/v2/google/auth/start`,
         `${API_URL}/api/v2/google/oauth/start`,
         `${API_URL}/api/google/auth/start`,
       ];
-      console.log('[GoogleConnect] Will try start endpoints in browser:', startCandidates);
+      if (!isProdBuild) {
+        console.log('[GoogleConnect] Will try start endpoints in browser (dev only):', startCandidates);
+      }
       
       // Include identifiers so backend can correlate callback → user
       let userId = null;
@@ -146,7 +153,15 @@ export function GoogleConnect({ compact = false }) {
 
       // Build optional state to assist backend correlation
       let state = null;
-      try { state = btoa(JSON.stringify({ user_id: userId, device_id: deviceId, ts: Date.now() })); } catch {}
+      try {
+        // Generate cryptographically secure state and hash it for storage
+        state = generateOAuthState();
+        const stateHash = hashOAuthState(state);
+        storeOAuthStateHash(stateHash);
+        console.log('[GoogleConnect] Generated secure OAuth state and stored hash');
+      } catch (err) {
+        console.error('[GoogleConnect] Failed to generate secure state:', err);
+      }
 
       // Prefer server-driven start flow in the system browser so cookies/sessions carry to callback
       const params = new URLSearchParams();
@@ -154,18 +169,23 @@ export function GoogleConnect({ compact = false }) {
       if (deviceId) params.set('device_id', deviceId);
       if (state) params.set('state', state);
 
-      const startUrl = `${startCandidates[0]}?${params.toString()}`;
-      const authUrlEndpoint = `${API_URL}/api/v2/google/auth/url`;
-      let openUrl = startUrl;
+      let openUrl = null;
       try {
-        const apiKey = (apiConfigManager && typeof apiConfigManager.getApiKey === 'function') ? apiConfigManager.getApiKey() : null;
-        const headers = {};
-        if (apiKey) headers['X-API-Key'] = apiKey;
-        if (userId) headers['X-User-Id'] = userId;
-        const resp = await axios.get(authUrlEndpoint, { params: { user_id: userId, device_id: deviceId, state }, headers });
+        const resp = await googleAPI.getAuthUrl(userId, deviceId, state);
         if (resp?.data?.auth_url) openUrl = resp.data.auth_url;
       } catch (e) {
-        console.log('[GoogleConnect] /auth/url not available, falling back to /auth/start');
+        console.log('[GoogleConnect] /auth/url not available');
+      }
+      if (!openUrl) {
+        if (!isProdBuild) {
+          // Dev fallback: try conventional start endpoints
+          const startUrl = `${startCandidates[0]}?${params.toString()}`;
+          openUrl = startUrl;
+        } else {
+          setError('Authorization endpoint is unavailable. Please update the backend to expose /api/v2/google/auth/url.');
+          setLoading(false);
+          return;
+        }
       }
       console.log('[GoogleConnect] Opening URL:', openUrl);
 
@@ -191,8 +211,7 @@ export function GoogleConnect({ compact = false }) {
       }
 
       console.log('[GoogleConnect] Browser should be open now, starting polling...');
-      const statusEndpoint = `${API_URL}/api/v2/google/status`;
-      console.log('[GoogleConnect] Polling endpoint:', statusEndpoint, '(via googleAPI wrapper)');
+      console.log('[GoogleConnect] Polling endpoint: /api/v2/google/status (via googleAPI wrapper)');
 
       // Poll for connection status
       let pollAttempts = 0;
@@ -248,11 +267,8 @@ export function GoogleConnect({ compact = false }) {
   };
 
   const disconnectGoogle = async () => {
-    const API_URL = getApiUrl();
     try {
-      await axios.post(`${API_URL}/api/v2/google/disconnect`, null, {
-        params: { email: userEmail },
-      });
+      await googleAPI.disconnect(userEmail);
 
       setConnected(false);
       setUserEmail('');
@@ -273,25 +289,19 @@ export function GoogleConnect({ compact = false }) {
       return;
     }
 
-    const API_URL = getApiUrl();
     setTestingService(serviceName);
 
     try {
       let result;
       switch (serviceName) {
         case 'Gmail':
-          // Correct endpoint: /api/v2/google/messages
-          result = await axios.get(`${API_URL}/api/v2/google/messages`, {
-            params: { email: userEmail, max_results: 1 },
-          });
+          result = await googleAPI.listMessages(1);
           toast.success(`Gmail works! Found ${result.data.messages?.length || 0} recent emails`);
           setServiceStatus((prev) => ({ ...prev, Gmail: 'working' }));
           break;
 
         case 'Calendar':
-          result = await axios.get(`${API_URL}/api/v2/google/calendar/events`, {
-            params: { email: userEmail, max_results: 1 },
-          });
+          result = await googleAPI.listEvents(1);
           toast.success(`Calendar works! Found ${result.data.events?.length || 0} upcoming events`);
           setServiceStatus((prev) => ({ ...prev, Calendar: 'working' }));
           break;
@@ -309,10 +319,7 @@ export function GoogleConnect({ compact = false }) {
           break;
 
         case 'YouTube':
-          // Correct parameter: q (not query)
-          result = await axios.get(`${API_URL}/api/v2/google/youtube/search`, {
-            params: { email: userEmail, q: 'test', max_results: 1 },
-          });
+          result = await googleAPI.searchYouTube('test', 1);
           toast.success(`YouTube works! Found ${result.data.videos?.length || 0} videos`);
           setServiceStatus((prev) => ({ ...prev, YouTube: 'working' }));
           break;

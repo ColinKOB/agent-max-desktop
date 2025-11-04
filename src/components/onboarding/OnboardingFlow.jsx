@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { healthAPI, googleAPI } from '../../services/api';
+import { generateOAuthState, hashOAuthState, storeOAuthStateHash } from '../../services/oauth';
 import { GoogleConnect } from '../../components/GoogleConnect';
 import apiConfigManager from '../../config/apiConfig';
 import LogoPng from '../../assets/AgentMaxLogo.png';
@@ -393,7 +394,34 @@ function GoogleConnectStep({ userData, onNext, onBack, serverConnected, checking
       const cfg = apiConfigManager.getConfig();
       const base = cfg.baseURL || 'http://localhost:8000';
       const normalizedBase = base.includes('localhost') ? base.replace('localhost', '127.0.0.1') : base;
-      // Try multiple conventional endpoints (v2 then v1). Open the first that exists.
+      const envSetting = import.meta.env.VITE_ENVIRONMENT;
+      const isProdBuild = envSetting === 'production' || envSetting === 'beta' || (!import.meta.env.DEV && import.meta.env.MODE === 'production');
+      // Prepare identifiers
+      let userId = null;
+      try { userId = localStorage.getItem('user_id') || null; } catch {}
+      let deviceId = null;
+      try { deviceId = localStorage.getItem('device_id') || null; } catch {}
+      if (!deviceId) {
+        try {
+          const gen = () => (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function')
+            ? globalThis.crypto.randomUUID()
+            : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = (Math.random() * 16) | 0;
+                const v = c === 'x' ? r : (r & 0x3) | 0x8;
+                return v.toString(16);
+              });
+          deviceId = gen();
+          localStorage.setItem('device_id', deviceId);
+        } catch {}
+      }
+      // Generate secure state and store hash for validation
+      let state = null;
+      try {
+        state = generateOAuthState();
+        const stateHash = hashOAuthState(state);
+        storeOAuthStateHash(stateHash);
+      } catch {}
+      // Prefer server-provided auth url when available
       const candidates = [
         `${normalizedBase}/api/v2/google/oauth/start`,
         `${normalizedBase}/api/google/oauth/start`,
@@ -404,46 +432,40 @@ function GoogleConnectStep({ userData, onNext, onBack, serverConnected, checking
       ];
       let url = null;
       try {
-        const res = await fetch(`${normalizedBase}/api/v2/google/auth/url`, { method: 'GET' });
-        if (res.ok) {
-          let data = null;
-          try { data = await res.clone().json(); } catch {}
-          const authUrl = data?.auth_url || data?.url || data?.authorize_url || null;
-          if (authUrl && typeof authUrl === 'string') {
-            url = authUrl;
-          }
-        }
+        const resp = await googleAPI.getAuthUrl(userId, deviceId, state);
+        const authUrl = resp?.data?.auth_url || resp?.data?.url || resp?.data?.authorize_url || null;
+        if (authUrl && typeof authUrl === 'string') url = authUrl;
       } catch (_) {}
-      for (const c of candidates) {
-        try {
-          const res = await fetch(c, { method: 'GET', redirect: 'manual' });
-          // Consider 2xx and 3xx as valid (oauth usually redirects)
-          if (res.status >= 200 && res.status < 400) {
-            url = c;
-            break;
-          }
-        } catch (_) {
-          // Ignore and try next
-        }
-      }
-      // If no GET endpoint works, try POST endpoints that return a JSON auth URL
       if (!url) {
-        for (const c of candidates) {
-          try {
-            const res = await fetch(c, { method: 'POST', headers: { 'Content-Type': 'application/json' }, redirect: 'manual' });
-            if (res.ok) {
-              // Try to parse an auth URL from JSON
-              let authUrl = null;
+        if (!isProdBuild) {
+          // Dev-only fallbacks: try conventional endpoints (GET then POST)
+          for (const c of candidates) {
+            try {
+              const u = new URL(c);
+              if (userId) u.searchParams.set('user_id', userId);
+              if (deviceId) u.searchParams.set('device_id', deviceId);
+              if (state) u.searchParams.set('state', state);
+              const res = await fetch(u.toString(), { method: 'GET', redirect: 'manual' });
+              if (res.status >= 200 && res.status < 400) { url = u.toString(); break; }
+            } catch (_) {}
+          }
+          if (!url) {
+            for (const c of candidates) {
               try {
-                const data = await res.clone().json();
-                authUrl = data.url || data.auth_url || data.authorize_url || null;
-              } catch {}
-              if (authUrl && typeof authUrl === 'string') {
-                url = authUrl;
-                break;
-              }
+                const res = await fetch(c, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId, device_id: deviceId, state }), redirect: 'manual' });
+                if (res.ok) {
+                  try {
+                    const data = await res.clone().json();
+                    const authUrl = data.url || data.auth_url || data.authorize_url || null;
+                    if (authUrl && typeof authUrl === 'string') { url = authUrl; break; }
+                  } catch {}
+                }
+              } catch (_) {}
             }
-          } catch (_) {}
+          }
+        } else {
+          // Production: require server-provided URL
+          console.warn('[Onboarding] /api/v2/google/auth/url is unavailable in production');
         }
       }
       try {
@@ -461,6 +483,9 @@ function GoogleConnectStep({ userData, onNext, onBack, serverConnected, checking
         else if (window.electronAPI?.openExternal) await window.electronAPI.openExternal(url);
       } else {
         console.warn('[Onboarding] No working Google OAuth endpoint found');
+        if (isProdBuild) {
+          try { alert('Authorization endpoint is unavailable. Please update the backend to expose /api/v2/google/auth/url.'); } catch {}
+        }
       }
     } catch (_) {
       // Non-blocking

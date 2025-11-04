@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast';
 import AppleFloatBar from './components/FloatBar/AppleFloatBar';
 import UITestDashboard from './pages/UITestDashboard';
 import useStore from './store/useStore';
@@ -61,6 +61,41 @@ function App({ windowMode = 'single' }) {
 
     return () => {
       if (intervalId) clearTimeout(intervalId);
+    };
+  }, []);
+
+  // Probe backend-provided desktop config (.well-known/desktop-config) once on boot
+  useEffect(() => {
+    try { apiConfigManager.probeWellKnownAndApply?.(); } catch {}
+  }, []);
+
+  // Global UI indicators for telemetry 401s and API endpoint fallbacks
+  useEffect(() => {
+    const onTelemetryUnauthorized = () => {
+      try { toast.error('Telemetry unauthorized. Check API key/config.'); } catch {}
+    };
+    const onApiFallback = (evt) => {
+      try {
+        const { method, path, status } = evt?.detail || {};
+        // Show fallback indicator in development to avoid noisy production UX
+        if (import.meta.env.DEV) {
+          toast((t) => (
+            `Using fallback endpoint (${status}): ${method?.toUpperCase?.() || ''} ${path}`
+          ), { id: 'api-fallback' });
+        }
+      } catch {}
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('telemetry:unauthorized', onTelemetryUnauthorized);
+      window.addEventListener('api:fallback', onApiFallback);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('telemetry:unauthorized', onTelemetryUnauthorized);
+        window.removeEventListener('api:fallback', onApiFallback);
+      }
     };
   }, []);
 

@@ -1,0 +1,42 @@
+name: API v2 Smoke Tests
+
+on:
+  pull_request:
+    paths:
+      - 'tests/api/**'
+      - 'playwright.api.config.js'
+      - 'package.json'
+      - 'src/services/api.js'
+      - '.github/workflows/api-smokes.yml'
+  push:
+    branches: [main]
+
+jobs:
+  api-v2-smoke:
+    runs-on: ubuntu-latest
+    env:
+      API_URL: ${{ secrets.API_URL }}
+      TEST_API_KEY: ${{ secrets.TEST_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run API v2 smoke tests
+        run: |
+          export API_URL="${API_URL:-https://agentmax-production.up.railway.app}"
+          export TEST_API_KEY="${TEST_API_KEY:-}"
+          npm run test:api
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-api-report
+          path: playwright-report/

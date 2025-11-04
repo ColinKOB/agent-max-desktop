@@ -9,6 +9,7 @@ class ApiConfigManager {
   constructor() {
     this.listeners = new Set();
     this.config = this.loadConfig();
+    this.lastProbe = null;
   }
 
   loadConfig() {
@@ -118,6 +119,54 @@ class ApiConfigManager {
         console.error('[ApiConfig] Listener error:', error);
       }
     });
+  }
+
+  /**
+   * Probe backend-provided desktop config and apply overrides at runtime.
+   * Endpoint: /.well-known/desktop-config
+   */
+  async probeWellKnownAndApply() {
+    const base = (this.config?.baseURL || '').replace(/\/$/, '');
+    if (!base) return;
+    const url = `${base}/.well-known/desktop-config`;
+    try {
+      const res = await fetch(url, { method: 'GET' });
+      if (!res.ok) {
+        this.lastProbe = { attempted: true, applied: false, status: res.status, updatedAt: Date.now() };
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      const next = { ...this.config };
+      if (data.api_base && typeof data.api_base === 'string') next.baseURL = data.api_base;
+      if (data.api_key && typeof data.api_key === 'string') next.apiKey = data.api_key;
+      // Telemetry endpoint and key (optional)
+      if (data.telemetry_api && typeof data.telemetry_api === 'string') next.telemetryApi = data.telemetry_api;
+      if (data.telemetry_key && typeof data.telemetry_key === 'string') next.telemetryKey = data.telemetry_key;
+      // Flags (e.g., disable_legacy_fallbacks)
+      if (data.flags && typeof data.flags === 'object') {
+        if (typeof data.flags.disable_legacy_fallbacks === 'boolean') {
+          try {
+            localStorage.setItem('disable_legacy_fallbacks', data.flags.disable_legacy_fallbacks ? 'true' : 'false');
+          } catch {}
+        }
+      }
+      // Apply only if something changed
+      if (next.baseURL !== this.config.baseURL || next.apiKey !== this.config.apiKey || next.telemetryApi !== this.config.telemetryApi || next.telemetryKey !== this.config.telemetryKey) {
+        this.config = next;
+        this.notifyListeners();
+        console.log('[ApiConfig] Applied overrides from .well-known/desktop-config');
+        this.lastProbe = { attempted: true, applied: true, status: res.status, data, updatedAt: Date.now() };
+      } else {
+        this.lastProbe = { attempted: true, applied: false, status: res.status, data, updatedAt: Date.now() };
+      }
+    } catch (_) {
+      // silent: optional feature
+      this.lastProbe = { attempted: true, applied: false, status: 0, updatedAt: Date.now() };
+    }
+  }
+
+  getLastProbe() {
+    return this.lastProbe;
   }
 
   /**
