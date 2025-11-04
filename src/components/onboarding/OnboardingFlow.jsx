@@ -22,9 +22,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { healthAPI, googleAPI } from '../../services/api';
+import { GoogleConnect } from '../../components/GoogleConnect';
 import apiConfigManager from '../../config/apiConfig';
 import LogoPng from '../../assets/AgentMaxLogo.png';
 import { setName as setProfileName, setPreference as setUserPreference, updateProfile as updateUserProfile } from '../../services/supabaseMemory';
+import { emailPasswordSignInOrCreate, ensureUsersRow } from '../../services/supabase.js';
 
 const stripePublishableKey = (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '').trim();
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
@@ -379,22 +381,39 @@ function HelpCategoryStep({ userData, onNext, onBack }) {
  */
 function GoogleConnectStep({ userData, onNext, onBack, serverConnected, checkingServer }) {
   const [opening, setOpening] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [showSkip, setShowSkip] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const connect = async () => {
     setOpening(true);
     try {
       const cfg = apiConfigManager.getConfig();
       const base = cfg.baseURL || 'http://localhost:8000';
+      const normalizedBase = base.includes('localhost') ? base.replace('localhost', '127.0.0.1') : base;
       // Try multiple conventional endpoints (v2 then v1). Open the first that exists.
       const candidates = [
-        `${base}/api/v2/google/oauth/start`,
-        `${base}/api/google/oauth/start`,
-        `${base}/api/v2/google/oauth`,
-        `${base}/api/google/oauth`,
-        `${base}/api/v2/google/connect`,
-        `${base}/api/google/connect`,
+        `${normalizedBase}/api/v2/google/oauth/start`,
+        `${normalizedBase}/api/google/oauth/start`,
+        `${normalizedBase}/api/v2/google/oauth`,
+        `${normalizedBase}/api/google/oauth`,
+        `${normalizedBase}/api/v2/google/connect`,
+        `${normalizedBase}/api/google/connect`,
       ];
       let url = null;
+      try {
+        const res = await fetch(`${normalizedBase}/api/v2/google/auth/url`, { method: 'GET' });
+        if (res.ok) {
+          let data = null;
+          try { data = await res.clone().json(); } catch {}
+          const authUrl = data?.auth_url || data?.url || data?.authorize_url || null;
+          if (authUrl && typeof authUrl === 'string') {
+            url = authUrl;
+          }
+        }
+      } catch (_) {}
       for (const c of candidates) {
         try {
           const res = await fetch(c, { method: 'GET', redirect: 'manual' });
@@ -450,91 +469,143 @@ function GoogleConnectStep({ userData, onNext, onBack, serverConnected, checking
     }
   };
 
-  return (
-    <div className="max-w-2xl mx-auto px-3 py-6" style={{ textAlign: 'center' }}>
-      <h2 style={{ color: 'rgba(255,255,255,0.94)', fontSize: 20, fontWeight: 800 }}>Connect Google</h2>
-      <p style={{ color: 'rgba(255,255,255,0.65)', marginTop: 4 }}>
-        We use Google to draft and send emails and manage your calendar on your behalf when you ask.
-      </p>
-      <p style={{ color: 'rgba(255,255,255,0.65)', marginBottom: 10 }}>
-        You control permissions at all times and can disconnect in settings with one click.
-      </p>
+  useEffect(() => {
+    let mounted = true;
+    let id;
+    const tick = async () => {
+      try {
+        const res = await googleAPI.getStatus();
+        if (!mounted) return;
+        if (res?.data?.connected && res.data.email) {
+          setConnected(true);
+          onNext?.({ googleConnected: true, googleEmail: res.data.email });
+          return;
+        }
+      } catch {}
+      try {
+        const email = localStorage.getItem('google_user_email');
+        if (email) {
+          setConnected(true);
+          onNext?.({ googleConnected: true, googleEmail: email });
+          return;
+        }
+      } catch {}
+      id = setTimeout(tick, 1500);
+    };
+    tick();
+    return () => { mounted = false; if (id) clearTimeout(id); };
+  }, [onNext]);
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12, fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
-        <span style={{ width: 8, height: 8, borderRadius: 9999, background: serverConnected ? '#10b981' : '#f59e0b' }} />
-        <span>
-          {checkingServer ? 'Checking server…' : serverConnected ? 'Server connected' : 'Server offline — you can continue and connect later'}
-        </span>
+  const handleSkipSubmit = async () => {
+    if (!email.trim() || !password.trim()) return;
+    setSaving(true);
+    try {
+      const user = await emailPasswordSignInOrCreate(email.trim(), password);
+      await ensureUsersRow(email.trim());
+      try { await setUserPreference('email', email.trim()); } catch {}
+      try { await setUserPreference('has_password', 'true'); } catch {}
+      onNext?.({ amxAccount: !!user, email: email.trim() });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const validEmail = (v) => /.+@.+\..+/.test(v);
+  const strongPw = (v) => v.length >= 8;
+
+  return (
+    <div className="max-w-3xl mx-auto px-3 py-4" style={{ textAlign: 'center' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+        <div style={{ width: 56, height: 56 }}>
+          <svg viewBox="0 0 48 48" style={{ width: '56px', height: '56px' }}>
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+          </svg>
+        </div>
+        <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, lineHeight: '16px', maxWidth: 280 }}>
+          Connect Google to enable Gmail and Calendar.
+        </p>
       </div>
 
-      <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 8, width: '100%', maxWidth: 340, margin: '0 auto', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', gap: 12, width: '100%', maxWidth: 300, justifyContent: 'center', boxSizing: 'border-box' }}>
-          <button
-            type="button"
-            onClick={onBack}
-            style={{
-              height: 40,
-              padding: '0 16px',
-              color: 'rgba(255,255,255,0.9)',
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.14)',
-              borderRadius: 12,
-              fontWeight: 600
-            }}
-          >
-            Back
-          </button>
+      <div style={{ marginTop: 8, maxWidth: 320, marginLeft: 'auto', marginRight: 'auto' }}>
+        <GoogleConnect compact />
+      </div>
 
-          <button
-            type="button"
-            onClick={connect}
-            disabled={!serverConnected || opening}
-            style={{
-              height: 40,
-              padding: '0 16px',
-              color: '#fff',
-              background: 'linear-gradient(180deg, #3b82f6, #2563eb)',
-              border: '1px solid rgba(255,255,255,0.14)',
-              borderRadius: 12,
-              fontWeight: 600,
-              opacity: !serverConnected || opening ? 0.6 : 1,
-              cursor: !serverConnected || opening ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {opening ? 'Opening…' : 'Connect Google'}
-          </button>
-        </div>
-
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 52 }}>
         <button
           type="button"
-          onClick={async () => {
-            try {
-              await setUserPreference('google_oauth_status', 'skipped');
-              await setUserPreference('google_oauth_connected', 'false');
-              const profile = {
-                name: (userData?.name || '').trim(),
-                help_category: userData?.helpCategory || '',
-                google_oauth: 'skipped'
-              };
-              try { await setUserPreference('prompt_profile', JSON.stringify(profile)); } catch {}
-            } catch {}
-            onNext({ googleConnected: false });
-          }}
+          onClick={onBack}
           style={{
             width: '100%',
-            maxWidth: 300,
+            maxWidth: 320,
             height: 40,
-            color: 'rgba(255,255,255,0.85)',
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.12)',
+            padding: '0 16px',
+            color: 'rgba(255,255,255,0.9)',
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.14)',
             borderRadius: 12,
-            fontWeight: 600,
-            boxSizing: 'border-box'
+            fontWeight: 600
           }}
         >
-          Skip for now
+          Back
         </button>
       </div>
+
+      <div style={{ marginTop: 50 }}>
+        <button
+          type="button"
+          onClick={() => setShowSkip(!showSkip)}
+          style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, textDecoration: 'underline' }}
+        >
+          {showSkip ? 'Hide email sign-in' : 'Skip for now'}
+        </button>
+      </div>
+
+      {showSkip && (
+        <div style={{ marginTop: 8, display: 'grid', rowGap: 8, maxWidth: 320, marginLeft: 'auto', marginRight: 'auto' }}>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            inputMode="email"
+            style={{
+              width: '100%', height: 40, padding: '0 12px',
+              color: 'rgba(255,255,255,0.92)',
+              background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.28))',
+              border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, outline: 'none'
+            }}
+          />
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Create password (8+ chars)"
+            type="password"
+            style={{
+              width: '100%', height: 40, padding: '0 12px',
+              color: 'rgba(255,255,255,0.92)',
+              background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.28))',
+              border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, outline: 'none'
+            }}
+          />
+          <button
+            type="button"
+            disabled={!validEmail(email) || !strongPw(password) || saving}
+            onClick={handleSkipSubmit}
+            style={{
+              height: 40,
+              padding: '0 16px', color: '#fff',
+              background: 'linear-gradient(180deg, #22c55e, #16a34a)',
+              border: '1px solid rgba(255,255,255,0.14)', borderRadius: 12, fontWeight: 700,
+              opacity: (!validEmail(email) || !strongPw(password) || saving) ? 0.6 : 1,
+              cursor: (!validEmail(email) || !strongPw(password) || saving) ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {saving ? 'Creating…' : 'Continue'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

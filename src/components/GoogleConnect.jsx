@@ -34,7 +34,7 @@ function getApiUrl() {
   return 'http://127.0.0.1:8000';
 }
 
-export function GoogleConnect() {
+export function GoogleConnect({ compact = false }) {
   const [connected, setConnected] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -297,7 +297,8 @@ export function GoogleConnect() {
   ];
 
   return (
-    <div className="google-connect-container">
+    <div className={`google-connect-container${compact ? ' compact' : ''}`}>
+      {!compact && (
       <div className="google-connect-header">
         {/* Google Logo */}
         <div className="google-logo-container">
@@ -314,18 +315,21 @@ export function GoogleConnect() {
           Enable AI-powered assistance with Gmail, Calendar, Docs, Sheets, and YouTube.
         </p>
       </div>
+      )}
 
       {!connected ? (
         <div className="connect-section">
-          <div className="services-grid mb-6">
-            {services.map((service) => (
-              <div key={service.name} className="service-card">
-                <service.icon className="w-8 h-8 mb-2 text-blue-600" />
-                <h3 className="font-semibold">{service.name}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{service.description}</p>
-              </div>
-            ))}
-          </div>
+          {!compact && (
+            <div className="services-grid mb-6">
+              {services.map((service) => (
+                <div key={service.name} className="service-card">
+                  <service.icon className="w-8 h-8 mb-2 text-blue-600" />
+                  <h3 className="font-semibold">{service.name}</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{service.description}</p>
+                </div>
+              ))}
+            </div>
+          )}
 
           {error && (
             <div className="error-message mb-4">
@@ -417,6 +421,10 @@ export function GoogleConnect() {
           max-width: 800px;
           margin: 0 auto;
         }
+        .google-connect-container.compact { padding: 0.75rem; max-width: 560px; }
+        .google-connect-container.compact .google-logo { width: 56px; height: 56px; }
+        .google-connect-container.compact .google-logo-container { margin-bottom: 0.75rem; }
+        .google-connect-container.compact .connect-button { padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.95rem; }
 
         .google-logo-container {
           display: flex;

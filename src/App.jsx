@@ -64,6 +64,53 @@ function App({ windowMode = 'single' }) {
     };
   }, []);
 
+  useEffect(() => {
+    try {
+      const isProd = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production';
+      const enable = !isProd;
+      if (!enable || typeof window === 'undefined') return;
+      let timer = null;
+      const api = {
+        showUpdate: (mode = 'available', opts = {}) => {
+          if (timer) { clearInterval(timer); timer = null; }
+          const version = opts.version || '9.9.9-test';
+          if (mode === 'available') {
+            setUpdateProgress(null);
+            setUpdateInfo({ version });
+          } else if (mode === 'downloading') {
+            setUpdateInfo({ version });
+            let p = 0;
+            timer = setInterval(() => {
+              p = Math.min(100, p + 5);
+              setUpdateProgress({ percent: p, bytesPerSecond: 1000000, transferred: p, total: 100 });
+              if (p >= 100) { clearInterval(timer); timer = null; setUpdateProgress(null); setUpdateInfo({ version, downloaded: true }); }
+            }, 200);
+          } else if (mode === 'downloaded') {
+            setUpdateProgress(null);
+            setUpdateInfo({ version, downloaded: true });
+          } else if (mode === 'error') {
+            setUpdateProgress(null);
+            setUpdateInfo({ error: 'Simulated update error' });
+          } else if (mode === 'clear') {
+            setUpdateProgress(null);
+            setUpdateInfo(null);
+          }
+        }
+      };
+      window.AMX = Object.assign({}, window.AMX || {}, api);
+      const hash = String(window.location.hash || '');
+      const qs = hash.includes('?') ? hash.split('?')[1] : '';
+      const params = new URLSearchParams(qs);
+      const preset = params.get('dev_update');
+      if (preset) {
+        api.showUpdate(preset);
+      } else {
+        api.showUpdate('available');
+      }
+      return () => { if (timer) clearInterval(timer); };
+    } catch {}
+  }, []);
+
   const initializeUser = async () => {
     try {
       // Generate or retrieve device_id

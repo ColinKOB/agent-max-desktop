@@ -1835,7 +1835,7 @@ export default function AppleFloatBar({
                 textTransform: 'capitalize'
               }}
             >
-              {resolveMode()}
+              {resolveMode()==='autonomous' ? 'auto' : resolveMode()==='chatty' ? 'chatty' : 'helpful'}
             </div>
             <CreditDisplay userId={currentUser?.id || localStorage.getItem('user_id')} variant="tool" />
             <button className="apple-tool-btn" ref={toolBtnRef} onClick={handleTools} title="Tools">
@@ -1944,7 +1944,7 @@ export default function AppleFloatBar({
           {(executionPlan || currentStep > 0) && (
             <div className="amx-progress-card">
               <div className="amx-progress-head">
-                <span className="label">🚀 {currentStep > 0 ? `Step ${currentStep}/${totalSteps}` : 'Planning...'}</span>
+                <span className="label">{currentStep > 0 ? `Step ${currentStep}/${totalSteps}` : 'Planning...'}</span>
                 <span className="percent">{totalSteps > 0 ? `${Math.round((currentStep / totalSteps) * 100)}%` : '0%'}</span>
               </div>
               <div className="amx-progress-bar">

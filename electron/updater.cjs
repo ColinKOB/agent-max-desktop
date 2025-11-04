@@ -24,7 +24,7 @@ function setupAutoUpdater(window) {
   }
   
   // Configure update settings
-  autoUpdater.autoDownload = false; // Ask user before downloading
+  autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   
   // Check for updates on startup (after 5 seconds)
@@ -52,21 +52,13 @@ function setupAutoUpdater(window) {
         releaseNotes: info.releaseNotes
       });
     }
-    
-    // Ask user if they want to download
-    dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: 'Update Available',
-      message: `Version ${info.version} is available. Would you like to download it now?`,
-      detail: 'The update will be installed when you quit the app.',
-      buttons: ['Download', 'Later'],
-      defaultId: 0,
-      cancelId: 1
-    }).then((result) => {
-      if (result.response === 0) {
-        autoUpdater.downloadUpdate();
-      }
-    });
+
+    // Non-optional: immediately start download
+    try {
+      autoUpdater.downloadUpdate();
+    } catch (e) {
+      log.error('[Updater] Failed to start download automatically', e);
+    }
   });
   
   autoUpdater.on('update-not-available', (info) => {
@@ -106,23 +98,20 @@ function setupAutoUpdater(window) {
       });
     }
     
-    // Notify user that update is ready
+    // Non-optional: prompt with a single action to restart
     dialog.showMessageBox(mainWindow, {
       type: 'info',
       title: 'Update Ready',
       message: `Version ${info.version} has been downloaded.`,
-      detail: 'The update will be installed when you quit Agent Max. You can also restart now to apply the update.',
-      buttons: ['Restart Now', 'Later'],
+      detail: 'The app needs to restart to apply this update.',
+      buttons: ['Restart Now'],
       defaultId: 0,
-      cancelId: 1
-    }).then((result) => {
-      if (result.response === 0) {
-        // Quit and install
-        setImmediate(() => {
-          app.removeAllListeners('window-all-closed');
-          autoUpdater.quitAndInstall(false, true);
-        });
-      }
+      cancelId: 0
+    }).then(() => {
+      setImmediate(() => {
+        app.removeAllListeners('window-all-closed');
+        autoUpdater.quitAndInstall(false, true);
+      });
     });
   });
   

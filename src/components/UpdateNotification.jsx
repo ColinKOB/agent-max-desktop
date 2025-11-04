@@ -1,25 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Download, CheckCircle, AlertCircle, X, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const UpdateNotification = ({ updateInfo, updateProgress, onDismiss }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [canShow, setCanShow] = useState(true);
 
-  if (!updateInfo) return null;
+  useEffect(() => {
+    const checkViewport = () => {
+      try {
+        const h = window?.innerHeight || 0;
+        const w = window?.innerWidth || 0;
+        setCanShow(h >= 120 && w >= 200);
+      } catch {
+        setCanShow(true);
+      }
+    };
+    checkViewport();
+    window.addEventListener('resize', checkViewport);
+    return () => window.removeEventListener('resize', checkViewport);
+  }, []);
+
+  if (!updateInfo || !canShow) return null;
 
   const handleDownload = () => {
+    if (window.AMX?.showUpdate) {
+      window.AMX.showUpdate('downloading');
+      return;
+    }
     if (window.electronAPI?.downloadUpdate) {
       window.electronAPI.downloadUpdate();
     }
   };
 
   const handleInstall = () => {
+    if (window.AMX?.showUpdate) {
+      try { window.AMX.showUpdate('clear'); } catch {}
+      try { window.location.reload(); } catch {}
+      return;
+    }
     if (window.electronAPI?.installUpdate) {
       window.electronAPI.installUpdate();
     }
   };
 
   const handleRestart = () => {
+    if (window.AMX?.showUpdate) {
+      try { window.AMX.showUpdate('clear'); } catch {}
+      try { window.location.reload(); } catch {}
+      return;
+    }
     if (window.electronAPI?.restartForUpdate) {
       window.electronAPI.restartForUpdate();
     }
@@ -88,12 +118,6 @@ const UpdateNotification = ({ updateInfo, updateProgress, onDismiss }) => {
               >
                 Restart Now
               </button>
-              <button
-                onClick={onDismiss}
-                className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white text-xs rounded-md transition-colors"
-              >
-                Later
-              </button>
             </div>
           </div>
         </div>
@@ -129,13 +153,7 @@ const UpdateNotification = ({ updateInfo, updateProgress, onDismiss }) => {
               onClick={handleDownload}
               className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 text-white text-xs rounded-md transition-colors"
             >
-              Download Update
-            </button>
-            <button
-              onClick={onDismiss}
-              className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white text-xs rounded-md transition-colors"
-            >
-              Skip
+              Update Now
             </button>
           </div>
         </div>
@@ -144,7 +162,7 @@ const UpdateNotification = ({ updateInfo, updateProgress, onDismiss }) => {
   };
 
   return (
-    <div className="fixed top-4 right-4 z-50 max-w-sm">
+    <div className="fixed top-2 left-1/2 -translate-x-1/2 z-[10050] pointer-events-auto max-w-sm">
       <div className="bg-gray-900/95 backdrop-blur-lg border border-gray-700 rounded-lg shadow-xl p-4 min-w-[320px]">
         <div className="flex items-start justify-between">
           {renderContent()}

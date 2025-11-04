@@ -16,6 +16,61 @@ if (!SUPABASE_ENABLED) {
   logger.warn('Supabase disabled: missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY');
 }
 
+/**
+ * Email/password sign-in, or create an account if it does not exist.
+ * Returns the authenticated user or null when Supabase is disabled.
+ */
+export async function emailPasswordSignInOrCreate(email, password) {
+  if (!SUPABASE_ENABLED || !supabase) return null;
+  try {
+    const signIn = await supabase.auth.signInWithPassword({ email, password });
+    if (signIn?.data?.user) {
+      try { localStorage.setItem('user_id', signIn.data.user.id); } catch {}
+      return signIn.data.user;
+    }
+  } catch (err) {
+    // continue to sign up
+  }
+
+  const signUp = await supabase.auth.signUp({ email, password });
+  const user = signUp?.data?.user || null;
+  if (user) {
+    try { localStorage.setItem('user_id', user.id); } catch {}
+  }
+  return user;
+}
+
+/**
+ * Ensure a users row exists for the authenticated user. RLS requires auth.uid() = id.
+ * This may fail if policies are not set; failure is non-fatal.
+ */
+export async function ensureUsersRow(email) {
+  if (!SUPABASE_ENABLED || !supabase) return;
+  const sess = await supabase.auth.getUser();
+  const user = sess?.data?.user;
+  if (!user) return;
+  let deviceId = localStorage.getItem('device_id');
+  if (!deviceId) {
+    const gen = () => (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function')
+      ? globalThis.crypto.randomUUID()
+      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+          const r = (Math.random() * 16) | 0;
+          const v = c === 'x' ? r : (r & 0x3) | 0x8;
+          return v.toString(16);
+        });
+    deviceId = gen();
+    try { localStorage.setItem('device_id', deviceId); } catch {}
+  }
+
+  try {
+    await supabase
+      .from('users')
+      .upsert({ id: user.id, device_id: deviceId, email, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+  } catch (e) {
+    logger.warn('ensureUsersRow upsert failed (likely RLS); proceeding anyway', e?.message || e);
+  }
+}
+
 export const supabase = SUPABASE_ENABLED
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: { persistSession: false },
