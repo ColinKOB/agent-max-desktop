@@ -662,7 +662,13 @@ export const chatAPI = {
 // ============================================
 export const googleAPI = {
   // Connection status
-  getStatus: (email = null) => api.get('/api/v2/google/status', { params: email ? { email } : {} }),
+  getStatus: (email = null) => {
+    let device_id = null;
+    try { device_id = localStorage.getItem('device_id') || null; } catch {}
+    const params = email ? { email } : {};
+    if (device_id) params.device_id = device_id;
+    return api.get('/api/v2/google/status', { params });
+  },
 
   // Gmail
   listMessages: (maxResults = 10, query = '') => {

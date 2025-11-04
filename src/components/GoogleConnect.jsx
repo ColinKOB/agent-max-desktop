@@ -14,6 +14,7 @@ import {
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import apiConfigManager from '../config/apiConfig';
+import { googleAPI } from '../services/api';
 
 // Helper function to get API URL dynamically
 function getApiUrl() {
@@ -75,8 +76,8 @@ export function GoogleConnect({ compact = false }) {
     const API_URL = getApiUrl();
     console.log('[GoogleConnect] Checking connection status, API_URL:', API_URL);
     try {
-      // Call status API without email to get any connected account
-      const { data } = await axios.get(`${API_URL}/api/v2/google/status`);
+      // Use configured API wrapper (adds API key & user headers)
+      const { data } = await googleAPI.getStatus();
 
       if (data.connected && data.email) {
         setConnected(true);
@@ -90,9 +91,7 @@ export function GoogleConnect({ compact = false }) {
         const storedEmail = localStorage.getItem('google_user_email');
         if (storedEmail) {
           // Verify with backend  
-          const response = await axios.get(`${API_URL}/api/v2/google/status`, {
-            params: { email: storedEmail },
-          });
+          const response = await googleAPI.getStatus(storedEmail);
 
           if (response.data.connected) {
             setConnected(true);
@@ -119,13 +118,56 @@ export function GoogleConnect({ compact = false }) {
 
     try {
       // Get auth URL from backend
-      const authUrlEndpoint = `${API_URL}/api/v2/google/auth/url`;
-      console.log('[GoogleConnect] Fetching auth URL from:', authUrlEndpoint);
-      console.log('[GoogleConnect] Using axios to fetch...');
+      const startCandidates = [
+        `${API_URL}/api/v2/google/auth/start`,
+        `${API_URL}/api/v2/google/oauth/start`,
+        `${API_URL}/api/google/auth/start`,
+      ];
+      console.log('[GoogleConnect] Will try start endpoints in browser:', startCandidates);
       
-      const { data } = await axios.get(authUrlEndpoint);
-      console.log('[GoogleConnect] Auth URL response:', data);
-      console.log('[GoogleConnect] Auth URL (first 100 chars):', data.auth_url?.substring(0, 100));
+      // Include identifiers so backend can correlate callback → user
+      let userId = null;
+      try { userId = localStorage.getItem('user_id') || null; } catch {}
+      let deviceId = null;
+      try { deviceId = localStorage.getItem('device_id') || null; } catch {}
+      if (!deviceId) {
+        try {
+          const gen = () => (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function')
+            ? globalThis.crypto.randomUUID()
+            : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = (Math.random() * 16) | 0;
+                const v = c === 'x' ? r : (r & 0x3) | 0x8;
+                return v.toString(16);
+              });
+          deviceId = gen();
+          localStorage.setItem('device_id', deviceId);
+        } catch {}
+      }
+
+      // Build optional state to assist backend correlation
+      let state = null;
+      try { state = btoa(JSON.stringify({ user_id: userId, device_id: deviceId, ts: Date.now() })); } catch {}
+
+      // Prefer server-driven start flow in the system browser so cookies/sessions carry to callback
+      const params = new URLSearchParams();
+      if (userId) params.set('user_id', userId);
+      if (deviceId) params.set('device_id', deviceId);
+      if (state) params.set('state', state);
+
+      const startUrl = `${startCandidates[0]}?${params.toString()}`;
+      const authUrlEndpoint = `${API_URL}/api/v2/google/auth/url`;
+      let openUrl = startUrl;
+      try {
+        const apiKey = (apiConfigManager && typeof apiConfigManager.getApiKey === 'function') ? apiConfigManager.getApiKey() : null;
+        const headers = {};
+        if (apiKey) headers['X-API-Key'] = apiKey;
+        if (userId) headers['X-User-Id'] = userId;
+        const resp = await axios.get(authUrlEndpoint, { params: { user_id: userId, device_id: deviceId, state }, headers });
+        if (resp?.data?.auth_url) openUrl = resp.data.auth_url;
+      } catch (e) {
+        console.log('[GoogleConnect] /auth/url not available, falling back to /auth/start');
+      }
+      console.log('[GoogleConnect] Opening URL:', openUrl);
 
       // Open system browser for OAuth
       console.log('[GoogleConnect] Available APIs:');
@@ -136,21 +178,21 @@ export function GoogleConnect({ compact = false }) {
       
       if (window.electronAPI && window.electronAPI.openExternal) {
         console.log('[GoogleConnect] Calling window.electronAPI.openExternal...');
-        const result = await window.electronAPI.openExternal(data.auth_url);
+        const result = await window.electronAPI.openExternal(openUrl);
         console.log('[GoogleConnect] openExternal result:', result);
       } else if (window.electron && window.electron.openExternal) {
         console.log('[GoogleConnect] Calling window.electron.openExternal...');
-        const result = await window.electron.openExternal(data.auth_url);
+        const result = await window.electron.openExternal(openUrl);
         console.log('[GoogleConnect] openExternal result:', result);
       } else {
         // Fallback for web
         console.log('[GoogleConnect] Opening in new window (fallback)');
-        window.open(data.auth_url, '_blank');
+        window.open(openUrl, '_blank');
       }
 
       console.log('[GoogleConnect] Browser should be open now, starting polling...');
       const statusEndpoint = `${API_URL}/api/v2/google/status`;
-      console.log('[GoogleConnect] Polling endpoint:', statusEndpoint);
+      console.log('[GoogleConnect] Polling endpoint:', statusEndpoint, '(via googleAPI wrapper)');
 
       // Poll for connection status
       let pollAttempts = 0;
@@ -159,7 +201,7 @@ export function GoogleConnect({ compact = false }) {
         console.log(`[GoogleConnect] Poll attempt ${pollAttempts}...`);
         try {
           // Check all connected accounts by calling status without email
-          const statusResponse = await axios.get(statusEndpoint);
+          const statusResponse = await googleAPI.getStatus();
           console.log('[GoogleConnect] Poll response:', statusResponse.data);
 
           // If connected, the backend returns the connected account
