@@ -52,7 +52,7 @@
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 30000
+        "timeout": 60000
       }
     ],
     "shard": null,
@@ -82,7 +82,7 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "api",
@@ -92,12 +92,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 218,
+                      "duration": 220,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-04T19:05:52.266Z",
+                      "startTime": "2025-11-04T20:12:48.997Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -116,7 +116,7 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "api",
@@ -126,12 +126,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 320,
+                      "duration": 244,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-04T19:05:52.498Z",
+                      "startTime": "2025-11-04T20:12:49.233Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -150,7 +150,7 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "api",
@@ -160,12 +160,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 175,
+                      "duration": 9942,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-04T19:05:52.823Z",
+                      "startTime": "2025-11-04T20:12:49.483Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -184,7 +184,7 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "api",
@@ -194,12 +194,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 104,
+                      "duration": 1281,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-04T19:05:53.003Z",
+                      "startTime": "2025-11-04T20:12:59.432Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -226,7 +226,7 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "api",
@@ -236,12 +236,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 62,
+                      "duration": 50,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-04T19:05:53.112Z",
+                      "startTime": "2025-11-04T20:13:00.719Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -260,7 +260,7 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "api",
@@ -270,12 +270,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 48,
+                      "duration": 54,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-04T19:05:53.179Z",
+                      "startTime": "2025-11-04T20:13:00.776Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -294,7 +294,7 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "api",
@@ -304,12 +304,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 213,
+                      "duration": 229,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-04T19:05:53.234Z",
+                      "startTime": "2025-11-04T20:13:00.835Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -328,7 +328,7 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "api",
@@ -338,12 +338,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 255,
+                      "duration": 3425,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-04T19:05:53.456Z",
+                      "startTime": "2025-11-04T20:13:01.075Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -362,7 +362,7 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "api",
@@ -372,12 +372,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 51,
+                      "duration": 61,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-04T19:05:53.720Z",
+                      "startTime": "2025-11-04T20:13:04.508Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -413,7 +413,7 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "api",
@@ -423,12 +423,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 418,
+                      "duration": 426,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-04T19:05:52.264Z",
+                      "startTime": "2025-11-04T20:12:48.996Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -447,7 +447,7 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "api",
@@ -457,12 +457,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 46,
+                      "duration": 68,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-04T19:05:52.701Z",
+                      "startTime": "2025-11-04T20:12:49.432Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -481,7 +481,7 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "api",
@@ -491,12 +491,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 60,
+                      "duration": 9875,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-04T19:05:52.757Z",
+                      "startTime": "2025-11-04T20:12:49.508Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -515,7 +515,7 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "api",
@@ -525,12 +525,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 49,
+                      "duration": 59,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-04T19:05:52.824Z",
+                      "startTime": "2025-11-04T20:12:59.395Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -549,7 +549,7 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "api",
@@ -559,12 +559,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 46,
+                      "duration": 1202,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-04T19:05:52.878Z",
+                      "startTime": "2025-11-04T20:12:59.461Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -583,7 +583,7 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "api",
@@ -593,12 +593,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 60,
+                      "duration": 56,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-04T19:05:52.932Z",
+                      "startTime": "2025-11-04T20:13:00.672Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -618,8 +618,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-11-04T19:05:51.926Z",
-    "duration": 1862.502,
+    "startTime": "2025-11-04T20:12:48.725Z",
+    "duration": 15870.789,
     "expected": 15,
     "skipped": 0,
     "unexpected": 0,
