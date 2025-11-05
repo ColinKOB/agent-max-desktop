@@ -77,9 +77,10 @@ function buildEndpoints(isAutonomous, base, disableLegacyFallbacks) {
         ];
   }
   return disableLegacyFallbacks
-    ? [ `${b}/api/v2/chat/streaming/stream` ]
+    ? [ `${b}/api/v2/chat/streaming/stream`, `${b}/api/streaming/stream` ]
     : [
         `${b}/api/v2/chat/streaming/stream`,
+        `${b}/api/streaming/stream`,
         `${b}/api/chat/streaming/stream`,
         `${b}/api/v2/chat/stream`,
         `${b}/api/chat/stream`,

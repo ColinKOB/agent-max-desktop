@@ -110,5 +110,47 @@ See JSONL for full SSE event stream.
    - debugging_strategy: OK steps=0 ttff=28ms total=183440ms finalLen=0
  - **Artifact**: tests/e2e/_reports/autonomous_multistep_2025-11-05T10-33-29-526Z.jsonl
  - **Notes**:
-   - No 429s observed in this run; the script’s backoff/spacing likely helped alongside prior rate limit increase.
+   - No 429s observed in this run; the script's backoff/spacing likely helped alongside prior rate limit increase.
    - Cases with finalLen=0 suggest backend may return done without final_response in some autonomous paths; keep in scope for backend patching.
+
+## ✅ Re-run (2025-11-05 12:54 UTC) - ALL FIXES VERIFIED
+
+**Backend Fixes Applied:**
+1. Chat SSE streaming fallback fixed (use_responses_api=False on fallback)
+2. Message length limit raised from 4000 → 16000
+3. Telemetry path uses TELEMETRY_DIR env var with graceful degradation
+4. OpenTelemetry import safety guard added to prevent streaming router load failures
+
+**Test Results - Chat Stream Fire Test:**
+- **Artifact**: tests/e2e/_reports/chat_fire_test_2025-11-05T12-54-37-156Z.jsonl
+- **All 5 test cases PASSED** ✅
+
+| Test Case | Status | TTFF | Duration | Tokens | Events | Notes |
+|-----------|--------|------|----------|--------|--------|-------|
+| basic_math_chat | ✅ OK (200) | 1225ms | 3179ms | 29 | 14 | Real tokens streamed |
+| reasoning_short | ✅ OK (200) | 488ms | 3624ms | 339 | 59 | Real tokens streamed |
+| planning | ✅ OK (200) | 875ms | 5966ms | 732 | 161 | Real tokens streamed |
+| long_context | ✅ OK (200) | - | - | - | - | Used JSON fallback (>4k chars) |
+| autonomous_simple | ✅ OK (200) | 75ms | 65697ms | 490 | 13 | Final response populated |
+
+**Key Improvements:**
+- ✅ Chat streaming now returns **actual tokens** instead of ACK + empty DONE
+- ✅ Long messages (>4000 chars) no longer return 422 errors (16k limit now in place)
+- ✅ Autonomous streaming continues to work with populated final_response
+- ✅ Streaming router successfully loaded and mounted at `/api/v2/chat/streaming/stream` and `/api/streaming/stream`
+- ✅ Average TTFF for chat: ~863ms (excellent latency)
+
+**Verification Commands:**
+```bash
+# Debug endpoint confirmed all deps available
+curl https://agentmax-production.up.railway.app/api/debug/streaming-status
+# Returns: httpx_available=true, streaming_router_importable=true, streaming_router_loaded=true
+
+# Direct streaming probe showed real tokens
+curl -N -H "Accept: text/event-stream" -H "X-API-Key: $KEY" \
+  -d '{"message":"test","stream":true,"mode":"helpful"}' \
+  https://agentmax-production.up.railway.app/api/v2/chat/streaming/stream
+# Returns: data: {"type":"ack",...} followed by data: {"type":"token","content":"..."} events
+```
+
+**Status: BACKEND FIRE TEST FIXES COMPLETE** 🎉
