@@ -1,0 +1,12 @@
+{"timestamp":1762337387416,"type":"session.start","api_url":"https://agentmax-production.up.railway.app"}
+{"timestamp":1762337387416,"type":"case.start","name":"trip_planning_constraints","endpoint":"https://agentmax-production.up.railway.app/api/v2/autonomous/execute/stream"}
+{"timestamp":1762337387515,"type":"case.error","name":"trip_planning_constraints","status":429,"body":"{\"error\":\"rate_limit_exceeded\",\"message\":\"Rate limit exceeded. Try again in 60 seconds.\",\"retry_after\":60}"}
+{"timestamp":1762337387515,"type":"case.start","name":"data_cleaning_pipeline","endpoint":"https://agentmax-production.up.railway.app/api/v2/autonomous/execute/stream"}
+{"timestamp":1762337387638,"type":"case.error","name":"data_cleaning_pipeline","status":429,"body":"{\"error\":\"rate_limit_exceeded\",\"message\":\"Rate limit exceeded. Try again in 60 seconds.\",\"retry_after\":60}"}
+{"timestamp":1762337387638,"type":"case.start","name":"feature_launch_checklist","endpoint":"https://agentmax-production.up.railway.app/api/v2/autonomous/execute/stream"}
+{"timestamp":1762337387654,"type":"case.error","name":"feature_launch_checklist","status":429,"body":"{\"error\":\"rate_limit_exceeded\",\"message\":\"Rate limit exceeded. Try again in 60 seconds.\",\"retry_after\":60}"}
+{"timestamp":1762337387655,"type":"case.start","name":"study_schedule","endpoint":"https://agentmax-production.up.railway.app/api/v2/autonomous/execute/stream"}
+{"timestamp":1762337387673,"type":"case.error","name":"study_schedule","status":429,"body":"{\"error\":\"rate_limit_exceeded\",\"message\":\"Rate limit exceeded. Try again in 60 seconds.\",\"retry_after\":60}"}
+{"timestamp":1762337387673,"type":"case.start","name":"debugging_strategy","endpoint":"https://agentmax-production.up.railway.app/api/v2/autonomous/execute/stream"}
+{"timestamp":1762337387692,"type":"case.error","name":"debugging_strategy","status":429,"body":"{\"error\":\"rate_limit_exceeded\",\"message\":\"Rate limit exceeded. Try again in 60 seconds.\",\"retry_after\":60}"}
+{"timestamp":1762337387692,"type":"session.end","results":[{"name":"trip_planning_constraints","ok":false,"status":429},{"name":"data_cleaning_pipeline","ok":false,"status":429},{"name":"feature_launch_checklist","ok":false,"status":429},{"name":"study_schedule","ok":false,"status":429},{"name":"debugging_strategy","ok":false,"status":429}]}

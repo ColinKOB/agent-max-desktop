@@ -1,0 +1,3 @@
+{"response":"- Cuts latency by serving repeated data from faster storage or closer to the user instead of recomputing or fetching over the network.\n- Reduces backend load by avoiding duplicate work (DB queries, CPU-heavy processing), increasing throughput and smoothing traffic spikes.\n- Saves bandwidth and costs, improving scalability and reliability—and delivering a more consistent user experience.","session_id":"default","reasoning_used":"gpt-5","facts_extracted":0,"context_used":{"profile_name":"User","interaction_count":0,"conversation_length":8,"facts_in_session":0,"using_client_memory":false}}
+---
+

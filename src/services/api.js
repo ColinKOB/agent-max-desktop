@@ -484,6 +484,13 @@ export const chatAPI = {
         );
 
     // Build payload based on endpoint
+    // Temporary mitigation: pre-truncate very long chat messages to avoid backend 422 limit
+    const MAX_MESSAGE_LEN = 4000;
+    const shouldTruncate = !isAutonomous && typeof message === 'string' && message.length > MAX_MESSAGE_LEN;
+    const truncatedMessage = shouldTruncate
+      ? `${message.slice(0, MAX_MESSAGE_LEN)}\n\n[Note: Input truncated to ${MAX_MESSAGE_LEN} chars]`
+      : message;
+
     const payload = isAutonomous ? {
       // Autonomous endpoint expects 'goal' not 'message'
       goal: message,
@@ -499,7 +506,7 @@ export const chatAPI = {
       timeout: 300
     } : {
       // Chat endpoint
-      message: message,
+      message: truncatedMessage,
       context: userContext,
       max_tokens: 1024,
       temperature: 0.7,
@@ -657,6 +664,9 @@ export const chatAPI = {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    // Track ack/token to detect empty streams and trigger JSON fallback
+    let ackSeen = false;
+    let anyTokenSeen = false;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -735,6 +745,53 @@ export const chatAPI = {
               }
             } else {
               // Chat endpoint - pass through as-is
+              // Note: detect ack and empty-done to trigger JSON fallback
+              try {
+                if (parsed && parsed.type === 'ack') {
+                  ackSeen = true;
+                }
+                // Heuristic: treat presence of content/delta/token/text as token seen
+                const content = parsed?.content || parsed?.delta || parsed?.token || parsed?.text || '';
+                if (content && typeof content === 'string') {
+                  anyTokenSeen = true;
+                }
+                // If this is a done event with empty final_response and we saw no tokens, fallback
+                if ((parsed?.type === 'done' || parsed?.event === 'done') && !anyTokenSeen) {
+                  // Attempt JSON fallback synchronously
+                  const jsonHeaders = {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-User-Id': localStorage.getItem('user_id') || 'anonymous'
+                  };
+                  if (configuredKey) jsonHeaders['X-API-Key'] = configuredKey;
+                  const fallbackPayload = {
+                    message: truncatedMessage,
+                    session_id: (userContext && userContext.session_id) || 'default',
+                    include_context: true,
+                    user_context: userContext ? {
+                      profile: userContext.profile || {},
+                      facts: userContext.facts || {},
+                      preferences: userContext.preferences || {},
+                      recent_messages: userContext.recent_messages || []
+                    } : null,
+                    image: image || null,
+                    memory_mode: 'auto'
+                  };
+                  const jsonEp = `${baseURL}/api/v2/chat/message`;
+                  try {
+                    const jsonResp = await fetch(jsonEp, {
+                      method: 'POST',
+                      headers: jsonHeaders,
+                      body: JSON.stringify(fallbackPayload)
+                    });
+                    if (jsonResp.ok) {
+                      const data = await jsonResp.json();
+                      onEvent({ type: 'done', data: { final_response: data.response || '' } });
+                      return; // stop further processing
+                    }
+                  } catch (_) { /* swallow and continue */ }
+                }
+              } catch (_) { /* ignore detection errors */ }
               onEvent(parsed);
             }
           } catch (e) {
