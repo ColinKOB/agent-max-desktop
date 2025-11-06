@@ -13,6 +13,9 @@
  */
 
 const puppeteer = require('puppeteer');
+const fs = require('fs').promises;
+const path = require('path');
+const os = require('os');
 
 class LocalExecutor {
   constructor() {
@@ -86,6 +89,27 @@ class LocalExecutor {
         
         case 'browser.get_text':
           result = await this.browserGetText(args);
+          break;
+        
+        // Filesystem operations
+        case 'fs.write':
+          result = await this.fsWrite(args);
+          break;
+        
+        case 'fs.read':
+          result = await this.fsRead(args);
+          break;
+        
+        case 'fs.append':
+          result = await this.fsAppend(args);
+          break;
+        
+        case 'fs.list':
+          result = await this.fsList(args);
+          break;
+        
+        case 'fs.delete':
+          result = await this.fsDelete(args);
           break;
         
         default:
@@ -239,6 +263,171 @@ class LocalExecutor {
         timestamp: new Date().toISOString(),
         url: this.page.url()
       }
+    };
+  }
+
+  /**
+   * Resolve and validate file path
+   * - Expands ~ to home directory
+   * - Resolves relative paths
+   * - Validates path is within allowed scope (home directory)
+   */
+  resolvePath(filePath) {
+    // Expand ~ to home directory
+    if (filePath.startsWith('~')) {
+      filePath = path.join(os.homedir(), filePath.slice(1));
+    }
+    
+    // Resolve to absolute path
+    const resolved = path.resolve(filePath);
+    
+    // Validate path is within home directory (safety check)
+    const homeDir = os.homedir();
+    if (!resolved.startsWith(homeDir)) {
+      throw new Error(`Access denied: Path must be within home directory. Attempted: ${resolved}`);
+    }
+    
+    return resolved;
+  }
+
+  /**
+   * Write file (create or overwrite)
+   */
+  async fsWrite(args) {
+    const { path: filePath, content, encoding } = args;
+    
+    console.log('[LocalExecutor] Writing file:', filePath);
+    
+    const resolved = this.resolvePath(filePath);
+    
+    // Ensure directory exists
+    await fs.mkdir(path.dirname(resolved), { recursive: true });
+    
+    // Handle base64 encoding if specified
+    const data = encoding === 'base64' ? Buffer.from(content, 'base64') : content;
+    
+    // Write file
+    await fs.writeFile(resolved, data, encoding === 'base64' ? null : 'utf8');
+    
+    return {
+      status: 'completed',
+      path: resolved,
+      size: data.length,
+      message: `File written successfully: ${resolved}`
+    };
+  }
+
+  /**
+   * Read file contents
+   */
+  async fsRead(args) {
+    const { path: filePath, encoding } = args;
+    
+    console.log('[LocalExecutor] Reading file:', filePath);
+    
+    const resolved = this.resolvePath(filePath);
+    
+    // Read file
+    const content = await fs.readFile(resolved, encoding === 'base64' ? null : 'utf8');
+    
+    // Return base64 or text
+    const result = encoding === 'base64' ? content.toString('base64') : content;
+    
+    return {
+      status: 'completed',
+      path: resolved,
+      content: result,
+      size: content.length,
+      message: `File read successfully: ${resolved}`
+    };
+  }
+
+  /**
+   * Append content to file
+   */
+  async fsAppend(args) {
+    const { path: filePath, content } = args;
+    
+    console.log('[LocalExecutor] Appending to file:', filePath);
+    
+    const resolved = this.resolvePath(filePath);
+    
+    // Ensure directory exists
+    await fs.mkdir(path.dirname(resolved), { recursive: true });
+    
+    // Append to file
+    await fs.appendFile(resolved, content, 'utf8');
+    
+    // Get file size after append
+    const stats = await fs.stat(resolved);
+    
+    return {
+      status: 'completed',
+      path: resolved,
+      size: stats.size,
+      message: `Content appended successfully: ${resolved}`
+    };
+  }
+
+  /**
+   * List directory contents
+   */
+  async fsList(args) {
+    const { path: dirPath } = args;
+    
+    console.log('[LocalExecutor] Listing directory:', dirPath);
+    
+    const resolved = this.resolvePath(dirPath);
+    
+    // Read directory
+    const entries = await fs.readdir(resolved, { withFileTypes: true });
+    
+    // Build file list with details
+    const files = await Promise.all(entries.map(async (entry) => {
+      const fullPath = path.join(resolved, entry.name);
+      const stats = await fs.stat(fullPath);
+      
+      return {
+        name: entry.name,
+        type: entry.isDirectory() ? 'directory' : 'file',
+        size: stats.size,
+        modified: stats.mtime.toISOString()
+      };
+    }));
+    
+    return {
+      status: 'completed',
+      path: resolved,
+      files,
+      count: files.length,
+      message: `Directory listed successfully: ${resolved}`
+    };
+  }
+
+  /**
+   * Delete file
+   */
+  async fsDelete(args) {
+    const { path: filePath } = args;
+    
+    console.log('[LocalExecutor] Deleting file:', filePath);
+    
+    const resolved = this.resolvePath(filePath);
+    
+    // Check if file exists
+    try {
+      await fs.access(resolved);
+    } catch (error) {
+      throw new Error(`File not found: ${resolved}`);
+    }
+    
+    // Delete file
+    await fs.unlink(resolved);
+    
+    return {
+      status: 'completed',
+      path: resolved,
+      message: `File deleted successfully: ${resolved}`
     };
   }
 

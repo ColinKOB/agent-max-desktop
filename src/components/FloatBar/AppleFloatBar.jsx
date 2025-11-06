@@ -7,7 +7,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Settings, RotateCcw, Wrench, ArrowUp, Loader2, Minimize2, Check } from 'lucide-react';
+import { Settings, RotateCcw, Wrench, ArrowUp, Loader2, Minimize2, Check, ChevronDown, ChevronRight, Lightbulb } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { chatAPI, permissionAPI, googleAPI, ambiguityAPI, semanticAPI, factsAPI, addConnectionListener, healthAPI } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -15,6 +15,7 @@ import axios from 'axios';
 import { CreditDisplay } from '../CreditDisplay';
 import { supabase, checkResponseCache, storeResponseCache } from '../../services/supabase';
 import { createLogger } from '../../services/logger';
+import apiConfigManager from '../../config/apiConfig';
 import LogoPng from '../../assets/AgentMaxLogo.png';
 import { getProfile, getFacts, getPreferences, setPreference, startSession, addMessage, getRecentMessages, getAllSessions } from '../../services/supabaseMemory';
 import { searchContext as hybridSearchContext } from '../../services/hybridSearch';
@@ -64,6 +65,8 @@ export default function AppleFloatBar({
   const [totalSteps, setTotalSteps] = useState(0);
   const lastUserPromptRef = useRef('');
   const lastAssistantTsRef = useRef(null);
+  const accumulatedResponseRef = useRef('');  // For fs_command extraction
+  const executedCommandsRef = useRef(new Set());  // Track executed commands to avoid duplicates
   // Approval dialog state
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [approvalDetails, setApprovalDetails] = useState({ action: '', markers: [], reason: '', isHighRisk: false, onApprove: null });
@@ -88,6 +91,7 @@ export default function AppleFloatBar({
   const offlineRef = useRef(false); // suppress toast spam while offline
   const continueSendMessageRef = useRef(null); // dispatcher to avoid TDZ
   const [showReconnected, setShowReconnected] = useState(false);
+  const thoughtIdRef = useRef(null); // current inline thought entry id
   
   // Store
   const { clearMessages, apiConnected, currentUser, setApiConnected } = useStore();
@@ -179,6 +183,25 @@ export default function AppleFloatBar({
     window.addEventListener('hashchange', keepRoot);
     return () => window.removeEventListener('hashchange', keepRoot);
   }, []);
+  
+  const sendActionResult = useCallback(async (planId, stepId, actionType, result) => {
+    try {
+      const cfg = apiConfigManager.getConfig ? apiConfigManager.getConfig() : { baseURL: apiConfigManager.getBaseURL?.() };
+      const base = (cfg?.baseURL || '').replace(/\/$/, '');
+      if (!base) return;
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      const key = (cfg && cfg.apiKey) || (apiConfigManager.getApiKey && apiConfigManager.getApiKey());
+      if (key) headers['X-API-Key'] = key;
+      try {
+        const uid = localStorage.getItem('user_id');
+        if (uid) headers['X-User-Id'] = uid;
+      } catch {}
+      const payload = { plan_id: planId, step_id: stepId, action_type: actionType, result };
+      await fetch(`${base}/api/v2/agent/action-result`, { method: 'POST', headers, body: JSON.stringify(payload) }).catch(() => {});
+    } catch {}
+  }, []);
 
   // Start new session on mount
   useEffect(() => {
@@ -238,6 +261,18 @@ export default function AppleFloatBar({
     }
   }, [memoryPreviewEnabled]);
 
+  const mkActionFP = useCallback((type, args) => {
+    try { return `fp:${JSON.stringify({ t: type || '', a: args || {} })}`; } catch { return `fp:${type||''}`; }
+  }, []);
+
+  const logTelemetry = useCallback((eventType, data) => {
+    try {
+      if (window.telemetry && typeof window.telemetry.record === 'function') {
+        window.telemetry.record(eventType, { source: 'renderer', ...(data || {}) });
+      }
+    } catch {}
+  }, []);
+
   // Helper: retrieve context then proceed to send (optionally auto-send)
   const continueAfterPreview = useCallback(async (text) => {
     const pack = await doRetrieveContext(text);
@@ -258,7 +293,7 @@ export default function AppleFloatBar({
       }
     }
   }, [autoSend, doRetrieveContext, memoryPreviewEnabled]);
-  
+
   // Handle expand/collapse
   const handleExpand = useCallback(() => {
     setIsTransitioning(true);
@@ -303,7 +338,64 @@ export default function AppleFloatBar({
       setIsTransitioning(false);
     }, 300);
   }, [thoughts.length]);
-  
+
+  // Inline Thought helpers
+  const appendThought = useCallback((text) => {
+    if (!text || typeof text !== 'string') return;
+    
+    setThoughts(prev => {
+      // Lazy creation: if no current thought bubble exists, create it
+      if (!thoughtIdRef.current) {
+        const id = crypto.randomUUID();
+        thoughtIdRef.current = id;
+        return [
+          ...prev,
+          {
+            id,
+            type: 'thought',
+            label: 'Thought',
+            message: text,
+            expanded: true,
+            timestamp: Date.now(),
+          },
+        ];
+      }
+      
+      // Otherwise append to existing bubble
+      const idx = prev.findIndex(m => m?.id === thoughtIdRef.current && m?.type === 'thought');
+      if (idx === -1) return prev;
+      const updated = [...prev];
+      const existing = updated[idx];
+      updated[idx] = {
+        ...existing,
+        message: (existing.message || '') + (existing.message ? '\n' : '') + text,
+      };
+      return updated;
+    });
+  }, []);
+
+  const collapseCurrentThought = useCallback(() => {
+    const id = thoughtIdRef.current;
+    if (!id) return;
+    setThoughts(prev => {
+      const idx = prev.findIndex(m => m?.id === id && m?.type === 'thought');
+      if (idx === -1) return prev;
+      const updated = [...prev];
+      const existing = updated[idx];
+      const wc = (existing.message || '').trim().split(/\s+/).filter(Boolean).length;
+      
+      // If empty, remove the bubble entirely; otherwise collapse it
+      if (wc === 0) {
+        updated.splice(idx, 1);
+        return updated;
+      }
+      
+      updated[idx] = { ...existing, expanded: false, wordCount: wc };
+      return updated;
+    });
+    thoughtIdRef.current = null;
+  }, []);
+
   const handleCollapse = useCallback(async () => {
     setIsTransitioning(true);
     if (resizeDebounceRef.current) {
@@ -325,6 +417,147 @@ export default function AppleFloatBar({
     }, 300);
   }, []);
   
+  // Extract and execute fs_command blocks from AI response
+  const extractAndExecuteCommands = useCallback(async (responseText) => {
+    // Extract all fs_command blocks using regex
+    const regex = /```fs_command\s+([\s\S]*?)```/g;
+    const matches = [...responseText.matchAll(regex)];
+    
+    if (matches.length === 0) return;
+    
+    console.log(`[FSCommand] Found ${matches.length} command block(s)`);
+    
+    for (const match of matches) {
+      try {
+        const commandJson = match[1].trim();
+        const command = JSON.parse(commandJson);
+        
+        // Create unique ID for this command to avoid duplicate execution
+        const commandId = JSON.stringify(command);
+        
+        // Skip if already executed
+        if (executedCommandsRef.current.has(commandId)) {
+          console.log('[FSCommand] Skipping duplicate command');
+          continue;
+        }
+        
+        // Mark as executed
+        executedCommandsRef.current.add(commandId);
+        
+        console.log('[FSCommand] Executing:', command);
+        
+        // Show "Executing..." toast
+        toast(`🔧 Executing ${command.action}...`, {
+          duration: 2000,
+          icon: '⚡',
+          style: {
+            background: 'rgba(59, 130, 246, 0.1)',
+            border: '1px solid rgba(59, 130, 246, 0.2)',
+            backdropFilter: 'blur(10px)'
+          }
+        });
+        
+        // Execute via IPC
+        if (window.electron && window.electron.memory && window.electron.memory.autonomous) {
+          const normalized = (command && !command.type && command.action)
+            ? { type: command.action, args: command.args || {} }
+            : command;
+          const fp = mkActionFP(normalized?.type || command?.action, normalized?.args || command?.args || {});
+          if (fp) {
+            if (executedCommandsRef.current.has(fp)) {
+              console.log('[FSCommand] Skipping by fingerprint');
+              continue;
+            }
+            executedCommandsRef.current.add(fp);
+          }
+          logTelemetry('desktop.fs_execute.start', { action_type: normalized?.type, origin: 'fs_command' });
+          const result = await window.electron.memory.autonomous.execute(
+            null,
+            normalized,
+            { allowAll: true }
+          );
+          
+          if (result.success) {
+            logTelemetry('desktop.fs_execute.success', { action_type: normalized?.type, origin: 'fs_command' });
+            // Extract action name for user-friendly message
+            const actionName = (command.action || normalized?.type || '').split('.')[1] || (command.action || normalized?.type);
+            const friendlyNames = {
+              'write': 'File created',
+              'read': 'File read',
+              'append': 'File updated',
+              'list': 'Directory listed',
+              'delete': 'File deleted'
+            };
+            const message = friendlyNames[actionName] || 'Action completed';
+            
+            toast.success(`✅ ${message}`, {
+              duration: 3000,
+              style: {
+                background: 'rgba(34, 197, 94, 0.1)',
+                border: '1px solid rgba(34, 197, 94, 0.2)',
+                backdropFilter: 'blur(10px)'
+              }
+            });
+            
+            // Log to thought history
+            const resultMsg = result.result?.message || result.result?.path || 'Completed';
+            appendThought(`✅ ${resultMsg}`);
+            
+            // If it was a read operation, display the content
+            const actType = command.action || normalized?.type || '';
+            if (actType === 'fs.read' && result.result?.content) {
+              const content = result.result.content;
+              const preview = content.length > 500 ? content.substring(0, 500) + '...' : content;
+              setThoughts(prev => [...prev, {
+                role: 'system',
+                content: `📄 **File Contents:**\n\`\`\`\n${preview}\n\`\`\``,
+                timestamp: Date.now(),
+                type: 'file_content'
+              }]);
+            }
+            
+            // If it was a list operation, display the files
+            if (actType === 'fs.list' && result.result?.files) {
+              const files = result.result.files;
+              const fileList = files.map(f => `- ${f.type === 'directory' ? '📁' : '📄'} ${f.name} (${f.size} bytes)`).join('\n');
+              setThoughts(prev => [...prev, {
+                role: 'system',
+                content: `📂 **Directory Contents:**\n${fileList}`,
+                timestamp: Date.now(),
+                type: 'dir_listing'
+              }]);
+            }
+            
+          } else {
+            // Execution failed
+            const error = result.error?.message || 'Unknown error';
+            logTelemetry('desktop.fs_execute.fail', { action_type: normalized?.type, origin: 'fs_command', error });
+            toast.error(`❌ ${error}`, {
+              duration: 5000,
+              style: {
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                backdropFilter: 'blur(10px)'
+              }
+            });
+            appendThought(`❌ Error: ${error}`);
+          }
+        } else {
+          console.warn('[FSCommand] window.electron not available - running in browser mode');
+          toast('⚠️ Desktop features not available in browser mode', {
+            duration: 3000
+          });
+        }
+        
+      } catch (error) {
+        console.error('[FSCommand] Parse/execute error:', error);
+        toast.error(`❌ Command error: ${error.message}`, {
+          duration: 4000
+        });
+      }
+    }
+  }, []);
+  
   // Main streaming chat logic (extracted for reuse)
   const sendChat = useCallback((text, userContext, screenshotData) => {
     // Track token usage for credit calculation
@@ -337,7 +570,11 @@ export default function AppleFloatBar({
       if (event.type === 'ack') {
         // Stream started - clear buffer and prepare for real-time tokens
         streamBufferRef.current = '';
+        accumulatedResponseRef.current = '';  // Clear fs_command accumulator
+        executedCommandsRef.current.clear();  // Clear executed commands tracking
         enrichTileIdRef.current = null;
+        // Reset thought ref (bubble will be created lazily on first thinking event)
+        thoughtIdRef.current = null;
       } else if (event.type === 'tool_result') {
         // Phase 2: Deterministic tool result
         const toolName = event.tool_name || event.data?.tool_name;
@@ -380,6 +617,14 @@ export default function AppleFloatBar({
         
         // Track tokens for credit calculation (approximate: ~4 chars per token)
         totalOutputTokens += Math.ceil(content.length / 4);
+        
+        // Accumulate response for fs_command extraction
+        accumulatedResponseRef.current += content;
+        
+        // Check for complete fs_command blocks (periodically)
+        if (accumulatedResponseRef.current.includes('```fs_command') && accumulatedResponseRef.current.includes('```')) {
+          extractAndExecuteCommands(accumulatedResponseRef.current);
+        }
         
         if (enrichTileIdRef.current) {
           // Stream into the most recent fact tile enrichment
@@ -441,6 +686,145 @@ export default function AppleFloatBar({
           timestamp: Date.now(),
           type: 'plan'
         }]);
+        // Append a brief summary into the Thought bubble as well
+        const summary = `Plan ready: ${(planData.total_steps || planData.steps?.length || 0)} steps`;
+        appendThought(summary);
+      } else if (event.type === 'exec_log') {
+        const log = event.data || event;
+        const status = log.status || 'info';
+        const msg = log.message || 'Processing...';
+        
+        // Extract action name for user-friendly notifications
+        const extractActionName = (message) => {
+          const match = message.match(/Executed (\S+):/);
+          if (match) {
+            const action = match[1];
+            // Make action names user-friendly
+            const friendlyNames = {
+              'fs.write': 'File created',
+              'fs.read': 'File read',
+              'fs.append': 'File updated',
+              'fs.list': 'Directory listed',
+              'fs.delete': 'File deleted',
+              'sh.run': 'Command executed'
+            };
+            return friendlyNames[action] || action;
+          }
+          return 'Action';
+        };
+        
+        // Handle different exec_log statuses
+        switch (status) {
+          case 'info':
+            // Parse debug info - show action count if present
+            if (msg.includes('action(s) found')) {
+              const count = parseInt(msg.match(/(\d+) action/)?.[1] || '0');
+              if (count > 0) {
+                toast(`🔧 Executing ${count} action(s)...`, {
+                  duration: 2000,
+                  icon: '⚡',
+                  style: {
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    border: '1px solid rgba(59, 130, 246, 0.2)',
+                    backdropFilter: 'blur(10px)'
+                  }
+                });
+                setThinkingStatus(`Executing ${count} action(s)...`);
+              }
+            }
+            break;
+            
+          case 'completed':
+            // Action succeeded - show success notification
+            const actionName = extractActionName(msg);
+            toast.success(`✅ ${actionName}`, {
+              duration: 3000,
+              style: {
+                background: 'rgba(34, 197, 94, 0.1)',
+                border: '1px solid rgba(34, 197, 94, 0.2)',
+                backdropFilter: 'blur(10px)'
+              }
+            });
+            setThinkingStatus(actionName);
+            appendThought(`✅ ${msg}`);
+            break;
+            
+          case 'failed':
+            // Action failed - show error notification
+            toast.error(`❌ ${msg}`, {
+              duration: 5000,
+              style: {
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                backdropFilter: 'blur(10px)'
+              }
+            });
+            setThinkingStatus('Action failed');
+            appendThought(`❌ ${msg}`);
+            break;
+            
+          case 'queued':
+            // Action needs approval - show warning
+            toast(`⚠️ ${msg}`, {
+              duration: 4000,
+              icon: '🔒',
+              style: {
+                background: 'rgba(251, 191, 36, 0.1)',
+                border: '1px solid rgba(251, 191, 36, 0.2)',
+                backdropFilter: 'blur(10px)'
+              }
+            });
+            setThinkingStatus('Action requires approval');
+            appendThought(`🔒 ${msg}`);
+            try {
+              if (window.electron && window.electron.memory && window.electron.memory.autonomous) {
+                const at = log.action_type || (typeof msg === 'string' ? (msg.match(/Action requested:\s*([A-Za-z0-9_.-]+)/)?.[1] || null) : null);
+                const aa = log.action_args || log.args || {};
+                if (at) {
+                  const planId = log.plan_id || log.planId || null;
+                  const stepId = log.step_id || log.stepId || null;
+                  const execKey = JSON.stringify({ pid: planId, sid: stepId, at, aa });
+                  if (!executedCommandsRef.current.has(execKey)) {
+                    executedCommandsRef.current.add(execKey);
+                    toast(`🔧 Executing ${at}...`, {
+                      duration: 2000,
+                      icon: '⚡',
+                      style: { background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', backdropFilter: 'blur(10px)' }
+                    });
+                    const normalized = { type: at, args: aa || {} };
+                    const execResult = await window.electron.memory.autonomous.execute(stepId, normalized, { allowAll: true });
+                    if (execResult?.success) {
+                      const resMsg = execResult.result?.message || execResult.result?.path || 'Completed';
+                      appendThought(`✅ ${resMsg}`);
+                      const an = (at || '').split('.')[1] || at;
+                      const fn = { write: 'File created', read: 'File read', append: 'File updated', list: 'Directory listed', delete: 'File deleted' };
+                      const label = fn[an] || 'Action completed';
+                      toast.success(`✅ ${label}`, { duration: 3000, style: { background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', backdropFilter: 'blur(10px)' } });
+                      await sendActionResult(planId, stepId, at, execResult.result).catch(() => {});
+                    } else if (execResult && execResult.error) {
+                      const em = execResult.error?.message || execResult.error;
+                      toast.error(`❌ ${em}`, { duration: 5000, style: { background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', backdropFilter: 'blur(10px)' } });
+                      appendThought(`❌ ${em}`);
+                    }
+                  }
+                }
+              }
+            } catch {}
+            break;
+            
+          default:
+            // Generic handling
+            setThinkingStatus(msg);
+            appendThought(msg);
+        }
+        
+        if (typeof log.step === 'number') { setCurrentStep(log.step); }
+      } else if (event.type === 'final') {
+        const finalData = event.data || event;
+        const text = finalData.rationale || finalData.summary || '';
+        if (text && typeof text === 'string') {
+          setThoughts(prev => [...prev, { role: 'assistant', content: text, timestamp: Date.now(), type: 'final' }]);
+        }
       } else if (event.type === 'thinking') {
         const message = event.data?.message || event.message || 'Processing...';
         const step = event.data?.step || 0;
@@ -453,11 +837,19 @@ export default function AppleFloatBar({
         }
         
         setThinkingStatus(message);
+        appendThought(message);
       } else if (event.type === 'step') {
         // Step completed - could show intermediate steps
         const stepData = event.data || event;
         console.log('[Chat] Step completed:', stepData);
         setThinkingStatus('Working...');
+        // Render a succinct line for the step in the Thought bubble
+        try {
+          const n = stepData.step_number || stepData.step || currentStep + 1;
+          const desc = stepData.description || stepData.action || stepData.reasoning || '';
+          const line = `Step ${n}${desc ? `: ${desc}` : ''}`;
+          appendThought(line);
+        } catch {}
       } else if (event.type === 'done') {
         // Final response received - mark streaming message as complete
         const d = event.data || event || {};
@@ -492,6 +884,12 @@ export default function AppleFloatBar({
         if (!responseText) {
           try { console.warn('[Chat] Done event had no response text. data keys:', Object.keys(d || {})); } catch {}
         }
+        // Final catch-up: extract any trailing fs_command blocks in final buffer
+        try {
+          if (responseText && responseText.includes('```fs_command')) {
+            await extractAndExecuteCommands(responseText);
+          }
+        } catch {}
         
         setThoughts(prev => {
           // Check if last message is a streaming assistant message
@@ -706,12 +1104,19 @@ export default function AppleFloatBar({
           }
         }
         
+        // Final check for any fs_command blocks that might have been missed
+        if (accumulatedResponseRef.current.includes('```fs_command')) {
+          extractAndExecuteCommands(accumulatedResponseRef.current);
+        }
+        
         // Clear enrichment scope at end of stream
         enrichTileIdRef.current = null;
         // Clear any accumulated plain text tokens
         streamBufferRef.current = '';
         setIsThinking(false);
         setThinkingStatus('');
+        // Collapse the Thought bubble after completion
+        collapseCurrentThought();
       } else if (event.type === 'error') {
         const errorMsg = event.data?.error || event.error || 'Failed to get response';
         // If backend is down, mark offline and avoid toast spam
@@ -726,6 +1131,8 @@ export default function AppleFloatBar({
         streamBufferRef.current = '';
         setIsThinking(false);
         setThinkingStatus('');
+        // Collapse the Thought bubble if it exists
+        collapseCurrentThought();
       }
     }).catch(error => {
       console.error('Chat error:', error);
@@ -1955,31 +2362,78 @@ export default function AppleFloatBar({
           
           {/* Messages */}
           <div className="apple-messages" ref={messagesRef}>
-            {thoughts.map((thought, idx) => (
-              <div key={idx} className={`apple-message apple-message-${thought.role}`}>
-                <div className={`apple-message-content ${thought.type === 'plan' ? 'plan-message' : ''}`}>
-                  {thought.role === 'assistant' || thought.role === 'system' ? (
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        a: ({ node, ...props }) => (
-                          <a target="_blank" rel="noreferrer" {...props} />
-                        ),
-                      }}
-                    >
-                      {(thought.content || '').trim()}
-                    </ReactMarkdown>
-                  ) : (
-                    thought.content
-                  )}
-                  {thought.role === 'assistant' && thought.memoryLabel && (
-                    <div style={{ marginTop: 6, fontSize: '0.75rem', color: '#065f46', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, padding: '6px 8px' }}>
-                      {thought.memoryLabel}
+            {thoughts.map((thought, idx) => {
+              if (thought.type === 'thought') {
+                const isExpanded = thought.expanded !== false;
+                return (
+                  <div key={thought.id || idx} className="apple-message apple-message-thought">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <Lightbulb size={14} />
+                      <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Thought</span>
+                      <button
+                        onClick={() => {
+                          setThoughts(prev => {
+                            const copy = [...prev];
+                            const i = copy.findIndex(m => m?.id === thought.id);
+                            if (i === -1) return prev;
+                            copy[i] = { ...copy[i], expanded: !isExpanded };
+                            return copy;
+                          });
+                        }}
+                        style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.75)', cursor: 'pointer' }}
+                        aria-label={isExpanded ? 'Collapse' : 'Expand'}
+                      >
+                        {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </button>
                     </div>
-                  )}
+                    {isExpanded ? (
+                      <div className="apple-message-content">
+                        <div style={{ whiteSpace: 'pre-wrap' }}>{thought.message || ''}</div>
+                      </div>
+                    ) : (
+                      <div onClick={() => {
+                        setThoughts(prev => {
+                          const copy = [...prev];
+                          const i = copy.findIndex(m => m?.id === thought.id);
+                          if (i === -1) return prev;
+                          copy[i] = { ...copy[i], expanded: true };
+                          return copy;
+                        });
+                      }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.06)', fontSize: 12, cursor: 'pointer' }}>
+                        <span>💭</span>
+                        <span>{thought.wordCount || (String(thought.message || '').trim().split(/\s+/).filter(Boolean).length) || 0} words</span>
+                        <ChevronRight size={12} />
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              return (
+                <div key={idx} className={`apple-message apple-message-${thought.role}`}>
+                  <div className={`apple-message-content ${thought.type === 'plan' ? 'plan-message' : ''}`}>
+                    {thought.role === 'assistant' || thought.role === 'system' ? (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          a: ({ node, ...props }) => (
+                            <a target="_blank" rel="noreferrer" {...props} />
+                          ),
+                        }}
+                      >
+                        {(thought.content || '').trim()}
+                      </ReactMarkdown>
+                    ) : (
+                      thought.content
+                    )}
+                    {thought.role === 'assistant' && thought.memoryLabel && (
+                      <div style={{ marginTop: 6, fontSize: '0.75rem', color: '#065f46', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, padding: '6px 8px' }}>
+                        {thought.memoryLabel}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {isThinking && (
               <div className="apple-message apple-message-thinking">
                 <div className="typing-indicator">

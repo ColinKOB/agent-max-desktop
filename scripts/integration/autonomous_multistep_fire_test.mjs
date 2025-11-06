@@ -55,15 +55,17 @@ function logLine(obj) {
 async function delay(ms) { return new Promise(res => setTimeout(res, ms)); }
 
 async function streamAutonomous(name, goal) {
-  const endpoint = `${API_URL}/api/v2/autonomous/execute/stream`;
+  const endpoint = `${API_URL}/api/v2/agent/execute/stream`;
   const headers = {
     'Content-Type': 'application/json',
     'Accept': 'text/event-stream',
     'X-API-Key': TEST_API_KEY,
-    'X-User-Id': 'fire-tester'
+    'X-User-Id': 'fire-tester',
+    'X-Events-Version': '1.1'
   };
   const payload = {
     goal,
+    message: goal,  // Include both for compatibility
     mode: 'autonomous',
     user_context: null,
     max_steps: 10,
@@ -92,6 +94,7 @@ async function streamAutonomous(name, goal) {
   }
 
   let firstEventAt = 0;
+  let ackAt = 0;
   let steps = 0;
   let tokens = 0;
   let planSeen = false;
@@ -117,7 +120,19 @@ async function streamAutonomous(name, goal) {
         if (!firstEventAt) firstEventAt = Date.now();
         const et = parsed.type || 'event';
         const payload = parsed.data || (() => { const { type, id, ...rest } = parsed; return rest; })();
+        
+        // V1.1 events
+        if (et === 'ack') ackAt = Date.now();
         if (et === 'plan') planSeen = true;
+        if (et === 'token') {
+          const content = payload.content || parsed.content || '';
+          tokens += content.length;
+        }
+        if (et === 'final') {
+          final = (payload.outputs && payload.outputs.response) || payload.summary || final;
+        }
+        
+        // Legacy events
         if (et === 'step') {
           steps = Math.max(steps, payload.step_number || payload.step || 0);
           if (payload.result && typeof payload.result === 'string') tokens += payload.result.length;
@@ -125,6 +140,7 @@ async function streamAutonomous(name, goal) {
         if (et === 'done' || et === 'complete') {
           final = (payload && (payload.final_response || payload.response)) || final;
         }
+        
         logLine({ type: 'sse', name, event: et, payload });
       } catch (e) {
         logLine({ type: 'sse_parse_error', name, error: String(e?.message || e), raw: data.slice(0, 200) });

@@ -456,14 +456,15 @@ export const chatAPI = {
     })();
 
     // CRITICAL: Use different endpoint based on mode
-    // - autonomous mode → /api/v2/autonomous/execute/stream (ACTUALLY EXECUTES TOOLS)
+    // - autonomous mode → /api/v2/agent/execute/stream (NEW V2 with early ack/plan events)
     // - chatty/helpful → /api/v2/chat/streaming/stream (text generation only)
     const isAutonomous = requestedMode === 'autonomous';
     const endpoints = isAutonomous 
       ? (
           disableLegacyFallbacks
-            ? [ `${baseURL}/api/v2/autonomous/execute/stream` ]
+            ? [ `${baseURL}/api/v2/agent/execute/stream` ]
             : [
+                `${baseURL}/api/v2/agent/execute/stream`,
                 `${baseURL}/api/v2/autonomous/execute/stream`,
                 `${baseURL}/api/autonomous/execute/stream`,
                 `${baseURL}/api/v2/autonomous/stream`,
@@ -492,8 +493,9 @@ export const chatAPI = {
       : message;
 
     const payload = isAutonomous ? {
-      // Autonomous endpoint expects 'goal' not 'message'
+      // Autonomous endpoint: include both keys for compatibility with guide/backend
       goal: message,
+      message: message,
       mode: requestedMode,
       user_context: userContext ? {
         profile: userContext.profile || {},
@@ -503,7 +505,10 @@ export const chatAPI = {
       } : null,
       image: image || null,
       max_steps: 10,
-      timeout: 300
+      timeout: 300,
+      flags: {
+        server_fs: false  // Desktop-side execution: AI sends commands, desktop executes locally
+      }
     } : {
       // Chat endpoint
       message: truncatedMessage,
@@ -524,6 +529,8 @@ export const chatAPI = {
       'X-User-Id': localStorage.getItem('user_id') || 'anonymous'
     };
     if (configuredKey) headers['X-API-Key'] = configuredKey;
+    // Request V1.1 events for autonomous mode (ack, plan, exec_log, confidence, final)
+    if (isAutonomous) headers['X-Events-Version'] = '1.1';
 
     let response;
     let lastStatus = 0;
@@ -708,16 +715,42 @@ export const chatAPI = {
                 return {};
               };
 
-              if (eventType === 'plan') {
-                // Plan event - show execution plan
+              // V1.1 Events (new standardized events)
+              if (eventType === 'ack') {
+                // Immediate acknowledgment - shows UI activity within 100ms
+                const ackData = getPayloadData(parsed);
+                try { ackSeen = true; } catch {}
+                onEvent({ type: 'ack', data: ackData });
+              } else if (eventType === 'plan') {
+                // Plan event - show execution plan before execution begins
                 const planData = getPayloadData(parsed);
                 onEvent({ type: 'plan', data: planData });
+              } else if (eventType === 'exec_log') {
+                // Phase 1+: Step-by-step execution logs (not yet emitted by backend)
+                const logData = getPayloadData(parsed);
+                onEvent({ type: 'exec_log', data: logData });
+              } else if (eventType === 'confidence') {
+                // Phase 1+: AI confidence scores (not yet emitted by backend)
+                const confData = getPayloadData(parsed);
+                onEvent({ type: 'confidence', data: confData });
+              } else if (eventType === 'token') {
+                // Streaming response tokens
+                const tData = getPayloadData(parsed);
+                const content = tData.content || parsed.content || parsed.delta || '';
+                if (content) {
+                  try { anyTokenSeen = true; } catch {}
+                  onEvent({ type: 'token', content, data: tData });
+                }
+              } else if (eventType === 'final') {
+                // Phase 1+: Final summary with rationale (not yet emitted by backend)
+                const finalData = getPayloadData(parsed);
+                onEvent({ type: 'final', data: finalData });
               } else if (eventType === 'thinking') {
                 // Enhanced thinking with step context
                 const thinkingData = getPayloadData(parsed);
                 onEvent({ type: 'thinking', data: thinkingData });
               } else if (eventType === 'step') {
-                // Step event - update thinking and optionally stream result
+                // Legacy step event - map to thinking (deprecated but still supported)
                 const stepData = getPayloadData(parsed);
                 onEvent({
                   type: 'thinking',

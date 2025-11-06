@@ -38,6 +38,97 @@ if (!stripePublishableKey) {
   );
 }
 
+/**
+ * Step: Email sign-in (mandatory)
+ */
+function EmailSignInStep({ onNext, onBack, userData }) {
+  const [email, setEmail] = useState(userData?.email || '');
+  const [password, setPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const validEmail = (v) => /.+@.+\..+/.test(v);
+  const strongPw = (v) => v.length >= 8;
+
+  const handleSubmit = async () => {
+    if (!validEmail(email) || !strongPw(password)) return;
+    setSaving(true);
+    try {
+      const user = await emailPasswordSignInOrCreate(email.trim(), password);
+      await ensureUsersRow(email.trim());
+      try { await setUserPreference('email', email.trim()); } catch {}
+      try { await setUserPreference('has_password', 'true'); } catch {}
+      onNext?.({ amxAccount: !!user, email: email.trim() });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto px-3 py-4" style={{ textAlign: 'center' }}>
+      <h2 style={{ color: 'rgba(255,255,255,0.94)', fontSize: 20, fontWeight: 800, marginBottom: 12 }}>
+        Create your Agent Max account
+      </h2>
+      <p style={{ color: 'rgba(255,255,255,0.68)', marginBottom: 12 }}>
+        Enter your email and create a password to continue.
+      </p>
+      <div style={{ marginTop: 8, display: 'grid', rowGap: 8, maxWidth: 320, marginLeft: 'auto', marginRight: 'auto' }}>
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          inputMode="email"
+          style={{
+            width: '100%', height: 40, padding: '0 12px',
+            color: 'rgba(255,255,255,0.92)',
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.28))',
+            border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, outline: 'none'
+          }}
+        />
+        <input
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Create password (8+ chars)"
+          type="password"
+          style={{
+            width: '100%', height: 40, padding: '0 12px',
+            color: 'rgba(255,255,255,0.92)',
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.28))',
+            border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, outline: 'none'
+          }}
+        />
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 8 }}>
+          <button
+            type="button"
+            onClick={onBack}
+            style={{
+              width: '100%', maxWidth: 160, height: 40,
+              padding: '0 16px', color: 'rgba(255,255,255,0.9)',
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.14)', borderRadius: 12, fontWeight: 600
+            }}
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            disabled={!validEmail(email) || !strongPw(password) || saving}
+            onClick={handleSubmit}
+            style={{
+              width: '100%', maxWidth: 160, height: 40,
+              padding: '0 16px', color: '#fff',
+              background: 'linear-gradient(180deg, #22c55e, #16a34a)',
+              border: '1px solid rgba(255,255,255,0.14)', borderRadius: 12, fontWeight: 700,
+              opacity: (!validEmail(email) || !strongPw(password) || saving) ? 0.6 : 1,
+              cursor: (!validEmail(email) || !strongPw(password) || saving) ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {saving ? 'Creating…' : 'Continue'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 export function OnboardingFlow({ onComplete, onSkip }) {
   const [currentStep, setCurrentStep] = useState(0);
   const { setApiConnected } = useStore();
@@ -101,7 +192,8 @@ export function OnboardingFlow({ onComplete, onSkip }) {
   const steps = [
     { id: 'name', title: 'Your Name', component: NameStep },
     { id: 'usecase', title: 'How can I help?', component: HelpCategoryStep },
-    { id: 'google', title: 'Connect Google', component: GoogleConnectStep },
+    { id: 'account', title: 'Create your Agent Max account', component: EmailSignInStep },
+    { id: 'google', title: 'Connect Google (optional)', component: GoogleConnectStep },
     { id: 'complete', title: 'Ready to Go!', component: CompleteStep }
   ];
 
@@ -383,10 +475,6 @@ function HelpCategoryStep({ userData, onNext, onBack }) {
 function GoogleConnectStep({ userData, onNext, onBack, serverConnected, checkingServer }) {
   const [opening, setOpening] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [showSkip, setShowSkip] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [saving, setSaving] = useState(false);
 
   const connect = async () => {
     setOpening(true);
@@ -521,22 +609,7 @@ function GoogleConnectStep({ userData, onNext, onBack, serverConnected, checking
     return () => { mounted = false; if (id) clearTimeout(id); };
   }, [onNext]);
 
-  const handleSkipSubmit = async () => {
-    if (!email.trim() || !password.trim()) return;
-    setSaving(true);
-    try {
-      const user = await emailPasswordSignInOrCreate(email.trim(), password);
-      await ensureUsersRow(email.trim());
-      try { await setUserPreference('email', email.trim()); } catch {}
-      try { await setUserPreference('has_password', 'true'); } catch {}
-      onNext?.({ amxAccount: !!user, email: email.trim() });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const validEmail = (v) => /.+@.+\..+/.test(v);
-  const strongPw = (v) => v.length >= 8;
+  const handleSkip = () => onNext?.({ googleConnected: false });
 
   return (
     <div className="max-w-3xl mx-auto px-3 py-4" style={{ textAlign: 'center' }}>
@@ -558,7 +631,7 @@ function GoogleConnectStep({ userData, onNext, onBack, serverConnected, checking
         <GoogleConnect compact />
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 52 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 52, gap: 8 }}>
         <button
           type="button"
           onClick={onBack}
@@ -576,62 +649,26 @@ function GoogleConnectStep({ userData, onNext, onBack, serverConnected, checking
         >
           Back
         </button>
-      </div>
-
-      <div style={{ marginTop: 50 }}>
         <button
           type="button"
-          onClick={() => setShowSkip(!showSkip)}
-          style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, textDecoration: 'underline' }}
+          onClick={handleSkip}
+          style={{
+            width: '100%',
+            maxWidth: 320,
+            height: 40,
+            padding: '0 16px',
+            color: '#fff',
+            background: 'linear-gradient(180deg, #22c55e, #16a34a)',
+            border: '1px solid rgba(255,255,255,0.14)',
+            borderRadius: 12,
+            fontWeight: 700
+          }}
         >
-          {showSkip ? 'Hide email sign-in' : 'Skip for now'}
+          Skip for now
         </button>
       </div>
 
-      {showSkip && (
-        <div style={{ marginTop: 8, display: 'grid', rowGap: 8, maxWidth: 320, marginLeft: 'auto', marginRight: 'auto' }}>
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
-            inputMode="email"
-            style={{
-              width: '100%', height: 40, padding: '0 12px',
-              color: 'rgba(255,255,255,0.92)',
-              background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.28))',
-              border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, outline: 'none'
-            }}
-          />
-          <input
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Create password (8+ chars)"
-            type="password"
-            style={{
-              width: '100%', height: 40, padding: '0 12px',
-              color: 'rgba(255,255,255,0.92)',
-              background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.28))',
-              border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, outline: 'none'
-            }}
-          />
-          <button
-            type="button"
-            disabled={!validEmail(email) || !strongPw(password) || saving}
-            onClick={handleSkipSubmit}
-            style={{
-              height: 40,
-              padding: '0 16px', color: '#fff',
-              background: 'linear-gradient(180deg, #22c55e, #16a34a)',
-              border: '1px solid rgba(255,255,255,0.14)', borderRadius: 12, fontWeight: 700,
-              opacity: (!validEmail(email) || !strongPw(password) || saving) ? 0.6 : 1,
-              cursor: (!validEmail(email) || !strongPw(password) || saving) ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {saving ? 'Creating…' : 'Continue'}
-          </button>
-        </div>
-      )}
-    </div>
+      </div>
   );
 }
 

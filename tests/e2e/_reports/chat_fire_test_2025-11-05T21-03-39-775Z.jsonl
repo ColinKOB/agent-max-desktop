@@ -1,0 +1,255 @@
+{"timestamp":1762376619779,"type":"session.start","api_url":"https://agentmax-production.up.railway.app","started_at":"2025-11-05T21:03:39.775Z"}
+{"timestamp":1762376619780,"type":"case.start","name":"basic_math_chat","mode":"helpful","API_URL":"https://agentmax-production.up.railway.app","endpoint_candidates":["https://agentmax-production.up.railway.app/api/v2/chat/streaming/stream","https://agentmax-production.up.railway.app/api/streaming/stream"]}
+{"timestamp":1762376619780,"type":"case.try_endpoint","name":"basic_math_chat","endpoint":"https://agentmax-production.up.railway.app/api/v2/chat/streaming/stream"}
+{"timestamp":1762376620506,"type":"case.endpoint_selected","name":"basic_math_chat","endpoint":"https://agentmax-production.up.railway.app/api/v2/chat/streaming/stream","status":200}
+{"timestamp":1762376620508,"type":"sse","name":"basic_math_chat","event":"token","payload":{"type":"ack","message":"stream_started"}}
+{"timestamp":1762376620988,"type":"sse","name":"basic_math_chat","event":"token","payload":{"type":"token","content":"The"}}
+{"timestamp":1762376620989,"type":"sse","name":"basic_math_chat","event":"token","payload":{"type":"token","content":" result"}}
+{"timestamp":1762376621023,"type":"sse","name":"basic_math_chat","event":"token","payload":{"type":"token","content":" of"}}
+{"timestamp":1762376621023,"type":"sse","name":"basic_math_chat","event":"token","payload":{"type":"token","content":" "}}
+{"timestamp":1762376621067,"type":"sse","name":"basic_math_chat","event":"token","payload":{"type":"token","content":"17"}}
+{"timestamp":1762376621067,"type":"sse","name":"basic_math_chat","event":"token","payload":{"type":"token","content":" *"}}
+{"timestamp":1762376621096,"type":"sse","name":"basic_math_chat","event":"token","payload":{"type":"token","content":" "}}
+{"timestamp":1762376621097,"type":"sse","name":"basic_math_chat","event":"token","payload":{"type":"token","content":"23"}}
+{"timestamp":1762376621143,"type":"sse","name":"basic_math_chat","event":"token","payload":{"type":"token","content":" is"}}
+{"timestamp":1762376621143,"type":"sse","name":"basic_math_chat","event":"token","payload":{"type":"token","content":" "}}
+{"timestamp":1762376621174,"type":"sse","name":"basic_math_chat","event":"token","payload":{"type":"token","content":"391"}}
+{"timestamp":1762376621175,"type":"sse","name":"basic_math_chat","event":"token","payload":{"type":"token","content":"."}}
+{"timestamp":1762376621681,"type":"sse","name":"basic_math_chat","event":"token","payload":{"type":"done","data":{"final_response":"The result of 17 * 23 is 391."}}}
+{"timestamp":1762376621681,"type":"case.done","name":"basic_math_chat","ttff_ms":728,"duration_ms":1901,"token_chars":29,"events":14}
+{"timestamp":1762376621933,"type":"case.start","name":"reasoning_short","mode":"helpful","API_URL":"https://agentmax-production.up.railway.app","endpoint_candidates":["https://agentmax-production.up.railway.app/api/v2/chat/streaming/stream","https://agentmax-production.up.railway.app/api/streaming/stream"]}
+{"timestamp":1762376621933,"type":"case.try_endpoint","name":"reasoning_short","endpoint":"https://agentmax-production.up.railway.app/api/v2/chat/streaming/stream"}
+{"timestamp":1762376622463,"type":"case.endpoint_selected","name":"reasoning_short","endpoint":"https://agentmax-production.up.railway.app/api/v2/chat/streaming/stream","status":200}
+{"timestamp":1762376622463,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"ack","message":"stream_started"}}
+{"timestamp":1762376623551,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":"The"}}
+{"timestamp":1762376623552,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" sky"}}
+{"timestamp":1762376623593,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" appears"}}
+{"timestamp":1762376623593,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" blue"}}
+{"timestamp":1762376623613,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" because"}}
+{"timestamp":1762376623613,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" of"}}
+{"timestamp":1762376623656,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" a"}}
+{"timestamp":1762376623656,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" phenomenon"}}
+{"timestamp":1762376623695,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" called"}}
+{"timestamp":1762376623695,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" Ray"}}
+{"timestamp":1762376623727,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":"leigh"}}
+{"timestamp":1762376623727,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" scattering"}}
+{"timestamp":1762376623782,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":","}}
+{"timestamp":1762376623783,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" where"}}
+{"timestamp":1762376623793,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" shorter"}}
+{"timestamp":1762376623793,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" wavelengths"}}
+{"timestamp":1762376623844,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" of"}}
+{"timestamp":1762376623844,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" light"}}
+{"timestamp":1762376623898,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" ("}}
+{"timestamp":1762376623898,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":"blue"}}
+{"timestamp":1762376623910,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":")"}}
+{"timestamp":1762376623910,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" are"}}
+{"timestamp":1762376623943,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" scattered"}}
+{"timestamp":1762376623943,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" more"}}
+{"timestamp":1762376623985,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" than"}}
+{"timestamp":1762376623985,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" longer"}}
+{"timestamp":1762376624040,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" wavelengths"}}
+{"timestamp":1762376624040,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" ("}}
+{"timestamp":1762376624066,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":"red"}}
+{"timestamp":1762376624066,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":")"}}
+{"timestamp":1762376624095,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" as"}}
+{"timestamp":1762376624096,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" sunlight"}}
+{"timestamp":1762376624132,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" passes"}}
+{"timestamp":1762376624132,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" through"}}
+{"timestamp":1762376624182,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" the"}}
+{"timestamp":1762376624182,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" Earth's"}}
+{"timestamp":1762376624231,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" atmosphere"}}
+{"timestamp":1762376624231,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":"."}}
+{"timestamp":1762376624284,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" During"}}
+{"timestamp":1762376624284,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" the"}}
+{"timestamp":1762376624310,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" day"}}
+{"timestamp":1762376624310,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":","}}
+{"timestamp":1762376624365,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" when"}}
+{"timestamp":1762376624365,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" the"}}
+{"timestamp":1762376624474,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" sun"}}
+{"timestamp":1762376624474,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" is"}}
+{"timestamp":1762376624490,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" high"}}
+{"timestamp":1762376624490,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":","}}
+{"timestamp":1762376624620,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" this"}}
+{"timestamp":1762376624620,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" scattering"}}
+{"timestamp":1762376624630,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" causes"}}
+{"timestamp":1762376624630,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" the"}}
+{"timestamp":1762376624630,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" direct"}}
+{"timestamp":1762376624630,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" sunlight"}}
+{"timestamp":1762376624655,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" to"}}
+{"timestamp":1762376624656,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" appear"}}
+{"timestamp":1762376624679,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" predominantly"}}
+{"timestamp":1762376624679,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" blue"}}
+{"timestamp":1762376624705,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" to"}}
+{"timestamp":1762376624705,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" our"}}
+{"timestamp":1762376624763,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":" eyes"}}
+{"timestamp":1762376624764,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"token","content":"."}}
+{"timestamp":1762376625162,"type":"sse","name":"reasoning_short","event":"token","payload":{"type":"done","data":{"final_response":"The sky appears blue because of a phenomenon called Rayleigh scattering, where shorter wavelengths of light (blue) are scattered more than longer wavelengths (red) as sunlight passes through the Earth's atmosphere. During the day, when the sun is high, this scattering causes the direct sunlight to appear predominantly blue to our eyes."}}}
+{"timestamp":1762376625163,"type":"case.done","name":"reasoning_short","ttff_ms":530,"duration_ms":3230,"token_chars":337,"events":64}
+{"timestamp":1762376625415,"type":"case.start","name":"planning","mode":"helpful","API_URL":"https://agentmax-production.up.railway.app","endpoint_candidates":["https://agentmax-production.up.railway.app/api/v2/chat/streaming/stream","https://agentmax-production.up.railway.app/api/streaming/stream"]}
+{"timestamp":1762376625415,"type":"case.try_endpoint","name":"planning","endpoint":"https://agentmax-production.up.railway.app/api/v2/chat/streaming/stream"}
+{"timestamp":1762376626204,"type":"case.endpoint_selected","name":"planning","endpoint":"https://agentmax-production.up.railway.app/api/v2/chat/streaming/stream","status":200}
+{"timestamp":1762376626205,"type":"sse","name":"planning","event":"token","payload":{"type":"ack","message":"stream_started"}}
+{"timestamp":1762376626733,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"Here's"}}
+{"timestamp":1762376626733,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" a"}}
+{"timestamp":1762376626772,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" simple"}}
+{"timestamp":1762376626772,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" "}}
+{"timestamp":1762376626794,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"3"}}
+{"timestamp":1762376626795,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"-step"}}
+{"timestamp":1762376626833,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" morning"}}
+{"timestamp":1762376626833,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" routine"}}
+{"timestamp":1762376626868,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" to"}}
+{"timestamp":1762376626868,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" kick"}}
+{"timestamp":1762376626909,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"start"}}
+{"timestamp":1762376626909,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" your"}}
+{"timestamp":1762376626989,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" day"}}
+{"timestamp":1762376626990,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":":\n\n"}}
+{"timestamp":1762376627051,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"1"}}
+{"timestamp":1762376627051,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"."}}
+{"timestamp":1762376627078,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" **"}}
+{"timestamp":1762376627079,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"Wake"}}
+{"timestamp":1762376627123,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" Up"}}
+{"timestamp":1762376627123,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" and"}}
+{"timestamp":1762376627228,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" Hyd"}}
+{"timestamp":1762376627228,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"rate"}}
+{"timestamp":1762376627301,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"**"}}
+{"timestamp":1762376627301,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":":"}}
+{"timestamp":1762376627364,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" Start"}}
+{"timestamp":1762376627364,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" your"}}
+{"timestamp":1762376627437,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" day"}}
+{"timestamp":1762376627437,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" by"}}
+{"timestamp":1762376627545,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" waking"}}
+{"timestamp":1762376627545,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" up"}}
+{"timestamp":1762376627588,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" at"}}
+{"timestamp":1762376627588,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" a"}}
+{"timestamp":1762376627631,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" consistent"}}
+{"timestamp":1762376627631,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" time"}}
+{"timestamp":1762376627650,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" and"}}
+{"timestamp":1762376627650,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" drinking"}}
+{"timestamp":1762376627691,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" a"}}
+{"timestamp":1762376627691,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" glass"}}
+{"timestamp":1762376627717,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" of"}}
+{"timestamp":1762376627717,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" water"}}
+{"timestamp":1762376627791,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" to"}}
+{"timestamp":1762376627791,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" re"}}
+{"timestamp":1762376627825,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"hydrate"}}
+{"timestamp":1762376627825,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" your"}}
+{"timestamp":1762376627857,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" body"}}
+{"timestamp":1762376627857,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" after"}}
+{"timestamp":1762376627891,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" a"}}
+{"timestamp":1762376627891,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" night's"}}
+{"timestamp":1762376627940,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" sleep"}}
+{"timestamp":1762376627941,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":".\n\n"}}
+{"timestamp":1762376627992,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"2"}}
+{"timestamp":1762376627992,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"."}}
+{"timestamp":1762376628027,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" **"}}
+{"timestamp":1762376628027,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"Stretch"}}
+{"timestamp":1762376628118,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" or"}}
+{"timestamp":1762376628118,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" Exercise"}}
+{"timestamp":1762376628167,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"**"}}
+{"timestamp":1762376628168,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":":"}}
+{"timestamp":1762376628184,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" Spend"}}
+{"timestamp":1762376628184,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" "}}
+{"timestamp":1762376628216,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"10"}}
+{"timestamp":1762376628216,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"-"}}
+{"timestamp":1762376628285,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"15"}}
+{"timestamp":1762376628285,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" minutes"}}
+{"timestamp":1762376628349,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" doing"}}
+{"timestamp":1762376628349,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" some"}}
+{"timestamp":1762376628387,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" light"}}
+{"timestamp":1762376628387,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" stretching"}}
+{"timestamp":1762376628433,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" or"}}
+{"timestamp":1762376628433,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" a"}}
+{"timestamp":1762376628450,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" quick"}}
+{"timestamp":1762376628450,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" workout"}}
+{"timestamp":1762376628505,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" to"}}
+{"timestamp":1762376628505,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" get"}}
+{"timestamp":1762376628536,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" your"}}
+{"timestamp":1762376628537,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" blood"}}
+{"timestamp":1762376628572,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" flowing"}}
+{"timestamp":1762376628573,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" and"}}
+{"timestamp":1762376628599,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" energ"}}
+{"timestamp":1762376628600,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"ize"}}
+{"timestamp":1762376628643,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" yourself"}}
+{"timestamp":1762376628644,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" for"}}
+{"timestamp":1762376628678,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" the"}}
+{"timestamp":1762376628679,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" day"}}
+{"timestamp":1762376628724,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" ahead"}}
+{"timestamp":1762376628725,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":".\n\n"}}
+{"timestamp":1762376628793,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"3"}}
+{"timestamp":1762376628793,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"."}}
+{"timestamp":1762376628802,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" **"}}
+{"timestamp":1762376628802,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"Plan"}}
+{"timestamp":1762376628828,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" Your"}}
+{"timestamp":1762376628829,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" Day"}}
+{"timestamp":1762376628860,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"**"}}
+{"timestamp":1762376628861,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":":"}}
+{"timestamp":1762376628926,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" Take"}}
+{"timestamp":1762376628927,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" a"}}
+{"timestamp":1762376628974,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" few"}}
+{"timestamp":1762376628975,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" minutes"}}
+{"timestamp":1762376629026,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" to"}}
+{"timestamp":1762376629026,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" review"}}
+{"timestamp":1762376629113,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" your"}}
+{"timestamp":1762376629113,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" schedule"}}
+{"timestamp":1762376629193,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":","}}
+{"timestamp":1762376629194,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" set"}}
+{"timestamp":1762376629267,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" priorities"}}
+{"timestamp":1762376629268,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":","}}
+{"timestamp":1762376629293,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" and"}}
+{"timestamp":1762376629293,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" list"}}
+{"timestamp":1762376629333,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" tasks"}}
+{"timestamp":1762376629334,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" you"}}
+{"timestamp":1762376629367,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" want"}}
+{"timestamp":1762376629367,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" to"}}
+{"timestamp":1762376629400,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" accomplish"}}
+{"timestamp":1762376629400,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" for"}}
+{"timestamp":1762376629441,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" the"}}
+{"timestamp":1762376629441,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" day"}}
+{"timestamp":1762376629469,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"."}}
+{"timestamp":1762376629470,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" This"}}
+{"timestamp":1762376629509,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" will"}}
+{"timestamp":1762376629510,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" help"}}
+{"timestamp":1762376629536,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" you"}}
+{"timestamp":1762376629536,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" stay"}}
+{"timestamp":1762376629577,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" organized"}}
+{"timestamp":1762376629578,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" and"}}
+{"timestamp":1762376629614,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" focused"}}
+{"timestamp":1762376629614,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":".\n\n"}}
+{"timestamp":1762376629649,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"Feel"}}
+{"timestamp":1762376629650,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" free"}}
+{"timestamp":1762376629683,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" to"}}
+{"timestamp":1762376629684,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" adjust"}}
+{"timestamp":1762376629721,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" any"}}
+{"timestamp":1762376629722,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" steps"}}
+{"timestamp":1762376629764,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" to"}}
+{"timestamp":1762376629765,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" better"}}
+{"timestamp":1762376629802,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" fit"}}
+{"timestamp":1762376629803,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" your"}}
+{"timestamp":1762376629833,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":" preferences"}}
+{"timestamp":1762376629833,"type":"sse","name":"planning","event":"token","payload":{"type":"token","content":"!"}}
+{"timestamp":1762376630597,"type":"sse","name":"planning","event":"token","payload":{"type":"done","data":{"final_response":"Here's a simple 3-step morning routine to kickstart your day:\n\n1. **Wake Up and Hydrate**: Start your day by waking up at a consistent time and drinking a glass of water to rehydrate your body after a night's sleep.\n\n2. **Stretch or Exercise**: Spend 10-15 minutes doing some light stretching or a quick workout to get your blood flowing and energize yourself for the day ahead.\n\n3. **Plan Your Day**: Take a few minutes to review your schedule, set priorities, and list tasks you want to accomplish for the day. This will help you stay organized and focused.\n\nFeel free to adjust any steps to better fit your preferences!"}}}
+{"timestamp":1762376630598,"type":"case.done","name":"planning","ttff_ms":790,"duration_ms":5183,"token_chars":622,"events":140}
+{"timestamp":1762376630850,"type":"case.start","name":"long_context","mode":"helpful","API_URL":"https://agentmax-production.up.railway.app","endpoint_candidates":["https://agentmax-production.up.railway.app/api/v2/chat/streaming/stream","https://agentmax-production.up.railway.app/api/streaming/stream"]}
+{"timestamp":1762376630850,"type":"case.try_endpoint","name":"long_context","endpoint":"https://agentmax-production.up.railway.app/api/v2/chat/streaming/stream"}
+{"timestamp":1762376630879,"type":"case.endpoint_failed","name":"long_context","endpoint":"https://agentmax-production.up.railway.app/api/v2/chat/streaming/stream","status":422,"body":"{\"detail\":[{\"type\":\"string_too_long\",\"loc\":[\"body\",\"message\"],\"msg\":\"String should have at most 4000 characters\",\"input\":\"Summarize the following in one paragraph:\\nLorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet,"}
+{"timestamp":1762376630879,"type":"case.try_endpoint","name":"long_context","endpoint":"https://agentmax-production.up.railway.app/api/streaming/stream"}
+{"timestamp":1762376630958,"type":"case.endpoint_failed","name":"long_context","endpoint":"https://agentmax-production.up.railway.app/api/streaming/stream","status":422,"body":"{\"detail\":[{\"type\":\"string_too_long\",\"loc\":[\"body\",\"message\"],\"msg\":\"String should have at most 4000 characters\",\"input\":\"Summarize the following in one paragraph:\\nLorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet, Lorem ipsum dolor sit amet,"}
+{"timestamp":1762376639618,"type":"case.json_fallback","name":"long_context","endpoint":"https://agentmax-production.up.railway.app/api/v2/chat/message","status":200,"body":{"response":"The passage is simply a long repetition of the placeholder phrase “Lorem ipsum dolor sit amet,” offering no additional content, context, or structure; it functions purely as filler text without any distinct ideas or narrative.","session_id":"fire-test","reasoning_used":"gpt-5","facts_extracted":0,"context_used":{"profile_name":"User","interaction_count":0,"conversation_length":2,"facts_in_session":0,"using_client_memory":false}}}
+{"timestamp":1762376639870,"type":"case.start","name":"autonomous_simple","mode":"autonomous","API_URL":"https://agentmax-production.up.railway.app","endpoint_candidates":["https://agentmax-production.up.railway.app/api/v2/autonomous/execute/stream"]}
+{"timestamp":1762376639879,"type":"case.try_endpoint","name":"autonomous_simple","endpoint":"https://agentmax-production.up.railway.app/api/v2/autonomous/execute/stream"}
+{"timestamp":1762376639906,"type":"case.endpoint_selected","name":"autonomous_simple","endpoint":"https://agentmax-production.up.railway.app/api/v2/autonomous/execute/stream","status":200}
+{"timestamp":1762376639907,"type":"sse","name":"autonomous_simple","event":"thinking","payload":{"message":"Analyzing request..."}}
+{"timestamp":1762376639907,"type":"sse","name":"autonomous_simple","event":"stream_init","payload":{"stream_schema":"v1","server_ts":1762376639930}}
+{"timestamp":1762376639907,"type":"sse","name":"autonomous_simple","event":"thinking","payload":{"message":"Planning step 1...","step":1,"total_steps":10}}
+{"timestamp":1762376671823,"type":"sse","name":"autonomous_simple","event":"tool_start","payload":{"tool":"Shell Command","command":"printf '1. Freeze code, bump version, tag release.\n2. Run CI/CD (build/tests/security) — all green.\n3. Update changelog and publish release notes.\n4. Deploy (staged/canary), run smoke/health checks.\n5. Announce release; monitor KPIs, logs, alerts; be ready to rollback.\n'","step":1}}
+{"timestamp":1762376671825,"type":"sse","name":"autonomous_simple","event":"tool_progress","payload":{"tool":"Shell Command","message":"Executing: printf '1. Freeze code, bump version, tag release....","progress":0.5}}
+{"timestamp":1762376671825,"type":"sse","name":"autonomous_simple","event":"tool_complete","payload":{"tool":"Shell Command","result":"Success","output":"1. Freeze code, bump version, tag release.\n2. Run CI/CD (build/tests/security) — all green.\n3. Update changelog and publish release notes.\n4. Deploy (staged/canary), run smoke/health checks.\n5. Announ","success":true}}
+{"timestamp":1762376671826,"type":"sse","name":"autonomous_simple","event":"step","payload":{"step_number":1,"action":"execute_command","reasoning":"Use a single printf command to output a concise 5-item checklist as requested.","result":"1. Freeze code, bump version, tag release.\n2. Run CI/CD (build/tests/security) — all green.\n3. Update changelog and publish release notes.\n4. Deploy (staged/canary), run smoke/health checks.\n5. Announce release; monitor KPIs, logs, alerts; be ready to rollback.\n","success":true}}
+{"timestamp":1762376671826,"type":"sse","name":"autonomous_simple","event":"heartbeat","payload":{"server_ts":1762376671851}}
+{"timestamp":1762376671827,"type":"sse","name":"autonomous_simple","event":"thinking","payload":{"message":"Planning step 2...","step":2,"total_steps":10}}
+{"timestamp":1762376679083,"type":"sse","name":"autonomous_simple","event":"step","payload":{"step_number":2,"action":"respond","reasoning":"The executed command output the requested concise 5-item checklist; goal achieved.","result":"1. Freeze code, bump version, tag release.\n2. Run CI/CD (build/tests/security) — all green.\n3. Update changelog and publish release notes.\n4. Deploy (staged/canary), run smoke/health checks.\n5. Announce release; monitor KPIs, logs, alerts; be ready to rollback.","success":true}}
+{"timestamp":1762376679084,"type":"sse","name":"autonomous_simple","event":"metadata","payload":{"used_facts":[],"context_hash":"4efd4abba9d2fbc0c3e616c6ec22ecca385521635c4d65e9e0c919fae60dfb44","context_hash_short":"4efd4abba9d2fbc0","context_tokens":15,"facts_selected":0,"encoder_name":"cl100k_base"}}
+{"timestamp":1762376679084,"type":"sse","name":"autonomous_simple","event":"complete","payload":{"goal":"Draft a concise checklist for launching a new app version. Keep it to 5 items.","status":"completed","steps":[{"step_number":1,"action":"execute_command","reasoning":"Use a single printf command to output a concise 5-item checklist as requested.","result":"1. Freeze code, bump version, tag release.\n2. Run CI/CD (build/tests/security) — all green.\n3. Update changelog and publish release notes.\n4. Deploy (staged/canary), run smoke/health checks.\n5. Announce release; monitor KPIs, logs, alerts; be ready to rollback.\n","success":true},{"step_number":2,"action":"respond","reasoning":"The executed command output the requested concise 5-item checklist; goal achieved.","result":"1. Freeze code, bump version, tag release.\n2. Run CI/CD (build/tests/security) — all green.\n3. Update changelog and publish release notes.\n4. Deploy (staged/canary), run smoke/health checks.\n5. Announce release; monitor KPIs, logs, alerts; be ready to rollback.","success":true}],"final_response":"1. Freeze code, bump version, tag release.\n2. Run CI/CD (build/tests/security) — all green.\n3. Update changelog and publish release notes.\n4. Deploy (staged/canary), run smoke/health checks.\n5. Announce release; monitor KPIs, logs, alerts; be ready to rollback.","total_steps":2}}
+{"timestamp":1762376679085,"type":"sse","name":"autonomous_simple","event":"done","payload":{"status":"success"}}
+{"timestamp":1762376679087,"type":"case.done","name":"autonomous_simple","ttff_ms":37,"duration_ms":39217,"token_chars":530,"events":13}
+{"timestamp":1762376679338,"type":"session.end","ended_at":"2025-11-05T21:04:39.338Z","results":[{"name":"basic_math_chat","ok":true,"status":200,"ttff":728,"total":1901,"tokens":29,"events":14},{"name":"reasoning_short","ok":true,"status":200,"ttff":530,"total":3230,"tokens":337,"events":64},{"name":"planning","ok":true,"status":200,"ttff":790,"total":5183,"tokens":622,"events":140},{"name":"long_context","ok":true,"status":200,"usedFallback":true},{"name":"autonomous_simple","ok":true,"status":200,"ttff":37,"total":39217,"tokens":530,"events":13}]}

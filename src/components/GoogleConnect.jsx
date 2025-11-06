@@ -236,6 +236,17 @@ export function GoogleConnect({ compact = false }) {
             toast.success(`Connected to ${statusResponse.data.email}!`);
             setLoading(false);
             clearInterval(pollInterval);
+            return;
+          }
+
+          // Surface backend callback errors (e.g., "Failed to store tokens")
+          if (statusResponse.data.error) {
+            const detail = typeof statusResponse.data.error === 'string' ? statusResponse.data.error : (statusResponse.data.error.detail || 'Authorization failed');
+            setError(detail);
+            toast.error(detail);
+            setLoading(false);
+            clearInterval(pollInterval);
+            return;
           }
         } catch (err) {
           // Continue polling if error
@@ -381,9 +392,25 @@ export function GoogleConnect({ compact = false }) {
           )}
 
           {error && (
-            <div className="error-message mb-4">
-              <AlertCircle className="w-5 h-5" />
-              <span>{error}</span>
+            <div className="error-message mb-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <AlertCircle className="w-5 h-5" />
+                <span>{error}</span>
+              </div>
+              <button
+                onClick={() => { setError(''); connectGoogle(); }}
+                className="retry-button"
+                style={{
+                  padding: '6px 10px',
+                  background: '#ef4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontWeight: 600,
+                }}
+              >
+                Try again
+              </button>
             </div>
           )}
 
@@ -401,7 +428,7 @@ export function GoogleConnect({ compact = false }) {
                   <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
                   <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
                 </svg>
-                <span>Sign in with Google</span>
+                <span>Connect Google</span>
               </>
             )}
           </button>
