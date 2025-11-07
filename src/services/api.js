@@ -531,8 +531,6 @@ export const chatAPI = {
       'X-User-Id': localStorage.getItem('user_id') || 'anonymous'
     };
     if (configuredKey) headers['X-API-Key'] = configuredKey;
-    // Request V1.1 events for autonomous mode (ack, plan, exec_log, confidence, final)
-    if (isAutonomous) headers['X-Events-Version'] = '1.1';
 
     let response;
     let lastStatus = 0;
@@ -705,7 +703,7 @@ export const chatAPI = {
             // Handle autonomous endpoint events (different format)
             if (isAutonomous) {
               // Autonomous events: backend flattens payload: { type, id, ...data }
-              const eventType = parsed.type;
+              const eventType = parsed.type || parsed.event;
 
               // Helper: normalize payload to always return a data object
               const getPayloadData = (obj) => {
@@ -744,9 +742,14 @@ export const chatAPI = {
                   onEvent({ type: 'token', content, data: tData });
                 }
               } else if (eventType === 'final') {
-                // Phase 1+: Final summary with rationale (not yet emitted by backend)
                 const finalData = getPayloadData(parsed);
-                onEvent({ type: 'final', data: finalData });
+                const finalResponse = finalData.final_response || finalData.response || parsed.final_response || '';
+                onEvent({ type: 'final', data: { final_response: finalResponse, ...finalData } });
+              } else if (eventType === 'complete') {
+                const completeData = getPayloadData(parsed);
+                const finalResponse =
+                  completeData.final_response || completeData.response || parsed.final_response || '';
+                onEvent({ type: 'final', data: { final_response: finalResponse, ...completeData } });
               } else if (eventType === 'thinking') {
                 // Enhanced thinking with step context
                 const thinkingData = getPayloadData(parsed);

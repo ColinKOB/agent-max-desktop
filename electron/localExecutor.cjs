@@ -16,6 +16,9 @@ const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
+const { exec } = require('child_process');
+const util = require('util');
+const execAsync = util.promisify(exec);
 
 class LocalExecutor {
   constructor() {
@@ -60,8 +63,12 @@ class LocalExecutor {
   async execute(action, policy) {
     console.log('[LocalExecutor] Executing:', action.type);
     
-    // Ensure browser is initialized
-    if (!this.initialized) {
+    // Initialize browser only for actions that need it
+    const needsBrowser = (() => {
+      const t = action.type;
+      return t === 'browser.open' || t === 'browser.fill' || t === 'browser.click' || t === 'browser.get_text' || t === 'screenshot';
+    })();
+    if (needsBrowser && !this.initialized) {
       await this.init();
     }
 
@@ -71,6 +78,9 @@ class LocalExecutor {
       let result;
 
       switch (type) {
+        case 'sh.run':
+          result = await this.shellRun(args);
+          break;
         case 'browser.open':
           result = await this.browserOpen(args);
           break;
@@ -132,6 +142,40 @@ class LocalExecutor {
           message: error.message,
           stack: error.stack
         }
+      };
+    }
+  }
+
+  /**
+   * Run a shell command
+   */
+  async shellRun(args) {
+    const { command, timeout_sec } = args || {};
+    if (!command || typeof command !== 'string') {
+      throw new Error('Invalid shell command');
+    }
+    console.log('[LocalExecutor] Running shell command:', command);
+
+    try {
+      const { stdout, stderr } = await execAsync(command, {
+        timeout: (timeout_sec || 60) * 1000,
+        maxBuffer: 10 * 1024 * 1024,
+        shell: true,
+      });
+      return {
+        status: 'completed',
+        stdout: stdout || '',
+        stderr: stderr || '',
+        exit_code: 0,
+        message: 'Command executed',
+      };
+    } catch (error) {
+      return {
+        status: 'failed',
+        stdout: error.stdout || '',
+        stderr: error.stderr || error.message,
+        exit_code: typeof error.code === 'number' ? error.code : 1,
+        message: 'Command failed',
       };
     }
   }

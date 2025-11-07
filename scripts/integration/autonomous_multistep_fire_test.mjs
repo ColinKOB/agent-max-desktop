@@ -61,7 +61,6 @@ async function streamAutonomous(name, goal) {
     'Accept': 'text/event-stream',
     'X-API-Key': TEST_API_KEY,
     'X-User-Id': 'fire-tester',
-    'X-Events-Version': '1.1'
   };
   const payload = {
     goal,

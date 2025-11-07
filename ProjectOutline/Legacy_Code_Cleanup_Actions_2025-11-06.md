@@ -12,6 +12,9 @@
   - Updated `src/services/memoryAPI.js` to prefer `/api/v2/*` for facts, messages, stats, health, extract, apply; falls back to legacy `/api/memory/*` on 404/405 or network errors.
   - Left `query()` retrieval behavior intact.
   - Fixed `SettingsApp.jsx` import to use the named export `{ BillingSettings }` to resolve build error.
+- Normalized autonomous streaming events in `src/services/api.js` `chatAPI.sendMessageStream`.
+  - Accepts `type` or `event` keys, maps `complete` → `final`, and standardizes `final`/`done` to include `data.final_response` even when backend returns top-level `final_response`.
+  - Deprecated the `X-Events-Version: 1.1` header; no longer sent by the client.
 
 ## Legacy cleanup status (completed)
 - Legacy FloatBar stack, WS autonomous harness, and stray `Untitled-*` originals have been removed after archiving.
@@ -39,6 +42,12 @@
   - Added Chalk CJS fallback shim for Node 22 (ESM-only chalk v5) to prevent crashes.
   - E2E phase marked as failed due to Playwright non-zero exit code despite passing tests.
   - Performance (Lighthouse): Perf 50, A11y 82, Best Practices 75 (thresholds not met). Bundle-size check passed.
+- Unit tests added (stream normalization):
+  - Added `tests/unit/chat_stream_normalization.test.js` covering:
+    - Agent v1.1 stream: `ack/plan/token/final/done` → ensures `data.final_response` is present.
+    - Autonomous Phase 3 stream: `thinking/complete/done` with top-level `final_response` → normalized to `final` and `done` with `data.final_response`.
+    - Alias support for `event` key and POST + headers (does NOT send `X-Events-Version`).
+  - Result: PASS (3/3) when run isolated.
 
 ## Triage Items
 - Investigate Playwright exit code discrepancy:

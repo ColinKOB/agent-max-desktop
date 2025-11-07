@@ -24,6 +24,7 @@
 - [x] Add `fs.append` - Append content to existing file
 - [x] Add `fs.list` - List directory contents
 - [x] Add `fs.delete` - Delete file (safe guards)
+ - [x] Add `sh.run` - Execute shell commands via child_process.exec (with timeout & buffer limits)
 
 ### 2.2 Path Safety & Resolution
 - [x] Implement path normalization (resolve `~`, `.`, `..`)
@@ -130,11 +131,13 @@
 - [ ] Test: Special characters in filenames
 - [ ] Test: Unicode content in files
 - [ ] Test: Binary file handling (base64)
+- [x] Test: Shell command execution via `sh.run` (smoke test: `echo hello-from-localexecutor`)
 
 ### 5.4 Shell Command Safety
-- [ ] Test: "Run ls -la command"
-  - Expected: NOT executed (no sh.run support yet)
-  - Appropriate error/warning shown
+- [x] Test: "Run echo hello-from-localexecutor"
+  - Expected: Executed locally via `sh.run`, stdout captured
+  - Result: PASS (stdout: "hello-from-localexecutor")
+  - Notes: Execution uses `child_process.exec` with 60s timeout and 10MB buffer cap. No browser init required.
 
 ---
 
