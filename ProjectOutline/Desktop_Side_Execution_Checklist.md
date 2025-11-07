@@ -65,6 +65,11 @@
 - [x] Execute via `window.electron.memory.autonomous.execute()` (IPC → LocalExecutor)
 - [x] Attempt result callback POST to `/api/v2/agent/action-result` when available (safe no-op if missing)
 
+### 3.5 Stream v2.1 Support ✅
+- [x] Send `X-Stream-Id` and (when resuming) `Last-Sequence-Seen`
+- [x] Handle `metadata` events (e.g., `resume_unavailable`)
+- [x] Surface `final` metrics: `tokens_out`, `total_ms`, `tokens_in`, `cost_usd`, `checksum`
+
 ---
 
 ## Phase 4: UI/UX Integration ✅
@@ -83,6 +88,7 @@
 - [x] Show file contents when read operation completes (in thoughts with preview)
 - [x] Show directory listing when list operation completes (formatted with icons)
 - [x] Show execution results in thought history
+- [x] Execution Details panel (collapsible): shows action, command, exit code, stdout/stderr with Copy buttons; does not pollute Thoughts
 
 ---
 

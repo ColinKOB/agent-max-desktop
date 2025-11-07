@@ -92,6 +92,16 @@ export default function AppleFloatBar({
   const continueSendMessageRef = useRef(null); // dispatcher to avoid TDZ
   const [showReconnected, setShowReconnected] = useState(false);
   const thoughtIdRef = useRef(null); // current inline thought entry id
+  const [execPanelOpen, setExecPanelOpen] = useState(true);
+  const [executionDetails, setExecutionDetails] = useState(null);
+  const copyToClipboard = useCallback(async (text, note = 'Copied') => {
+    try {
+      await navigator.clipboard.writeText(String(text || ''));
+      toast.success(note);
+    } catch (_) {
+      toast.error('Copy failed');
+    }
+  }, []);
   
   // Store
   const { clearMessages, apiConnected, currentUser, setApiConnected } = useStore();
@@ -462,91 +472,83 @@ export default function AppleFloatBar({
           const normalized = (command && !command.type && command.action)
             ? { type: command.action, args: command.args || {} }
             : command;
-          const fp = mkActionFP(normalized?.type || command?.action, normalized?.args || command?.args || {});
-          if (fp) {
-            if (executedCommandsRef.current.has(fp)) {
-              console.log('[FSCommand] Skipping by fingerprint');
-              continue;
-            }
-            executedCommandsRef.current.add(fp);
-          }
-          logTelemetry('desktop.fs_execute.start', { action_type: normalized?.type, origin: 'fs_command' });
-          const result = await window.electron.memory.autonomous.execute(
-            null,
-            normalized,
-            { allowAll: true }
-          );
-          
-          if (result.success) {
-            logTelemetry('desktop.fs_execute.success', { action_type: normalized?.type, origin: 'fs_command' });
-            // Extract action name for user-friendly message
-            const actionName = (command.action || normalized?.type || '').split('.')[1] || (command.action || normalized?.type);
-            const friendlyNames = {
-              'write': 'File created',
-              'read': 'File read',
-              'append': 'File updated',
-              'list': 'Directory listed',
-              'delete': 'File deleted'
-            };
-            const message = friendlyNames[actionName] || 'Action completed';
-            
-            toast.success(`✅ ${message}`, {
-              duration: 3000,
-              style: {
-                background: 'rgba(34, 197, 94, 0.1)',
-                border: '1px solid rgba(34, 197, 94, 0.2)',
-                backdropFilter: 'blur(10px)'
-              }
+          // Show running state immediately
+          try {
+            const now = Date.now();
+            const actType = normalized?.type || '';
+            setExecutionDetails({
+              when: now,
+              actionType: actType,
+              args: normalized?.args || {},
+              command: (actType === 'sh.run') ? (normalized?.args?.command || '') : '',
+              status: 'running'
             });
-            
-            // Log to thought history
-            const resultMsg = result.result?.message || result.result?.path || 'Completed';
-            appendThought(`✅ ${resultMsg}`);
-            
-            // If it was a read operation, display the content
-            const actType = command.action || normalized?.type || '';
+            setExecPanelOpen(true);
+          } catch {}
+
+          const result = await window.electron.memory.autonomous.execute('fs_command', normalized, { allowAll: true }).catch(err => ({ success: false, error: { message: err?.message } }));
+          const actType = command.action || normalized?.type || '';
+
+          if (result && result.success) {
+            // Success toast
+            const labelMap = { 'fs.write': 'File created', 'fs.read': 'File read', 'fs.append': 'File updated', 'fs.list': 'Directory listed', 'fs.delete': 'File deleted', 'sh.run': 'Command executed' };
+            const label = labelMap[actType] || 'Action completed';
+            toast.success(`✅ ${label}`, {
+              duration: 3000,
+              style: { background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', backdropFilter: 'blur(10px)' }
+            });
+            // Previews
             if (actType === 'fs.read' && result.result?.content) {
               const content = result.result.content;
               const preview = content.length > 500 ? content.substring(0, 500) + '...' : content;
-              setThoughts(prev => [...prev, {
-                role: 'system',
-                content: `📄 **File Contents:**\n\`\`\`\n${preview}\n\`\`\``,
-                timestamp: Date.now(),
-                type: 'file_content'
-              }]);
+              toast(`📄 File contents (preview)\n${preview}`, { duration: 4000, style: { background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)', whiteSpace: 'pre-wrap' } });
             }
-            
-            // If it was a list operation, display the files
             if (actType === 'fs.list' && result.result?.files) {
               const files = result.result.files;
               const fileList = files.map(f => `- ${f.type === 'directory' ? '📁' : '📄'} ${f.name} (${f.size} bytes)`).join('\n');
-              setThoughts(prev => [...prev, {
-                role: 'system',
-                content: `📂 **Directory Contents:**\n${fileList}`,
-                timestamp: Date.now(),
-                type: 'dir_listing'
-              }]);
+              toast(`📂 Directory contents:\n${fileList}`, { duration: 4000, style: { background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)', whiteSpace: 'pre-wrap' } });
             }
-            
+            try {
+              setExecutionDetails({
+                when: Date.now(),
+                actionType: normalized?.type || '',
+                args: normalized?.args || {},
+                command: (normalized?.type === 'sh.run') ? (normalized?.args?.command || '') : '',
+                status: result?.result?.status || 'completed',
+                duration_ms: result?.result?.duration_ms,
+                exit_code: result?.result?.exit_code ?? 0,
+                stdout: result?.result?.stdout || '',
+                stderr: result?.result?.stderr || ''
+              });
+              setExecPanelOpen(true);
+            } catch {}
           } else {
-            // Execution failed
-            const error = result.error?.message || 'Unknown error';
-            logTelemetry('desktop.fs_execute.fail', { action_type: normalized?.type, origin: 'fs_command', error });
-            toast.error(`❌ ${error}`, {
-              duration: 5000,
-              style: {
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.2)',
-                backdropFilter: 'blur(10px)'
-              }
-            });
-            appendThought(`❌ Error: ${error}`);
+            // Failure toast
+            const stderr = result?.error?.stderr || result?.result?.stderr || '';
+            const stdout = result?.error?.stdout || result?.result?.stdout || '';
+            const detail = (stderr || stdout || result?.error?.message || 'Unknown error').toString();
+            const preview = detail.length > 240 ? detail.slice(0, 240) + '…' : detail;
+            const label = actType === 'sh.run' ? 'Command failed' : 'Action failed';
+            logTelemetry('desktop.fs_execute.fail', { action_type: normalized?.type, origin: 'fs_command', error: result?.error });
+            toast.error(`❌ ${label}: ${preview}`, { duration: 5000, style: { background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', backdropFilter: 'blur(10px)', whiteSpace: 'pre-wrap' } });
+            try {
+              setExecutionDetails({
+                when: Date.now(),
+                actionType: normalized?.type || '',
+                args: normalized?.args || {},
+                command: (normalized?.type === 'sh.run') ? (normalized?.args?.command || '') : '',
+                status: result?.result?.status || 'failed',
+                duration_ms: result?.result?.duration_ms,
+                exit_code: (typeof result?.error?.code === 'number') ? result.error.code : (result?.result?.exit_code ?? 1),
+                stdout,
+                stderr
+              });
+              setExecPanelOpen(true);
+            } catch {}
           }
         } else {
           console.warn('[FSCommand] window.electron not available - running in browser mode');
-          toast('⚠️ Desktop features not available in browser mode', {
-            duration: 3000
-          });
+          toast('⚠️ Desktop features not available in browser mode', { duration: 3000 });
         }
         
       } catch (error) {
@@ -746,12 +748,13 @@ export default function AppleFloatBar({
               }
             });
             setThinkingStatus(actionName);
-            appendThought(`✅ ${msg}`);
             break;
             
           case 'failed':
             // Action failed - show error notification
-            toast.error(`❌ ${msg}`, {
+            // Extract minimal reason
+            const reason = (typeof msg === 'string' ? msg : (log.error || 'Action failed')).toString();
+            toast.error(`❌ ${reason}`, {
               duration: 5000,
               style: {
                 background: 'rgba(239, 68, 68, 0.1)',
@@ -760,7 +763,6 @@ export default function AppleFloatBar({
               }
             });
             setThinkingStatus('Action failed');
-            appendThought(`❌ ${msg}`);
             break;
             
           case 'queued':
@@ -775,7 +777,6 @@ export default function AppleFloatBar({
               }
             });
             setThinkingStatus('Action requires approval');
-            appendThought(`🔒 ${msg}`);
             try {
               if (window.electron && window.electron.memory && window.electron.memory.autonomous) {
                 const at = log.action_type || (typeof msg === 'string' ? (msg.match(/Action requested:\s*([A-Za-z0-9_.-]+)/)?.[1] || null) : null);
@@ -784,8 +785,11 @@ export default function AppleFloatBar({
                   const planId = log.plan_id || log.planId || null;
                   const stepId = log.step_id || log.stepId || null;
                   const execKey = JSON.stringify({ pid: planId, sid: stepId, at, aa });
-                  if (!executedCommandsRef.current.has(execKey)) {
+                  const actionFP = mkActionFP(at, aa);
+                  // Strengthened dedup: check both per-step key and action fingerprint
+                  if (!executedCommandsRef.current.has(execKey) && !executedCommandsRef.current.has(actionFP)) {
                     executedCommandsRef.current.add(execKey);
+                    executedCommandsRef.current.add(actionFP);
                     toast(`🔧 Executing ${at}...`, {
                       duration: 2000,
                       icon: '⚡',
@@ -794,22 +798,52 @@ export default function AppleFloatBar({
                     const normalized = { type: at, args: aa || {} };
                     const execResult = await window.electron.memory.autonomous.execute(stepId, normalized, { allowAll: true });
                     if (execResult?.success) {
-                      const resMsg = execResult.result?.message || execResult.result?.path || 'Completed';
-                      appendThought(`✅ ${resMsg}`);
                       const an = (at || '').split('.')[1] || at;
                       const fn = { write: 'File created', read: 'File read', append: 'File updated', list: 'Directory listed', delete: 'File deleted' };
                       const label = fn[an] || 'Action completed';
                       toast.success(`✅ ${label}`, { duration: 3000, style: { background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', backdropFilter: 'blur(10px)' } });
                       await sendActionResult(planId, stepId, at, execResult.result).catch(() => {});
+                      try {
+                        setExecutionDetails({
+                          when: Date.now(),
+                          planId,
+                          stepId,
+                          actionType: at,
+                          args: aa || {},
+                          command: (at === 'sh.run') ? (aa?.command || '') : '',
+                          exit_code: execResult?.result?.exit_code ?? 0,
+                          stdout: execResult?.result?.stdout || '',
+                          stderr: execResult?.result?.stderr || ''
+                        });
+                        setExecPanelOpen(true);
+                      } catch {}
                     } else if (execResult && execResult.error) {
-                      const em = execResult.error?.message || execResult.error;
-                      toast.error(`❌ ${em}`, { duration: 5000, style: { background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', backdropFilter: 'blur(10px)' } });
-                      appendThought(`❌ ${em}`);
+                      const stderr = execResult.error?.stderr || execResult.result?.stderr || '';
+                      const stdout = execResult.error?.stdout || execResult.result?.stdout || '';
+                      const detail = (stderr || stdout || execResult.error?.message || 'Action failed').toString();
+                      const preview = detail.length > 240 ? detail.slice(0, 240) + '…' : detail;
+                      toast.error(`❌ ${preview}`, { duration: 5000, style: { background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', backdropFilter: 'blur(10px)', whiteSpace: 'pre-wrap' } });
+                      try {
+                        setExecutionDetails({
+                          when: Date.now(),
+                          planId,
+                          stepId,
+                          actionType: at,
+                          args: aa || {},
+                          command: (at === 'sh.run') ? (aa?.command || '') : '',
+                          exit_code: (typeof execResult?.error?.code === 'number') ? execResult.error.code : (execResult?.result?.exit_code ?? 1),
+                          stdout,
+                          stderr
+                        });
+                        setExecPanelOpen(true);
+                      } catch {}
                     }
                   }
                 }
               }
-            } catch {}
+            } catch (err) {
+              console.warn('[Exec] Auto-execution error', err);
+            }
             break;
             
           default:
@@ -972,36 +1006,45 @@ export default function AppleFloatBar({
                   logger.info('[Email] Checking Gmail API health...');
                   toast.loading('Verifying Gmail connection...', { id: 'gmail-health' });
                   
-                  axios.get(`http://localhost:8000/api/v2/google/gmail/health`, {
-                    params: { email: userEmail }
-                  }).then(healthResponse => {
-                    toast.dismiss('gmail-health');
-                    
-                    if (!healthResponse.data.healthy) {
-                      logger.error('[Email] Gmail health check failed:', healthResponse.data);
-                      toast.error(`Gmail error: ${healthResponse.data.message}`);
-                      return;
+                  (async () => {
+                    try {
+                      const cfg = apiConfigManager.getConfig ? apiConfigManager.getConfig() : { baseURL: apiConfigManager.getBaseURL?.() };
+                      const base = (cfg?.baseURL || '').replace(/\/$/, '');
+                      const headers = {};
+                      const key = (cfg && cfg.apiKey) || (apiConfigManager.getApiKey && apiConfigManager.getApiKey());
+                      if (key) headers['X-API-Key'] = key;
+                      try {
+                        const uid = localStorage.getItem('user_id');
+                        if (uid) headers['X-User-Id'] = uid;
+                      } catch {}
+                      const url = `${base}/api/v2/google/gmail/health`;
+                      const healthResponse = await axios.get(url, { params: { email: userEmail }, headers });
+                      toast.dismiss('gmail-health');
+                      if (!healthResponse?.data?.healthy) {
+                        logger.error('[Email] Gmail health check failed:', healthResponse?.data);
+                        toast.error(`Gmail error: ${healthResponse?.data?.message}`);
+                        return;
+                      }
+                      logger.info('[Email] Gmail healthy, sending email...', healthResponse.data);
+                      googleAPI.sendEmail(
+                        command.to,
+                        command.subject,
+                        command.body,
+                        command.cc,
+                        command.bcc,
+                        command.attachments
+                      ).then(() => {
+                        toast.success('Email sent successfully!');
+                      }).catch(error => {
+                        logger.error('[Email] Failed to send', error);
+                        toast.error(`Failed to send email: ${error.message}`);
+                      });
+                    } catch (healthError) {
+                      toast.dismiss('gmail-health');
+                      logger.error('[Email] Health check failed:', healthError);
+                      toast.error('Failed to verify Gmail connection. Please check your connection in settings.');
                     }
-                    
-                    logger.info('[Email] Gmail healthy, sending email...', healthResponse.data);
-                    
-                    // Gmail is healthy, proceed to send email
-                    googleAPI.sendEmail(
-                      command.to,
-                      command.subject,
-                      command.body
-                    ).then(response => {
-                      logger.info('[Email] Sent successfully', response);
-                      toast.success(`Email sent to ${command.to}!`);
-                    }).catch(error => {
-                      logger.error('[Email] Failed to send', error);
-                      toast.error(`Failed to send email: ${error.message}`);
-                    });
-                  }).catch(healthError => {
-                    toast.dismiss('gmail-health');
-                    logger.error('[Email] Health check failed:', healthError);
-                    toast.error('Failed to verify Gmail connection. Please check your connection in settings.');
-                  });
+                  })();
                 }
               }
             }
@@ -2132,6 +2175,11 @@ export default function AppleFloatBar({
     updateWindowHeight();
   }, [thoughts, isThinking, factTiles, updateWindowHeight]);
 
+  // Recalculate height when execution panel toggles or updates
+  useEffect(() => {
+    updateWindowHeight();
+  }, [execPanelOpen, executionDetails, updateWindowHeight]);
+
   // Auto-scroll to bottom when new messages arrive or thinking indicator toggles
   useEffect(() => {
     if (messagesRef.current) {
@@ -2263,6 +2311,65 @@ export default function AppleFloatBar({
           {showWelcome === true && !isTransitioning && (
             <div style={{ position: 'absolute', inset: 0, zIndex: 80 }}>
               <OnboardingFlow onComplete={onWelcomeComplete} />
+            </div>
+          )}
+
+          {/* Execution Details Panel */}
+          {executionDetails && (
+            <div style={{ marginTop: 8, marginBottom: 8, borderRadius: 10, border: '1px solid rgba(255,255,255,0.12)', background: 'linear-gradient(180deg, rgba(20,22,26,0.9), rgba(16,18,22,0.9))', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>Execution Details</span>
+                <span style={{ marginLeft: 8, fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)' }}>{new Date(executionDetails.when || Date.now()).toLocaleTimeString()}</span>
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={() => setExecPanelOpen(v => !v)}
+                    style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.85)', padding: '4px 8px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem' }}
+                  >
+                    {execPanelOpen ? 'Hide' : 'Show'}
+                  </button>
+                  <button
+                    onClick={() => setExecutionDetails(null)}
+                    style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.85)', padding: '4px 8px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem' }}
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+              {execPanelOpen && (
+                <div style={{ padding: '8px 10px', display: 'grid', rowGap: 8 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', columnGap: 8, alignItems: 'center' }}>
+                    <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem' }}>Action</div>
+                    <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.86rem' }}>{executionDetails.actionType || ''}</div>
+                  </div>
+                  {executionDetails.command && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr auto', columnGap: 8, alignItems: 'center' }}>
+                      <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem' }}>Command</div>
+                      <code style={{ color: 'rgba(255,255,255,0.95)', fontSize: '0.82rem', whiteSpace: 'pre-wrap' }}>{executionDetails.command}</code>
+                      <button onClick={() => copyToClipboard(executionDetails.command, 'Command copied')} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.85)', padding: '4px 8px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem' }}>Copy</button>
+                    </div>
+                  )}
+                  {typeof executionDetails.exit_code === 'number' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', columnGap: 8, alignItems: 'center' }}>
+                      <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem' }}>Exit code</div>
+                      <div style={{ color: executionDetails.exit_code === 0 ? '#34d399' : '#f87171', fontWeight: 600 }}>{executionDetails.exit_code}</div>
+                    </div>
+                  )}
+                  {executionDetails.stdout && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr auto', columnGap: 8 }}>
+                      <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem' }}>Stdout</div>
+                      <pre style={{ margin: 0, maxHeight: 120, overflow: 'auto', padding: 8, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.92)', whiteSpace: 'pre-wrap' }}>{executionDetails.stdout}</pre>
+                      <button onClick={() => copyToClipboard(executionDetails.stdout, 'Stdout copied')} style={{ alignSelf: 'start', background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.85)', padding: '4px 8px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem' }}>Copy</button>
+                    </div>
+                  )}
+                  {executionDetails.stderr && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr auto', columnGap: 8 }}>
+                      <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem' }}>Stderr</div>
+                      <pre style={{ margin: 0, maxHeight: 120, overflow: 'auto', padding: 8, borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: 'rgba(255,235,235,0.92)', whiteSpace: 'pre-wrap' }}>{executionDetails.stderr}</pre>
+                      <button onClick={() => copyToClipboard(executionDetails.stderr, 'Stderr copied')} style={{ alignSelf: 'start', background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.85)', padding: '4px 8px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem' }}>Copy</button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

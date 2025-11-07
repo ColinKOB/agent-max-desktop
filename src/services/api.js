@@ -499,6 +499,7 @@ export const chatAPI = {
       goal: message,
       message: message,
       mode: requestedMode,
+      events_version: '2.1',
       user_context: userContext ? {
         profile: userContext.profile || {},
         facts: userContext.facts || {},
@@ -514,6 +515,7 @@ export const chatAPI = {
     } : {
       // Chat endpoint
       message: truncatedMessage,
+      events_version: '2.1',
       context: userContext,
       max_tokens: 1024,
       temperature: 0.7,
@@ -528,9 +530,23 @@ export const chatAPI = {
     const headers = {
       'Content-Type': 'application/json',
       'Accept': 'text/event-stream',
+      'X-Events-Version': '2.1',
       'X-User-Id': localStorage.getItem('user_id') || 'anonymous'
     };
     if (configuredKey) headers['X-API-Key'] = configuredKey;
+
+    // v2.1: Stream identity and resume support
+    // Always generate a stream id for resilience; harmless if backend ignores it.
+    const genStreamId = () => {
+      try { return (globalThis.crypto && crypto.randomUUID && crypto.randomUUID()) || null; } catch (_) { return null; }
+    };
+    let streamId = null;
+    try {
+      streamId = (userContext && userContext.__resume && userContext.__resume.streamId) || genStreamId() || `stream_${Math.random().toString(36).slice(2)}`;
+      headers['X-Stream-Id'] = streamId;
+      const lastSeen = userContext && userContext.__resume && (userContext.__resume.lastSequenceSeen ?? null);
+      if (lastSeen !== null && lastSeen !== undefined) headers['Last-Sequence-Seen'] = String(lastSeen);
+    } catch {}
 
     let response;
     let lastStatus = 0;
@@ -674,6 +690,8 @@ export const chatAPI = {
     // Track ack/token to detect empty streams and trigger JSON fallback
     let ackSeen = false;
     let anyTokenSeen = false;
+    // v2.1: track last sequence seen for potential resume
+    let lastSequenceSeen = (userContext && userContext.__resume && (userContext.__resume.lastSequenceSeen ?? null)) || null;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -704,6 +722,15 @@ export const chatAPI = {
             if (isAutonomous) {
               // Autonomous events: backend flattens payload: { type, id, ...data }
               const eventType = parsed.type || parsed.event;
+
+              // v2.1: derive sequence if present and persist
+              try {
+                const seq = parsed.seq ?? parsed.sequence ?? parsed.sequence_id ?? parsed.event_id ?? null;
+                if (seq !== null && seq !== undefined) {
+                  lastSequenceSeen = seq;
+                  try { localStorage.setItem(`amx_stream_seq_${streamId}`, String(seq)); } catch {}
+                }
+              } catch {}
 
               // Helper: normalize payload to always return a data object
               const getPayloadData = (obj) => {
@@ -744,12 +771,27 @@ export const chatAPI = {
               } else if (eventType === 'final') {
                 const finalData = getPayloadData(parsed);
                 const finalResponse = finalData.final_response || finalData.response || parsed.final_response || '';
-                onEvent({ type: 'final', data: { final_response: finalResponse, ...finalData } });
+                // v2.1: surface metrics if present
+                const metrics = {
+                  tokens_out: finalData.tokens_out ?? parsed.tokens_out,
+                  total_ms: finalData.total_ms ?? parsed.total_ms,
+                  tokens_in: finalData.tokens_in ?? parsed.tokens_in,
+                  cost_usd: finalData.cost_usd ?? parsed.cost_usd,
+                  checksum: finalData.checksum ?? parsed.checksum,
+                };
+                onEvent({ type: 'final', data: { final_response: finalResponse, ...finalData, ...metrics } });
               } else if (eventType === 'complete') {
                 const completeData = getPayloadData(parsed);
                 const finalResponse =
                   completeData.final_response || completeData.response || parsed.final_response || '';
-                onEvent({ type: 'final', data: { final_response: finalResponse, ...completeData } });
+                const metrics = {
+                  tokens_out: completeData.tokens_out ?? parsed.tokens_out,
+                  total_ms: completeData.total_ms ?? parsed.total_ms,
+                  tokens_in: completeData.tokens_in ?? parsed.tokens_in,
+                  cost_usd: completeData.cost_usd ?? parsed.cost_usd,
+                  checksum: completeData.checksum ?? parsed.checksum,
+                };
+                onEvent({ type: 'final', data: { final_response: finalResponse, ...completeData, ...metrics } });
               } else if (eventType === 'thinking') {
                 // Enhanced thinking with step context
                 const thinkingData = getPayloadData(parsed);
@@ -773,10 +815,21 @@ export const chatAPI = {
                 const doneData = getPayloadData(parsed);
                 const finalResponse =
                   doneData.final_response || doneData.response || parsed.final_response || '';
-                onEvent({ type: 'done', data: { final_response: finalResponse } });
+                // v2.1: include metrics on done too if present
+                const metrics = {
+                  tokens_out: doneData.tokens_out ?? parsed.tokens_out,
+                  total_ms: doneData.total_ms ?? parsed.total_ms,
+                  tokens_in: doneData.tokens_in ?? parsed.tokens_in,
+                  cost_usd: doneData.cost_usd ?? parsed.cost_usd,
+                  checksum: doneData.checksum ?? parsed.checksum,
+                };
+                onEvent({ type: 'done', data: { final_response: finalResponse, ...metrics } });
               } else if (eventType === 'error') {
                 const errData = getPayloadData(parsed);
                 onEvent({ type: 'error', data: { error: errData.error || 'Unknown error' } });
+              } else if (eventType === 'metadata') {
+                const md = getPayloadData(parsed);
+                onEvent({ type: 'metadata', data: md });
               } else {
                 // Pass through other events (stream_init, heartbeat, etc.)
                 onEvent(parsed);

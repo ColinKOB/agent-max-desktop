@@ -68,7 +68,9 @@ class LocalExecutor {
       const t = action.type;
       return t === 'browser.open' || t === 'browser.fill' || t === 'browser.click' || t === 'browser.get_text' || t === 'screenshot';
     })();
+    try { console.log('[LocalExecutor] needsBrowser:', needsBrowser); } catch {}
     if (needsBrowser && !this.initialized) {
+      try { console.log('[LocalExecutor] Initializing Puppeteer (required for action)'); } catch {}
       await this.init();
     }
 
@@ -157,25 +159,33 @@ class LocalExecutor {
     console.log('[LocalExecutor] Running shell command:', command);
 
     try {
+      const started = Date.now();
+      const shellPath = process.platform === 'win32' ? 'cmd.exe' : '/bin/bash';
       const { stdout, stderr } = await execAsync(command, {
         timeout: (timeout_sec || 60) * 1000,
         maxBuffer: 10 * 1024 * 1024,
-        shell: true,
+        shell: shellPath,
       });
+      const duration_ms = Date.now() - started;
       return {
         status: 'completed',
         stdout: stdout || '',
         stderr: stderr || '',
         exit_code: 0,
         message: 'Command executed',
+        duration_ms,
       };
     } catch (error) {
+      const duration_ms = typeof error?.killed === 'boolean' || error?.signal || error?.cmd ? (error.startTime ? (Date.now() - error.startTime) : undefined) : undefined;
+      const timedOut = (error && (error.killed === true) && (error.signal === 'SIGTERM')) || /timed out/i.test(String(error.message || ''));
+      const exit = timedOut ? 124 : (typeof error.code === 'number' ? error.code : 1);
       return {
-        status: 'failed',
+        status: timedOut ? 'timeout' : 'failed',
         stdout: error.stdout || '',
         stderr: error.stderr || error.message,
-        exit_code: typeof error.code === 'number' ? error.code : 1,
-        message: 'Command failed',
+        exit_code: exit,
+        message: timedOut ? `Command timed out after ${(timeout_sec || 60)}s` : 'Command failed',
+        duration_ms,
       };
     }
   }

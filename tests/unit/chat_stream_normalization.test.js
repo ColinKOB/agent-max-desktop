@@ -146,4 +146,50 @@ describe('chatAPI.sendMessageStream normalization', () => {
     expect(options.headers['Accept']).toBe('text/event-stream');
     expect(options.headers['X-Events-Version']).toBeUndefined();
   });
+
+  it('handles v2.1 metadata and surfaces final metrics', async () => {
+    const sse = buildSSEStream([
+      { type: 'ack', data: { id: 1 } },
+      { type: 'metadata', data: { key: 'resume_unavailable' } },
+      { type: 'final', data: { final_response: 'ok', tokens_out: 37, total_ms: 1234, tokens_in: 55, cost_usd: 0.0012, checksum: 'abc' } },
+      { type: 'done', data: { final_response: 'ok', tokens_out: 37, total_ms: 1234, tokens_in: 55, cost_usd: 0.0012, checksum: 'abc' } },
+    ]);
+    fetchSpy.mockResolvedValueOnce(sse);
+
+    const events = [];
+    await chatAPI.sendMessageStream('v2.1 test', { __mode: 'autonomous' }, null, (evt) => {
+      events.push(evt);
+    });
+
+    const types = events.map((e) => e.type);
+    expect(types).toContain('metadata');
+    const finalEvt = events.find((e) => e.type === 'final');
+    const doneEvt = events.find((e) => e.type === 'done');
+    expect(finalEvt.data.final_response).toBe('ok');
+    expect(doneEvt.data.final_response).toBe('ok');
+    expect(finalEvt.data.tokens_out).toBe(37);
+    expect(finalEvt.data.total_ms).toBe(1234);
+    expect(finalEvt.data.tokens_in).toBe(55);
+    expect(finalEvt.data.cost_usd).toBeCloseTo(0.0012);
+    expect(finalEvt.data.checksum).toBe('abc');
+  });
+
+  it('sends v2.1 resume headers when provided', async () => {
+    const sse = buildSSEStream([
+      { type: 'ack' },
+      { type: 'done', data: { final_response: 'r' } },
+    ]);
+    fetchSpy.mockResolvedValueOnce(sse);
+
+    const resume = { streamId: 'stream-xyz', lastSequenceSeen: 42 };
+    const events = [];
+    await chatAPI.sendMessageStream('resume', { __mode: 'autonomous', __resume: resume }, null, (evt) => {
+      events.push(evt);
+    });
+
+    const [url, options] = fetchSpy.mock.calls[0];
+    expect(options.method).toBe('POST');
+    expect(options.headers['X-Stream-Id']).toBe('stream-xyz');
+    expect(options.headers['Last-Sequence-Seen']).toBe('42');
+  });
 });
