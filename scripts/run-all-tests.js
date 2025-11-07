@@ -6,7 +6,27 @@
 const { spawn, exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const chalk = require('chalk');
+let chalk = null;
+try {
+  chalk = require('chalk');
+} catch (e) {
+  chalk = null;
+}
+
+// Fallback no-color chalk shim for environments where Chalk (ESM) cannot be required from CJS
+if (!chalk || typeof chalk.blue === 'undefined') {
+  const passthrough = (s) => s;
+  const withBold = Object.assign((s) => s, { bold: (s) => s });
+  chalk = {
+    blue: withBold,
+    yellow: withBold,
+    green: withBold,
+    red: withBold,
+    gray: withBold,
+    cyan: withBold,
+    bold: (s) => s,
+  };
+}
 
 // Test results storage
 const results = {

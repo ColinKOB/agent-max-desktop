@@ -74,15 +74,17 @@ const connectionState = {
 // SUBSCRIPTION MANAGEMENT (Option B)
 // ============================================
 export const subscriptionAPI = {
-  // Get subscription status by email
-  getStatus: (email) => api.get(`/api/subscription/status`, { params: { email } }),
+  getStatus: (email) =>
+    api.get(`/api/v2/subscription/status`, { params: { email } })
+      .catch(() => api.get(`/api/subscription/status`, { params: { email } })),
 
-  // Open Stripe billing portal
   createPortal: (email, returnUrl) =>
-    api.post(`/api/subscription/billing-portal`, { email, return_url: returnUrl }),
+    api.post(`/api/v2/subscription/billing-portal`, { email, return_url: returnUrl })
+      .catch(() => api.post(`/api/subscription/billing-portal`, { email, return_url: returnUrl })),
 
-  // Cancel subscription at period end
-  cancel: (email) => api.post(`/api/subscription/cancel`, null, { params: { email } }),
+  cancel: (email) =>
+    api.post(`/api/v2/subscription/cancel`, null, { params: { email } })
+      .catch(() => api.post(`/api/subscription/cancel`, null, { params: { email } })),
 };
 
 export const addConnectionListener = (callback) => {

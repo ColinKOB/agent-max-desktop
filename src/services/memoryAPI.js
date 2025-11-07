@@ -99,14 +99,22 @@ export async function getFacts(filters = {}) {
   if (filters.include_tombstoned) params.append('include_tombstoned', 'true');
 
   const base = getApiBase();
-  const url = `${base}/api/memory/facts${params.toString() ? '?' + params.toString() : ''}`;
-  const response = await fetch(url, { headers: buildHeaders() });
-
-  if (!response.ok) {
-    throw new Error(`Failed to get facts: ${response.status}`);
+  const endpoints = [
+    `${base}/api/v2/facts${params.toString() ? '?' + params.toString() : ''}`,
+    `${base}/api/memory/facts${params.toString() ? '?' + params.toString() : ''}`,
+  ];
+  let lastStatus = 0;
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, { headers: buildHeaders() });
+      if (response.ok) return response.json();
+      lastStatus = response.status;
+      if (lastStatus === 404 || lastStatus === 405) continue;
+    } catch (_) {
+      // try next
+    }
   }
-
-  return response.json();
+  throw new Error(`Failed to get facts: ${lastStatus}`);
 }
 
 /**
@@ -117,16 +125,21 @@ export async function getFacts(filters = {}) {
  */
 export async function getFact(id) {
   const base = getApiBase();
-  const response = await fetch(`${base}/api/memory/facts/${id}`, { headers: buildHeaders() });
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error('Fact not found');
-    }
-    throw new Error(`Failed to get fact: ${response.status}`);
+  const endpoints = [
+    `${base}/api/v2/facts/${id}`,
+    `${base}/api/memory/facts/${id}`,
+  ];
+  let lastStatus = 0;
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, { headers: buildHeaders() });
+      if (response.ok) return response.json();
+      lastStatus = response.status;
+      if (lastStatus === 404 || lastStatus === 405) continue;
+    } catch (_) {}
   }
-
-  return response.json();
+  if (lastStatus === 404) throw new Error('Fact not found');
+  throw new Error(`Failed to get fact: ${lastStatus}`);
 }
 
 /**
@@ -142,18 +155,25 @@ export async function getFact(id) {
  */
 export async function createFact(factData) {
   const base = getApiBase();
-  const response = await fetch(`${base}/api/memory/facts`, {
-    method: 'POST',
-    headers: buildHeaders(),
-    body: JSON.stringify(factData),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(error.detail || `Failed to create fact: ${response.status}`);
+  const endpoints = [
+    `${base}/api/v2/facts`,
+    `${base}/api/memory/facts`,
+  ];
+  let lastStatus = 0, lastBody = '';
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: buildHeaders(),
+        body: JSON.stringify(factData),
+      });
+      if (response.ok) return response.json();
+      lastStatus = response.status;
+      try { lastBody = await response.text(); } catch {}
+      if (lastStatus === 404 || lastStatus === 405) continue;
+    } catch (e) { lastBody = String(e?.message || e); }
   }
-
-  return response.json();
+  throw new Error(lastBody || `Failed to create fact: ${lastStatus}`);
 }
 
 /**
@@ -165,18 +185,25 @@ export async function createFact(factData) {
  */
 export async function updateFact(id, updates) {
   const base = getApiBase();
-  const response = await fetch(`${base}/api/memory/facts/${id}`, {
-    method: 'PUT',
-    headers: buildHeaders(),
-    body: JSON.stringify(updates),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(error.detail || `Failed to update fact: ${response.status}`);
+  const endpoints = [
+    `${base}/api/v2/facts/${id}`,
+    `${base}/api/memory/facts/${id}`,
+  ];
+  let lastStatus = 0, lastBody = '';
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: buildHeaders(),
+        body: JSON.stringify(updates),
+      });
+      if (response.ok) return response.json();
+      lastStatus = response.status;
+      try { lastBody = await response.text(); } catch {}
+      if (lastStatus === 404 || lastStatus === 405) continue;
+    } catch (e) { lastBody = String(e?.message || e); }
   }
-
-  return response.json();
+  throw new Error(lastBody || `Failed to update fact: ${lastStatus}`);
 }
 
 /**
@@ -189,17 +216,21 @@ export async function updateFact(id, updates) {
 export async function deleteFact(id, hardDelete = false) {
   const params = hardDelete ? '?hard_delete=true' : '';
   const base = getApiBase();
-  const response = await fetch(`${base}/api/memory/facts/${id}${params}`, {
-    method: 'DELETE',
-    headers: buildHeaders(),
-  });
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error('Fact not found');
-    }
-    throw new Error(`Failed to delete fact: ${response.status}`);
+  const endpoints = [
+    `${base}/api/v2/facts/${id}${params}`,
+    `${base}/api/memory/facts/${id}${params}`,
+  ];
+  let lastStatus = 0;
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, { method: 'DELETE', headers: buildHeaders() });
+      if (response.ok) return;
+      lastStatus = response.status;
+      if (lastStatus === 404 || lastStatus === 405) continue;
+    } catch (_) {}
   }
+  if (lastStatus === 404) throw new Error('Fact not found');
+  throw new Error(`Failed to delete fact: ${lastStatus}`);
 }
 
 /**
@@ -213,18 +244,25 @@ export async function deleteFact(id, hardDelete = false) {
  */
 export async function saveMessage(messageData) {
   const base = getApiBase();
-  const response = await fetch(`${base}/api/memory/messages`, {
-    method: 'POST',
-    headers: buildHeaders(),
-    body: JSON.stringify(messageData),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(error.detail || `Failed to save message: ${response.status}`);
+  const endpoints = [
+    `${base}/api/v2/memory/messages`,
+    `${base}/api/memory/messages`,
+  ];
+  let lastStatus = 0, lastBody = '';
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: buildHeaders(),
+        body: JSON.stringify(messageData),
+      });
+      if (response.ok) return response.json();
+      lastStatus = response.status;
+      try { lastBody = await response.text(); } catch {}
+      if (lastStatus === 404 || lastStatus === 405) continue;
+    } catch (e) { lastBody = String(e?.message || e); }
   }
-
-  return response.json();
+  throw new Error(lastBody || `Failed to save message: ${lastStatus}`);
 }
 
 /**
@@ -241,14 +279,20 @@ export async function getMessages(options = {}) {
   if (options.session_id) params.append('session_id', options.session_id);
 
   const base = getApiBase();
-  const url = `${base}/api/memory/messages${params.toString() ? '?' + params.toString() : ''}`;
-  const response = await fetch(url, { headers: buildHeaders() });
-
-  if (!response.ok) {
-    throw new Error(`Failed to get messages: ${response.status}`);
+  const endpoints = [
+    `${base}/api/v2/memory/messages${params.toString() ? '?' + params.toString() : ''}`,
+    `${base}/api/memory/messages${params.toString() ? '?' + params.toString() : ''}`,
+  ];
+  let lastStatus = 0;
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, { headers: buildHeaders() });
+      if (response.ok) return response.json();
+      lastStatus = response.status;
+      if (lastStatus === 404 || lastStatus === 405) continue;
+    } catch (_) {}
   }
-
-  return response.json();
+  throw new Error(`Failed to get messages: ${lastStatus}`);
 }
 
 /**
@@ -258,13 +302,20 @@ export async function getMessages(options = {}) {
  */
 export async function getStats() {
   const base = getApiBase();
-  const response = await fetch(`${base}/api/memory/stats`, { headers: buildHeaders() });
-
-  if (!response.ok) {
-    throw new Error(`Failed to get stats: ${response.status}`);
+  const endpoints = [
+    `${base}/api/v2/memory/stats`,
+    `${base}/api/memory/stats`,
+  ];
+  let lastStatus = 0;
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, { headers: buildHeaders() });
+      if (response.ok) return response.json();
+      lastStatus = response.status;
+      if (lastStatus === 404 || lastStatus === 405) continue;
+    } catch (_) {}
   }
-
-  return response.json();
+  throw new Error(`Failed to get stats: ${lastStatus}`);
 }
 
 /**
@@ -274,13 +325,20 @@ export async function getStats() {
  */
 export async function checkHealth() {
   const base = getApiBase();
-  const response = await fetch(`${base}/api/memory/health`, { headers: buildHeaders() });
-
-  if (!response.ok) {
-    throw new Error(`Health check failed: ${response.status}`);
+  const endpoints = [
+    `${base}/api/v2/memory/health`,
+    `${base}/api/memory/health`,
+  ];
+  let lastStatus = 0;
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, { headers: buildHeaders() });
+      if (response.ok) return response.json();
+      lastStatus = response.status;
+      if (lastStatus === 404 || lastStatus === 405) continue;
+    } catch (_) {}
   }
-
-  return response.json();
+  throw new Error(`Health check failed: ${lastStatus}`);
 }
 
 /**
@@ -290,18 +348,25 @@ export async function checkHealth() {
  */
 export async function extract(payload) {
   const base = getApiBase();
-  const response = await fetch(`${base}/api/memory/extract`, {
-    method: 'POST',
-    headers: buildHeaders(),
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(error.detail || `Extraction failed: ${response.status}`);
+  const endpoints = [
+    `${base}/api/v2/memory/extract`,
+    `${base}/api/memory/extract`,
+  ];
+  let lastStatus = 0, lastBody = '';
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: buildHeaders(),
+        body: JSON.stringify(payload),
+      });
+      if (response.ok) return response.json();
+      lastStatus = response.status;
+      try { lastBody = await response.text(); } catch {}
+      if (lastStatus === 404 || lastStatus === 405) continue;
+    } catch (e) { lastBody = String(e?.message || e); }
   }
-
-  return response.json();
+  throw new Error(lastBody || `Extraction failed: ${lastStatus}`);
 }
 
 /**
@@ -311,18 +376,25 @@ export async function extract(payload) {
  */
 export async function apply(payload) {
   const base = getApiBase();
-  const response = await fetch(`${base}/api/memory/apply`, {
-    method: 'POST',
-    headers: buildHeaders(),
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(error.detail || `Apply failed: ${response.status}`);
+  const endpoints = [
+    `${base}/api/v2/memory/apply`,
+    `${base}/api/memory/apply`,
+  ];
+  let lastStatus = 0, lastBody = '';
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: buildHeaders(),
+        body: JSON.stringify(payload),
+      });
+      if (response.ok) return response.json();
+      lastStatus = response.status;
+      try { lastBody = await response.text(); } catch {}
+      if (lastStatus === 404 || lastStatus === 405) continue;
+    } catch (e) { lastBody = String(e?.message || e); }
   }
-
-  return response.json();
+  throw new Error(lastBody || `Apply failed: ${lastStatus}`);
 }
 
 // Export all functions as default object

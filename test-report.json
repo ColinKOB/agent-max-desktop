@@ -1,0 +1,28 @@
+{
+  "unitTests": {
+    "passed": 0,
+    "failed": 1,
+    "skipped": 0
+  },
+  "integrationTests": {
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0
+  },
+  "e2eTests": {
+    "passed": 0,
+    "failed": 1,
+    "skipped": 0
+  },
+  "securityTests": {
+    "passed": 0,
+    "failed": 1,
+    "skipped": 0
+  },
+  "performanceTests": {
+    "passed": 1,
+    "failed": 1,
+    "skipped": 0
+  },
+  "timestamp": "2025-11-06T21:51:04.634Z"
+}

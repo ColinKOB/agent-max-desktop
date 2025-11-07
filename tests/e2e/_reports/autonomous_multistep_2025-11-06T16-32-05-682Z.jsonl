@@ -1,0 +1,926 @@
+{"timestamp":1762446725693,"type":"session.start","api_url":"https://agentmax-production.up.railway.app"}
+{"timestamp":1762446725694,"type":"case.start","name":"trip_planning_constraints","endpoint":"https://agentmax-production.up.railway.app/api/v2/agent/execute/stream"}
+{"timestamp":1762446741612,"type":"sse","name":"trip_planning_constraints","event":"ack","payload":{"message":"autonomous_stream_started"}}
+{"timestamp":1762446741612,"type":"sse","name":"trip_planning_constraints","event":"plan","payload":{"plan_id":"plan_06ef9f46","steps":[{"step_id":"plan_06ef9f46_s1","description":"Complete request","goal":"Plan a two-day trip to NYC with a $500 budget, include transport, food, and 3 attractions per day. Output clear numbered steps."}],"confidence":0.75,"budget":{"max_steps":1000,"max_cost_usd":999,"max_tokens":999999}}}
+{"timestamp":1762446741616,"type":"sse","name":"trip_planning_constraints","event":"exec_log","payload":{"plan_id":"plan_06ef9f46","step_id":"plan_06ef9f46_s1","status":"info","message":"Parse: 0 action(s) found | server_fs=OFF","t_ms":0}}
+{"timestamp":1762446741617,"type":"sse","name":"trip_planning_constraints","event":"final","payload":{"plan_id":"plan_06ef9f46","summary":"Completed 1 step(s) successfully","outputs":{"response":"","reasoning_tokens":null},"confidence":0.75,"tokens_in":0,"tokens_out":0,"cost_usd":null,"total_ms":13861.355543136597}}
+{"timestamp":1762446741617,"type":"sse","name":"trip_planning_constraints","event":"done","payload":{"final_response":""}}
+{"timestamp":1762446741618,"type":"case.done","name":"trip_planning_constraints","ttff_ms":15918,"duration_ms":15924,"steps":0,"token_chars":0,"plan_seen":true,"has_final":true}
+{"timestamp":1762446743118,"type":"case.start","name":"data_cleaning_pipeline","endpoint":"https://agentmax-production.up.railway.app/api/v2/agent/execute/stream"}
+{"timestamp":1762446752325,"type":"sse","name":"data_cleaning_pipeline","event":"ack","payload":{"message":"autonomous_stream_started"}}
+{"timestamp":1762446752329,"type":"sse","name":"data_cleaning_pipeline","event":"plan","payload":{"plan_id":"plan_eebbf0f9","steps":[{"step_id":"plan_eebbf0f9_s1","description":"Complete request","goal":"Outline a 6-step data cleaning pipeline for a CSV with missing values, duplicates, and mixed types. Include rationale per step."}],"confidence":0.75,"budget":{"max_steps":1000,"max_cost_usd":999,"max_tokens":999999}}}
+{"timestamp":1762446752329,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"Here"}}
+{"timestamp":1762446752330,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"’s"}}
+{"timestamp":1762446752330,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" a"}}
+{"timestamp":1762446752330,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" concise"}}
+{"timestamp":1762446752331,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446752331,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" practical"}}
+{"timestamp":1762446752331,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" "}}
+{"timestamp":1762446752331,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"6"}}
+{"timestamp":1762446752365,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"-step"}}
+{"timestamp":1762446752366,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" data"}}
+{"timestamp":1762446752367,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"-clean"}}
+{"timestamp":1762446752367,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"ing"}}
+{"timestamp":1762446752367,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" pipeline"}}
+{"timestamp":1762446752367,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" for"}}
+{"timestamp":1762446752382,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" a"}}
+{"timestamp":1762446752389,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" CSV"}}
+{"timestamp":1762446752389,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" that"}}
+{"timestamp":1762446752390,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" contains"}}
+{"timestamp":1762446752390,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" missing"}}
+{"timestamp":1762446752390,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" values"}}
+{"timestamp":1762446752390,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446752390,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" duplicates"}}
+{"timestamp":1762446752391,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446752391,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446752391,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" mixed"}}
+{"timestamp":1762446752391,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" types"}}
+{"timestamp":1762446752391,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"."}}
+{"timestamp":1762446752392,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" Each"}}
+{"timestamp":1762446752394,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" step"}}
+{"timestamp":1762446752395,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" includes"}}
+{"timestamp":1762446752395,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" the"}}
+{"timestamp":1762446752395,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" actions"}}
+{"timestamp":1762446752395,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" to"}}
+{"timestamp":1762446752395,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" take"}}
+{"timestamp":1762446752395,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446752395,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" the"}}
+{"timestamp":1762446752395,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" rationale"}}
+{"timestamp":1762446752395,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" so"}}
+{"timestamp":1762446752396,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" you"}}
+{"timestamp":1762446752396,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" know"}}
+{"timestamp":1762446752396,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" why"}}
+{"timestamp":1762446752412,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" it"}}
+{"timestamp":1762446752412,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"’s"}}
+{"timestamp":1762446752412,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" important"}}
+{"timestamp":1762446752412,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":".\n\n"}}
+{"timestamp":1762446752413,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"1"}}
+{"timestamp":1762446752413,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":")"}}
+{"timestamp":1762446752413,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" In"}}
+{"timestamp":1762446752413,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"gest"}}
+{"timestamp":1762446752414,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" +"}}
+{"timestamp":1762446752414,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" snapshot"}}
+{"timestamp":1762446752414,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" raw"}}
+{"timestamp":1762446752414,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" data"}}
+{"timestamp":1762446752415,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"\n"}}
+{"timestamp":1762446752415,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446752429,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" Actions"}}
+{"timestamp":1762446752430,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":":"}}
+{"timestamp":1762446752446,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" Read"}}
+{"timestamp":1762446752451,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" file"}}
+{"timestamp":1762446752487,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" with"}}
+{"timestamp":1762446752488,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" minimal"}}
+{"timestamp":1762446752494,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" parsing"}}
+{"timestamp":1762446752499,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446752520,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"e"}}
+{"timestamp":1762446752520,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":".g"}}
+{"timestamp":1762446752547,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":".,"}}
+{"timestamp":1762446752553,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" pandas"}}
+{"timestamp":1762446752561,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":".read"}}
+{"timestamp":1762446752562,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"_csv"}}
+{"timestamp":1762446752578,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"(..."}}
+{"timestamp":1762446752583,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446752611,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" dtype"}}
+{"timestamp":1762446752612,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"=str"}}
+{"timestamp":1762446752658,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":")"}}
+{"timestamp":1762446752663,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" or"}}
+{"timestamp":1762446752680,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" dtype"}}
+{"timestamp":1762446752682,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"="}}
+{"timestamp":1762446752746,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"object"}}
+{"timestamp":1762446752746,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"),"}}
+{"timestamp":1762446752778,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" save"}}
+{"timestamp":1762446752778,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" a"}}
+{"timestamp":1762446752781,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" copy"}}
+{"timestamp":1762446752782,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" of"}}
+{"timestamp":1762446752816,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" the"}}
+{"timestamp":1762446752817,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" raw"}}
+{"timestamp":1762446752840,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" file"}}
+{"timestamp":1762446752843,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446752843,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" initial"}}
+{"timestamp":1762446752843,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" checksum"}}
+{"timestamp":1762446752861,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446752870,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" capture"}}
+{"timestamp":1762446752885,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" file"}}
+{"timestamp":1762446752891,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" encoding"}}
+{"timestamp":1762446752919,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446752919,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" delimiter"}}
+{"timestamp":1762446752925,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446752925,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" file"}}
+{"timestamp":1762446752950,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" size"}}
+{"timestamp":1762446752955,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446752981,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446752981,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" record"}}
+{"timestamp":1762446753010,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" import"}}
+{"timestamp":1762446753011,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" warnings"}}
+{"timestamp":1762446753035,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":".\n"}}
+{"timestamp":1762446753035,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446753046,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" R"}}
+{"timestamp":1762446753046,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"ationale"}}
+{"timestamp":1762446753068,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":":"}}
+{"timestamp":1762446753068,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" Keeps"}}
+{"timestamp":1762446753081,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" an"}}
+{"timestamp":1762446753088,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" immutable"}}
+{"timestamp":1762446753111,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" raw"}}
+{"timestamp":1762446753117,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" source"}}
+{"timestamp":1762446753139,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" for"}}
+{"timestamp":1762446753139,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" reproduc"}}
+{"timestamp":1762446753470,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"ibility"}}
+{"timestamp":1762446753474,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446753484,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" debugging"}}
+{"timestamp":1762446753484,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"."}}
+{"timestamp":1762446753490,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" Reading"}}
+{"timestamp":1762446753490,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" as"}}
+{"timestamp":1762446753490,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" strings"}}
+{"timestamp":1762446753490,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" avoids"}}
+{"timestamp":1762446753490,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" premature"}}
+{"timestamp":1762446753490,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" coerc"}}
+{"timestamp":1762446753490,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"ion"}}
+{"timestamp":1762446753490,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" that"}}
+{"timestamp":1762446753497,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" can"}}
+{"timestamp":1762446753519,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" hide"}}
+{"timestamp":1762446753519,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" mixed"}}
+{"timestamp":1762446753519,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"-type"}}
+{"timestamp":1762446753519,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" issues"}}
+{"timestamp":1762446753519,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":".\n\n"}}
+{"timestamp":1762446753519,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"2"}}
+{"timestamp":1762446753519,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":")"}}
+{"timestamp":1762446753519,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" Profile"}}
+{"timestamp":1762446753519,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" &"}}
+{"timestamp":1762446753519,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" validate"}}
+{"timestamp":1762446753519,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"\n"}}
+{"timestamp":1762446753519,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446753519,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" Actions"}}
+{"timestamp":1762446753519,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":":"}}
+{"timestamp":1762446753519,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" Compute"}}
+{"timestamp":1762446753524,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" column"}}
+{"timestamp":1762446753524,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"-level"}}
+{"timestamp":1762446753541,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" summary"}}
+{"timestamp":1762446753541,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":":"}}
+{"timestamp":1762446753561,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" null"}}
+{"timestamp":1762446753566,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" counts"}}
+{"timestamp":1762446753591,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446753591,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" distinct"}}
+{"timestamp":1762446753627,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" counts"}}
+{"timestamp":1762446753627,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446753627,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" dtype"}}
+{"timestamp":1762446753627,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" distribution"}}
+{"timestamp":1762446753650,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446753654,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" sample"}}
+{"timestamp":1762446753661,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" values"}}
+{"timestamp":1762446753667,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446753689,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" min"}}
+{"timestamp":1762446753689,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"/max"}}
+{"timestamp":1762446753712,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446753717,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"where"}}
+{"timestamp":1762446753747,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" numeric"}}
+{"timestamp":1762446753752,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"),"}}
+{"timestamp":1762446753791,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" hist"}}
+{"timestamp":1762446753791,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"ograms"}}
+{"timestamp":1762446753893,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446753893,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" frequency"}}
+{"timestamp":1762446753942,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" of"}}
+{"timestamp":1762446753946,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" each"}}
+{"timestamp":1762446753959,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" distinct"}}
+{"timestamp":1762446753965,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" value"}}
+{"timestamp":1762446753978,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" for"}}
+{"timestamp":1762446753982,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" categorical"}}
+{"timestamp":1762446753993,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" columns"}}
+{"timestamp":1762446753999,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446754017,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446754017,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" count"}}
+{"timestamp":1762446754056,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" duplicate"}}
+{"timestamp":1762446754056,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" rows"}}
+{"timestamp":1762446754093,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"."}}
+{"timestamp":1762446754093,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" Record"}}
+{"timestamp":1762446754114,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" constraints"}}
+{"timestamp":1762446754114,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446754132,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"e"}}
+{"timestamp":1762446754137,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":".g"}}
+{"timestamp":1762446754165,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":".,"}}
+{"timestamp":1762446754165,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" expected"}}
+{"timestamp":1762446754187,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" ranges"}}
+{"timestamp":1762446754187,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446754239,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" regex"}}
+{"timestamp":1762446754240,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"es"}}
+{"timestamp":1762446754245,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":").\n"}}
+{"timestamp":1762446754245,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446754251,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" R"}}
+{"timestamp":1762446754251,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"ationale"}}
+{"timestamp":1762446754275,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":":"}}
+{"timestamp":1762446754280,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" A"}}
+{"timestamp":1762446754297,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" data"}}
+{"timestamp":1762446754297,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" profile"}}
+{"timestamp":1762446754319,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" reveals"}}
+{"timestamp":1762446754319,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" the"}}
+{"timestamp":1762446754336,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" extent"}}
+{"timestamp":1762446754341,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446754360,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" patterns"}}
+{"timestamp":1762446754360,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" of"}}
+{"timestamp":1762446754390,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" missing"}}
+{"timestamp":1762446754396,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"ness"}}
+{"timestamp":1762446754401,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446754401,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" duplicates"}}
+{"timestamp":1762446754463,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446754463,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446754543,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" type"}}
+{"timestamp":1762446754543,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" problems"}}
+{"timestamp":1762446754543,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446754543,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" informs"}}
+{"timestamp":1762446754556,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" downstream"}}
+{"timestamp":1762446754561,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" choices"}}
+{"timestamp":1762446754579,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446754579,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"which"}}
+{"timestamp":1762446754597,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" columns"}}
+{"timestamp":1762446754602,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" need"}}
+{"timestamp":1762446754626,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" im"}}
+{"timestamp":1762446754631,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"putation"}}
+{"timestamp":1762446754649,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446754649,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" how"}}
+{"timestamp":1762446754671,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" to"}}
+{"timestamp":1762446754677,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" ded"}}
+{"timestamp":1762446754696,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"upe"}}
+{"timestamp":1762446754703,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446754719,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" what"}}
+{"timestamp":1762446754719,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" types"}}
+{"timestamp":1762446754751,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" to"}}
+{"timestamp":1762446754751,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" co"}}
+{"timestamp":1762446754760,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"erce"}}
+{"timestamp":1762446754764,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" to"}}
+{"timestamp":1762446754782,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":").\n\n"}}
+{"timestamp":1762446754783,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"3"}}
+{"timestamp":1762446754799,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":")"}}
+{"timestamp":1762446754805,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" Normalize"}}
+{"timestamp":1762446754825,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" formatting"}}
+{"timestamp":1762446754825,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446754868,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" co"}}
+{"timestamp":1762446754868,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"erce"}}
+{"timestamp":1762446754880,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" types"}}
+{"timestamp":1762446754887,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"\n"}}
+{"timestamp":1762446754913,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446754913,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" Actions"}}
+{"timestamp":1762446754931,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":":"}}
+{"timestamp":1762446754931,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" Trim"}}
+{"timestamp":1762446754947,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" whitespace"}}
+{"timestamp":1762446754952,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446754964,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" normalize"}}
+{"timestamp":1762446754969,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" enc"}}
+{"timestamp":1762446754991,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"odings"}}
+{"timestamp":1762446754992,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446755054,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" case"}}
+{"timestamp":1762446755059,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446755125,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" unify"}}
+{"timestamp":1762446755131,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" boolean"}}
+{"timestamp":1762446755143,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"/text"}}
+{"timestamp":1762446755143,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" representations"}}
+{"timestamp":1762446755151,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":","}}
+{"timestamp":1762446755160,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" standard"}}
+{"timestamp":1762446755183,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"ize"}}
+{"timestamp":1762446755183,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" date"}}
+{"timestamp":1762446755202,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" formats"}}
+{"timestamp":1762446755206,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446755235,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"parse"}}
+{"timestamp":1762446755236,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" with"}}
+{"timestamp":1762446755245,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" errors"}}
+{"timestamp":1762446755245,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"→"}}
+{"timestamp":1762446755279,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"Na"}}
+{"timestamp":1762446755285,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"T"}}
+{"timestamp":1762446755304,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"),"}}
+{"timestamp":1762446755304,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" convert"}}
+{"timestamp":1762446755333,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" numeric"}}
+{"timestamp":1762446755338,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"-looking"}}
+{"timestamp":1762446755354,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" strings"}}
+{"timestamp":1762446755354,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" to"}}
+{"timestamp":1762446755371,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" numeric"}}
+{"timestamp":1762446755371,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" with"}}
+{"timestamp":1762446755381,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" coerc"}}
+{"timestamp":1762446755388,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"ion"}}
+{"timestamp":1762446755414,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446755414,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"errors"}}
+{"timestamp":1762446755425,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"→"}}
+{"timestamp":1762446755425,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"Na"}}
+{"timestamp":1762446755443,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"N"}}
+{"timestamp":1762446755450,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"),"}}
+{"timestamp":1762446755466,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446755471,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" set"}}
+{"timestamp":1762446755494,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" explicit"}}
+{"timestamp":1762446755494,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" d"}}
+{"timestamp":1762446755507,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"types"}}
+{"timestamp":1762446755511,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" for"}}
+{"timestamp":1762446755533,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" columns"}}
+{"timestamp":1762446755533,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" where"}}
+{"timestamp":1762446755546,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" possible"}}
+{"timestamp":1762446755551,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"."}}
+{"timestamp":1762446755574,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" Create"}}
+{"timestamp":1762446755575,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" a"}}
+{"timestamp":1762446755590,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" “"}}
+{"timestamp":1762446755593,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"conversion"}}
+{"timestamp":1762446755656,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" log"}}
+{"timestamp":1762446755657,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"”"}}
+{"timestamp":1762446755705,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" that"}}
+{"timestamp":1762446755711,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" records"}}
+{"timestamp":1762446755735,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" rows"}}
+{"timestamp":1762446755741,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"/"}}
+{"timestamp":1762446755759,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"values"}}
+{"timestamp":1762446755762,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" that"}}
+{"timestamp":1762446755778,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" failed"}}
+{"timestamp":1762446755779,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" coerc"}}
+{"timestamp":1762446755789,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"ion"}}
+{"timestamp":1762446755791,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":".\n"}}
+{"timestamp":1762446755814,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446755814,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" R"}}
+{"timestamp":1762446755829,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"ationale"}}
+{"timestamp":1762446755829,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":":"}}
+{"timestamp":1762446755849,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" Mixed"}}
+{"timestamp":1762446755849,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" types"}}
+{"timestamp":1762446755869,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" usually"}}
+{"timestamp":1762446755870,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" arise"}}
+{"timestamp":1762446755891,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" from"}}
+{"timestamp":1762446755893,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" inconsistent"}}
+{"timestamp":1762446755925,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" formatting"}}
+{"timestamp":1762446755925,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"."}}
+{"timestamp":1762446755964,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" Normal"}}
+{"timestamp":1762446755964,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"izing"}}
+{"timestamp":1762446755999,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" first"}}
+{"timestamp":1762446756003,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" reduces"}}
+{"timestamp":1762446756019,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" sp"}}
+{"timestamp":1762446756021,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"urious"}}
+{"timestamp":1762446756044,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" missing"}}
+{"timestamp":1762446756045,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"ness"}}
+{"timestamp":1762446756066,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446756067,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" ensures"}}
+{"timestamp":1762446756091,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" later"}}
+{"timestamp":1762446756091,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" operations"}}
+{"timestamp":1762446756106,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" operate"}}
+{"timestamp":1762446756108,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" on"}}
+{"timestamp":1762446756125,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" the"}}
+{"timestamp":1762446756126,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" intended"}}
+{"timestamp":1762446756155,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" types"}}
+{"timestamp":1762446756156,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"."}}
+{"timestamp":1762446756178,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" Logging"}}
+{"timestamp":1762446756179,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" failed"}}
+{"timestamp":1762446756250,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" coerc"}}
+{"timestamp":1762446756251,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":"ions"}}
+{"timestamp":1762446756259,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" helps"}}
+{"timestamp":1762446756261,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" decide"}}
+{"timestamp":1762446756281,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" targeted"}}
+{"timestamp":1762446756282,"type":"sse","name":"data_cleaning_pipeline","event":"token","payload":{"content":" fixes"}}
+{"timestamp":1762446756282,"type":"sse","name":"data_cleaning_pipeline","event":"exec_log","payload":{"plan_id":"plan_eebbf0f9","step_id":"plan_eebbf0f9_s1","status":"info","message":"Parse: 0 action(s) found | server_fs=OFF","t_ms":0}}
+{"timestamp":1762446756285,"type":"sse","name":"data_cleaning_pipeline","event":"final","payload":{"plan_id":"plan_eebbf0f9","summary":"Completed 1 step(s) successfully","outputs":{"response":"Here’s a concise, practical 6-step data-cleaning pipeline for a CSV that contains missing values, du","reasoning_tokens":null},"confidence":0.75,"tokens_in":0,"tokens_out":355,"cost_usd":null,"total_ms":11600.464344024658}}
+{"timestamp":1762446756286,"type":"sse","name":"data_cleaning_pipeline","event":"done","payload":{"final_response":"Here’s a concise, practical 6-step data-cleaning pipeline for a CSV that contains missing values, duplicates, and mixed types. Each step includes the actions to take and the rationale so you know why it’s important.\n\n1) Ingest + snapshot raw data\n- Actions: Read file with minimal parsing (e.g., pandas.read_csv(..., dtype=str) or dtype=object), save a copy of the raw file and initial checksum, capture file encoding, delimiter and file size, and record import warnings.\n- Rationale: Keeps an immutable raw source for reproducibility and debugging. Reading as strings avoids premature coercion that can hide mixed-type issues.\n\n2) Profile & validate\n- Actions: Compute column-level summary: null counts, distinct counts, dtype distribution, sample values, min/max (where numeric), histograms, frequency of each distinct value for categorical columns, and count duplicate rows. Record constraints (e.g., expected ranges, regexes).\n- Rationale: A data profile reveals the extent and patterns of missingness, duplicates, and type problems and informs downstream choices (which columns need imputation, how to dedupe, what types to coerce to).\n\n3) Normalize formatting and coerce types\n- Actions: Trim whitespace, normalize encodings and case, unify boolean/text representations, standardize date formats (parse with errors→NaT), convert numeric-looking strings to numeric with coercion (errors→NaN), and set explicit dtypes for columns where possible. Create a “conversion log” that records rows/values that failed coercion.\n- Rationale: Mixed types usually arise from inconsistent formatting. Normalizing first reduces spurious missingness and ensures later operations operate on the intended types. Logging failed coercions helps decide targeted fixes"}}
+{"timestamp":1762446756286,"type":"case.done","name":"data_cleaning_pipeline","ttff_ms":9206,"duration_ms":13167,"steps":0,"token_chars":1751,"plan_seen":true,"has_final":true}
+{"timestamp":1762446757787,"type":"case.start","name":"feature_launch_checklist","endpoint":"https://agentmax-production.up.railway.app/api/v2/agent/execute/stream"}
+{"timestamp":1762446769985,"type":"sse","name":"feature_launch_checklist","event":"ack","payload":{"message":"autonomous_stream_started"}}
+{"timestamp":1762446769991,"type":"sse","name":"feature_launch_checklist","event":"plan","payload":{"plan_id":"plan_b442535d","steps":[{"step_id":"plan_b442535d_s1","description":"Complete request","goal":"Create a 7-step launch plan for a SaaS feature release with staged rollout and rollback plan."}],"confidence":0.75,"budget":{"max_steps":1000,"max_cost_usd":999,"max_tokens":999999}}}
+{"timestamp":1762446769998,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"Here"}}
+{"timestamp":1762446769998,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"’s"}}
+{"timestamp":1762446769998,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" a"}}
+{"timestamp":1762446769998,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" focused"}}
+{"timestamp":1762446769998,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":","}}
+{"timestamp":1762446769998,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" actionable"}}
+{"timestamp":1762446769998,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" "}}
+{"timestamp":1762446769998,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"7"}}
+{"timestamp":1762446769998,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"-step"}}
+{"timestamp":1762446769998,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" launch"}}
+{"timestamp":1762446770004,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" plan"}}
+{"timestamp":1762446770004,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" you"}}
+{"timestamp":1762446770004,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" can"}}
+{"timestamp":1762446770004,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" use"}}
+{"timestamp":1762446770033,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" to"}}
+{"timestamp":1762446770033,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" release"}}
+{"timestamp":1762446770033,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" a"}}
+{"timestamp":1762446770033,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" Saa"}}
+{"timestamp":1762446770033,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"S"}}
+{"timestamp":1762446770033,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" feature"}}
+{"timestamp":1762446770033,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" with"}}
+{"timestamp":1762446770033,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" a"}}
+{"timestamp":1762446770051,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" staged"}}
+{"timestamp":1762446770051,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" rollout"}}
+{"timestamp":1762446770072,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446770073,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" an"}}
+{"timestamp":1762446770086,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" explicit"}}
+{"timestamp":1762446770098,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" rollback"}}
+{"timestamp":1762446770106,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" plan"}}
+{"timestamp":1762446770111,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"."}}
+{"timestamp":1762446770131,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" Each"}}
+{"timestamp":1762446770131,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" step"}}
+{"timestamp":1762446770153,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" includes"}}
+{"timestamp":1762446770159,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" acceptance"}}
+{"timestamp":1762446770175,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" criteria"}}
+{"timestamp":1762446770175,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":","}}
+{"timestamp":1762446770287,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" monitoring"}}
+{"timestamp":1762446770287,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" signals"}}
+{"timestamp":1762446770374,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":","}}
+{"timestamp":1762446770374,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446770462,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" concrete"}}
+{"timestamp":1762446770462,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" rollback"}}
+{"timestamp":1762446770614,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" actions"}}
+{"timestamp":1762446770614,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":".\n\n"}}
+{"timestamp":1762446770711,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"Step"}}
+{"timestamp":1762446770711,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" "}}
+{"timestamp":1762446770801,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"1"}}
+{"timestamp":1762446770801,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" —"}}
+{"timestamp":1762446770885,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" Define"}}
+{"timestamp":1762446770885,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" success"}}
+{"timestamp":1762446770980,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" criteria"}}
+{"timestamp":1762446770981,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" &"}}
+{"timestamp":1762446771081,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" rollback"}}
+{"timestamp":1762446771083,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" triggers"}}
+{"timestamp":1762446771217,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"\n"}}
+{"timestamp":1762446771217,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446771336,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" Goals"}}
+{"timestamp":1762446771338,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":":"}}
+{"timestamp":1762446771462,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" list"}}
+{"timestamp":1762446771463,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" primary"}}
+{"timestamp":1762446771595,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" business"}}
+{"timestamp":1762446771595,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" outcomes"}}
+{"timestamp":1762446771763,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446771769,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"e"}}
+{"timestamp":1762446771861,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":".g"}}
+{"timestamp":1762446771861,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":".,"}}
+{"timestamp":1762446771927,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" +"}}
+{"timestamp":1762446771927,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"5"}}
+{"timestamp":1762446772022,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"%"}}
+{"timestamp":1762446772022,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" activation"}}
+{"timestamp":1762446772147,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":","}}
+{"timestamp":1762446772147,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" +"}}
+{"timestamp":1762446772238,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"10"}}
+{"timestamp":1762446772238,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"%"}}
+{"timestamp":1762446772346,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" trial"}}
+{"timestamp":1762446772354,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"-to"}}
+{"timestamp":1762446772495,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"-paid"}}
+{"timestamp":1762446772495,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" conversion"}}
+{"timestamp":1762446772578,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":").\n"}}
+{"timestamp":1762446772578,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446772662,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" KP"}}
+{"timestamp":1762446772662,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"Is"}}
+{"timestamp":1762446772753,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" &"}}
+{"timestamp":1762446772759,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" bas"}}
+{"timestamp":1762446772857,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"elines"}}
+{"timestamp":1762446772857,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":":"}}
+{"timestamp":1762446773003,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" product"}}
+{"timestamp":1762446773009,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" metrics"}}
+{"timestamp":1762446773124,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446773125,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"conversion"}}
+{"timestamp":1762446773239,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":","}}
+{"timestamp":1762446773239,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" retention"}}
+{"timestamp":1762446773387,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"),"}}
+{"timestamp":1762446773393,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" S"}}
+{"timestamp":1762446773499,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"LO"}}
+{"timestamp":1762446773499,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"s"}}
+{"timestamp":1762446773645,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446773645,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"p"}}
+{"timestamp":1762446773799,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"95"}}
+{"timestamp":1762446773799,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" latency"}}
+{"timestamp":1762446773906,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":","}}
+{"timestamp":1762446773907,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" error"}}
+{"timestamp":1762446774001,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" rate"}}
+{"timestamp":1762446774001,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"),"}}
+{"timestamp":1762446774083,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" infra"}}
+{"timestamp":1762446774083,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" metrics"}}
+{"timestamp":1762446774191,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446774196,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"CPU"}}
+{"timestamp":1762446774299,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":","}}
+{"timestamp":1762446774312,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" mem"}}
+{"timestamp":1762446774427,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"),"}}
+{"timestamp":1762446774431,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446774534,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" user"}}
+{"timestamp":1762446774534,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" metrics"}}
+{"timestamp":1762446774609,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446774609,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":"support"}}
+{"timestamp":1762446774615,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" tickets"}}
+{"timestamp":1762446774620,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":","}}
+{"timestamp":1762446774628,"type":"sse","name":"feature_launch_checklist","event":"token","payload":{"content":" N"}}
+{"timestamp":1762446774628,"type":"sse","name":"feature_launch_checklist","event":"exec_log","payload":{"plan_id":"plan_b442535d","step_id":"plan_b442535d_s1","status":"info","message":"Parse: 0 action(s) found | server_fs=OFF","t_ms":0}}
+{"timestamp":1762446774628,"type":"sse","name":"feature_launch_checklist","event":"final","payload":{"plan_id":"plan_b442535d","summary":"Completed 1 step(s) successfully","outputs":{"response":"Here’s a focused, actionable 7-step launch plan you can use to release a SaaS feature with a staged ","reasoning_tokens":null},"confidence":0.75,"tokens_in":0,"tokens_out":119,"cost_usd":null,"total_ms":15542.503833770752}}
+{"timestamp":1762446774628,"type":"sse","name":"feature_launch_checklist","event":"done","payload":{"final_response":"Here’s a focused, actionable 7-step launch plan you can use to release a SaaS feature with a staged rollout and an explicit rollback plan. Each step includes acceptance criteria, monitoring signals, and concrete rollback actions.\n\nStep 1 — Define success criteria & rollback triggers\n- Goals: list primary business outcomes (e.g., +5% activation, +10% trial-to-paid conversion).\n- KPIs & baselines: product metrics (conversion, retention), SLOs (p95 latency, error rate), infra metrics (CPU, mem), and user metrics (support tickets, N"}}
+{"timestamp":1762446774628,"type":"case.done","name":"feature_launch_checklist","ttff_ms":12197,"duration_ms":16840,"steps":0,"token_chars":534,"plan_seen":true,"has_final":true}
+{"timestamp":1762446776129,"type":"case.start","name":"study_schedule","endpoint":"https://agentmax-production.up.railway.app/api/v2/agent/execute/stream"}
+{"timestamp":1762446788190,"type":"sse","name":"study_schedule","event":"ack","payload":{"message":"autonomous_stream_started"}}
+{"timestamp":1762446788191,"type":"sse","name":"study_schedule","event":"plan","payload":{"plan_id":"plan_87a684d5","steps":[{"step_id":"plan_87a684d5_s1","description":"Complete request","goal":"Build a 5-step weekly study schedule for a beginner learning TypeScript and React with 8 hours available."}],"confidence":0.75,"budget":{"max_steps":1000,"max_cost_usd":999,"max_tokens":999999}}}
+{"timestamp":1762446788191,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"Nice"}}
+{"timestamp":1762446788191,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" —"}}
+{"timestamp":1762446788191,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" here"}}
+{"timestamp":1762446788192,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"’s"}}
+{"timestamp":1762446788192,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" a"}}
+{"timestamp":1762446788192,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" focused"}}
+{"timestamp":1762446788192,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" "}}
+{"timestamp":1762446788192,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"5"}}
+{"timestamp":1762446788224,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"-step"}}
+{"timestamp":1762446788225,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" weekly"}}
+{"timestamp":1762446788225,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" study"}}
+{"timestamp":1762446788226,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" plan"}}
+{"timestamp":1762446788226,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" that"}}
+{"timestamp":1762446788226,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" fits"}}
+{"timestamp":1762446788226,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" a"}}
+{"timestamp":1762446788226,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" total"}}
+{"timestamp":1762446788226,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" of"}}
+{"timestamp":1762446788226,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" "}}
+{"timestamp":1762446788226,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"8"}}
+{"timestamp":1762446788226,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" hours"}}
+{"timestamp":1762446788227,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446788227,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" is"}}
+{"timestamp":1762446788227,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" tailored"}}
+{"timestamp":1762446788227,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" for"}}
+{"timestamp":1762446788227,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" a"}}
+{"timestamp":1762446788227,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" beginner"}}
+{"timestamp":1762446788231,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" learning"}}
+{"timestamp":1762446788231,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" Type"}}
+{"timestamp":1762446788231,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"Script"}}
+{"timestamp":1762446788231,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" +"}}
+{"timestamp":1762446788231,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" React"}}
+{"timestamp":1762446788231,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"."}}
+{"timestamp":1762446788231,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" Each"}}
+{"timestamp":1762446788232,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" step"}}
+{"timestamp":1762446788232,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" is"}}
+{"timestamp":1762446788232,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" actionable"}}
+{"timestamp":1762446788232,"type":"sse","name":"study_schedule","event":"token","payload":{"content":","}}
+{"timestamp":1762446788232,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" includes"}}
+{"timestamp":1762446788232,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" time"}}
+{"timestamp":1762446788232,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" allocation"}}
+{"timestamp":1762446788232,"type":"sse","name":"study_schedule","event":"token","payload":{"content":","}}
+{"timestamp":1762446788232,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" concrete"}}
+{"timestamp":1762446788232,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" exercises"}}
+{"timestamp":1762446788233,"type":"sse","name":"study_schedule","event":"token","payload":{"content":","}}
+{"timestamp":1762446788263,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446788264,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" quick"}}
+{"timestamp":1762446788264,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" resource"}}
+{"timestamp":1762446788264,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" suggestions"}}
+{"timestamp":1762446788264,"type":"sse","name":"study_schedule","event":"token","payload":{"content":".\n\n"}}
+{"timestamp":1762446788264,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"Overview"}}
+{"timestamp":1762446788264,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446788265,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"total"}}
+{"timestamp":1762446788265,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" time"}}
+{"timestamp":1762446788265,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" ="}}
+{"timestamp":1762446788265,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" "}}
+{"timestamp":1762446788265,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"8"}}
+{"timestamp":1762446788265,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" hours"}}
+{"timestamp":1762446788284,"type":"sse","name":"study_schedule","event":"token","payload":{"content":")\n"}}
+{"timestamp":1762446788289,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446788289,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" Step"}}
+{"timestamp":1762446788289,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" "}}
+{"timestamp":1762446788315,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"1"}}
+{"timestamp":1762446788316,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" —"}}
+{"timestamp":1762446788331,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" Type"}}
+{"timestamp":1762446788335,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"Script"}}
+{"timestamp":1762446788358,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" foundations"}}
+{"timestamp":1762446788359,"type":"sse","name":"study_schedule","event":"token","payload":{"content":":"}}
+{"timestamp":1762446788431,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" "}}
+{"timestamp":1762446788431,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"1"}}
+{"timestamp":1762446788499,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"."}}
+{"timestamp":1762446788505,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"5"}}
+{"timestamp":1762446788536,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" h"}}
+{"timestamp":1762446788537,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"  \n"}}
+{"timestamp":1762446788574,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446788578,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" Step"}}
+{"timestamp":1762446788632,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" "}}
+{"timestamp":1762446788637,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"2"}}
+{"timestamp":1762446788659,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" —"}}
+{"timestamp":1762446788665,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" Tool"}}
+{"timestamp":1762446788686,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"ing"}}
+{"timestamp":1762446788691,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" &"}}
+{"timestamp":1762446788709,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" project"}}
+{"timestamp":1762446788710,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" setup"}}
+{"timestamp":1762446788739,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446788739,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"React"}}
+{"timestamp":1762446788764,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" +"}}
+{"timestamp":1762446788764,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" TS"}}
+{"timestamp":1762446788790,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"):"}}
+{"timestamp":1762446788794,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" "}}
+{"timestamp":1762446788816,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"1"}}
+{"timestamp":1762446788818,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"."}}
+{"timestamp":1762446788845,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"5"}}
+{"timestamp":1762446788845,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" h"}}
+{"timestamp":1762446788871,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"  \n"}}
+{"timestamp":1762446788873,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446788896,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" Step"}}
+{"timestamp":1762446788898,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" "}}
+{"timestamp":1762446788936,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"3"}}
+{"timestamp":1762446788941,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" —"}}
+{"timestamp":1762446788960,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" React"}}
+{"timestamp":1762446788964,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" fundamentals"}}
+{"timestamp":1762446788988,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" with"}}
+{"timestamp":1762446788989,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" Type"}}
+{"timestamp":1762446789019,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"Script"}}
+{"timestamp":1762446789019,"type":"sse","name":"study_schedule","event":"token","payload":{"content":":"}}
+{"timestamp":1762446789046,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" "}}
+{"timestamp":1762446789046,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"1"}}
+{"timestamp":1762446789069,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"."}}
+{"timestamp":1762446789069,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"75"}}
+{"timestamp":1762446789095,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" h"}}
+{"timestamp":1762446789100,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"  \n"}}
+{"timestamp":1762446789127,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446789128,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" Step"}}
+{"timestamp":1762446789200,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" "}}
+{"timestamp":1762446789201,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"4"}}
+{"timestamp":1762446789226,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" —"}}
+{"timestamp":1762446789230,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" Build"}}
+{"timestamp":1762446789254,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" a"}}
+{"timestamp":1762446789254,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" small"}}
+{"timestamp":1762446789289,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" typed"}}
+{"timestamp":1762446789290,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" React"}}
+{"timestamp":1762446789317,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" app"}}
+{"timestamp":1762446789323,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446789343,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"hands"}}
+{"timestamp":1762446789349,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"-on"}}
+{"timestamp":1762446789371,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"):"}}
+{"timestamp":1762446789377,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" "}}
+{"timestamp":1762446789414,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"2"}}
+{"timestamp":1762446789419,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"."}}
+{"timestamp":1762446789455,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"0"}}
+{"timestamp":1762446789455,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" h"}}
+{"timestamp":1762446789467,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"  \n"}}
+{"timestamp":1762446789467,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446789493,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" Step"}}
+{"timestamp":1762446789493,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" "}}
+{"timestamp":1762446789517,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"5"}}
+{"timestamp":1762446789517,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" —"}}
+{"timestamp":1762446789548,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" Polish"}}
+{"timestamp":1762446789553,"type":"sse","name":"study_schedule","event":"token","payload":{"content":","}}
+{"timestamp":1762446789577,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" test"}}
+{"timestamp":1762446789577,"type":"sse","name":"study_schedule","event":"token","payload":{"content":","}}
+{"timestamp":1762446789604,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" review"}}
+{"timestamp":1762446789605,"type":"sse","name":"study_schedule","event":"token","payload":{"content":","}}
+{"timestamp":1762446789626,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" next"}}
+{"timestamp":1762446789632,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" steps"}}
+{"timestamp":1762446789678,"type":"sse","name":"study_schedule","event":"token","payload":{"content":":"}}
+{"timestamp":1762446789679,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" "}}
+{"timestamp":1762446789685,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"1"}}
+{"timestamp":1762446789685,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"."}}
+{"timestamp":1762446789717,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"25"}}
+{"timestamp":1762446789718,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" h"}}
+{"timestamp":1762446789828,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"\n\n"}}
+{"timestamp":1762446789828,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"Step"}}
+{"timestamp":1762446789858,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" "}}
+{"timestamp":1762446789858,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"1"}}
+{"timestamp":1762446789865,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" —"}}
+{"timestamp":1762446789865,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" Type"}}
+{"timestamp":1762446789882,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"Script"}}
+{"timestamp":1762446789883,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" foundations"}}
+{"timestamp":1762446789905,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446789905,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"1"}}
+{"timestamp":1762446789935,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"."}}
+{"timestamp":1762446789939,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"5"}}
+{"timestamp":1762446789956,"type":"sse","name":"study_schedule","event":"token","payload":{"content":" h"}}
+{"timestamp":1762446789957,"type":"sse","name":"study_schedule","event":"token","payload":{"content":")\n"}}
+{"timestamp":1762446789957,"type":"sse","name":"study_schedule","event":"token","payload":{"content":"Goal"}}
+{"timestamp":1762446789957,"type":"sse","name":"study_schedule","event":"token","payload":{"content":":"}}
+{"timestamp":1762446789957,"type":"sse","name":"study_schedule","event":"exec_log","payload":{"plan_id":"plan_87a684d5","step_id":"plan_87a684d5_s1","status":"info","message":"Parse: 0 action(s) found | server_fs=OFF","t_ms":0}}
+{"timestamp":1762446789957,"type":"sse","name":"study_schedule","event":"final","payload":{"plan_id":"plan_87a684d5","summary":"Completed 1 step(s) successfully","outputs":{"response":"Nice — here’s a focused 5-step weekly study plan that fits a total of 8 hours and is tailored for a ","reasoning_tokens":null},"confidence":0.75,"tokens_in":0,"tokens_out":167,"cost_usd":null,"total_ms":13000.611305236816}}
+{"timestamp":1762446789961,"type":"sse","name":"study_schedule","event":"done","payload":{"final_response":"Nice — here’s a focused 5-step weekly study plan that fits a total of 8 hours and is tailored for a beginner learning TypeScript + React. Each step is actionable, includes time allocation, concrete exercises, and quick resource suggestions.\n\nOverview (total time = 8 hours)\n- Step 1 — TypeScript foundations: 1.5 h  \n- Step 2 — Tooling & project setup (React + TS): 1.5 h  \n- Step 3 — React fundamentals with TypeScript: 1.75 h  \n- Step 4 — Build a small typed React app (hands-on): 2.0 h  \n- Step 5 — Polish, test, review, next steps: 1.25 h\n\nStep 1 — TypeScript foundations (1.5 h)\nGoal:"}}
+{"timestamp":1762446789961,"type":"case.done","name":"study_schedule","ttff_ms":12061,"duration_ms":13832,"steps":0,"token_chars":589,"plan_seen":true,"has_final":true}
+{"timestamp":1762446791461,"type":"case.start","name":"debugging_strategy","endpoint":"https://agentmax-production.up.railway.app/api/v2/agent/execute/stream"}
+{"timestamp":1762446800956,"type":"sse","name":"debugging_strategy","event":"ack","payload":{"message":"autonomous_stream_started"}}
+{"timestamp":1762446800963,"type":"sse","name":"debugging_strategy","event":"plan","payload":{"plan_id":"plan_faf759d6","steps":[{"step_id":"plan_faf759d6_s1","description":"Complete request","goal":"Provide a 6-step debugging strategy for flaky end-to-end tests with intermittent network errors."}],"confidence":0.75,"budget":{"max_steps":1000,"max_cost_usd":999,"max_tokens":999999}}}
+{"timestamp":1762446800965,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"Agent"}}
+{"timestamp":1762446800965,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" Max"}}
+{"timestamp":1762446800968,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" —"}}
+{"timestamp":1762446800968,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" here"}}
+{"timestamp":1762446800968,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"’s"}}
+{"timestamp":1762446800968,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" a"}}
+{"timestamp":1762446800968,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" focused"}}
+{"timestamp":1762446800969,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" "}}
+{"timestamp":1762446800990,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"6"}}
+{"timestamp":1762446800991,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"-step"}}
+{"timestamp":1762446800991,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" debugging"}}
+{"timestamp":1762446800991,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" strategy"}}
+{"timestamp":1762446800991,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" you"}}
+{"timestamp":1762446800991,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" can"}}
+{"timestamp":1762446800991,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" follow"}}
+{"timestamp":1762446800991,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" to"}}
+{"timestamp":1762446800991,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" root"}}
+{"timestamp":1762446801010,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" out"}}
+{"timestamp":1762446801011,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" flaky"}}
+{"timestamp":1762446801040,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" end"}}
+{"timestamp":1762446801040,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"-to"}}
+{"timestamp":1762446801063,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"-end"}}
+{"timestamp":1762446801064,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" tests"}}
+{"timestamp":1762446801156,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" caused"}}
+{"timestamp":1762446801158,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" by"}}
+{"timestamp":1762446801359,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" intermittent"}}
+{"timestamp":1762446801359,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" network"}}
+{"timestamp":1762446801501,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" errors"}}
+{"timestamp":1762446801502,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"."}}
+{"timestamp":1762446801666,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" Each"}}
+{"timestamp":1762446801671,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" step"}}
+{"timestamp":1762446801847,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" is"}}
+{"timestamp":1762446801853,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" actionable"}}
+{"timestamp":1762446802062,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446802067,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" shows"}}
+{"timestamp":1762446802270,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" when"}}
+{"timestamp":1762446802270,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" to"}}
+{"timestamp":1762446802462,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" simulate"}}
+{"timestamp":1762446802463,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446802698,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" isolate"}}
+{"timestamp":1762446802699,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446802798,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" mitigate"}}
+{"timestamp":1762446802798,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446802816,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446802820,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" prevent"}}
+{"timestamp":1762446802845,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" recurrence"}}
+{"timestamp":1762446802851,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":".\n\n"}}
+{"timestamp":1762446802873,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"Step"}}
+{"timestamp":1762446802873,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" "}}
+{"timestamp":1762446802907,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"1"}}
+{"timestamp":1762446802907,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" —"}}
+{"timestamp":1762446802934,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" Re"}}
+{"timestamp":1762446802934,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"produce"}}
+{"timestamp":1762446802960,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" &"}}
+{"timestamp":1762446802960,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" characterize"}}
+{"timestamp":1762446803042,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" the"}}
+{"timestamp":1762446803043,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" fl"}}
+{"timestamp":1762446803066,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"ak"}}
+{"timestamp":1762446803071,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"iness"}}
+{"timestamp":1762446803095,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"\n"}}
+{"timestamp":1762446803095,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446803120,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" Collect"}}
+{"timestamp":1762446803125,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" metadata"}}
+{"timestamp":1762446803146,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" for"}}
+{"timestamp":1762446803151,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" every"}}
+{"timestamp":1762446803181,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" failure"}}
+{"timestamp":1762446803181,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":":"}}
+{"timestamp":1762446803202,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" test"}}
+{"timestamp":1762446803207,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" name"}}
+{"timestamp":1762446803235,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446803241,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" run"}}
+{"timestamp":1762446803260,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" id"}}
+{"timestamp":1762446803264,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446803345,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" timestamp"}}
+{"timestamp":1762446803351,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446803480,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" CI"}}
+{"timestamp":1762446803491,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" node"}}
+{"timestamp":1762446803698,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446803701,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" browser"}}
+{"timestamp":1762446803844,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"/version"}}
+{"timestamp":1762446803845,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446804016,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" OS"}}
+{"timestamp":1762446804026,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446804236,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" region"}}
+{"timestamp":1762446804241,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446804466,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" concurrent"}}
+{"timestamp":1762446804466,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" tests"}}
+{"timestamp":1762446804466,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446804466,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446804511,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" external"}}
+{"timestamp":1762446804511,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" service"}}
+{"timestamp":1762446804531,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" endpoints"}}
+{"timestamp":1762446804531,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":".\n"}}
+{"timestamp":1762446804549,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446804555,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" T"}}
+{"timestamp":1762446804579,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"riage"}}
+{"timestamp":1762446804579,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" frequency"}}
+{"timestamp":1762446804607,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446804607,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" pattern"}}
+{"timestamp":1762446804645,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":":"}}
+{"timestamp":1762446804645,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" does"}}
+{"timestamp":1762446804661,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" it"}}
+{"timestamp":1762446804663,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" happen"}}
+{"timestamp":1762446804703,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" only"}}
+{"timestamp":1762446804703,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" in"}}
+{"timestamp":1762446804777,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" CI"}}
+{"timestamp":1762446804777,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" or"}}
+{"timestamp":1762446804793,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" locally"}}
+{"timestamp":1762446804799,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446804824,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" only"}}
+{"timestamp":1762446804829,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" under"}}
+{"timestamp":1762446804851,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" load"}}
+{"timestamp":1762446804852,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446804895,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" at"}}
+{"timestamp":1762446804901,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" particular"}}
+{"timestamp":1762446804906,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" times"}}
+{"timestamp":1762446804907,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" of"}}
+{"timestamp":1762446804933,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" day"}}
+{"timestamp":1762446804933,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446804961,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" or"}}
+{"timestamp":1762446804966,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" after"}}
+{"timestamp":1762446804998,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" deploy"}}
+{"timestamp":1762446805003,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"s"}}
+{"timestamp":1762446805034,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"?\n"}}
+{"timestamp":1762446805034,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446805050,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" Label"}}
+{"timestamp":1762446805055,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" failures"}}
+{"timestamp":1762446805083,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446805094,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"timeout"}}
+{"timestamp":1762446805107,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446805111,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" DNS"}}
+{"timestamp":1762446805135,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" error"}}
+{"timestamp":1762446805141,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446805172,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" connection"}}
+{"timestamp":1762446805172,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" reset"}}
+{"timestamp":1762446805191,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446805197,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" "}}
+{"timestamp":1762446805218,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"5"}}
+{"timestamp":1762446805222,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"xx"}}
+{"timestamp":1762446805251,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" response"}}
+{"timestamp":1762446805251,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446805335,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" slow"}}
+{"timestamp":1762446805341,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" DNS"}}
+{"timestamp":1762446805356,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":")"}}
+{"timestamp":1762446805361,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" —"}}
+{"timestamp":1762446805393,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" this"}}
+{"timestamp":1762446805393,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" guides"}}
+{"timestamp":1762446805417,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" the"}}
+{"timestamp":1762446805418,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" next"}}
+{"timestamp":1762446805445,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" steps"}}
+{"timestamp":1762446805445,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":".\n\n"}}
+{"timestamp":1762446805466,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"Step"}}
+{"timestamp":1762446805470,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" "}}
+{"timestamp":1762446805496,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"2"}}
+{"timestamp":1762446805501,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" —"}}
+{"timestamp":1762446805528,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" Gather"}}
+{"timestamp":1762446805528,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" high"}}
+{"timestamp":1762446805549,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"-f"}}
+{"timestamp":1762446805554,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"idelity"}}
+{"timestamp":1762446805594,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" telemetry"}}
+{"timestamp":1762446805594,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"\n"}}
+{"timestamp":1762446805636,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446805641,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" Capture"}}
+{"timestamp":1762446805663,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" HAR"}}
+{"timestamp":1762446805668,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" files"}}
+{"timestamp":1762446805691,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446805697,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" browser"}}
+{"timestamp":1762446805719,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" console"}}
+{"timestamp":1762446805725,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" logs"}}
+{"timestamp":1762446805751,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446805751,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" network"}}
+{"timestamp":1762446805784,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" request"}}
+{"timestamp":1762446805784,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"/"}}
+{"timestamp":1762446805811,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"response"}}
+{"timestamp":1762446805811,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" headers"}}
+{"timestamp":1762446805839,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446805844,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" bodies"}}
+{"timestamp":1762446805916,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446805921,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" test"}}
+{"timestamp":1762446805944,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" runner"}}
+{"timestamp":1762446805944,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" logs"}}
+{"timestamp":1762446805972,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446805979,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446806021,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" server"}}
+{"timestamp":1762446806027,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" logs"}}
+{"timestamp":1762446806056,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" for"}}
+{"timestamp":1762446806056,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" the"}}
+{"timestamp":1762446806087,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" same"}}
+{"timestamp":1762446806087,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" timeframe"}}
+{"timestamp":1762446806112,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":".\n"}}
+{"timestamp":1762446806112,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446806156,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" Add"}}
+{"timestamp":1762446806156,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" system"}}
+{"timestamp":1762446806179,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"/"}}
+{"timestamp":1762446806185,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"VM"}}
+{"timestamp":1762446806213,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" metrics"}}
+{"timestamp":1762446806213,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":":"}}
+{"timestamp":1762446806241,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" CPU"}}
+{"timestamp":1762446806241,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446806272,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" memory"}}
+{"timestamp":1762446806280,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446806303,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" disk"}}
+{"timestamp":1762446806303,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" I"}}
+{"timestamp":1762446806334,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"/O"}}
+{"timestamp":1762446806339,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446806363,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" network"}}
+{"timestamp":1762446806363,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" throughput"}}
+{"timestamp":1762446806385,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446806385,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" open"}}
+{"timestamp":1762446806410,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" file"}}
+{"timestamp":1762446806417,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" descriptors"}}
+{"timestamp":1762446806495,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446806495,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" and"}}
+{"timestamp":1762446806531,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" socket"}}
+{"timestamp":1762446806531,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" counts"}}
+{"timestamp":1762446806572,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":".\n"}}
+{"timestamp":1762446806572,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"-"}}
+{"timestamp":1762446806595,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" If"}}
+{"timestamp":1762446806601,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" needed"}}
+{"timestamp":1762446806625,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446806626,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" capture"}}
+{"timestamp":1762446806649,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" packet"}}
+{"timestamp":1762446806649,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" traces"}}
+{"timestamp":1762446806673,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" ("}}
+{"timestamp":1762446806680,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"tcp"}}
+{"timestamp":1762446806699,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"dump"}}
+{"timestamp":1762446806705,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"/"}}
+{"timestamp":1762446806735,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"pc"}}
+{"timestamp":1762446806735,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"ap"}}
+{"timestamp":1762446806767,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":")"}}
+{"timestamp":1762446806768,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" for"}}
+{"timestamp":1762446806808,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" suspicious"}}
+{"timestamp":1762446806812,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" runs"}}
+{"timestamp":1762446806848,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" to"}}
+{"timestamp":1762446806848,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" see"}}
+{"timestamp":1762446806877,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" retrans"}}
+{"timestamp":1762446806879,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"missions"}}
+{"timestamp":1762446806908,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446806908,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" resets"}}
+{"timestamp":1762446806933,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":","}}
+{"timestamp":1762446806937,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" or"}}
+{"timestamp":1762446806974,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" drops"}}
+{"timestamp":1762446806974,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":".\n\n"}}
+{"timestamp":1762446806993,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"Step"}}
+{"timestamp":1762446806994,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" "}}
+{"timestamp":1762446807004,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":"3"}}
+{"timestamp":1762446807006,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" —"}}
+{"timestamp":1762446807007,"type":"sse","name":"debugging_strategy","event":"token","payload":{"content":" Is"}}
+{"timestamp":1762446807007,"type":"sse","name":"debugging_strategy","event":"exec_log","payload":{"plan_id":"plan_faf759d6","step_id":"plan_faf759d6_s1","status":"info","message":"Parse: 0 action(s) found | server_fs=OFF","t_ms":0}}
+{"timestamp":1762446807008,"type":"sse","name":"debugging_strategy","event":"final","payload":{"plan_id":"plan_faf759d6","summary":"Completed 1 step(s) successfully","outputs":{"response":"Agent Max — here’s a focused 6-step debugging strategy you can follow to root out flaky end-to-end t","reasoning_tokens":null},"confidence":0.75,"tokens_in":0,"tokens_out":248,"cost_usd":null,"total_ms":15037.35899925232}}
+{"timestamp":1762446807008,"type":"sse","name":"debugging_strategy","event":"done","payload":{"final_response":"Agent Max — here’s a focused 6-step debugging strategy you can follow to root out flaky end-to-end tests caused by intermittent network errors. Each step is actionable and shows when to simulate, isolate, mitigate, and prevent recurrence.\n\nStep 1 — Reproduce & characterize the flakiness\n- Collect metadata for every failure: test name, run id, timestamp, CI node, browser/version, OS, region, concurrent tests, and external service endpoints.\n- Triage frequency and pattern: does it happen only in CI or locally, only under load, at particular times of day, or after deploys?\n- Label failures (timeout, DNS error, connection reset, 5xx response, slow DNS) — this guides the next steps.\n\nStep 2 — Gather high-fidelity telemetry\n- Capture HAR files, browser console logs, network request/response headers and bodies, test runner logs, and server logs for the same timeframe.\n- Add system/VM metrics: CPU, memory, disk I/O, network throughput, open file descriptors, and socket counts.\n- If needed, capture packet traces (tcpdump/pcap) for suspicious runs to see retransmissions, resets, or drops.\n\nStep 3 — Is"}}
+{"timestamp":1762446807009,"type":"case.done","name":"debugging_strategy","ttff_ms":9494,"duration_ms":15547,"steps":0,"token_chars":1108,"plan_seen":true,"has_final":true}
+{"timestamp":1762446808510,"type":"session.end","results":[{"name":"trip_planning_constraints","ok":true,"steps":0,"planSeen":true,"finalLen":32,"ttff":15918,"total":15924},{"name":"data_cleaning_pipeline","ok":true,"steps":0,"planSeen":true,"finalLen":1751,"ttff":9206,"total":13167},{"name":"feature_launch_checklist","ok":true,"steps":0,"planSeen":true,"finalLen":534,"ttff":12197,"total":16840},{"name":"study_schedule","ok":true,"steps":0,"planSeen":true,"finalLen":589,"ttff":12061,"total":13832},{"name":"debugging_strategy","ok":true,"steps":0,"planSeen":true,"finalLen":1108,"ttff":9494,"total":15547}]}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import SettingsSimple from './SettingsSimple.jsx';
-import BillingSimple from './BillingSimple.jsx';
+import { BillingSettings } from '../components/billing/BillingSettings.jsx';
 import ConversationHistory from '../components/ConversationHistory.jsx';
 
 export default function SettingsApp() {
@@ -17,7 +17,7 @@ export default function SettingsApp() {
       case 'settings':
         return <SettingsSimple />;
       case 'billing':
-        return <BillingSimple />;
+        return <BillingSettings />;
       case 'history':
         return (
           <div style={{ background: '#fff', minHeight: '100%', padding: '24px' }}>
