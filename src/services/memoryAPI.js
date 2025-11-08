@@ -55,7 +55,7 @@ export async function query(params) {
     k_facts: params.k_facts || 8,
     k_sem: params.k_sem || 6,
     token_budget: params.token_budget || 900,
-    allow_vectors: params.allow_vectors || false,
+    allow_vectors: (params && Object.prototype.hasOwnProperty.call(params, 'allow_vectors')) ? params.allow_vectors : true,
     workspace_id: params.workspace_id || null,
   };
   let lastStatus = 0;
