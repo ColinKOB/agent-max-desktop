@@ -756,6 +756,32 @@ export const chatAPI = {
                 // Phase 1+: Step-by-step execution logs (not yet emitted by backend)
                 const logData = getPayloadData(parsed);
                 onEvent({ type: 'exec_log', data: logData });
+              } else if (eventType === 'tool_request') {
+                // Desktop execution handshake: dispatch to electron main
+                const req = getPayloadData(parsed);
+                try {
+                  if (window.electron && window.electron.handsOnDesktop && typeof window.electron.handsOnDesktop.executeRequest === 'function') {
+                    // Normalize payload (ensure required fields present)
+                    const requestPayload = {
+                      run_id: req.run_id,
+                      request_id: req.request_id,
+                      step: req.step ?? 0,
+                      tool: req.tool,
+                      command: req.command || (req.args && req.args.command) || undefined,
+                      args: req.args || {},
+                      requires_elevation: !!req.requires_elevation,
+                      timeout_sec: typeof req.timeout_sec === 'number' ? req.timeout_sec : 60,
+                    };
+                    // Fire and forget; backend is awaiting result via tool_request_store
+                    window.electron.handsOnDesktop.executeRequest(requestPayload).catch((e) => {
+                      console.warn('[API] handsOnDesktop.executeRequest failed:', e);
+                    });
+                  } else {
+                    console.warn('[API] handsOnDesktop bridge unavailable; cannot execute tool_request on desktop');
+                  }
+                } catch (err) {
+                  console.error('[API] tool_request dispatch error:', err);
+                }
               } else if (eventType === 'confidence') {
                 // Phase 1+: AI confidence scores (not yet emitted by backend)
                 const confData = getPayloadData(parsed);

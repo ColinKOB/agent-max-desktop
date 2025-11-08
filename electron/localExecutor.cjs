@@ -161,8 +161,78 @@ class LocalExecutor {
     try {
       const started = Date.now();
       const shellPath = process.platform === 'win32' ? 'cmd.exe' : '/bin/bash';
+
+      // Heuristic: optimize expensive home-wide find directory searches
+      // Example pattern: find ~ -type d -iname 'AGx TEST' 2>/dev/null
+      const isDarwin = process.platform === 'darwin';
+      const findHomeDirRegex = /(^|\s)find\s+(~|\$?HOME)(?=\s|$)/i;
+      const findTypeDRegex = /\b-type\s+d\b/i;
+      const inameRegex = /\b-i?name\s+(["'])(.*?)\1/i; // capture name
+      const looksLikeFindHome = findHomeDirRegex.test(command) && findTypeDRegex.test(command);
+
+      // Prefer shorter timeouts for search commands; keep generous default otherwise
+      const defaultTimeoutMs = (timeout_sec || 60) * 1000;
+      const searchTimeoutMs = Math.min(defaultTimeoutMs, 20000); // cap at 20s for searches
+
+      // If command is a home-wide directory find, attempt optimized path
+      if (looksLikeFindHome) {
+        const nameMatch = command.match(inameRegex);
+        const targetName = (nameMatch && nameMatch[2]) ? nameMatch[2] : null;
+        const folders = ['Desktop', 'Documents', 'Downloads', 'Library', 'Dropbox', 'OneDrive', 'Box', 'Google Drive'];
+        const folderArgs = folders.map(f => `"$HOME/${f}"`).join(' ');
+
+        // macOS Spotlight search is much faster
+        if (isDarwin && targetName) {
+          const mdCmd = `mdfind -onlyin "$HOME" 'kMDItemFSName == "${targetName}" && kMDItemContentType == "public.folder"' | head -n 10`;
+          try {
+            const { stdout: mdOut, stderr: mdErr } = await execAsync(mdCmd, {
+              timeout: searchTimeoutMs,
+              maxBuffer: 10 * 1024 * 1024,
+              shell: shellPath,
+            });
+            const mdTrim = (mdOut || '').trim();
+            if (mdTrim.length > 0) {
+              const duration_ms = Date.now() - started;
+              return {
+                status: 'completed',
+                stdout: mdOut || '',
+                stderr: mdErr || '',
+                exit_code: 0,
+                message: 'Command executed (optimized via mdfind)',
+                duration_ms,
+              };
+            }
+          } catch (e) {
+            // fall through to constrained find
+          }
+        }
+
+        // Constrained find over common user folders with max depth
+        const safePattern = targetName ? `-iname "${targetName}"` : '';
+        const constrainedFind = `find ${folderArgs} -maxdepth 5 -type d ${safePattern} 2>/dev/null | head -n 10`;
+        try {
+          const { stdout: fOut, stderr: fErr } = await execAsync(constrainedFind, {
+            timeout: searchTimeoutMs,
+            maxBuffer: 10 * 1024 * 1024,
+            shell: shellPath,
+          });
+          const duration_ms = Date.now() - started;
+          return {
+            status: 'completed',
+            stdout: fOut || '',
+            stderr: fErr || '',
+            exit_code: 0,
+            message: 'Command executed (optimized via constrained find)',
+            duration_ms,
+          };
+        } catch (e) {
+          // As last resort, run the original command with the original timeout
+        }
+      }
+
+      // Default: execute command as-is
       const { stdout, stderr } = await execAsync(command, {
-        timeout: (timeout_sec || 60) * 1000,
+        timeout: defaultTimeoutMs,
         maxBuffer: 10 * 1024 * 1024,
         shell: shellPath,
       });

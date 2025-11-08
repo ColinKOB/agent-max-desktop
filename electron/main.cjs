@@ -65,6 +65,7 @@ const { setupAutoUpdater, checkForUpdates } = require('./updater.cjs');
 const { setupCrashReporter, captureError } = require('./crash-reporter.cjs');
 const autonomousIPC = require('./autonomousIPC.cjs');
 const { HandsOnDesktopClient } = require('./hands-on-desktop-client.cjs');
+const { DevicePairing } = require('./devicePairing.cjs');
 const telemetry = require('./telemetry.cjs');
 
 let mainWindow;
@@ -1042,32 +1043,30 @@ ipcMain.handle('memory:test-preferences', async () => {
 
 // Initialize Hands on Desktop client
 function initializeHandsOnDesktop() {
-  // Get backend URL and device credentials from environment or storage
-  const backendUrl = process.env.AGENT_MAX_BACKEND_URL || 'http://localhost:8000';
-  const deviceToken = process.env.DEVICE_TOKEN;
-  const deviceSecret = process.env.DEVICE_SECRET;
-  
-  if (!deviceToken || !deviceSecret) {
-    console.log('[HandsOnDesktop] Device not paired yet. Skipping initialization.');
-    console.log('[HandsOnDesktop] Use device pairing flow to connect to backend.');
-    return;
+  // Determine backend URL (reuse memory manager base when available)
+  const backendUrl = process.env.AGENT_MAX_BACKEND_URL || process.env.AMX_API_URL || process.env.AGENTMAX_API_URL || (process.env.NODE_ENV === 'production' ? 'https://agentmax-production.up.railway.app' : 'http://localhost:8000');
+
+  console.log('[HandsOnDesktop] Pairing device and initializing client...');
+  try {
+    const pairing = new DevicePairing(backendUrl);
+    // TODO: get real user id from settings or memory profile
+    const creds = pairing.getCredentials('desktop_user');
+    // getCredentials returns a promise; handle async pairing
+    Promise.resolve(creds).then((credentials) => {
+      handsOnDesktopClient = new HandsOnDesktopClient(backendUrl, credentials.device_token, credentials.device_secret);
+      handsOnDesktopClient.onConnected = () => {
+        console.log('[HandsOnDesktop] Connected to backend');
+      };
+      handsOnDesktopClient.onDisconnected = (error) => {
+        console.log('[HandsOnDesktop] Disconnected from backend:', error?.message);
+      };
+      handsOnDesktopClient.connect();
+    }).catch((e) => {
+      console.error('[HandsOnDesktop] Failed to pair or initialize:', e);
+    });
+  } catch (e) {
+    console.error('[HandsOnDesktop] Initialization error:', e);
   }
-  
-  console.log('[HandsOnDesktop] Initializing client...');
-  handsOnDesktopClient = new HandsOnDesktopClient(backendUrl, deviceToken, deviceSecret);
-  
-  handsOnDesktopClient.onConnected = () => {
-    console.log('[HandsOnDesktop] Connected to backend');
-    // Could show notification to user
-  };
-  
-  handsOnDesktopClient.onDisconnected = (error) => {
-    console.log('[HandsOnDesktop] Disconnected from backend:', error?.message);
-    // Could show notification to user
-  };
-  
-  // Start connection
-  handsOnDesktopClient.connect();
 }
 
 // IPC handler to get Hands on Desktop status
@@ -1090,6 +1089,24 @@ ipcMain.handle('hands-on-desktop:toggle', async (event, enabled) => {
     handsOnDesktopClient = null;
   }
   return { success: true };
+});
+
+// Execute a tool_request from renderer (SSE handler)
+ipcMain.handle('hands-on-desktop:execute-request', async (_event, request) => {
+  try {
+    if (!handsOnDesktopClient) {
+      initializeHandsOnDesktop();
+    }
+    // Wait a tick for init
+    await new Promise((r) => setTimeout(r, 50));
+    if (!handsOnDesktopClient) throw new Error('HandsOnDesktop not initialized');
+    // Directly call handler to execute and submit result
+    await handsOnDesktopClient.handleToolRequest(request);
+    return { success: true };
+  } catch (error) {
+    console.error('[HandsOnDesktop] execute-request failed:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 // Take screenshot and return base64

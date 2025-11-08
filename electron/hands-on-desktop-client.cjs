@@ -133,7 +133,7 @@ class HandsOnDesktopClient {
                 step,
                 tool,
                 ...result,
-                timestamp: new Date().toISOString()
+                metadata: { timestamp: new Date().toISOString() }
             });
 
         } catch (error) {
@@ -150,7 +150,7 @@ class HandsOnDesktopClient {
                 stdout: '',
                 stderr: error.message,
                 duration_ms: 0,
-                timestamp: new Date().toISOString()
+                metadata: { timestamp: new Date().toISOString() }
             });
         }
     }

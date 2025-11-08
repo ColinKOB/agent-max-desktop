@@ -101,6 +101,13 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('autonomous:getStatus', { conversationId }),
     },
   },
+
+  // Hands on Desktop bridges
+  handsOnDesktop: {
+    executeRequest: (request) => ipcRenderer.invoke('hands-on-desktop:execute-request', request),
+    toggle: (enabled) => ipcRenderer.invoke('hands-on-desktop:toggle', enabled),
+    status: () => ipcRenderer.invoke('hands-on-desktop:status'),
+  },
 });
 
 // Also expose as electronAPI for compatibility
