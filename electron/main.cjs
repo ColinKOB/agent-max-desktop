@@ -212,7 +212,7 @@ function createWindow() {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' http://localhost:5173 https://js.stripe.com; " +
+            "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' http://localhost:5173 https://js.stripe.com; " +
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
             "img-src 'self' data: https: blob:; " +
@@ -483,7 +483,7 @@ function createSettingsWindow(route) {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' http://localhost:5173 https://js.stripe.com; " +
+            "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' http://localhost:5173 https://js.stripe.com; " +
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
             "img-src 'self' data: https: blob:; " +

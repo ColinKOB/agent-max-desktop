@@ -19,6 +19,26 @@ const logger = createLogger('Embeddings');
 // Configure transformers.js for browser/Electron usage
 env.allowLocalModels = false;  // Use CDN models
 env.allowRemoteModels = true;
+// Prefer browser cache for model assets to reduce network churn
+try { env.useBrowserCache = true; } catch {}
+// Many dev environments (Vite, Electron renderer) are not cross-origin isolated,
+// which prevents multi-threaded WASM. Force single-thread by default to avoid
+// backend resolution failures, and keep SIMD enabled (fallback will disable if needed).
+try {
+  env.backends = env.backends || {};
+  env.backends.onnx = env.backends.onnx || {};
+  env.backends.onnx.wasm = env.backends.onnx.wasm || {};
+  // Single-thread to avoid SharedArrayBuffer requirement
+  env.backends.onnx.wasm.numThreads = 1;
+  // Keep SIMD on initially (faster); we will retry with SIMD off if load fails
+  if (typeof env.backends.onnx.wasm.simd === 'undefined') {
+    env.backends.onnx.wasm.simd = true;
+  }
+  // Ensure wasm binaries are resolvable when bundled via Vite/Electron by pointing to CDN
+  if (!env.backends.onnx.wasm.wasmPaths) {
+    env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1/dist/';
+  }
+} catch {}
 
 // Lazy-load the embedding pipeline
 let embedder = null;
@@ -55,9 +75,31 @@ async function initializeEmbedder() {
       return embedder;
     } catch (error) {
       logger.error('Failed to load embedding model:', error);
-      embedder = null;
-      initPromise = null;
-      throw error;
+      // Retry with more conservative WASM settings (no SIMD)
+      try {
+        logger.warn('Retrying embedding model load with WASM single-thread, no-SIMD');
+        try {
+          env.backends = env.backends || {};
+          env.backends.onnx = env.backends.onnx || {};
+          env.backends.onnx.wasm = env.backends.onnx.wasm || {};
+          env.backends.onnx.wasm.numThreads = 1;
+          env.backends.onnx.wasm.simd = false;
+        } catch {}
+        const startTime2 = Date.now();
+        embedder = await pipeline(
+          'feature-extraction',
+          'Xenova/all-MiniLM-L6-v2',
+          { quantized: true }
+        );
+        const loadTime2 = Date.now() - startTime2;
+        logger.info(`Embedding model loaded on retry in ${loadTime2}ms (no SIMD)`);
+        return embedder;
+      } catch (retryErr) {
+        logger.error('Retry to load embedding model also failed:', retryErr);
+        embedder = null;
+        initPromise = null;
+        throw retryErr;
+      }
     }
   })();
   

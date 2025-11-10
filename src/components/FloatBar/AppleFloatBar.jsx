@@ -1088,20 +1088,29 @@ export default function AppleFloatBar({
             const creditsToDeduct = Math.ceil(totalOutputTokens / 500);
             logger.info(`[Credits] Output tokens: ${totalOutputTokens}, deducting ${creditsToDeduct} credit(s)`);
             
-            const { data: userData } = await supabase
+            const { data: userData, error: fetchErr } = await supabase
               .from('users')
               .select('metadata')
               .eq('id', userId)
-              .single();
-            
-            const currentCredits = userData?.metadata?.credits || 0;
+              .maybeSingle();
+
+            if (fetchErr) {
+              logger.warn('[Credits] Could not fetch user metadata (skipping deduction)', fetchErr);
+              throw fetchErr; // handled by catch below without blocking UX
+            }
+
+            const currentCredits = (userData?.metadata?.credits ?? 0);
             const newCredits = Math.max(0, currentCredits - creditsToDeduct);
-            
+
+            const baseMeta = (userData && userData.metadata && typeof userData.metadata === 'object')
+              ? userData.metadata
+              : {};
+
             await supabase
               .from('users')
               .update({
                 metadata: {
-                  ...userData.metadata,
+                  ...baseMeta,
                   credits: newCredits
                 }
               })
