@@ -742,7 +742,7 @@ export const chatAPI = {
                 return {};
               };
 
-              // V1.1 Events (new standardized events)
+              // v2.1 Events (standardized streaming protocol)
               if (eventType === 'ack') {
                 // Immediate acknowledgment - shows UI activity within 100ms
                 const ackData = getPayloadData(parsed);
