@@ -59,6 +59,10 @@ class DesktopTelemetry {
 
     this.app = app;
     this.ipcMain = ipcMain;
+    // Allow re-registration of IPC handlers when initialize is invoked in tests
+    // or in rare cases where the main process is reloaded. In production, initialize
+    // should run once, so this is a no-op for normal runs.
+    this._ipcRegistered = false;
 
     this.endpoint =
       process.env.TELEMETRY_API ||

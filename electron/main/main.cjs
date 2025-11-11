@@ -58,15 +58,15 @@ function performSecurityChecks() {
 
 // Run security checks on startup
 performSecurityChecks();
-const LocalMemoryManager = require('./memory-manager-backend-bridge.cjs');
-const IPCValidator = require('./ipc-validator.cjs');
+const LocalMemoryManager = require('../memory/memory-manager-backend-bridge.cjs');
+const IPCValidator = require('../security/ipc-validator.cjs');
 const { createApplicationMenu } = require('./menu.cjs');
 const { setupAutoUpdater, checkForUpdates } = require('./updater.cjs');
 const { setupCrashReporter, captureError } = require('./crash-reporter.cjs');
-const autonomousIPC = require('./autonomousIPC.cjs');
-const { HandsOnDesktopClient } = require('./hands-on-desktop-client.cjs');
+const autonomousIPC = require('../autonomous/autonomousIPC.cjs');
+const { HandsOnDesktopClient } = require('../integrations/hands-on-desktop-client.cjs');
 const { DevicePairing } = require('./devicePairing.cjs');
-const telemetry = require('./telemetry.cjs');
+const telemetry = require('../telemetry/telemetry.cjs');
 
 let mainWindow;
 let memoryVault;
@@ -151,7 +151,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, '../preload/preload.cjs'),
       // Disable CORS to permit desktop app to call trusted backend from file://
       webSecurity: false,
       sandbox: true,
@@ -266,7 +266,7 @@ function ensureCardWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, '../preload/preload.cjs'),
       webSecurity: false,
       sandbox: true,
       allowRunningInsecureContent: false,
@@ -447,7 +447,7 @@ function createSettingsWindow(route) {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, '../preload/preload.cjs'),
       webSecurity: false,
       sandbox: true,
       backgroundThrottling: false,

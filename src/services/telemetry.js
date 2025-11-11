@@ -5,6 +5,7 @@
  */
 
 import axios from 'axios';
+import { telemetryClient } from '@lib/api/telemetryClient';
 
 const globalWindow = typeof window !== 'undefined' ? window : undefined;
 
@@ -362,26 +363,29 @@ class TelemetryService {
       };
 
       // Try legacy first
-      axios.put(`${base}/api/telemetry/batch`, { events: eventsToSend }, options)
-        .then((res) => {
-          if (res.status === 401) {
+      try {
+        if (!axios.put && axios.default && typeof axios.default.put === 'function') {
+          axios.put = axios.default.put;
+        }
+        if (!axios.post && axios.default && typeof axios.default.post === 'function') {
+          axios.post = axios.default.post;
+        }
+
+        const res = await axios.put(`${base}/api/telemetry/batch`, { events: eventsToSend }, options);
+        if (res.status === 401) {
+          try { window.dispatchEvent(new CustomEvent('telemetry:unauthorized')); } catch {}
+        }
+        if (res.status === 404 || res.status === 405 || res.status === 0 || (res.status >= 400 && res.status < 600)) {
+          const res2 = await axios.post(`${base}/api/v2/telemetry/batch`, { events: eventsToSend }, options);
+          if (res2.status === 401) {
             try { window.dispatchEvent(new CustomEvent('telemetry:unauthorized')); } catch {}
           }
-          if (res.status === 404 || res.status === 405 || res.status === 0 || (res.status >= 400 && res.status < 600)) {
-            // Try v2 as fallback
-            return axios.post(`${base}/api/v2/telemetry/batch`, { events: eventsToSend }, options)
-              .then((res2) => {
-                if (res2.status === 401) {
-                  try { window.dispatchEvent(new CustomEvent('telemetry:unauthorized')); } catch {}
-                }
-                return res2;
-              });
-          }
-          return res;
-        })
-        .catch(() => {
-          // Silently fail - don't interrupt user experience
-        });
+          return res2;
+        }
+        return res;
+      } catch (_e) {
+        // Silently fail - don't interrupt user experience
+      }
     } catch (error) {
       // Silently fail - telemetry is optional
     }

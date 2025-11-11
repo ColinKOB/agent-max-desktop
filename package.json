@@ -2,7 +2,7 @@
   "name": "agent-max-desktop",
   "version": "1.0.0",
   "description": "Desktop application for Agent Max Memory System V2",
-  "main": "electron/main.cjs",
+  "main": "electron/main/main.cjs",
   "author": "Colin O'Brien",
   "homepage": "https://agentmax.app",
   "scripts": {

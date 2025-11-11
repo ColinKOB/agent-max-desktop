@@ -5,6 +5,7 @@ import { handleError, parseApiError, ErrorCodes } from './errorHandler';
 import { createLogger } from './logger';
 import { toast } from 'react-hot-toast';
 import telemetry from './telemetry';
+import { healthAPI as libHealthAPI } from '@lib/api/health';
 
 const logger = createLogger('API');
 
@@ -1443,10 +1444,7 @@ export const draftsAPI = {
 // ============================================
 // HEALTH CHECK
 // ============================================
-export const healthAPI = {
-  // Disable axios-retry for health pings to reduce duplicate logs while offline
-  check: () => api.get('/health', { 'axios-retry': { retries: 0 } }),
-};
+export const healthAPI = libHealthAPI;
 
 // Export API URL for use in other modules
 export { API_BASE_URL };

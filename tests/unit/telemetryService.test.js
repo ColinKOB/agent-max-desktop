@@ -98,11 +98,13 @@ describe('TelemetryService bridge routing', () => {
     const module = await import('../../src/services/telemetry.js');
     const telemetry = module.default;
 
+    telemetry.setEnabled(true);
     telemetry.logEvent('http-event', { baz: 42 });
     await telemetry.flush();
 
-    expect(axios.put).toHaveBeenCalledTimes(1);
-    const [url, body] = axios.put.mock.calls[0];
+    const axiosMod = await import('axios');
+    expect(axiosMod.default.put).toHaveBeenCalledTimes(1);
+    const [url, body] = axiosMod.default.put.mock.calls[0];
     expect(url).toContain('/api/telemetry/batch');
     expect(body.events[0]).toMatchObject({
       type: 'custom_event',

@@ -512,7 +512,7 @@
   /* Interaction */
   cursor: grab;  /* Shows "grab hand" cursor */
   z-index: 10;   /* Appears above other elements */
-  pointer-events: none;  /* Doesn't block clicks (visual only) */
+  pointer-events: auto;  /* Allow dragging via this handle */
   -webkit-app-region: drag;  /* This area triggers window dragging */
   
   /* Visibility */

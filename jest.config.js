@@ -19,6 +19,11 @@ module.exports = {
   moduleNameMapper: {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '\\.(gif|ttf|eot|svg|png|jpg|jpeg)$': '<rootDir>/__mocks__/fileMock.js',
+    '^@app/(.*)$': '<rootDir>/src/$1',
+    '^@features/(.*)$': '<rootDir>/src/features/$1',
+    '^@shared/(.*)$': '<rootDir>/src/shared/$1',
+    '^@lib/(.*)$': '<rootDir>/src/lib/$1',
+    '^@electron/(.*)$': '<rootDir>/electron/$1',
   },
   testMatch: [
     '<rootDir>/src/**/__tests__/**/*.{js,jsx}',
