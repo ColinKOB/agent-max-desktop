@@ -68,6 +68,11 @@ const { HandsOnDesktopClient } = require('../integrations/hands-on-desktop-clien
 const { DevicePairing } = require('./devicePairing.cjs');
 const telemetry = require('../telemetry/telemetry.cjs');
 
+// Resolve the built index.html once for all production windows.
+// __dirname here is .../electron/main; our Vite build outputs to root-level /dist
+// so we must go two directories up.
+const DIST_INDEX_HTML = path.resolve(__dirname, '..', '..', 'dist', 'index.html');
+
 let mainWindow;
 let memoryVault;
 const windows = new Map();
@@ -230,7 +235,7 @@ function createWindow() {
   if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:5173/');
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.loadFile(DIST_INDEX_HTML);
   }
 
   mainWindow.on('closed', () => {
@@ -286,7 +291,7 @@ function ensureCardWindow() {
   if (process.env.NODE_ENV === 'development') {
     cardWindow.loadURL('http://localhost:5173/#/card');
   } else {
-    cardWindow.loadFile(path.join(__dirname, '../dist/index.html'), { hash: '/card' });
+    cardWindow.loadFile(DIST_INDEX_HTML, { hash: '/card' });
   }
 
   // Auto-open devtools (detached) when enabled via env flags
@@ -503,7 +508,7 @@ function createSettingsWindow(route) {
     settingsWindow.loadURL(`http://localhost:5173/${target}`);
   } else {
     const hash = route && route.startsWith('#') ? route.slice(1) : '/settings';
-    settingsWindow.loadFile(path.join(__dirname, '../dist/index.html'), { hash });
+    settingsWindow.loadFile(DIST_INDEX_HTML, { hash });
   }
 
   settingsWindow.on('closed', () => {
