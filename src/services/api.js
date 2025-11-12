@@ -853,7 +853,8 @@ export const chatAPI = {
                 onEvent({ type: 'done', data: { final_response: finalResponse, ...metrics } });
               } else if (eventType === 'error') {
                 const errData = getPayloadData(parsed);
-                onEvent({ type: 'error', data: { error: errData.error || 'Unknown error' } });
+                const msg = errData.error || errData.message || 'Unknown error';
+                onEvent({ type: 'error', data: { error: msg, code: errData.code, terminal: !!errData.terminal, context: errData.context, details: errData.details } });
               } else if (eventType === 'metadata') {
                 const md = getPayloadData(parsed);
                 onEvent({ type: 'metadata', data: md });

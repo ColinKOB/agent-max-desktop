@@ -1,0 +1,2 @@
+-- Placeholder migration representing remote changes applied via Supabase dashboard on 2025-11-10.
+-- No-op locally; serves to keep migration history aligned.
