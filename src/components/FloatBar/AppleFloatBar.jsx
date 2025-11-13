@@ -765,6 +765,36 @@ export default function AppleFloatBar({
             setThinkingStatus('Action failed');
             break;
             
+          case 'replanning':
+            // v2.1: Pivot guidance - AI is replanning after failure
+            toast(`🔄 ${msg}`, {
+              duration: 5000,
+              icon: '🔄',
+              style: {
+                background: 'rgba(251, 191, 36, 0.1)',
+                border: '1px solid rgba(251, 191, 36, 0.2)',
+                backdropFilter: 'blur(10px)'
+              }
+            });
+            setThinkingStatus('Replanning...');
+            appendThought(`Pivot: ${msg}`);
+            break;
+            
+          case 'blocked':
+            // v2.1: Pivot guidance - AI blocked after repeated failures
+            toast.error(`🚫 ${msg}`, {
+              duration: 6000,
+              icon: '🚫',
+              style: {
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                backdropFilter: 'blur(10px)'
+              }
+            });
+            setThinkingStatus('Action blocked');
+            appendThought(`Blocked: ${msg}`);
+            break;
+            
           case 'queued':
             // Action needs approval - show warning
             toast(`⚠️ ${msg}`, {
@@ -1171,14 +1201,38 @@ export default function AppleFloatBar({
         collapseCurrentThought();
       } else if (event.type === 'error') {
         const errorMsg = event.data?.error || event.error || 'Failed to get response';
-        // If backend is down, mark offline and avoid toast spam
-        setApiConnected(false);
-        offlineRef.current = true;
-        if (apiConnected) {
-          // Only toast once when transitioning from online->offline
-          toast.error(errorMsg);
+        const isTerminal = event.data?.terminal || false;
+        const errorCode = event.data?.code || 'UNKNOWN';
+        
+        // v2.1: terminal errors stop execution permanently
+        if (isTerminal) {
+          console.log('[Chat] Terminal error received, stopping execution:', errorCode);
+          toast.error(`❌ ${errorMsg}`, {
+            duration: 7000,
+            style: {
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              backdropFilter: 'blur(10px)'
+            }
+          });
+          // Add terminal error to thoughts
+          setThoughts(prev => [...prev, {
+            role: 'system',
+            content: `⛔ Terminal Error (${errorCode}): ${errorMsg}`,
+            timestamp: Date.now(),
+            type: 'error',
+            terminal: true
+          }]);
+        } else {
+          // Non-terminal errors: mark offline and show toast
+          setApiConnected(false);
+          offlineRef.current = true;
+          if (apiConnected) {
+            toast.error(errorMsg);
+          }
         }
-        // Reset buffers on error
+        
+        // Reset buffers on any error
         enrichTileIdRef.current = null;
         streamBufferRef.current = '';
         setIsThinking(false);

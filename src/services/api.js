@@ -693,17 +693,23 @@ export const chatAPI = {
     let anyTokenSeen = false;
     // v2.1: track last sequence seen for potential resume
     let lastSequenceSeen = (userContext && userContext.__resume && (userContext.__resume.lastSequenceSeen ?? null)) || null;
+    // v2.1: track received stream_id from ack for resume
+    let ackStreamId = null;
+    // v2.1: terminal error flag to stop SSE loop
+    let terminalErrorReceived = false;
 
     while (true) {
       const { done, value } = await reader.read();
 
-      if (done) break;
+      if (done || terminalErrorReceived) break;
 
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop(); // Keep incomplete line in buffer
 
       for (const line of lines) {
+        // v2.1: break out of line processing if terminal error received
+        if (terminalErrorReceived) break;
         if (line.startsWith('event:')) {
           const eventType = line.substring(6).trim();
           continue;
@@ -748,6 +754,12 @@ export const chatAPI = {
                 // Immediate acknowledgment - shows UI activity within 100ms
                 const ackData = getPayloadData(parsed);
                 try { ackSeen = true; } catch {}
+                // v2.1: persist stream_id for resume
+                const sid = ackData.stream_id || parsed.stream_id;
+                if (sid) {
+                  ackStreamId = sid;
+                  try { localStorage.setItem('amx_last_stream_id', sid); } catch {}
+                }
                 onEvent({ type: 'ack', data: ackData });
               } else if (eventType === 'plan') {
                 // Plan event - show execution plan before execution begins
@@ -854,7 +866,14 @@ export const chatAPI = {
               } else if (eventType === 'error') {
                 const errData = getPayloadData(parsed);
                 const msg = errData.error || errData.message || 'Unknown error';
-                onEvent({ type: 'error', data: { error: msg, code: errData.code, terminal: !!errData.terminal, context: errData.context, details: errData.details } });
+                const isTerminal = !!errData.terminal;
+                onEvent({ type: 'error', data: { error: msg, code: errData.code, terminal: isTerminal, context: errData.context, details: errData.details } });
+                // v2.1: stop stream on terminal errors
+                if (isTerminal) {
+                  console.log('[API] Terminal error received, stopping SSE stream');
+                  terminalErrorReceived = true;
+                  break; // Exit the for loop to stop processing events
+                }
               } else if (eventType === 'metadata') {
                 const md = getPayloadData(parsed);
                 onEvent({ type: 'metadata', data: md });
