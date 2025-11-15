@@ -21,6 +21,10 @@ import { createLogger } from './logger.js';
 
 const logger = createLogger('HybridSearch');
 
+// Feature flag: Enable/disable Supabase semantic RPC calls
+// Set to false to prevent 404 errors when RPCs are not available
+const ENABLE_SUPABASE_SEMANTICS = import.meta.env.VITE_ENABLE_SUPABASE_SEMANTICS === 'true' || false;
+
 // Search configuration
 const CONFIG = {
   localMinResults: 5,          // Min results to consider local search sufficient
@@ -79,7 +83,7 @@ export async function searchMessages(query, options = {}) {
   
   if (needsSupabase && userId) {
     try {
-      if (mode === 'semantic' || mode === 'hybrid') {
+      if ((mode === 'semantic' || mode === 'hybrid') && ENABLE_SUPABASE_SEMANTICS) {
         const embedding = await generateEmbedding(query);
         
         const { data, error } = await supabase.rpc('search_messages_semantic', {
@@ -99,6 +103,8 @@ export async function searchMessages(query, options = {}) {
           })));
           logger.debug(`Supabase semantic search found ${data.length} results`);
         }
+      } else if ((mode === 'semantic' || mode === 'hybrid') && !ENABLE_SUPABASE_SEMANTICS) {
+        logger.debug('Supabase semantic search skipped (feature flag disabled)');
       }
       
       if (mode === 'keyword' || mode === 'hybrid') {
@@ -194,7 +200,7 @@ export async function searchFacts(query, options = {}) {
   
   if (needsSupabase && userId) {
     try {
-      if (mode === 'semantic' || mode === 'hybrid') {
+      if ((mode === 'semantic' || mode === 'hybrid') && ENABLE_SUPABASE_SEMANTICS) {
         const embedding = await generateEmbedding(query);
         
         const { data, error } = await supabase.rpc('search_facts_semantic', {
@@ -214,6 +220,8 @@ export async function searchFacts(query, options = {}) {
           })));
           logger.debug(`Supabase semantic search found ${data.length} results`);
         }
+      } else if ((mode === 'semantic' || mode === 'hybrid') && !ENABLE_SUPABASE_SEMANTICS) {
+        logger.debug('Supabase semantic search skipped (feature flag disabled)');
       }
       
       if (mode === 'keyword' || mode === 'hybrid') {
