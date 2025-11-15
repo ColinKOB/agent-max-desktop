@@ -171,7 +171,7 @@ export default function AppleFloatBar({
   // Helper to map UI level to backend mode
   const resolveMode = useCallback(() => {
     const lvl = (permissionLevel || '').toLowerCase();
-    if (lvl === 'powerful') return 'autonomous';
+    if (lvl === 'powerful' || lvl === 'autonomous') return 'autonomous';
     if (lvl === 'chatty') return 'chatty';
     return 'helpful';
   }, [permissionLevel]);
@@ -2467,21 +2467,21 @@ export default function AppleFloatBar({
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       border: 'none',
-                      background: permissionLevel === opt.value ? 'rgba(255,255,255,0.08)' : 'transparent',
+                      background: ((permissionLevel === opt.value) || (opt.value === 'powerful' && permissionLevel === 'autonomous')) ? 'rgba(255,255,255,0.08)' : 'transparent',
                       color: 'rgba(255,255,255,0.55)',
                       cursor: 'pointer',
                       borderRight: idx < 2 ? '1px solid rgba(255,255,255,0.08)' : 'none',
-                      boxShadow: permissionLevel === opt.value ? 'inset 0 -2px 8px rgba(255,255,255,0.15)' : 'none',
+                      boxShadow: ((permissionLevel === opt.value) || (opt.value === 'powerful' && permissionLevel === 'autonomous')) ? 'inset 0 -2px 8px rgba(255,255,255,0.15)' : 'none',
                       transition: 'all 0.2s ease'
                     }}
                     onMouseEnter={(e) => {
-                      if (permissionLevel !== opt.value) {
+                      if (!((permissionLevel === opt.value) || (opt.value === 'powerful' && permissionLevel === 'autonomous'))) {
                         e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
                         e.currentTarget.style.color = 'rgba(255,255,255,0.75)';
                       }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = permissionLevel === opt.value ? 'rgba(255,255,255,0.08)' : 'transparent';
+                      e.currentTarget.style.background = ((permissionLevel === opt.value) || (opt.value === 'powerful' && permissionLevel === 'autonomous')) ? 'rgba(255,255,255,0.08)' : 'transparent';
                       e.currentTarget.style.color = 'rgba(255,255,255,0.55)';
                     }}
                   >

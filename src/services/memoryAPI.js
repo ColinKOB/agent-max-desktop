@@ -109,7 +109,7 @@ export async function getFacts(filters = {}) {
       const response = await fetch(url, { headers: buildHeaders() });
       if (response.ok) return response.json();
       lastStatus = response.status;
-      if (lastStatus === 404 || lastStatus === 405) continue;
+      if (lastStatus === 404 || lastStatus === 405 || lastStatus === 501 || lastStatus === 503) continue;
     } catch (_) {
       // try next
     }
@@ -135,7 +135,7 @@ export async function getFact(id) {
       const response = await fetch(url, { headers: buildHeaders() });
       if (response.ok) return response.json();
       lastStatus = response.status;
-      if (lastStatus === 404 || lastStatus === 405) continue;
+      if (lastStatus === 404 || lastStatus === 405 || lastStatus === 501 || lastStatus === 503) continue;
     } catch (_) {}
   }
   if (lastStatus === 404) throw new Error('Fact not found');
@@ -170,7 +170,7 @@ export async function createFact(factData) {
       if (response.ok) return response.json();
       lastStatus = response.status;
       try { lastBody = await response.text(); } catch {}
-      if (lastStatus === 404 || lastStatus === 405) continue;
+      if (lastStatus === 404 || lastStatus === 405 || lastStatus === 501 || lastStatus === 503) continue;
     } catch (e) { lastBody = String(e?.message || e); }
   }
   throw new Error(lastBody || `Failed to create fact: ${lastStatus}`);
@@ -200,7 +200,7 @@ export async function updateFact(id, updates) {
       if (response.ok) return response.json();
       lastStatus = response.status;
       try { lastBody = await response.text(); } catch {}
-      if (lastStatus === 404 || lastStatus === 405) continue;
+      if (lastStatus === 404 || lastStatus === 405 || lastStatus === 501 || lastStatus === 503) continue;
     } catch (e) { lastBody = String(e?.message || e); }
   }
   throw new Error(lastBody || `Failed to update fact: ${lastStatus}`);
@@ -226,7 +226,7 @@ export async function deleteFact(id, hardDelete = false) {
       const response = await fetch(url, { method: 'DELETE', headers: buildHeaders() });
       if (response.ok) return;
       lastStatus = response.status;
-      if (lastStatus === 404 || lastStatus === 405) continue;
+      if (lastStatus === 404 || lastStatus === 405 || lastStatus === 501 || lastStatus === 503) continue;
     } catch (_) {}
   }
   if (lastStatus === 404) throw new Error('Fact not found');
@@ -259,7 +259,7 @@ export async function saveMessage(messageData) {
       if (response.ok) return response.json();
       lastStatus = response.status;
       try { lastBody = await response.text(); } catch {}
-      if (lastStatus === 404 || lastStatus === 405) continue;
+      if (lastStatus === 404 || lastStatus === 405 || lastStatus === 501 || lastStatus === 503) continue;
     } catch (e) { lastBody = String(e?.message || e); }
   }
   throw new Error(lastBody || `Failed to save message: ${lastStatus}`);
@@ -289,7 +289,7 @@ export async function getMessages(options = {}) {
       const response = await fetch(url, { headers: buildHeaders() });
       if (response.ok) return response.json();
       lastStatus = response.status;
-      if (lastStatus === 404 || lastStatus === 405) continue;
+      if (lastStatus === 404 || lastStatus === 405 || lastStatus === 501 || lastStatus === 503) continue;
     } catch (_) {}
   }
   throw new Error(`Failed to get messages: ${lastStatus}`);
@@ -312,7 +312,7 @@ export async function getStats() {
       const response = await fetch(url, { headers: buildHeaders() });
       if (response.ok) return response.json();
       lastStatus = response.status;
-      if (lastStatus === 404 || lastStatus === 405) continue;
+      if (lastStatus === 404 || lastStatus === 405 || lastStatus === 501 || lastStatus === 503) continue;
     } catch (_) {}
   }
   throw new Error(`Failed to get stats: ${lastStatus}`);
@@ -335,7 +335,7 @@ export async function checkHealth() {
       const response = await fetch(url, { headers: buildHeaders() });
       if (response.ok) return response.json();
       lastStatus = response.status;
-      if (lastStatus === 404 || lastStatus === 405) continue;
+      if (lastStatus === 404 || lastStatus === 405 || lastStatus === 501 || lastStatus === 503) continue;
     } catch (_) {}
   }
   throw new Error(`Health check failed: ${lastStatus}`);
@@ -363,7 +363,7 @@ export async function extract(payload) {
       if (response.ok) return response.json();
       lastStatus = response.status;
       try { lastBody = await response.text(); } catch {}
-      if (lastStatus === 404 || lastStatus === 405) continue;
+      if (lastStatus === 404 || lastStatus === 405 || lastStatus === 501 || lastStatus === 503) continue;
     } catch (e) { lastBody = String(e?.message || e); }
   }
   throw new Error(lastBody || `Extraction failed: ${lastStatus}`);
@@ -391,7 +391,7 @@ export async function apply(payload) {
       if (response.ok) return response.json();
       lastStatus = response.status;
       try { lastBody = await response.text(); } catch {}
-      if (lastStatus === 404 || lastStatus === 405) continue;
+      if (lastStatus === 404 || lastStatus === 405 || lastStatus === 501 || lastStatus === 503) continue;
     } catch (e) { lastBody = String(e?.message || e); }
   }
   throw new Error(lastBody || `Apply failed: ${lastStatus}`);

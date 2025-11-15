@@ -463,17 +463,14 @@ export const chatAPI = {
     // - chatty/helpful → /api/v2/chat/streaming/stream (text generation only)
     const isAutonomous = requestedMode === 'autonomous';
     const endpoints = isAutonomous 
-      ? (
-          disableLegacyFallbacks
-            ? [ `${baseURL}/api/v2/agent/execute/stream` ]
-            : [
-                `${baseURL}/api/v2/agent/execute/stream`,
-                `${baseURL}/api/v2/autonomous/execute/stream`,
-                `${baseURL}/api/autonomous/execute/stream`,
-                `${baseURL}/api/v2/autonomous/stream`,
-                `${baseURL}/api/autonomous/stream`
-              ]
-        )
+      ? [
+          // Always try robust autonomous fallbacks regardless of build flags
+          `${baseURL}/api/v2/agent/execute/stream`,
+          `${baseURL}/api/v2/autonomous/execute/stream`,
+          `${baseURL}/api/autonomous/execute/stream`,
+          `${baseURL}/api/v2/autonomous/stream`,
+          `${baseURL}/api/autonomous/stream`
+        ]
       : (
           disableLegacyFallbacks
             ? [ `${baseURL}/api/v2/chat/streaming/stream` ]

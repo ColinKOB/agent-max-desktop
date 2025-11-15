@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Max - Mode Reset Tool</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        h1 {
+            margin-top: 0;
+            font-size: 28px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-weight: 500;
+        }
+        .status.error {
+            background: rgba(255, 68, 68, 0.2);
+            border: 2px solid #ff4444;
+        }
+        .status.success {
+            background: rgba(76, 175, 80, 0.2);
+            border: 2px solid #4CAF50;
+        }
+        .status.info {
+            background: rgba(33, 150, 243, 0.2);
+            border: 2px solid #2196F3;
+        }
+        button {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button.danger {
+            background: #ff4444;
+            color: white;
+        }
+        code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+        .mode-display {
+            font-size: 24px;
+            font-weight: bold;
+            padding: 20px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .instructions {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            line-height: 1.6;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Agent Max Mode Reset Tool</h1>
+        
+        <div class="instructions">
+            <strong>Issue:</strong> App stuck in "Helpful" mode, not getting responses.
+            <br><br>
+            <strong>Solution:</strong> Reset to "Autonomous" mode to use the correct API endpoint.
+        </div>
+
+        <div id="status" class="status info">
+            Checking current mode...
+        </div>
+
+        <div class="mode-display" id="currentMode">
+            Loading...
+        </div>
+
+        <div style="text-align: center;">
+            <button onclick="checkMode()">🔍 Check Mode</button>
+            <button onclick="resetMode()">✨ Reset to Autonomous</button>
+            <button onclick="testEndpoint()" class="danger">🧪 Test Current Endpoint</button>
+        </div>
+
+        <div class="instructions">
+            <strong>What this does:</strong>
+            <ol>
+                <li><strong>Check Mode:</strong> Shows your current permission level</li>
+                <li><strong>Reset to Autonomous:</strong> Sets mode to "autonomous" and reloads the app</li>
+                <li><strong>Test Endpoint:</strong> Checks if the current mode's endpoint is reachable</li>
+            </ol>
+            <br>
+            <strong>After reset:</strong> Your app will use <code>/api/v2/agent/execute/stream</code> which supports multi-step execution and tool use.
+        </div>
+    </div>
+
+    <script>
+        const STATUS_ELEMENT = document.getElementById('status');
+        const MODE_ELEMENT = document.getElementById('currentMode');
+
+        function showStatus(message, type = 'info') {
+            STATUS_ELEMENT.textContent = message;
+            STATUS_ELEMENT.className = `status ${type}`;
+        }
+
+        function checkMode() {
+            try {
+                const mode = localStorage.getItem('permission_level') || 'helpful (default)';
+                MODE_ELEMENT.textContent = `Current Mode: ${mode.toUpperCase()}`;
+                
+                if (mode === 'autonomous') {
+                    showStatus('✅ Mode is already set to Autonomous. You\'re good to go!', 'success');
+                } else {
+                    showStatus(`⚠️ Mode is "${mode}". This uses a different endpoint that may not work correctly. Click "Reset to Autonomous" to fix.`, 'error');
+                }
+            } catch (e) {
+                showStatus(`❌ Error checking mode: ${e.message}`, 'error');
+            }
+        }
+
+        function resetMode() {
+            try {
+                const oldMode = localStorage.getItem('permission_level') || 'not set';
+                localStorage.setItem('permission_level', 'autonomous');
+                
+                showStatus(`✅ Success! Mode changed from "${oldMode}" to "autonomous". Reloading app...`, 'success');
+                MODE_ELEMENT.textContent = 'Current Mode: AUTONOMOUS';
+                
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } catch (e) {
+                showStatus(`❌ Error resetting mode: ${e.message}`, 'error');
+            }
+        }
+
+        async function testEndpoint() {
+            const mode = localStorage.getItem('permission_level') || 'helpful';
+            const baseURL = 'https://agentmax-production.up.railway.app';
+            
+            const endpoint = mode === 'autonomous' 
+                ? `${baseURL}/api/v2/agent/execute/stream`
+                : `${baseURL}/api/v2/chat/streaming/stream`;
+            
+            showStatus(`🔍 Testing ${mode} mode endpoint...`, 'info');
+            MODE_ELEMENT.textContent = `Testing: ${endpoint}`;
+            
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'text/event-stream'
+                    },
+                    body: JSON.stringify({
+                        message: 'test',
+                        mode: mode
+                    })
+                });
+                
+                if (response.ok || response.status === 422) {
+                    showStatus(`✅ Endpoint reachable! Status: ${response.status}`, 'success');
+                } else {
+                    showStatus(`⚠️ Endpoint returned status ${response.status}. May not be properly configured.`, 'error');
+                }
+            } catch (e) {
+                showStatus(`❌ Endpoint unreachable: ${e.message}`, 'error');
+            }
+        }
+
+        // Auto-check on load
+        window.addEventListener('load', checkMode);
+    </script>
+</body>
+</html>

@@ -18,7 +18,8 @@ export default function PermissionBadge({ level = 'helpful', onClick }) {
   const badges = {
     chatty: { icon: '👁️', label: 'Chatty', color: 'hsl(220, 100%, 70%)' },
     helpful: { icon: '🛠️', label: 'Helpful', color: 'hsl(150, 100%, 70%)' },
-    powerful: { icon: '⚡', label: 'Powerful', color: 'hsl(280, 100%, 70%)' }
+    powerful: { icon: '⚡', label: 'Powerful', color: 'hsl(280, 100%, 70%)' },
+    autonomous: { icon: '⚡', label: 'Autonomous', color: 'hsl(280, 100%, 70%)' }
   };
   
   const badge = badges[level] || badges.helpful;

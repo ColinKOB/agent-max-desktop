@@ -39,6 +39,13 @@ export function PermissionProvider({ children }) {
     } catch (err) {
       console.error('Failed to load permission level:', err);
       setError(err.message || 'Failed to load permission level');
+      try {
+        let saved = localStorage.getItem('permission_level');
+        if (saved) {
+          if (saved === 'powerful') saved = 'autonomous';
+          setLevel(saved);
+        }
+      } catch {}
       // Keep default values on error
     } finally {
       setLoading(false);
@@ -47,10 +54,16 @@ export function PermissionProvider({ children }) {
   
   const updateLevel = async (newLevel) => {
     try {
-      await permissionAPI.updateLevel(newLevel);
+      const normalized = (newLevel === 'powerful') ? 'autonomous' : newLevel;
+      try { localStorage.setItem('permission_level', normalized); } catch {}
+      setLevel(normalized);
+      await permissionAPI.updateLevel(normalized);
       await loadPermissionLevel(); // Reload to get new capabilities
     } catch (err) {
       console.error('Failed to update permission level:', err);
+      const normalized = (newLevel === 'powerful') ? 'autonomous' : newLevel;
+      try { localStorage.setItem('permission_level', normalized); } catch {}
+      setLevel(normalized);
       throw err; // Let the component handle the error
     }
   };
