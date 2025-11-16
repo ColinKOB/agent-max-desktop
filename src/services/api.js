@@ -146,11 +146,10 @@ async function refreshBackendFeatureFlags(force = false) {
   }
   try {
     const { data } = await api.get('/api/v2/feature-flags', { timeout: 5000 });
-    if (data && typeof data === 'object') {
-      backendFeatureFlags = data;
-      if (typeof data.hands_on_desktop === 'boolean') {
-        handsOnDesktopEnabled = data.hands_on_desktop;
-      }
+    const flagMap = (data && data.flags && typeof data.flags === 'object') ? data.flags : (data || {});
+    backendFeatureFlags = flagMap;
+    if (typeof flagMap.hands_on_desktop === 'boolean') {
+      handsOnDesktopEnabled = flagMap.hands_on_desktop;
     }
     lastFeatureFlagFetch = now;
   } catch (err) {
@@ -499,13 +498,11 @@ export const chatAPI = {
       ? `${message.slice(0, MAX_MESSAGE_LEN)}\n\n[Note: Input truncated to ${MAX_MESSAGE_LEN} chars]`
       : message;
 
-    let useHandsOnDesktop = true;
+    let useHandsOnDesktop = handsOnDesktopEnabled;
     if (isAutonomous) {
       try {
-        const backendFlags = await refreshBackendFeatureFlags();
-        if (backendFlags && typeof backendFlags.hands_on_desktop === 'boolean') {
-          useHandsOnDesktop = backendFlags.hands_on_desktop;
-        }
+        await refreshBackendFeatureFlags();
+        useHandsOnDesktop = handsOnDesktopEnabled;
       } catch (err) {
         logger.warn('Falling back to hands-on-desktop default (true)', { error: err?.message });
       }
