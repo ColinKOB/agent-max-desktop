@@ -71,6 +71,7 @@ const connectionState = {
   listeners: new Set(),
 };
 
+
 // ============================================
 // SUBSCRIPTION MANAGEMENT (Option B)
 // ============================================
@@ -131,6 +132,35 @@ axiosRetry(api, {
     });
   },
 });
+
+// Backend feature flags (e.g., Hands on Desktop)
+const FEATURE_FLAG_TTL_MS = 5 * 60 * 1000; // 5 minutes
+let backendFeatureFlags = null;
+let lastFeatureFlagFetch = 0;
+let handsOnDesktopEnabled = true; // Assume enabled until backend says otherwise
+
+async function refreshBackendFeatureFlags(force = false) {
+  const now = Date.now();
+  if (!force && backendFeatureFlags && (now - lastFeatureFlagFetch) < FEATURE_FLAG_TTL_MS) {
+    return backendFeatureFlags;
+  }
+  try {
+    const { data } = await api.get('/api/v2/feature-flags', { timeout: 5000 });
+    if (data && typeof data === 'object') {
+      backendFeatureFlags = data;
+      if (typeof data.hands_on_desktop === 'boolean') {
+        handsOnDesktopEnabled = data.hands_on_desktop;
+      }
+    }
+    lastFeatureFlagFetch = now;
+  } catch (err) {
+    lastFeatureFlagFetch = now;
+    logger.warn('Failed to refresh backend feature flags', { error: err?.message });
+  }
+  return backendFeatureFlags;
+}
+
+export const isHandsOnDesktopEnabled = () => handsOnDesktopEnabled;
 
 // Request interceptor
 api.interceptors.request.use(
@@ -406,25 +436,6 @@ export const preferencesAPI = {
 // CHAT API (Full Autonomous - Can Execute Commands)
 // ============================================
 export const chatAPI = {
-  sendMessage: (message, userContext = null, image = null) => {
-    const payload = {
-      goal: message, // Autonomous API uses "goal" not "message"
-      user_context: userContext,
-      max_steps: 10,
-      timeout: 300, // 5 minutes max execution time
-    };
-
-    // Add image if provided (base64 encoded)
-    if (image) {
-      payload.image = image;
-    }
-
-    // Use AUTONOMOUS endpoint - has full capabilities!
-    return api.post('/api/v2/autonomous/execute', payload, {
-      timeout: 310000, // 310 seconds (slightly more than backend timeout)
-    });
-  },
-
   sendMessageStream: async (message, userContext = null, image = null, onEvent) => {
     // Get base URL
     const cfg = apiConfigManager.getConfig();
@@ -464,12 +475,8 @@ export const chatAPI = {
     const isAutonomous = requestedMode === 'autonomous';
     const endpoints = isAutonomous 
       ? [
-          // Always try robust autonomous fallbacks regardless of build flags
           `${baseURL}/api/v2/agent/execute/stream`,
-          `${baseURL}/api/v2/autonomous/execute/stream`,
-          `${baseURL}/api/autonomous/execute/stream`,
-          `${baseURL}/api/v2/autonomous/stream`,
-          `${baseURL}/api/autonomous/stream`
+          `${baseURL}/api/v2/autonomous/execute/stream`
         ]
       : (
           disableLegacyFallbacks
@@ -492,6 +499,18 @@ export const chatAPI = {
       ? `${message.slice(0, MAX_MESSAGE_LEN)}\n\n[Note: Input truncated to ${MAX_MESSAGE_LEN} chars]`
       : message;
 
+    let useHandsOnDesktop = true;
+    if (isAutonomous) {
+      try {
+        const backendFlags = await refreshBackendFeatureFlags();
+        if (backendFlags && typeof backendFlags.hands_on_desktop === 'boolean') {
+          useHandsOnDesktop = backendFlags.hands_on_desktop;
+        }
+      } catch (err) {
+        logger.warn('Falling back to hands-on-desktop default (true)', { error: err?.message });
+      }
+    }
+
     const payload = isAutonomous ? {
       // Autonomous endpoint: include both keys for compatibility with guide/backend
       goal: message,
@@ -508,7 +527,7 @@ export const chatAPI = {
       max_steps: 10,
       timeout: 300,
       flags: {
-        server_fs: false  // Desktop-side execution: AI sends commands, desktop executes locally
+        server_fs: !useHandsOnDesktop  // If backend disables hands-on desktop, let it execute tools
       }
     } : {
       // Chat endpoint
@@ -767,6 +786,10 @@ export const chatAPI = {
                 const logData = getPayloadData(parsed);
                 onEvent({ type: 'exec_log', data: logData });
               } else if (eventType === 'tool_request') {
+                if (!handsOnDesktopEnabled) {
+                  logger.warn('[API] Received tool_request but hands-on desktop is disabled; skipping');
+                  continue;
+                }
                 // Desktop execution handshake: dispatch to electron main
                 const req = getPayloadData(parsed);
                 try {

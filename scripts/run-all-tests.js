@@ -114,7 +114,7 @@ async function runIntegrationTests() {
     
     // Test API endpoints
     const apiTests = [
-      { url: 'http://localhost:5173/api/health', expected: 200 },
+      { url: 'http://localhost:5173/health', expected: 200 },
       { url: 'http://localhost:5173/api/billing/usage', expected: 200 },
     ];
     

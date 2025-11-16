@@ -63,7 +63,7 @@ export function PerformanceMonitor({ mini = false }) {
     const latencyInterval = setInterval(async () => {
       const start = performance.now();
       try {
-        await fetch('/api/health', { method: 'HEAD' }).catch(() => {});
+        await fetch('/health', { method: 'HEAD' }).catch(() => {});
         const latency = performance.now() - start;
         setMetrics(prev => ({
           ...prev,
