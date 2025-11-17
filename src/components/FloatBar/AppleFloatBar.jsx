@@ -61,6 +61,9 @@ export default function AppleFloatBar({
   const [factTiles, setFactTiles] = useState([]);
   // Autonomous mode state
   const [executionPlan, setExecutionPlan] = useState(null);
+  const [actionPlanMetadata, setActionPlanMetadata] = useState(null);
+  const [clarifyStats, setClarifyStats] = useState(null);
+  const [confirmStats, setConfirmStats] = useState(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [totalSteps, setTotalSteps] = useState(0);
   const lastUserPromptRef = useRef('');
@@ -577,6 +580,26 @@ export default function AppleFloatBar({
         enrichTileIdRef.current = null;
         // Reset thought ref (bubble will be created lazily on first thinking event)
         thoughtIdRef.current = null;
+        setActionPlanMetadata(null);
+        setClarifyStats(null);
+        setConfirmStats(null);
+        setExecutionPlan(null);
+        setCurrentStep(0);
+        setTotalSteps(0);
+      } else if (event.type === 'metadata') {
+        const meta = event.data || event;
+        const key = meta.key || meta.metadata_key || meta.name;
+        const value = meta.value ?? meta.data ?? null;
+        if (!key) {
+          console.warn('[Chat] metadata event missing key', meta);
+        } else if (key === 'action_plan') {
+          setActionPlanMetadata(value);
+          setExecutionPlan(prev => prev ? { ...prev, actionPlanMetadata: value } : prev);
+        } else if (key === 'clarify_stats') {
+          setClarifyStats(value);
+        } else if (key === 'confirm_stats') {
+          setConfirmStats(value);
+        }
       } else if (event.type === 'tool_result') {
         // Phase 2: Deterministic tool result
         const toolName = event.tool_name || event.data?.tool_name;
@@ -670,21 +693,33 @@ export default function AppleFloatBar({
         }
       } else if (event.type === 'plan') {
         // Autonomous mode: AI generated execution plan
-        const planData = event.data || event;
+        const rawPlan = event.data || event;
+        const mergedMetadata = rawPlan.actionPlanMetadata || actionPlanMetadata || null;
+        const planData = { ...rawPlan, actionPlanMetadata: mergedMetadata };
         console.log('[Chat] Execution plan received:', planData);
         setExecutionPlan(planData);
         setTotalSteps(planData.total_steps || planData.steps?.length || 0);
         setCurrentStep(0);
         setThinkingStatus(`📋 Plan ready: ${planData.total_steps || 0} steps`);
         
-        // Show plan as a special message
-        const planSteps = (planData.steps || []).map((step, idx) => 
-          `${idx + 1}. ${step.description || step.command || 'Processing...'}`
-        ).join('\n');
+        // Show plan as a special message (annotated with metadata when available)
+        const planSteps = (planData.steps || []).map((step, idx) => {
+          const detail = mergedMetadata && mergedMetadata[idx];
+          const suffix = detail ? ` _(risk: ${detail.risk_level || 'unknown'}${detail.parallel_safe ? ', parallel' : ''})_` : '';
+          return `${idx + 1}. ${step.description || step.command || 'Processing...'}${suffix}`;
+        }).join('\n');
+        let metadataBlock = '';
+        if (mergedMetadata && mergedMetadata.length) {
+          metadataBlock = '\n\n_Action Details:_\n' + mergedMetadata.map((item, idx) => {
+            const label = item.action || `Step ${idx + 1}`;
+            const safe = item.parallel_safe ? 'parallel-safe' : 'serial-only';
+            return `- ${label}: risk=${item.risk_level || 'unknown'}, ${safe}`;
+          }).join('\n');
+        }
         
         setThoughts(prev => [...prev, {
           role: 'assistant',
-          content: `**Execution Plan:**\n${planSteps}${planData.reasoning ? `\n\n*${planData.reasoning}*` : ''}`,
+          content: `**Execution Plan:**\n${planSteps}${planData.reasoning ? `\n\n*${planData.reasoning}*` : ''}${metadataBlock}`,
           timestamp: Date.now(),
           type: 'plan'
         }]);
@@ -888,6 +923,20 @@ export default function AppleFloatBar({
         const text = finalData.rationale || finalData.summary || '';
         if (text && typeof text === 'string') {
           setThoughts(prev => [...prev, { role: 'assistant', content: text, timestamp: Date.now(), type: 'final' }]);
+        }
+        if ((clarifyStats && clarifyStats.requested) || (confirmStats && confirmStats.requested)) {
+          const parts = [];
+          if (clarifyStats && clarifyStats.requested) {
+            parts.push(`Clarified ${clarifyStats.answered || 0}/${clarifyStats.requested} prompts`);
+          }
+          if (confirmStats && confirmStats.requested) {
+            const approved = confirmStats.approved || 0;
+            const total = confirmStats.requested;
+            parts.push(`Confirmed ${approved}/${total} high-risk actions`);
+          }
+          if (parts.length) {
+            setThoughts(prev => [...prev, { role: 'assistant', content: `📊 ${parts.join(' • ')}`, timestamp: Date.now(), type: 'metrics' }]);
+          }
         }
       } else if (event.type === 'thinking') {
         const message = event.data?.message || event.message || 'Processing...';
@@ -1848,6 +1897,9 @@ export default function AppleFloatBar({
         } catch (mergeErr) {
           console.warn('[Memory] Failed to merge memory_pack into userContext', mergeErr);
         }
+        setActionPlanMetadata(null);
+        setClarifyStats(null);
+        setConfirmStats(null);
       }
     } catch (e) {
       console.warn('[Memory] Failed to attach memory_pack', e);
