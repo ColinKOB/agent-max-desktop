@@ -66,6 +66,8 @@ export default function AppleFloatBar({
   const [confirmStats, setConfirmStats] = useState(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [totalSteps, setTotalSteps] = useState(0);
+  const [executionMode, setExecutionMode] = useState(null);
+  const [desktopActionsRequired, setDesktopActionsRequired] = useState(true);
   const lastUserPromptRef = useRef('');
   const lastAssistantTsRef = useRef(null);
   const accumulatedResponseRef = useRef('');  // For fs_command extraction
@@ -97,6 +99,9 @@ export default function AppleFloatBar({
   const thoughtIdRef = useRef(null); // current inline thought entry id
   const [execPanelOpen, setExecPanelOpen] = useState(true);
   const [executionDetails, setExecutionDetails] = useState(null);
+  const executionModeRef = useRef(null);
+  const desktopActionsRef = useRef(true);
+  const chatModeAnnouncementRef = useRef(false);
   const copyToClipboard = useCallback(async (text, note = 'Copied') => {
     try {
       await navigator.clipboard.writeText(String(text || ''));
@@ -586,6 +591,12 @@ export default function AppleFloatBar({
         setExecutionPlan(null);
         setCurrentStep(0);
         setTotalSteps(0);
+        setExecutionMode(null);
+        executionModeRef.current = null;
+        setDesktopActionsRequired(true);
+        desktopActionsRef.current = true;
+        chatModeAnnouncementRef.current = false;
+        setThinkingStatus('Thinking...');
       } else if (event.type === 'metadata') {
         const meta = event.data || event;
         const key = meta.key || meta.metadata_key || meta.name;
@@ -599,6 +610,28 @@ export default function AppleFloatBar({
           setClarifyStats(value);
         } else if (key === 'confirm_stats') {
           setConfirmStats(value);
+        } else if (key === 'execution_mode') {
+          executionModeRef.current = value;
+          setExecutionMode(value);
+          if (value === 'chat') {
+            setThinkingStatus('Answering directly…');
+            if (!chatModeAnnouncementRef.current) {
+              chatModeAnnouncementRef.current = true;
+              setThoughts(prev => [...prev, {
+                role: 'system',
+                content: '💬 Answering directly — no desktop actions required.',
+                timestamp: Date.now(),
+                type: 'status'
+              }]);
+            }
+          } else {
+            chatModeAnnouncementRef.current = false;
+            setThinkingStatus('Planning actions…');
+          }
+        } else if (key === 'desktop_actions_required') {
+          const normalized = Boolean(value);
+          desktopActionsRef.current = normalized;
+          setDesktopActionsRequired(normalized);
         }
       } else if (event.type === 'tool_result') {
         // Phase 2: Deterministic tool result
@@ -692,6 +725,9 @@ export default function AppleFloatBar({
           });
         }
       } else if (event.type === 'plan') {
+        if (executionModeRef.current === 'chat') {
+          return;
+        }
         // Autonomous mode: AI generated execution plan
         const rawPlan = event.data || event;
         const mergedMetadata = rawPlan.actionPlanMetadata || actionPlanMetadata || null;
@@ -716,10 +752,11 @@ export default function AppleFloatBar({
             return `- ${label}: risk=${item.risk_level || 'unknown'}, ${safe}`;
           }).join('\n');
         }
+        const desktopNote = desktopActionsRef.current ? '\n\n🖥️ Hands-on Desktop will run these actions.' : '\n\n☁️ Running entirely in the cloud.';
         
         setThoughts(prev => [...prev, {
           role: 'assistant',
-          content: `**Execution Plan:**\n${planSteps}${planData.reasoning ? `\n\n*${planData.reasoning}*` : ''}${metadataBlock}`,
+          content: `**Execution Plan:**\n${planSteps}${planData.reasoning ? `\n\n*${planData.reasoning}*` : ''}${metadataBlock}${desktopNote}`,
           timestamp: Date.now(),
           type: 'plan'
         }]);
@@ -2584,6 +2621,12 @@ export default function AppleFloatBar({
           
           {/* Messages */}
           <div className="apple-messages" ref={messagesRef}>
+            {executionMode === 'chat' && (
+              <div className="chat-mode-indicator">
+                <span role="img" aria-label="chat">💬</span>
+                <span>Answering directly — no desktop actions required</span>
+              </div>
+            )}
             {thoughts.map((thought, idx) => {
               if (thought.type === 'thought') {
                 const isExpanded = thought.expanded !== false;
