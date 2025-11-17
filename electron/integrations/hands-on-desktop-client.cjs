@@ -9,6 +9,9 @@ const EventSource = require('eventsource');
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 const execAsync = promisify(exec);
 
@@ -32,6 +35,11 @@ class HandsOnDesktopClient {
     connect() {
         if (this.eventSource) {
             this.disconnect();
+        }
+
+        if (process.env.HANDS_ON_DESKTOP_DEVICE_STREAM === '0') {
+            console.log('[HandsOnDesktop] Device stream disabled via env flag');
+            return;
         }
 
         const url = `${this.backendUrl}/api/v2/autonomous/stream?device_token=${this.deviceToken}`;
@@ -104,10 +112,11 @@ class HandsOnDesktopClient {
     async handleToolRequest(request) {
         const { request_id, run_id, step, tool, command, requires_elevation, timeout_sec } = request;
         
+        const preview = command ? `${command.substring(0, 50)}...` : null;
         console.log('[HandsOnDesktop] Executing:', {
             request_id,
             tool,
-            command: command.substring(0, 50) + '...',
+            command: preview,
             requires_elevation
         });
 
@@ -116,6 +125,10 @@ class HandsOnDesktopClient {
             
             if (tool === 'shell') {
                 result = await this.executeShellCommand(command, requires_elevation, timeout_sec);
+            } else if (tool === 'fs.write') {
+                result = await this.executeWriteFile(request.args || {});
+            } else if (tool === 'fs.mkdir') {
+                result = await this.executeMkdir(request.args || {});
             } else {
                 result = {
                     success: false,
@@ -153,6 +166,48 @@ class HandsOnDesktopClient {
                 metadata: { timestamp: new Date().toISOString() }
             });
         }
+    }
+
+    resolveSafePath(rawPath) {
+        if (!rawPath || typeof rawPath !== 'string') {
+            throw new Error('Path is required for filesystem operations');
+        }
+        const homeDir = os.homedir();
+        const expanded = rawPath.replace(/^~(?=$|\/|\\)/, homeDir);
+        const resolved = path.resolve(expanded);
+        const homeDirNormalized = path.resolve(homeDir);
+        if (!resolved.startsWith(homeDirNormalized)) {
+            throw new Error(`Access denied: Path must be within home directory. Attempted: ${resolved}`);
+        }
+        return resolved;
+    }
+
+    async executeWriteFile(args) {
+        const start = Date.now();
+        const resolvedPath = this.resolveSafePath(args.path);
+        const content = typeof args.content === 'string' ? args.content : '';
+        await fs.promises.mkdir(path.dirname(resolvedPath), { recursive: true });
+        await fs.promises.writeFile(resolvedPath, content, 'utf8');
+        return {
+            success: true,
+            exit_code: 0,
+            stdout: `Wrote ${resolvedPath}`,
+            stderr: '',
+            duration_ms: Date.now() - start
+        };
+    }
+
+    async executeMkdir(args) {
+        const start = Date.now();
+        const resolvedPath = this.resolveSafePath(args.path);
+        await fs.promises.mkdir(resolvedPath, { recursive: true });
+        return {
+            success: true,
+            exit_code: 0,
+            stdout: `Directory ready at ${resolvedPath}`,
+            stderr: '',
+            duration_ms: Date.now() - start
+        };
     }
 
     /**

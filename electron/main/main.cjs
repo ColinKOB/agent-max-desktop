@@ -372,7 +372,7 @@ app.whenReady().then(() => {
   autonomousIPC.register();
   
   // Initialize memory manager with API base and key
-  const mmApiBase = process.env.AMX_API_URL || process.env.AGENTMAX_API_URL || (process.env.NODE_ENV === 'production' ? 'https://agentmax-production.up.railway.app' : 'http://localhost:8000');
+  const mmApiBase = resolveBackendUrl();
   const mmApiKey = process.env.AMX_API_KEY || process.env.VITE_API_KEY || null;
   memoryManager = new LocalMemoryManager(mmApiBase, mmApiKey);
   console.log('✓ Memory manager initialized');
@@ -1047,9 +1047,16 @@ ipcMain.handle('memory:test-preferences', async () => {
 });
 
 // Initialize Hands on Desktop client
+function resolveBackendUrl() {
+  return process.env.AGENT_MAX_BACKEND_URL
+    || process.env.AMX_API_URL
+    || process.env.AGENTMAX_API_URL
+    || 'https://agentmax-production.up.railway.app';
+}
+
 function initializeHandsOnDesktop() {
   // Determine backend URL (reuse memory manager base when available)
-  const backendUrl = process.env.AGENT_MAX_BACKEND_URL || process.env.AMX_API_URL || process.env.AGENTMAX_API_URL || (process.env.NODE_ENV === 'production' ? 'https://agentmax-production.up.railway.app' : 'http://localhost:8000');
+  const backendUrl = resolveBackendUrl();
 
   console.log('[HandsOnDesktop] Pairing device and initializing client...');
   try {
