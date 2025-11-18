@@ -113,6 +113,20 @@ export default function AppleFloatBar({
     }
   }, []);
   
+  const { level: permissionLevel, updateLevel } = usePermission();
+  const permissionModeRef = useRef((permissionLevel || '').toLowerCase());
+  useEffect(() => {
+    permissionModeRef.current = (permissionLevel || '').toLowerCase();
+  }, [permissionLevel]);
+  const permissionKey = (permissionLevel || '').toLowerCase();
+  const isHelpfulMode = permissionKey === 'helpful';
+  const planCardAllowed = isHelpfulMode && executionMode !== 'chat';
+  const shouldDisplayPlanCard = useCallback(() => {
+    const key = permissionModeRef.current;
+    const execMode = executionModeRef.current;
+    return key === 'helpful' && execMode !== 'chat';
+  }, []);
+
   const planCardData = useMemo(() => {
     if (!executionPlan || !executionPlan.steps) return null;
     const steps = Array.isArray(executionPlan.steps) ? executionPlan.steps : [];
@@ -243,8 +257,6 @@ export default function AppleFloatBar({
     prevOnlineRef.current = apiConnected;
   }, [apiConnected]);
   
-  // Permission level
-  const { level: permissionLevel, updateLevel } = usePermission();
   // Helper to map UI level to backend mode
   const resolveMode = useCallback(() => {
     const lvl = (permissionLevel || '').toLowerCase();
@@ -662,7 +674,7 @@ export default function AppleFloatBar({
         setClarifyStats(null);
         setConfirmStats(null);
         setExecutionPlan(null);
-        setPlanCardDismissed(false);
+        setPlanCardDismissed(!shouldDisplayPlanCard());
         setCurrentStep(0);
         setTotalSteps(0);
         setExecutionMode(null);
@@ -808,6 +820,7 @@ export default function AppleFloatBar({
         const planData = { ...rawPlan, actionPlanMetadata: mergedMetadata };
         console.log('[Chat] Execution plan received:', planData);
         setExecutionPlan(planData);
+        setPlanCardDismissed(!shouldDisplayPlanCard());
         setTotalSteps(planData.total_steps || planData.steps?.length || 0);
         setCurrentStep(0);
         setThinkingStatus(`📋 Plan ready: ${planData.total_steps || 0} steps`);
@@ -1602,7 +1615,7 @@ export default function AppleFloatBar({
     setIsThinking(true);
     setThinkingStatus('Thinking...');
     // Reset autonomous progress state
-    try { setExecutionPlan(null); setPlanCardDismissed(false); setCurrentStep(0); setTotalSteps(0); } catch {}
+    try { setExecutionPlan(null); setPlanCardDismissed(!shouldDisplayPlanCard()); setCurrentStep(0); setTotalSteps(0); } catch {}
     // Remember the last user prompt for memory extraction
     lastUserPromptRef.current = text;
     
@@ -2697,7 +2710,7 @@ export default function AppleFloatBar({
             </div>
           )}
           
-          {planCardData && !planCardDismissed && (
+          {planCardAllowed && planCardData && !planCardDismissed && (
             <div style={{ marginBottom: 12 }}>
               <PlanCard 
                 plan={planCardData}

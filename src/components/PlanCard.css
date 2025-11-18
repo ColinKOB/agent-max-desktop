@@ -13,6 +13,9 @@
   margin: 16px 0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   animation: slideIn 0.3s ease-out;
+  max-height: 360px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .plan-card--low {
