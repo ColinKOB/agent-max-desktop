@@ -397,17 +397,33 @@ class LocalExecutor {
    * - Validates path is within allowed scope (home directory)
    */
   resolvePath(filePath) {
-    // Expand ~ to home directory
-    if (filePath.startsWith('~')) {
-      filePath = path.join(os.homedir(), filePath.slice(1));
-    }
-    
-    // Resolve to absolute path
-    const resolved = path.resolve(filePath);
-    
-    // Validate path is within home directory (safety check)
     const homeDir = os.homedir();
-    if (!resolved.startsWith(homeDir)) {
+    const normalizedHome = path.resolve(homeDir);
+    const safeRoot = normalizedHome.endsWith(path.sep) ? normalizedHome : `${normalizedHome}${path.sep}`;
+
+    if (filePath.startsWith('~')) {
+      filePath = path.join(normalizedHome, filePath.slice(1));
+    }
+
+    const placeholderPrefixes = [
+      '/home/user',
+      '\\home\\user',
+      '/Users/user',
+      '\\Users\\user',
+      'C:\\Users\\user',
+      'C:/Users/user',
+    ];
+    for (const prefix of placeholderPrefixes) {
+      if (filePath.startsWith(prefix)) {
+        const remainder = filePath.slice(prefix.length).replace(/^[/\\]+/, '');
+        filePath = path.join(normalizedHome, remainder);
+        break;
+      }
+    }
+
+    const resolved = path.isAbsolute(filePath) ? path.resolve(filePath) : path.resolve(normalizedHome, filePath);
+    
+    if (!(resolved === normalizedHome || resolved.startsWith(safeRoot))) {
       throw new Error(`Access denied: Path must be within home directory. Attempted: ${resolved}`);
     }
     
