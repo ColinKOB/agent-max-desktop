@@ -22,6 +22,7 @@ import { searchContext as hybridSearchContext } from '../../services/hybridSearc
 import memoryService from '../../services/memory';
 import contextSelector from '../../services/contextSelector';
 import { FactTileList } from '../FactTileList.jsx';
+import PlanCard from '../PlanCard';
 import { usePermission } from '../../contexts/PermissionContext';
 import ApprovalDialog from '../ApprovalDialog';
 import './AppleFloatBar.css';
@@ -99,6 +100,7 @@ export default function AppleFloatBar({
   const thoughtIdRef = useRef(null); // current inline thought entry id
   const [execPanelOpen, setExecPanelOpen] = useState(true);
   const [executionDetails, setExecutionDetails] = useState(null);
+  const [planCardDismissed, setPlanCardDismissed] = useState(false);
   const executionModeRef = useRef(null);
   const desktopActionsRef = useRef(false);
   const chatModeAnnouncementRef = useRef(false);
@@ -109,6 +111,73 @@ export default function AppleFloatBar({
     } catch (_) {
       toast.error('Copy failed');
     }
+  }, []);
+  
+  const planCardData = useMemo(() => {
+    if (!executionPlan || !executionPlan.steps) return null;
+    const steps = Array.isArray(executionPlan.steps) ? executionPlan.steps : [];
+    const metadataList = executionPlan.actionPlanMetadata || [];
+    
+    const tasks = steps.map((step, idx) => {
+      const meta = metadataList[idx] || {};
+      const rawArgs = (step.args && Object.keys(step.args).length > 0) ? step.args : (meta.args_preview || {});
+      const dependencies = Array.isArray(step.dependencies) ? step.dependencies : (meta.dependencies || []);
+      const rawBranches = Array.isArray(step.branches) ? step.branches : (meta.branches ? [].concat(meta.branches) : []);
+      const loopInfo = step.loop || meta.loop || null;
+      const capability = step.action || step.tool || meta.action || step.capability || '';
+      
+      return {
+        id: step.step_id || `step-${idx + 1}`,
+        step_id: step.step_id || `step-${idx + 1}`,
+        description: step.description || step.goal || `Step ${idx + 1}`,
+        goal_slice: step.goal,
+        capability,
+        tool_id: capability ? capability.toUpperCase() : undefined,
+        estimated_duration_ms: step.estimated_tokens ? step.estimated_tokens * 20 : undefined,
+        requires_approval: Boolean(step.requires_confirmation || meta.needs_confirm),
+        risk_level: meta.risk_level || (step.requires_confirmation ? 'medium' : 'low'),
+        args: rawArgs,
+        dependencies,
+        parallel_safe: typeof step.parallel_safe === 'boolean' ? step.parallel_safe : Boolean(meta.parallel_safe),
+        verification: step.verification || meta.verification,
+        branches: rawBranches,
+        loop: loopInfo
+      };
+    });
+    
+    const derivedMetadata = {
+      ...(executionPlan.metadata || {}),
+      reasoning: executionPlan.reasoning || executionPlan.metadata?.reasoning
+    };
+    if (!derivedMetadata.risk_level) {
+      if (tasks.some(t => t.risk_level === 'high')) {
+        derivedMetadata.risk_level = 'high';
+      } else if (tasks.some(t => t.risk_level === 'medium')) {
+        derivedMetadata.risk_level = 'medium';
+      } else {
+        derivedMetadata.risk_level = 'low';
+      }
+    }
+    
+    return {
+      plan_id: executionPlan.plan_id,
+      goal: executionPlan.goal || lastUserPromptRef.current || 'Current request',
+      tasks,
+      metadata: derivedMetadata,
+      requires_approval: tasks.some(t => t.requires_approval),
+      total_estimated_duration_ms: executionPlan.total_estimated_duration_ms || (tasks.length * 45000),
+      reasoning: executionPlan.reasoning
+    };
+  }, [executionPlan]);
+  
+  const handlePlanApprove = useCallback(() => {
+    toast.success('Plan acknowledged');
+    setPlanCardDismissed(true);
+  }, []);
+  
+  const handlePlanReject = useCallback(() => {
+    toast('Plan hidden. Ask again to replan.');
+    setPlanCardDismissed(true);
   }, []);
   
   // Store
@@ -593,6 +662,7 @@ export default function AppleFloatBar({
         setClarifyStats(null);
         setConfirmStats(null);
         setExecutionPlan(null);
+        setPlanCardDismissed(false);
         setCurrentStep(0);
         setTotalSteps(0);
         setExecutionMode(null);
@@ -1532,7 +1602,7 @@ export default function AppleFloatBar({
     setIsThinking(true);
     setThinkingStatus('Thinking...');
     // Reset autonomous progress state
-    try { setExecutionPlan(null); setCurrentStep(0); setTotalSteps(0); } catch {}
+    try { setExecutionPlan(null); setPlanCardDismissed(false); setCurrentStep(0); setTotalSteps(0); } catch {}
     // Remember the last user prompt for memory extraction
     lastUserPromptRef.current = text;
     
@@ -2624,6 +2694,16 @@ export default function AppleFloatBar({
               <div className="amx-progress-bar">
                 <div className="amx-progress-fill" style={{ width: totalSteps > 0 ? `${(currentStep / totalSteps) * 100}%` : '0%' }} />
               </div>
+            </div>
+          )}
+          
+          {planCardData && !planCardDismissed && (
+            <div style={{ marginBottom: 12 }}>
+              <PlanCard 
+                plan={planCardData}
+                onApprove={handlePlanApprove}
+                onReject={handlePlanReject}
+              />
             </div>
           )}
           

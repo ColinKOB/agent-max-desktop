@@ -98,6 +98,26 @@
   font-size: 16px;
 }
 
+.plan-card__reasoning {
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #1e3a8a;
+  line-height: 1.4;
+}
+
+.plan-card__reasoning-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  margin-right: 6px;
+  color: #1d4ed8;
+}
+
 /* Sections */
 .plan-card__section {
   margin-bottom: 16px;
@@ -234,6 +254,62 @@
   width: fit-content;
 }
 
+.plan-card__task-meta {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.plan-card__task-arg {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.plan-card__task-arg-key {
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.plan-card__task-meta-line {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.plan-card__task-meta-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-size: 10px;
+  margin-right: 6px;
+  color: #4b5563;
+}
+
+.plan-card__task-flags {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.plan-card__task-flag {
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  color: #1f2937;
+}
+
+.plan-card__task-flag--muted {
+  opacity: 0.75;
+}
+
 .plan-card__task-lock {
   font-size: 12px;
   opacity: 0.6;
@@ -367,5 +443,35 @@
   
   .plan-card__task:hover {
     background: rgba(55, 65, 81, 0.7);
+  }
+  
+  .plan-card__reasoning {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.35);
+    color: #dbeafe;
+  }
+  
+  .plan-card__reasoning-label {
+    color: #bfdbfe;
+  }
+  
+  .plan-card__task-meta {
+    color: #e5e7eb;
+  }
+  
+  .plan-card__task-arg {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+  
+  .plan-card__task-meta-line,
+  .plan-card__task-meta-label {
+    color: rgba(229, 231, 235, 0.8);
+  }
+  
+  .plan-card__task-flag {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #f3f4f6;
   }
 }

@@ -73,6 +73,13 @@ export function PlanCard({ plan, onApprove, onReject }) {
         </div>
       )}
       
+      {metadata.reasoning && (
+        <div className="plan-card__reasoning">
+          <span className="plan-card__reasoning-label">Strategy:</span>
+          <span>{metadata.reasoning}</span>
+        </div>
+      )}
+      
       {/* Milestones (if complex plan) */}
       {milestones.length > 0 && (
         <div className="plan-card__section">
@@ -161,11 +168,29 @@ function TaskItem({ task, index }) {
     tool_id,
     estimated_duration_ms,
     requires_approval,
-    risk_level = 'low'
+    risk_level = 'low',
+    args = {},
+    dependencies = [],
+    parallel_safe = false,
+    branches = [],
+    loop = null,
+    verification = null
   } = task;
   
   const displayText = description || goal_slice || `Task ${index + 1}`;
   const toolName = tool_id || capability;
+  const argEntries = Object.entries(args || {}).slice(0, 3);
+  const branchList = Array.isArray(branches) ? branches : [];
+  const depList = Array.isArray(dependencies) ? dependencies : [];
+  
+  const badgeFlags = [];
+  if (parallel_safe) badgeFlags.push('Parallel-safe');
+  if (loop) {
+    const loopText = typeof loop === 'string'
+      ? loop
+      : loop.description || loop.condition || 'Loop';
+    badgeFlags.push(`Loop: ${loopText}`);
+  }
   
   return (
     <div className={`plan-card__task plan-card__task--${risk_level}`}>
@@ -174,6 +199,40 @@ function TaskItem({ task, index }) {
         <span className="plan-card__task-desc">{displayText}</span>
         {toolName && (
           <span className="plan-card__task-tool">{formatCapability(toolName)}</span>
+        )}
+        {argEntries.length > 0 && (
+          <div className="plan-card__task-meta">
+            {argEntries.map(([key, value]) => {
+              const text = String(value ?? '');
+              const preview = text.length > 80 ? `${text.slice(0, 77)}...` : text;
+              return (
+                <span key={key} className="plan-card__task-arg">
+                  <span className="plan-card__task-arg-key">{key}:</span> {preview}
+                </span>
+              );
+            })}
+          </div>
+        )}
+        {depList.length > 0 && (
+          <div className="plan-card__task-meta-line">
+            <span className="plan-card__task-meta-label">Depends on:</span>
+            <span>{depList.join(', ')}</span>
+          </div>
+        )}
+        {(badgeFlags.length > 0 || branchList.length > 0 || verification) && (
+          <div className="plan-card__task-flags">
+            {badgeFlags.map((flag, idx) => (
+              <span key={`flag-${idx}`} className="plan-card__task-flag">{flag}</span>
+            ))}
+            {branchList.map((branch, idx) => (
+              <span key={`branch-${idx}`} className="plan-card__task-flag">Branch: {branch}</span>
+            ))}
+            {verification && (
+              <span className="plan-card__task-flag plan-card__task-flag--muted">
+                Verify: {verification}
+              </span>
+            )}
+          </div>
         )}
       </div>
       {requires_approval && (
