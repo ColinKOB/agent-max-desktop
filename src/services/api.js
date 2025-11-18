@@ -802,6 +802,14 @@ export const chatAPI = {
                       requires_elevation: !!req.requires_elevation,
                       timeout_sec: typeof req.timeout_sec === 'number' ? req.timeout_sec : 60,
                     };
+                    try {
+                      logger.info('[API] Dispatching hands-on-desktop tool_request', {
+                        request_id: requestPayload.request_id,
+                        tool: requestPayload.tool,
+                        step: requestPayload.step,
+                        run_id: requestPayload.run_id,
+                      });
+                    } catch {}
                     // Fire and forget; backend is awaiting result via tool_request_store
                     window.electron.handsOnDesktop.executeRequest(requestPayload).catch((e) => {
                       console.warn('[API] handsOnDesktop.executeRequest failed:', e);

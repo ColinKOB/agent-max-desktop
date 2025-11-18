@@ -67,7 +67,7 @@ export default function AppleFloatBar({
   const [currentStep, setCurrentStep] = useState(0);
   const [totalSteps, setTotalSteps] = useState(0);
   const [executionMode, setExecutionMode] = useState(null);
-  const [desktopActionsRequired, setDesktopActionsRequired] = useState(true);
+  const [desktopActionsRequired, setDesktopActionsRequired] = useState(false);
   const lastUserPromptRef = useRef('');
   const lastAssistantTsRef = useRef(null);
   const accumulatedResponseRef = useRef('');  // For fs_command extraction
@@ -100,7 +100,7 @@ export default function AppleFloatBar({
   const [execPanelOpen, setExecPanelOpen] = useState(true);
   const [executionDetails, setExecutionDetails] = useState(null);
   const executionModeRef = useRef(null);
-  const desktopActionsRef = useRef(true);
+  const desktopActionsRef = useRef(false);
   const chatModeAnnouncementRef = useRef(false);
   const copyToClipboard = useCallback(async (text, note = 'Copied') => {
     try {
@@ -437,6 +437,10 @@ export default function AppleFloatBar({
   
   // Extract and execute fs_command blocks from AI response
   const extractAndExecuteCommands = useCallback(async (responseText) => {
+    if (desktopActionsRef.current) {
+      console.log('[FSCommand] Skipping inline fs_command execution; Hands-on Desktop will handle actions');
+      return;
+    }
     // Extract all fs_command blocks using regex
     const regex = /```fs_command\s+([\s\S]*?)```/g;
     const matches = [...responseText.matchAll(regex)];
@@ -880,6 +884,10 @@ export default function AppleFloatBar({
             });
             setThinkingStatus('Action requires approval');
             try {
+              if (desktopActionsRef.current) {
+                console.log('[Exec] Hands-on Desktop handling queued action; skipping legacy LocalExecutor path');
+                break;
+              }
               if (window.electron && window.electron.memory && window.electron.memory.autonomous) {
                 const at = log.action_type || (typeof msg === 'string' ? (msg.match(/Action requested:\s*([A-Za-z0-9_.-]+)/)?.[1] || null) : null);
                 const aa = log.action_args || log.args || {};

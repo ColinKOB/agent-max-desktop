@@ -13,13 +13,50 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
+let electronApp = null;
+try {
+    electronApp = require('electron').app;
+} catch (err) {
+    electronApp = null;
+}
+
+const PLACEHOLDER_HOME_PREFIXES = [
+    '/home/user',
+    '\\home\\user',
+    '/Users/user',
+    '\\Users\\user',
+    'C:\\Users\\user',
+    'C:/Users/user',
+];
+
+function getPreferredHomeDir() {
+    const fallback = os.homedir();
+    if (electronApp && typeof electronApp.getPath === 'function') {
+        try {
+            return electronApp.getPath('home') || fallback;
+        } catch (err) {
+            // If called before ready, fall back to OS value
+        }
+    }
+    if (process.env.HOME && process.env.HOME.length > 1) {
+        return process.env.HOME;
+    }
+    if (process.env.USERPROFILE && process.env.USERPROFILE.length > 1) {
+        return process.env.USERPROFILE;
+    }
+    return fallback;
+}
+
 const execAsync = promisify(exec);
 
 class HandsOnDesktopClient {
-    constructor(backendUrl, deviceToken, deviceSecret) {
+    constructor(backendUrl, credentials, pairing, userId = 'desktop_user') {
         this.backendUrl = backendUrl;
-        this.deviceToken = deviceToken;
-        this.deviceSecret = deviceSecret;
+        this.deviceToken = credentials?.device_token;
+        this.deviceSecret = credentials?.device_secret;
+        this.deviceId = credentials?.device_id || null;
+        this.pairing = pairing || null;
+        this.pairedUserId = userId;
         this.eventSource = null;
         this.reconnectDelay = 1000; // Start with 1s
         this.maxReconnectDelay = 30000; // Max 30s
@@ -172,11 +209,30 @@ class HandsOnDesktopClient {
         if (!rawPath || typeof rawPath !== 'string') {
             throw new Error('Path is required for filesystem operations');
         }
-        const homeDir = os.homedir();
-        const expanded = rawPath.replace(/^~(?=$|\/|\\)/, homeDir);
-        const resolved = path.resolve(expanded);
-        const homeDirNormalized = path.resolve(homeDir);
-        if (!resolved.startsWith(homeDirNormalized)) {
+        const homeDir = getPreferredHomeDir();
+        const normalizedHome = path.resolve(homeDir);
+        const safeRoot = normalizedHome.endsWith(path.sep) ? normalizedHome : `${normalizedHome}${path.sep}`;
+
+        let candidate = rawPath.trim();
+        // Expand tilde prefix
+        candidate = candidate.replace(/^~(?=$|[\/\\])/, normalizedHome);
+
+        // Replace backend placeholder home directories with the real one
+        for (const prefix of PLACEHOLDER_HOME_PREFIXES) {
+            if (candidate.startsWith(prefix)) {
+                const remainder = candidate.slice(prefix.length).replace(/^[/\\]+/, '');
+                candidate = path.join(normalizedHome, remainder);
+                break;
+            }
+        }
+
+        // Treat bare relative paths as relative to the user's home
+        if (!path.isAbsolute(candidate)) {
+            candidate = path.join(normalizedHome, candidate);
+        }
+
+        const resolved = path.resolve(candidate);
+        if (!(resolved === normalizedHome || resolved.startsWith(safeRoot))) {
             throw new Error(`Access denied: Path must be within home directory. Attempted: ${resolved}`);
         }
         return resolved;
@@ -285,6 +341,25 @@ class HandsOnDesktopClient {
         return null;
     }
 
+    async refreshCredentials(reason = 'refresh') {
+        if (!this.pairing) {
+            console.warn('[HandsOnDesktop] Cannot refresh credentials; no pairing helper available');
+            return false;
+        }
+        try {
+            console.warn('[HandsOnDesktop] Refreshing device credentials due to', reason);
+            const newCreds = await this.pairing.pairWithBackend(this.pairedUserId || 'desktop_user');
+            await this.pairing.saveCredentials(newCreds);
+            this.deviceToken = newCreds.device_token;
+            this.deviceSecret = newCreds.device_secret;
+            this.deviceId = newCreds.device_id;
+            return true;
+        } catch (error) {
+            console.error('[HandsOnDesktop] Failed to refresh credentials:', error);
+            return false;
+        }
+    }
+
     /**
      * Generate HMAC signature for result
      */
@@ -301,11 +376,10 @@ class HandsOnDesktopClient {
     /**
      * Submit result to backend
      */
-    async submitResult(result) {
-        const signature = this.signResult(result);
-        
-        try {
-            const response = await fetch(`${this.backendUrl}/api/v2/autonomous/tool-result`, {
+    async submitResult(result, attempt = 0) {
+        const performSubmit = async () => {
+            const signature = this.signResult(result);
+            return fetch(`${this.backendUrl}/api/v2/autonomous/tool-result`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${this.deviceToken}`,
@@ -315,12 +389,24 @@ class HandsOnDesktopClient {
                 },
                 body: JSON.stringify(result)
             });
+        };
+
+        try {
+            const response = await performSubmit();
 
             if (response.ok) {
                 console.log('[HandsOnDesktop] Result submitted:', result.request_id);
-            } else {
-                const error = await response.text();
-                console.error('[HandsOnDesktop] Failed to submit result:', response.status, error);
+                return;
+            }
+
+            const error = await response.text();
+            console.error('[HandsOnDesktop] Failed to submit result:', response.status, error);
+
+            if (response.status === 401 && attempt === 0) {
+                const refreshed = await this.refreshCredentials('auth_failed');
+                if (refreshed) {
+                    return this.submitResult(result, attempt + 1);
+                }
             }
 
         } catch (error) {

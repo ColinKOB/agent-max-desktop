@@ -19,6 +19,12 @@ const os = require('os');
 // Simple dev check instead of electron-is-dev
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
+// Hands-on desktop device stream currently unsupported in production.
+// Default to disabled unless explicitly enabled via env.
+if (typeof process.env.HANDS_ON_DESKTOP_DEVICE_STREAM === 'undefined') {
+  process.env.HANDS_ON_DESKTOP_DEVICE_STREAM = '0';
+}
+
 // ===========================================
 // RUNTIME SECURITY CHECKS
 // ===========================================
@@ -1065,7 +1071,7 @@ function initializeHandsOnDesktop() {
     const creds = pairing.getCredentials('desktop_user');
     // getCredentials returns a promise; handle async pairing
     Promise.resolve(creds).then((credentials) => {
-      handsOnDesktopClient = new HandsOnDesktopClient(backendUrl, credentials.device_token, credentials.device_secret);
+      handsOnDesktopClient = new HandsOnDesktopClient(backendUrl, credentials, pairing, 'desktop_user');
       handsOnDesktopClient.onConnected = () => {
         console.log('[HandsOnDesktop] Connected to backend');
       };
