@@ -38,6 +38,27 @@ const logger = createLogger('FloatBar');
 
 const MIN_EXPANDED_HEIGHT = 140;
 
+const truncateText = (value, limit = 160) => {
+  if (!value || typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (trimmed.length <= limit) return trimmed;
+  return `${trimmed.slice(0, limit)}…`;
+};
+
+const formatArtifactSummary = (artifact) => {
+  if (!artifact || typeof artifact !== 'object') {
+    return '- artifact (unknown)';
+  }
+  const source = artifact.source ? `[${artifact.source}] ` : '';
+  const label = artifact.path || artifact?.metadata?.command || artifact.action || 'artifact';
+  const parts = [];
+  if (artifact.summary) parts.push(artifact.summary);
+  if (artifact.stdout) parts.push(`stdout: ${truncateText(artifact.stdout, 120)}`);
+  if (artifact.stderr) parts.push(`stderr: ${truncateText(artifact.stderr, 120)}`);
+  const suffix = parts.length ? ` — ${parts.join(' | ')}` : '';
+  return `- ${source}${label} (${artifact.kind || 'unknown'})${suffix}`;
+};
+
 export default function AppleFloatBar({ 
   showWelcome, 
   onWelcomeComplete, 
@@ -1051,6 +1072,16 @@ export default function AppleFloatBar({
         const text = finalData.rationale || finalData.summary || '';
         if (text && typeof text === 'string') {
           setThoughts(prev => [...prev, { role: 'assistant', content: text, timestamp: Date.now(), type: 'final' }]);
+        }
+        const artifacts = finalData?.outputs?.artifacts;
+        if (Array.isArray(artifacts) && artifacts.length) {
+          const artifactLines = artifacts.map((art) => formatArtifactSummary(art)).join('\n');
+          setThoughts(prev => [...prev, {
+            role: 'assistant',
+            content: `📁 **Artifacts Created**\n${artifactLines}`,
+            timestamp: Date.now(),
+            type: 'artifacts'
+          }]);
         }
         if ((clarifyStats && clarifyStats.requested) || (confirmStats && confirmStats.requested)) {
           const parts = [];
