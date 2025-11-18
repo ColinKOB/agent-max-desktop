@@ -29,6 +29,15 @@ const PLACEHOLDER_HOME_PREFIXES = [
     'C:/Users/user',
 ];
 
+const TEMP_PATH_PREFIXES = (() => {
+    const set = new Set();
+    const tmp = os.tmpdir ? os.tmpdir() : '/tmp';
+    if (tmp) set.add(path.resolve(tmp));
+    set.add('/tmp');
+    set.add('\\tmp');
+    return Array.from(set).filter(Boolean);
+})();
+
 function getPreferredHomeDir() {
     const fallback = os.homedir();
     if (electronApp && typeof electronApp.getPath === 'function') {
@@ -64,6 +73,12 @@ class HandsOnDesktopClient {
         this.onToolRequest = null; // Callback for tool requests
         this.onConnected = null;
         this.onDisconnected = null;
+        this.executingRequests = new Set();
+        this.pollInFlight = false;
+        this.pollTimer = null;
+        this.pollIntervalMs = parseInt(process.env.HANDS_ON_DESKTOP_POLL_INTERVAL_MS || '2000', 10);
+        this.pollBatchSize = parseInt(process.env.HANDS_ON_DESKTOP_POLL_BATCH || '3', 10);
+        this.startPolling();
     }
 
     /**
@@ -124,9 +139,10 @@ class HandsOnDesktopClient {
         if (this.eventSource) {
             console.log('[HandsOnDesktop] Disconnecting...');
             this.eventSource.close();
-            this.eventSource = null;
-            this.isConnected = false;
-        }
+        this.eventSource = null;
+        this.isConnected = false;
+        this.stopPolling();
+    }
     }
 
     /**
@@ -148,7 +164,15 @@ class HandsOnDesktopClient {
      */
     async handleToolRequest(request) {
         const { request_id, run_id, step, tool, command, requires_elevation, timeout_sec } = request;
-        
+        if (!request_id) {
+            console.warn('[HandsOnDesktop] Missing request_id in tool request');
+            return;
+        }
+        if (this.executingRequests.has(request_id)) {
+            console.log('[HandsOnDesktop] Request already in progress, skipping:', request_id);
+            return;
+        }
+        this.executingRequests.add(request_id);
         const preview = command ? `${command.substring(0, 50)}...` : null;
         console.log('[HandsOnDesktop] Executing:', {
             request_id,
@@ -202,6 +226,8 @@ class HandsOnDesktopClient {
                 duration_ms: 0,
                 metadata: { timestamp: new Date().toISOString() }
             });
+        } finally {
+            this.executingRequests.delete(request_id);
         }
     }
 
@@ -229,6 +255,17 @@ class HandsOnDesktopClient {
         // Treat bare relative paths as relative to the user's home
         if (!path.isAbsolute(candidate)) {
             candidate = path.join(normalizedHome, candidate);
+        }
+
+        // Remap temp paths (e.g., /tmp) into user's Desktop for macOS sandbox compliance
+        const desktopDir = path.join(normalizedHome, 'Desktop');
+        for (const tmpPrefix of TEMP_PATH_PREFIXES) {
+            const resolvedTmp = path.resolve(tmpPrefix);
+            if (candidate.startsWith(resolvedTmp)) {
+                const remainder = candidate.slice(resolvedTmp.length).replace(/^[/\\]+/, '');
+                candidate = path.join(desktopDir, remainder || `tmp_${Date.now()}`);
+                break;
+            }
         }
 
         const resolved = path.resolve(candidate);
@@ -364,8 +401,30 @@ class HandsOnDesktopClient {
      * Generate HMAC signature for result
      */
     signResult(result) {
-        // Create canonical payload (same as backend)
-        const canonical = `${result.run_id}:${result.request_id}:${result.step}:${JSON.stringify(result)}`;
+        const canonicalJson = (value) => {
+            if (value === null || value === undefined) return 'null';
+            const type = typeof value;
+            if (type === 'number' || type === 'boolean') {
+                return JSON.stringify(value);
+            }
+            if (type === 'string') {
+                return JSON.stringify(value);
+            }
+            if (Array.isArray(value)) {
+                return '[' + value.map(item => canonicalJson(item)).join(',') + ']';
+            }
+            if (type === 'object') {
+                const keys = Object.keys(value).sort();
+                const parts = keys.map(key => {
+                    const val = value[key];
+                    return JSON.stringify(key) + ':' + canonicalJson(val);
+                });
+                return '{' + parts.join(',') + '}';
+            }
+            return 'null';
+        };
+        // Create canonical payload (matches backend sort_keys=True, separators=(',', ':'))
+        const canonical = `${result.run_id}:${result.request_id}:${result.step}:${canonicalJson(result)}`;
         
         // Generate HMAC-SHA256 signature
         const hmac = crypto.createHmac('sha256', this.deviceSecret);
@@ -424,6 +483,80 @@ class HandsOnDesktopClient {
             backendUrl: this.backendUrl,
             reconnectDelay: this.reconnectDelay
         };
+    }
+
+    startPolling() {
+        if (this.pollTimer || !this.backendUrl || !this.deviceToken) {
+            return;
+        }
+        this.pollTimer = setInterval(() => {
+            this.pollPendingRequests().catch((err) => {
+                console.error('[HandsOnDesktop] Polling error:', err);
+            });
+        }, this.pollIntervalMs);
+    }
+
+    stopPolling() {
+        if (this.pollTimer) {
+            clearInterval(this.pollTimer);
+            this.pollTimer = null;
+        }
+    }
+
+    async pollPendingRequests() {
+        if (this.pollInFlight || !this.deviceToken) {
+            return;
+        }
+        this.pollInFlight = true;
+        try {
+            const url = `${this.backendUrl}/api/v2/autonomous/device/pending?limit=${this.pollBatchSize}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${this.deviceToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (response.status === 401) {
+                await this.refreshCredentials('pending_auth_failed');
+                return;
+            }
+            if (!response.ok) {
+                console.warn('[HandsOnDesktop] Pending request poll failed:', response.status);
+                return;
+            }
+            const data = await response.json().catch(() => null);
+            const pending = (data && data.pending_requests) || [];
+            for (const req of pending) {
+                this.dispatchPendingRequest(req);
+            }
+        } catch (error) {
+            console.error('[HandsOnDesktop] Pending request poll error:', error);
+        } finally {
+            this.pollInFlight = false;
+        }
+    }
+
+    dispatchPendingRequest(pending) {
+        if (!pending || !pending.request_id) {
+            return;
+        }
+        if (this.executingRequests.has(pending.request_id)) {
+            return;
+        }
+        const normalized = {
+            request_id: pending.request_id,
+            run_id: pending.run_id,
+            step: pending.step ?? 0,
+            tool: pending.tool,
+            command: pending.command || (pending.args && pending.args.command) || null,
+            args: pending.args || {},
+            requires_elevation: !!pending.requires_elevation,
+            timeout_sec: pending.timeout_sec || 60
+        };
+        this.handleToolRequest(normalized).catch((err) => {
+            console.error('[HandsOnDesktop] Failed to handle polled request:', err);
+        });
     }
 }
 
