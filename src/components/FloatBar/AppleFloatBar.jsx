@@ -986,7 +986,7 @@ export default function AppleFloatBar({
                 backdropFilter: 'blur(10px)'
               }
             });
-            setThinkingStatus('Action requires approval');
+            setThinkingStatus('Waiting for desktop helper…');
             try {
               if (desktopActionsRef.current) {
                 console.log('[Exec] Hands-on Desktop handling queued action; skipping legacy LocalExecutor path');

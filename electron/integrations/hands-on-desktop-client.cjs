@@ -433,20 +433,76 @@ class HandsOnDesktopClient {
     }
 
     /**
+     * Ensure result payload matches backend schema + canonicalization rules
+     */
+    normalizeResultPayload(result) {
+        const toNumber = (value, fallback = 0) => {
+            if (typeof value === 'number' && Number.isFinite(value)) {
+                return value;
+            }
+            const parsed = parseInt(value, 10);
+            return Number.isFinite(parsed) ? parsed : fallback;
+        };
+        const toStringSafe = (value, fallback = '') => {
+            if (value === null || value === undefined) return fallback;
+            if (typeof value === 'string') return value;
+            if (typeof value === 'object' && typeof value.toString === 'function') {
+                try {
+                    const str = value.toString();
+                    if (typeof str === 'string') {
+                        return str;
+                    }
+                } catch (_) { /* ignore */ }
+            }
+            return String(value);
+        };
+
+        const normalized = {
+            run_id: toStringSafe(result.run_id),
+            request_id: toStringSafe(result.request_id),
+            step: toNumber(result.step),
+            tool: toStringSafe(result.tool),
+            success: Boolean(result.success),
+            exit_code: toNumber(result.exit_code, 0),
+            stdout: toStringSafe(result.stdout, ''),
+            stderr: toStringSafe(result.stderr, ''),
+            duration_ms: toNumber(result.duration_ms, 0)
+        };
+
+        if (result.error !== undefined) {
+            normalized.error = toStringSafe(result.error);
+        }
+        if (result.error_code !== undefined && result.error_code !== null) {
+            normalized.error_code = toStringSafe(result.error_code);
+        }
+
+        const metadata = (typeof result.metadata === 'object' && result.metadata !== null)
+            ? { ...result.metadata }
+            : {};
+        if (!metadata.timestamp) {
+            metadata.timestamp = new Date().toISOString();
+        }
+        normalized.metadata = metadata;
+
+        return normalized;
+    }
+
+    /**
      * Submit result to backend
      */
     async submitResult(result, attempt = 0) {
+        const payload = this.normalizeResultPayload(result);
         const performSubmit = async () => {
-            const signature = this.signResult(result);
+            const signature = this.signResult(payload);
             return fetch(`${this.backendUrl}/api/v2/autonomous/tool-result`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${this.deviceToken}`,
                     'X-Run-Signature': signature,
-                    'X-Request-ID': result.request_id,
+                    'X-Request-ID': payload.request_id,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(result)
+                body: JSON.stringify(payload)
             });
         };
 
