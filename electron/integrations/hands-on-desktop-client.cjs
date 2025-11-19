@@ -180,6 +180,9 @@ class HandsOnDesktopClient {
             command: preview,
             requires_elevation
         });
+        if (command) {
+            console.log('[HandsOnDesktop] Full command:\n', command);
+        }
 
         try {
             let result;
@@ -344,6 +347,10 @@ class HandsOnDesktopClient {
                 timeout: (timeoutSec || 60) * 1000,
                 maxBuffer: 10 * 1024 * 1024 // 10MB
             });
+            console.log('[HandsOnDesktop] Shell stdout:', stdout ? stdout.trim() : '[empty]');
+            if (stderr) {
+                console.warn('[HandsOnDesktop] Shell stderr:', stderr.trim());
+            }
 
             return {
                 success: true,
@@ -354,6 +361,10 @@ class HandsOnDesktopClient {
             };
 
         } catch (error) {
+            if (error && (error.stdout || error.stderr)) {
+                console.error('[HandsOnDesktop] Shell stderr:', (error.stderr || '').trim());
+                console.error('[HandsOnDesktop] Shell stdout:', (error.stdout || '').trim());
+            }
             return {
                 success: false,
                 exit_code: error.code || 1,
@@ -397,10 +408,32 @@ class HandsOnDesktopClient {
         }
     }
 
-    /**
-     * Generate HMAC signature for result
-     */
-    signResult(result) {
+    buildCanonicalPayload(result) {
+        const escapeNonAscii = (str) => {
+            let out = '';
+            for (let i = 0; i < str.length; i++) {
+                const code = str.charCodeAt(i);
+                if (code >= 0xD800 && code <= 0xDBFF && i + 1 < str.length) {
+                    const next = str.charCodeAt(i + 1);
+                    if (next >= 0xDC00 && next <= 0xDFFF) {
+                        const codePoint = ((code - 0xD800) << 10) + (next - 0xDC00) + 0x10000;
+                        const high = 0xD800 + ((codePoint - 0x10000) >> 10);
+                        const low = 0xDC00 + ((codePoint - 0x10000) & 0x3FF);
+                        out += '\\u' + high.toString(16).padStart(4, '0');
+                        out += '\\u' + low.toString(16).padStart(4, '0');
+                        i++;
+                        continue;
+                    }
+                }
+                if (code > 0x7F) {
+                    out += '\\u' + code.toString(16).padStart(4, '0');
+                } else {
+                    out += str[i];
+                }
+            }
+            return out;
+        };
+
         const canonicalJson = (value) => {
             if (value === null || value === undefined) return 'null';
             const type = typeof value;
@@ -408,7 +441,7 @@ class HandsOnDesktopClient {
                 return JSON.stringify(value);
             }
             if (type === 'string') {
-                return JSON.stringify(value);
+                return escapeNonAscii(JSON.stringify(value));
             }
             if (Array.isArray(value)) {
                 return '[' + value.map(item => canonicalJson(item)).join(',') + ']';
@@ -417,16 +450,20 @@ class HandsOnDesktopClient {
                 const keys = Object.keys(value).sort();
                 const parts = keys.map(key => {
                     const val = value[key];
-                    return JSON.stringify(key) + ':' + canonicalJson(val);
+                    return escapeNonAscii(JSON.stringify(key)) + ':' + canonicalJson(val);
                 });
                 return '{' + parts.join(',') + '}';
             }
             return 'null';
         };
-        // Create canonical payload (matches backend sort_keys=True, separators=(',', ':'))
-        const canonical = `${result.run_id}:${result.request_id}:${result.step}:${canonicalJson(result)}`;
-        
-        // Generate HMAC-SHA256 signature
+        return `${result.run_id}:${result.request_id}:${result.step}:${canonicalJson(result)}`;
+    }
+
+    /**
+     * Generate HMAC signature for result
+     */
+    signResult(result) {
+        const canonical = this.buildCanonicalPayload(result);
         const hmac = crypto.createHmac('sha256', this.deviceSecret);
         hmac.update(canonical);
         return hmac.digest('hex');
@@ -510,12 +547,16 @@ class HandsOnDesktopClient {
             const response = await performSubmit();
 
             if (response.ok) {
-                console.log('[HandsOnDesktop] Result submitted:', result.request_id);
+                console.log('[HandsOnDesktop] Result submitted:', payload.request_id);
                 return;
             }
 
             const error = await response.text();
-            console.error('[HandsOnDesktop] Failed to submit result:', response.status, error);
+            const canonical = this.buildCanonicalPayload(payload);
+            console.error('[HandsOnDesktop] Failed to submit result:', response.status, error, {
+                request_id: payload.request_id,
+                canonical_payload: canonical
+            });
 
             if (response.status === 401 && attempt === 0) {
                 const refreshed = await this.refreshCredentials('auth_failed');
