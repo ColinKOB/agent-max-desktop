@@ -183,6 +183,15 @@ class HandsOnDesktopClient {
         if (command) {
             console.log('[HandsOnDesktop] Full command:\n', command);
         }
+        if (tool === 'fs.write' || tool === 'fs.mkdir') {
+            const pathPreview = request.args?.path || request.args?.directory || request.args?.cwd || 'unknown-path';
+            const size = request.args?.contents ? Buffer.byteLength(String(request.args.contents), 'utf8') : 0;
+            console.log('[HandsOnDesktop] File tool args:', {
+                path: pathPreview,
+                contents_preview: request.args?.contents ? String(request.args.contents).slice(0, 120) : null,
+                contents_bytes: size
+            });
+        }
 
         try {
             let result;

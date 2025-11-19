@@ -160,6 +160,17 @@ async function refreshBackendFeatureFlags(force = false) {
 }
 
 export const isHandsOnDesktopEnabled = () => handsOnDesktopEnabled;
+export const __testHooks = {
+  // Test-only helpers to control HandsOnDesktop state deterministically
+  setHandsOnDesktopEnabled(value) {
+    handsOnDesktopEnabled = !!value;
+  },
+  resetHandsOnDesktopState() {
+    backendFeatureFlags = null;
+    lastFeatureFlagFetch = 0;
+    handsOnDesktopEnabled = true;
+  },
+};
 
 // Request interceptor
 api.interceptors.request.use(
@@ -541,13 +552,14 @@ export const chatAPI = {
 
     // Prepare headers with configured API key
     const configuredKey = apiConfigManager.getApiKey && apiConfigManager.getApiKey();
-    const headers = {
+    const baseHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'text/event-stream',
       'X-Events-Version': '2.1',
       'X-User-Id': localStorage.getItem('user_id') || 'anonymous'
     };
-    if (configuredKey) headers['X-API-Key'] = configuredKey;
+    if (configuredKey) baseHeaders['X-API-Key'] = configuredKey;
+    let headers = { ...baseHeaders };
 
     // v2.1: Stream identity and resume support
     // Always generate a stream id for resilience; harmless if backend ignores it.
@@ -557,15 +569,46 @@ export const chatAPI = {
     let streamId = null;
     try {
       streamId = (userContext && userContext.__resume && userContext.__resume.streamId) || genStreamId() || `stream_${Math.random().toString(36).slice(2)}`;
+      baseHeaders['X-Stream-Id'] = streamId;
       headers['X-Stream-Id'] = streamId;
       const lastSeen = userContext && userContext.__resume && (userContext.__resume.lastSequenceSeen ?? null);
-      if (lastSeen !== null && lastSeen !== undefined) headers['Last-Sequence-Seen'] = String(lastSeen);
+      if (lastSeen !== null && lastSeen !== undefined) {
+        baseHeaders['Last-Sequence-Seen'] = String(lastSeen);
+        headers['Last-Sequence-Seen'] = String(lastSeen);
+      }
     } catch {}
 
     let response;
     let lastStatus = 0;
     let lastBody = '';
-    for (const endpoint of endpoints) {
+    const MAX_NETWORK_RETRIES = 3;
+    const shouldRetryNetworkError = (err) => {
+      if (!err) return false;
+      const rawMessage = err?.message || String(err || '');
+      if (!rawMessage) return err?.name === 'TypeError';
+      const message = rawMessage.toLowerCase();
+      const retryMarkers = [
+        'err_network_changed',
+        'failed to fetch',
+        'networkerror',
+        'network request failed',
+        'connection was interrupted',
+        'status: undefined'
+      ];
+      return retryMarkers.some((marker) => message.includes(marker));
+    };
+
+    const endpointQueue = [...endpoints];
+    const MAX_STREAM_RESUME_RETRIES = 2;
+    let streamResumeAttempts = 0;
+    let streamCompleted = false;
+    let lastSequenceSeen = (userContext && userContext.__resume && (userContext.__resume.lastSequenceSeen ?? null)) || null;
+    let ackStreamId = null;
+
+    endpointLoop:
+    while (endpointQueue.length > 0) {
+      const endpoint = endpointQueue.shift();
+      response = null;
       logger.info(`[API] Trying ${isAutonomous ? 'AUTONOMOUS' : 'CHAT'} endpoint:`, endpoint);
       try {
         telemetry.logEvent('api.chat_stream.try_endpoint', {
@@ -573,29 +616,49 @@ export const chatAPI = {
           mode: isAutonomous ? 'autonomous' : 'chat',
         });
       } catch {}
-      try {
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(payload),
-        });
-      } catch (netErr) {
-        lastStatus = 0;
-        lastBody = String(netErr?.message || netErr);
+      let attempt = 0;
+      while (attempt < MAX_NETWORK_RETRIES && !response) {
+        attempt += 1;
         try {
-          telemetry.logEvent('api.chat_stream.network_error', {
-            endpoint,
-            mode: isAutonomous ? 'autonomous' : 'chat',
-            error: lastBody,
+          const requestHeaders = { ...headers };
+          response = await fetch(endpoint, {
+            method: 'POST',
+            headers: requestHeaders,
+            body: JSON.stringify(payload),
           });
-        } catch {}
-        try {
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('api:fallback', { detail: { area: 'chat_stream', endpoint, status: 0 } }));
+          break;
+        } catch (netErr) {
+          lastStatus = 0;
+          lastBody = String(netErr?.message || netErr);
+          const retryable = shouldRetryNetworkError(netErr) && attempt < MAX_NETWORK_RETRIES;
+          try {
+            telemetry.logEvent('api.chat_stream.network_error', {
+              endpoint,
+              mode: isAutonomous ? 'autonomous' : 'chat',
+              error: lastBody,
+              attempt,
+              retrying: retryable,
+            });
+          } catch {}
+          if (retryable) {
+            try {
+              telemetry.logEvent('api.chat_stream.network_error_retry', {
+                endpoint,
+                mode: isAutonomous ? 'autonomous' : 'chat',
+                attempt,
+              });
+            } catch {}
+            continue;
           }
-        } catch {}
-        continue; // try next endpoint
+          try {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('api:fallback', { detail: { area: 'chat_stream', endpoint, status: 0 } }));
+            }
+          } catch {}
+          continue endpointLoop; // try next endpoint
+        }
       }
+      if (!response) continue;
       if (response.ok) {
         try {
           telemetry.logEvent('api.chat_stream.endpoint_selected', {
@@ -604,7 +667,242 @@ export const chatAPI = {
             status: response.status,
           });
         } catch {}
-        break;
+
+        const consumeStream = async (resp) => {
+          const reader = resp.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let ackSeenLocal = false;
+          let anyTokenSeenLocal = false;
+          let terminalErrorReceived = false;
+
+          while (true) {
+            const { done, value } = await reader.read();
+
+            if (done || terminalErrorReceived) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+
+            for (const line of lines) {
+              if (terminalErrorReceived) break;
+              if (line.startsWith('event:')) {
+                continue;
+              }
+
+              if (line.startsWith('data:')) {
+                const data = line.substring(5).trim();
+                if (!data || data === '[DONE]') continue;
+                const firstChar = data[0];
+                if (firstChar !== '{' && firstChar !== '[') continue;
+                try {
+                  const parsed = JSON.parse(data);
+
+                  if (isAutonomous) {
+                    const eventType = parsed.type || parsed.event;
+                    try {
+                      const seq = parsed.seq ?? parsed.sequence ?? parsed.sequence_id ?? parsed.event_id ?? null;
+                      if (seq !== null && seq !== undefined) {
+                        lastSequenceSeen = seq;
+                        try { localStorage.setItem(`amx_stream_seq_${streamId}`, String(seq)); } catch {}
+                      }
+                    } catch {}
+
+                    const getPayloadData = (obj) => {
+                      if (obj && typeof obj.data === 'object' && obj.data !== null) return obj.data;
+                      if (obj && typeof obj === 'object') {
+                        const { type, id, ...rest } = obj;
+                        return rest;
+                      }
+                      return {};
+                    };
+
+                    if (eventType === 'ack') {
+                      const ackData = getPayloadData(parsed);
+                      ackSeenLocal = true;
+                      const sid = ackData.stream_id || parsed.stream_id;
+                    if (sid) {
+                      ackStreamId = sid;
+                      try { localStorage.setItem('amx_last_stream_id', sid); } catch {}
+                    }
+                    onEvent({ type: 'ack', data: ackData });
+                    } else if (eventType === 'plan') {
+                      const planData = getPayloadData(parsed);
+                      onEvent({ type: 'plan', data: planData });
+                    } else if (eventType === 'exec_log') {
+                      const logData = getPayloadData(parsed);
+                      onEvent({ type: 'exec_log', data: logData });
+                    } else if (eventType === 'tool_request') {
+                      if (!handsOnDesktopEnabled) {
+                        logger.warn('[API] Received tool_request but hands-on desktop is disabled; skipping');
+                        continue;
+                      }
+                      const req = getPayloadData(parsed);
+                      try {
+                        if (window.electron && window.electron.handsOnDesktop && typeof window.electron.handsOnDesktop.executeRequest === 'function') {
+                          const requestPayload = {
+                            run_id: req.run_id,
+                            request_id: req.request_id,
+                            step: req.step ?? 0,
+                            tool: req.tool,
+                            command: req.command || (req.args && req.args.command) || undefined,
+                            args: req.args || {},
+                            requires_elevation: !!req.requires_elevation,
+                            timeout_sec: typeof req.timeout_sec === 'number' ? req.timeout_sec : 60,
+                          };
+                          try {
+                            logger.info('[API] Dispatching hands-on-desktop tool_request', {
+                              request_id: requestPayload.request_id,
+                              tool: requestPayload.tool,
+                              step: requestPayload.step,
+                              run_id: requestPayload.run_id,
+                            });
+                          } catch {}
+                          window.electron.handsOnDesktop.executeRequest(requestPayload).catch((e) => {
+                            console.warn('[API] handsOnDesktop.executeRequest failed:', e);
+                          });
+                        } else {
+                          console.warn('[API] handsOnDesktop bridge unavailable; cannot execute tool_request on desktop');
+                        }
+                      } catch (err) {
+                        console.error('[API] tool_request dispatch error:', err);
+                      }
+                    } else if (eventType === 'thinking') {
+                      const thinkingData = getPayloadData(parsed);
+                      onEvent({ type: 'thinking', data: thinkingData });
+                    } else if (eventType === 'final' || eventType === 'complete') {
+                      const finalData = getPayloadData(parsed);
+                      const finalResponse =
+                        finalData.final_response || finalData.response || parsed.final_response || '';
+                      const metrics = {
+                        tokens_out: finalData.tokens_out ?? parsed.tokens_out,
+                        total_ms: finalData.total_ms ?? parsed.total_ms,
+                        tokens_in: finalData.tokens_in ?? parsed.tokens_in,
+                        cost_usd: finalData.cost_usd ?? parsed.cost_usd,
+                        checksum: finalData.checksum ?? parsed.checksum,
+                      };
+                      onEvent({ type: 'final', data: { final_response: finalResponse, ...metrics } });
+                    } else if (eventType === 'token') {
+                      const tokenData = getPayloadData(parsed);
+                      onEvent({ type: 'token', data: tokenData });
+                    } else if (eventType === 'done') {
+                      const doneData = getPayloadData(parsed);
+                      const finalResponse =
+                        doneData.final_response || doneData.response || parsed.final_response || '';
+                      const metrics = {
+                        tokens_out: doneData.tokens_out ?? parsed.tokens_out,
+                        total_ms: doneData.total_ms ?? parsed.total_ms,
+                        tokens_in: doneData.tokens_in ?? parsed.tokens_in,
+                        cost_usd: doneData.cost_usd ?? parsed.cost_usd,
+                        checksum: doneData.checksum ?? parsed.checksum,
+                      };
+                      onEvent({ type: 'done', data: { final_response: finalResponse, ...metrics } });
+                    } else if (eventType === 'error') {
+                      const errData = getPayloadData(parsed);
+                      const msg = errData.error || errData.message || 'Unknown error';
+                      const isTerminal = !!errData.terminal;
+                      onEvent({ type: 'error', data: { error: msg, code: errData.code, terminal: isTerminal, context: errData.context, details: errData.details } });
+                      if (isTerminal) {
+                        console.log('[API] Terminal error received, stopping SSE stream');
+                        terminalErrorReceived = true;
+                        break;
+                      }
+                    } else if (eventType === 'metadata') {
+                      const md = getPayloadData(parsed);
+                      onEvent({ type: 'metadata', data: md });
+                    } else {
+                      onEvent(parsed);
+                    }
+                  } else {
+                    try {
+                      if (parsed && parsed.type === 'ack') {
+                        ackSeenLocal = true;
+                      }
+                      const content = parsed?.content || parsed?.delta || parsed?.token || parsed?.text || '';
+                      if (content && typeof content === 'string') {
+                        anyTokenSeenLocal = true;
+                      }
+                      if ((parsed?.type === 'done' || parsed?.event === 'done') && !anyTokenSeenLocal) {
+                        const jsonHeaders = {
+                          'Content-Type': 'application/json',
+                          'Accept': 'application/json',
+                          'X-User-Id': localStorage.getItem('user_id') || 'anonymous'
+                        };
+                        if (configuredKey) jsonHeaders['X-API-Key'] = configuredKey;
+                        const fallbackPayload = {
+                          message: truncatedMessage,
+                          session_id: (userContext && userContext.session_id) || 'default',
+                          include_context: true,
+                          user_context: userContext ? {
+                            profile: userContext.profile || {},
+                            facts: userContext.facts || {},
+                            preferences: userContext.preferences || {},
+                            recent_messages: userContext.recent_messages || []
+                          } : null,
+                          image: image || null,
+                          memory_mode: 'auto'
+                        };
+                        const jsonEp = `${baseURL}/api/v2/chat/message`;
+                        try {
+                          const jsonResp = await fetch(jsonEp, {
+                            method: 'POST',
+                            headers: jsonHeaders,
+                            body: JSON.stringify(fallbackPayload)
+                          });
+                          if (jsonResp.ok) {
+                            const data = await jsonResp.json();
+                            onEvent({ type: 'done', data: { final_response: data.response || '' } });
+                            return { aborted: true };
+                          }
+                        } catch (_) { /* swallow and continue */ }
+                      }
+                    } catch (_) { /* ignore detection errors */ }
+                    onEvent(parsed);
+                  }
+                } catch (e) {
+                  console.error('Failed to parse SSE data:', e);
+                }
+              }
+            }
+          }
+          return { aborted: false };
+        };
+
+        try {
+          const streamResult = await consumeStream(response);
+          if (streamResult?.aborted) {
+            streamCompleted = true;
+            return;
+          }
+          streamCompleted = true;
+          break;
+        } catch (streamErr) {
+          lastStatus = 0;
+          lastBody = String(streamErr?.message || streamErr);
+          const retryableStreamError = shouldRetryNetworkError(streamErr) && streamResumeAttempts < MAX_STREAM_RESUME_RETRIES;
+          if (retryableStreamError) {
+            streamResumeAttempts += 1;
+            try {
+              telemetry.logEvent('api.chat_stream.stream_error_retry', {
+                endpoint,
+                mode: isAutonomous ? 'autonomous' : 'chat',
+                attempt: streamResumeAttempts,
+                error: lastBody,
+              });
+            } catch {}
+            const sidForResume = (typeof ackStreamId === 'string' && ackStreamId) || baseHeaders['X-Stream-Id'] || streamId;
+            const resumeHeaders = { ...baseHeaders };
+            if (sidForResume) resumeHeaders['X-Stream-Id'] = sidForResume;
+            if (lastSequenceSeen !== null && lastSequenceSeen !== undefined) {
+              resumeHeaders['Last-Sequence-Seen'] = String(lastSequenceSeen);
+            }
+            headers = resumeHeaders;
+            endpointQueue.unshift(endpoint);
+            continue endpointLoop;
+          }
+          throw streamErr;
+        }
       }
       lastStatus = response.status;
       try { lastBody = await response.text(); } catch {}
@@ -627,7 +925,7 @@ export const chatAPI = {
       if (lastStatus === 401) break;
     }
 
-    if (!response || !response.ok) {
+    if (!streamCompleted) {
       let errorMessage = `HTTP error! status: ${lastStatus || (response && response.status)}`;
       try {
         const parsed = lastBody && JSON.parse(lastBody);
@@ -698,271 +996,7 @@ export const chatAPI = {
       throw new Error(errorMessage);
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    // Track ack/token to detect empty streams and trigger JSON fallback
-    let ackSeen = false;
-    let anyTokenSeen = false;
-    // v2.1: track last sequence seen for potential resume
-    let lastSequenceSeen = (userContext && userContext.__resume && (userContext.__resume.lastSequenceSeen ?? null)) || null;
-    // v2.1: track received stream_id from ack for resume
-    let ackStreamId = null;
-    // v2.1: terminal error flag to stop SSE loop
-    let terminalErrorReceived = false;
-
-    while (true) {
-      const { done, value } = await reader.read();
-
-      if (done || terminalErrorReceived) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop(); // Keep incomplete line in buffer
-
-      for (const line of lines) {
-        // v2.1: break out of line processing if terminal error received
-        if (terminalErrorReceived) break;
-        if (line.startsWith('event:')) {
-          const eventType = line.substring(6).trim();
-          continue;
-        }
-
-        if (line.startsWith('data:')) {
-          const data = line.substring(5).trim();
-          // Ignore non-JSON markers like [DONE]
-          if (!data || data === '[DONE]') continue;
-          // Best-effort: only parse JSON objects/arrays
-          const firstChar = data[0];
-          if (firstChar !== '{' && firstChar !== '[') continue;
-          try {
-            const parsed = JSON.parse(data);
-            
-            // Handle autonomous endpoint events (different format)
-            if (isAutonomous) {
-              // Autonomous events: backend flattens payload: { type, id, ...data }
-              const eventType = parsed.type || parsed.event;
-
-              // v2.1: derive sequence if present and persist
-              try {
-                const seq = parsed.seq ?? parsed.sequence ?? parsed.sequence_id ?? parsed.event_id ?? null;
-                if (seq !== null && seq !== undefined) {
-                  lastSequenceSeen = seq;
-                  try { localStorage.setItem(`amx_stream_seq_${streamId}`, String(seq)); } catch {}
-                }
-              } catch {}
-
-              // Helper: normalize payload to always return a data object
-              const getPayloadData = (obj) => {
-                if (obj && typeof obj.data === 'object' && obj.data !== null) return obj.data;
-                if (obj && typeof obj === 'object') {
-                  const { type, id, ...rest } = obj;
-                  return rest;
-                }
-                return {};
-              };
-
-              // v2.1 Events (standardized streaming protocol)
-              if (eventType === 'ack') {
-                // Immediate acknowledgment - shows UI activity within 100ms
-                const ackData = getPayloadData(parsed);
-                try { ackSeen = true; } catch {}
-                // v2.1: persist stream_id for resume
-                const sid = ackData.stream_id || parsed.stream_id;
-                if (sid) {
-                  ackStreamId = sid;
-                  try { localStorage.setItem('amx_last_stream_id', sid); } catch {}
-                }
-                onEvent({ type: 'ack', data: ackData });
-              } else if (eventType === 'plan') {
-                // Plan event - show execution plan before execution begins
-                const planData = getPayloadData(parsed);
-                onEvent({ type: 'plan', data: planData });
-              } else if (eventType === 'exec_log') {
-                // Phase 1+: Step-by-step execution logs (not yet emitted by backend)
-                const logData = getPayloadData(parsed);
-                onEvent({ type: 'exec_log', data: logData });
-              } else if (eventType === 'tool_request') {
-                if (!handsOnDesktopEnabled) {
-                  logger.warn('[API] Received tool_request but hands-on desktop is disabled; skipping');
-                  continue;
-                }
-                // Desktop execution handshake: dispatch to electron main
-                const req = getPayloadData(parsed);
-                try {
-                  if (window.electron && window.electron.handsOnDesktop && typeof window.electron.handsOnDesktop.executeRequest === 'function') {
-                    // Normalize payload (ensure required fields present)
-                    const requestPayload = {
-                      run_id: req.run_id,
-                      request_id: req.request_id,
-                      step: req.step ?? 0,
-                      tool: req.tool,
-                      command: req.command || (req.args && req.args.command) || undefined,
-                      args: req.args || {},
-                      requires_elevation: !!req.requires_elevation,
-                      timeout_sec: typeof req.timeout_sec === 'number' ? req.timeout_sec : 60,
-                    };
-                    try {
-                      logger.info('[API] Dispatching hands-on-desktop tool_request', {
-                        request_id: requestPayload.request_id,
-                        tool: requestPayload.tool,
-                        step: requestPayload.step,
-                        run_id: requestPayload.run_id,
-                      });
-                    } catch {}
-                    // Fire and forget; backend is awaiting result via tool_request_store
-                    window.electron.handsOnDesktop.executeRequest(requestPayload).catch((e) => {
-                      console.warn('[API] handsOnDesktop.executeRequest failed:', e);
-                    });
-                  } else {
-                    console.warn('[API] handsOnDesktop bridge unavailable; cannot execute tool_request on desktop');
-                  }
-                } catch (err) {
-                  console.error('[API] tool_request dispatch error:', err);
-                }
-              } else if (eventType === 'confidence') {
-                // Phase 1+: AI confidence scores (not yet emitted by backend)
-                const confData = getPayloadData(parsed);
-                onEvent({ type: 'confidence', data: confData });
-              } else if (eventType === 'token') {
-                // Streaming response tokens
-                const tData = getPayloadData(parsed);
-                const content = tData.content || parsed.content || parsed.delta || '';
-                if (content) {
-                  try { anyTokenSeen = true; } catch {}
-                  onEvent({ type: 'token', content, data: tData });
-                }
-              } else if (eventType === 'final') {
-                const finalData = getPayloadData(parsed);
-                const finalResponse = finalData.final_response || finalData.response || parsed.final_response || '';
-                // v2.1: surface metrics if present
-                const metrics = {
-                  tokens_out: finalData.tokens_out ?? parsed.tokens_out,
-                  total_ms: finalData.total_ms ?? parsed.total_ms,
-                  tokens_in: finalData.tokens_in ?? parsed.tokens_in,
-                  cost_usd: finalData.cost_usd ?? parsed.cost_usd,
-                  checksum: finalData.checksum ?? parsed.checksum,
-                };
-                onEvent({ type: 'final', data: { final_response: finalResponse, ...finalData, ...metrics } });
-              } else if (eventType === 'complete') {
-                const completeData = getPayloadData(parsed);
-                const finalResponse =
-                  completeData.final_response || completeData.response || parsed.final_response || '';
-                const metrics = {
-                  tokens_out: completeData.tokens_out ?? parsed.tokens_out,
-                  total_ms: completeData.total_ms ?? parsed.total_ms,
-                  tokens_in: completeData.tokens_in ?? parsed.tokens_in,
-                  cost_usd: completeData.cost_usd ?? parsed.cost_usd,
-                  checksum: completeData.checksum ?? parsed.checksum,
-                };
-                onEvent({ type: 'final', data: { final_response: finalResponse, ...completeData, ...metrics } });
-              } else if (eventType === 'thinking') {
-                // Enhanced thinking with step context
-                const thinkingData = getPayloadData(parsed);
-                onEvent({ type: 'thinking', data: thinkingData });
-              } else if (eventType === 'step') {
-                // Legacy step event - map to thinking (deprecated but still supported)
-                const stepData = getPayloadData(parsed);
-                onEvent({
-                  type: 'thinking',
-                  data: {
-                    message: stepData.reasoning || stepData.action || 'Processing...',
-                    step: stepData.step || stepData.step_number,
-                    total_steps: stepData.total_steps
-                  }
-                });
-                if (stepData.result) {
-                  onEvent({ type: 'token', content: `${stepData.result}\n` });
-                }
-              } else if (eventType === 'done') {
-                // Done event - emit final response
-                const doneData = getPayloadData(parsed);
-                const finalResponse =
-                  doneData.final_response || doneData.response || parsed.final_response || '';
-                // v2.1: include metrics on done too if present
-                const metrics = {
-                  tokens_out: doneData.tokens_out ?? parsed.tokens_out,
-                  total_ms: doneData.total_ms ?? parsed.total_ms,
-                  tokens_in: doneData.tokens_in ?? parsed.tokens_in,
-                  cost_usd: doneData.cost_usd ?? parsed.cost_usd,
-                  checksum: doneData.checksum ?? parsed.checksum,
-                };
-                onEvent({ type: 'done', data: { final_response: finalResponse, ...metrics } });
-              } else if (eventType === 'error') {
-                const errData = getPayloadData(parsed);
-                const msg = errData.error || errData.message || 'Unknown error';
-                const isTerminal = !!errData.terminal;
-                onEvent({ type: 'error', data: { error: msg, code: errData.code, terminal: isTerminal, context: errData.context, details: errData.details } });
-                // v2.1: stop stream on terminal errors
-                if (isTerminal) {
-                  console.log('[API] Terminal error received, stopping SSE stream');
-                  terminalErrorReceived = true;
-                  break; // Exit the for loop to stop processing events
-                }
-              } else if (eventType === 'metadata') {
-                const md = getPayloadData(parsed);
-                onEvent({ type: 'metadata', data: md });
-              } else {
-                // Pass through other events (stream_init, heartbeat, etc.)
-                onEvent(parsed);
-              }
-            } else {
-              // Chat endpoint - pass through as-is
-              // Note: detect ack and empty-done to trigger JSON fallback
-              try {
-                if (parsed && parsed.type === 'ack') {
-                  ackSeen = true;
-                }
-                // Heuristic: treat presence of content/delta/token/text as token seen
-                const content = parsed?.content || parsed?.delta || parsed?.token || parsed?.text || '';
-                if (content && typeof content === 'string') {
-                  anyTokenSeen = true;
-                }
-                // If this is a done event with empty final_response and we saw no tokens, fallback
-                if ((parsed?.type === 'done' || parsed?.event === 'done') && !anyTokenSeen) {
-                  // Attempt JSON fallback synchronously
-                  const jsonHeaders = {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-User-Id': localStorage.getItem('user_id') || 'anonymous'
-                  };
-                  if (configuredKey) jsonHeaders['X-API-Key'] = configuredKey;
-                  const fallbackPayload = {
-                    message: truncatedMessage,
-                    session_id: (userContext && userContext.session_id) || 'default',
-                    include_context: true,
-                    user_context: userContext ? {
-                      profile: userContext.profile || {},
-                      facts: userContext.facts || {},
-                      preferences: userContext.preferences || {},
-                      recent_messages: userContext.recent_messages || []
-                    } : null,
-                    image: image || null,
-                    memory_mode: 'auto'
-                  };
-                  const jsonEp = `${baseURL}/api/v2/chat/message`;
-                  try {
-                    const jsonResp = await fetch(jsonEp, {
-                      method: 'POST',
-                      headers: jsonHeaders,
-                      body: JSON.stringify(fallbackPayload)
-                    });
-                    if (jsonResp.ok) {
-                      const data = await jsonResp.json();
-                      onEvent({ type: 'done', data: { final_response: data.response || '' } });
-                      return; // stop further processing
-                    }
-                  } catch (_) { /* swallow and continue */ }
-                }
-              } catch (_) { /* ignore detection errors */ }
-              onEvent(parsed);
-            }
-          } catch (e) {
-            console.error('Failed to parse SSE data:', e);
-          }
-        }
-      }
-    }
+    
   },
 };
 
