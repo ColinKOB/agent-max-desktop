@@ -172,6 +172,18 @@ export const __testHooks = {
   },
 };
 
+async function getDesktopBridgeStatus() {
+  try {
+    if (typeof window === 'undefined') return null;
+    if (!window?.electron?.handsOnDesktop?.status) return null;
+    const status = await window.electron.handsOnDesktop.status();
+    return status || null;
+  } catch (err) {
+    logger.warn('[API] Failed to fetch hands-on-desktop status', { error: err?.message });
+    return null;
+  }
+}
+
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
@@ -510,6 +522,7 @@ export const chatAPI = {
       : message;
 
     let useHandsOnDesktop = handsOnDesktopEnabled;
+    let desktopBridgeStatus = null;
     if (isAutonomous) {
       try {
         await refreshBackendFeatureFlags();
@@ -517,6 +530,17 @@ export const chatAPI = {
       } catch (err) {
         logger.warn('Falling back to hands-on-desktop default (true)', { error: err?.message });
       }
+      desktopBridgeStatus = await getDesktopBridgeStatus();
+      if (desktopBridgeStatus && desktopBridgeStatus.connected === false) {
+        useHandsOnDesktop = false;
+      }
+    }
+
+    const desktopFlagPayload = {
+      server_fs: !useHandsOnDesktop,
+    };
+    if (desktopBridgeStatus && typeof desktopBridgeStatus.connected === 'boolean') {
+      desktopFlagPayload.desktop_bridge_connected = desktopBridgeStatus.connected;
     }
 
     const payload = isAutonomous ? {
@@ -534,9 +558,7 @@ export const chatAPI = {
       image: image || null,
       max_steps: 10,
       timeout: 300,
-      flags: {
-        server_fs: !useHandsOnDesktop  // If backend disables hands-on desktop, let it execute tools
-      }
+      flags: desktopFlagPayload
     } : {
       // Chat endpoint
       message: truncatedMessage,
@@ -733,11 +755,11 @@ export const chatAPI = {
                     } else if (eventType === 'exec_log') {
                       const logData = getPayloadData(parsed);
                       onEvent({ type: 'exec_log', data: logData });
-                    } else if (eventType === 'tool_request') {
-                      if (!handsOnDesktopEnabled) {
-                        logger.warn('[API] Received tool_request but hands-on desktop is disabled; skipping');
-                        continue;
-                      }
+              } else if (eventType === 'tool_request') {
+                if (!useHandsOnDesktop) {
+                  logger.warn('[API] Received tool_request but hands-on desktop is disabled/unavailable; skipping');
+                  continue;
+                }
                       const req = getPayloadData(parsed);
                       try {
                         if (window.electron && window.electron.handsOnDesktop && typeof window.electron.handsOnDesktop.executeRequest === 'function') {

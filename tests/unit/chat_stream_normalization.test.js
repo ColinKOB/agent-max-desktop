@@ -5,11 +5,14 @@ vi.mock('../../src/services/telemetry', () => ({ default: { logEvent: vi.fn() } 
 
 // Provide a minimal window + localStorage for api.js
 const mockExecuteRequest = vi.fn();
+const mockDesktopStatus = vi.fn(() => Promise.resolve({ enabled: true, connected: true }));
 global.window = {
   dispatchEvent: vi.fn(),
   electron: {
     handsOnDesktop: {
       executeRequest: (...args) => mockExecuteRequest(...args),
+      status: (...args) => mockDesktopStatus(...args),
+      toggle: vi.fn(),
     },
   },
 };
@@ -86,6 +89,8 @@ describe('chatAPI.sendMessageStream normalization', () => {
     fetchSpy = vi.spyOn(global, 'fetch');
     mockExecuteRequest.mockReset();
     mockExecuteRequest.mockResolvedValue(undefined);
+    mockDesktopStatus.mockClear();
+    mockDesktopStatus.mockResolvedValue({ enabled: true, connected: true });
     if (global.window?.dispatchEvent?.mockReset) {
       global.window.dispatchEvent.mockReset();
     }
@@ -273,21 +278,37 @@ describe('chatAPI.sendMessageStream normalization', () => {
     expect(body.flags.server_fs).toBe(false);
   });
 
-  it('sets server_fs flag to true when hands-on desktop is disabled', async () => {
-    apiTestHooks?.setHandsOnDesktopEnabled?.(false);
+  it('includes desktop bridge connectivity flag when helper is online', async () => {
+    mockDesktopStatus.mockResolvedValueOnce({ enabled: true, connected: true });
     const sse = buildSSEStream([
-      { type: 'ack', data: { id: 89 } },
-      { type: 'done', data: { final_response: 'server fallback' } },
+      { type: 'ack', data: { id: 42 } },
+      { type: 'done', data: { final_response: 'ok' } },
     ]);
     fetchSpy.mockResolvedValueOnce(sse);
 
-    await chatAPI.sendMessageStream('Fallback to server fs', { __mode: 'autonomous' }, null, () => {});
+    await chatAPI.sendMessageStream('Desktop online test', { __mode: 'autonomous' }, null, () => {});
 
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [, options] = fetchSpy.mock.calls[0];
     const body = JSON.parse(options.body);
     expect(body.flags).toBeDefined();
+    expect(body.flags.server_fs).toBe(false);
+    expect(body.flags.desktop_bridge_connected).toBe(true);
+  });
+
+  it('falls back to server_fs when desktop bridge is disconnected', async () => {
+    mockDesktopStatus.mockResolvedValueOnce({ enabled: true, connected: false });
+    const sse = buildSSEStream([
+      { type: 'ack', data: { id: 912 } },
+      { type: 'done', data: { final_response: 'offline fallback' } },
+    ]);
+    fetchSpy.mockResolvedValueOnce(sse);
+
+    await chatAPI.sendMessageStream('Desktop offline test', { __mode: 'autonomous' }, null, () => {});
+
+    const [, options] = fetchSpy.mock.calls[0];
+    const body = JSON.parse(options.body);
     expect(body.flags.server_fs).toBe(true);
+    expect(body.flags.desktop_bridge_connected).toBe(false);
   });
 
   it('dispatches tool_request events to the electron bridge when enabled', async () => {
@@ -321,8 +342,8 @@ describe('chatAPI.sendMessageStream normalization', () => {
     }));
   });
 
-  it('ignores tool_request events when hands-on desktop is disabled', async () => {
-    apiTestHooks?.setHandsOnDesktopEnabled?.(false);
+  it('does not dispatch desktop tool requests when the bridge reports offline', async () => {
+    mockDesktopStatus.mockResolvedValueOnce({ enabled: true, connected: false });
     const sse = buildSSEStream([
       { type: 'ack', data: { id: 654 } },
       {

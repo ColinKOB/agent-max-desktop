@@ -90,6 +90,7 @@ export default function AppleFloatBar({
   const [totalSteps, setTotalSteps] = useState(0);
   const [executionMode, setExecutionMode] = useState(null);
   const [desktopActionsRequired, setDesktopActionsRequired] = useState(false);
+  const [desktopBridgeStatus, setDesktopBridgeStatus] = useState(null);
   const lastUserPromptRef = useRef('');
   const lastAssistantTsRef = useRef(null);
   const accumulatedResponseRef = useRef('');  // For fs_command extraction
@@ -116,6 +117,7 @@ export default function AppleFloatBar({
   const enrichTileIdRef = useRef(null); // current tile receiving enrichment
   const streamBufferRef = useRef(''); // accumulates tokens when not enriching a tile
   const offlineRef = useRef(false); // suppress toast spam while offline
+  const offlineDesktopToastRef = useRef(false);
   const continueSendMessageRef = useRef(null); // dispatcher to avoid TDZ
   const [showReconnected, setShowReconnected] = useState(false);
   const thoughtIdRef = useRef(null); // current inline thought entry id
@@ -131,6 +133,16 @@ export default function AppleFloatBar({
       toast.success(note);
     } catch (_) {
       toast.error('Copy failed');
+    }
+  }, []);
+  const handleDesktopReconnect = useCallback(async () => {
+    try {
+      if (typeof window === 'undefined') return;
+      if (window?.electron?.handsOnDesktop?.toggle) {
+        await window.electron.handsOnDesktop.toggle(true);
+      }
+    } catch (err) {
+      logger.warn('[FloatBar] Desktop reconnect failed', { error: err?.message });
     }
   }, []);
   
@@ -2503,6 +2515,63 @@ export default function AppleFloatBar({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isMini, handleExpand, handleCollapse]);
   
+  // Poll desktop helper status so we can display availability and warn when required
+  useEffect(() => {
+    let cancelled = false;
+    let timer;
+    const pollStatus = async () => {
+      try {
+        if (typeof window === 'undefined' || !window?.electron?.handsOnDesktop?.status) {
+          if (!cancelled) {
+            setDesktopBridgeStatus((prev) => prev || { connected: false, enabled: false });
+          }
+        } else {
+          const status = await window.electron.handsOnDesktop.status();
+          if (!cancelled) {
+            setDesktopBridgeStatus(status || { connected: false, enabled: false });
+          }
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setDesktopBridgeStatus({ connected: false, enabled: false, error: err?.message });
+        }
+      } finally {
+        if (!cancelled) {
+          timer = setTimeout(pollStatus, 6000);
+        }
+      }
+    };
+    pollStatus();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+  
+  const desktopBridgeConnected = Boolean(desktopBridgeStatus?.connected);
+  useEffect(() => {
+    if (!desktopActionsRequired) {
+      offlineDesktopToastRef.current = false;
+      return;
+    }
+    if (!desktopBridgeConnected && !offlineDesktopToastRef.current) {
+      offlineDesktopToastRef.current = true;
+      const message = 'Desktop helper is offline. Reopen the Agent Max desktop app so local steps can finish.';
+      setThoughts((prev) => [
+        ...prev,
+        {
+          role: 'system',
+          content: `⚠️ ${message}`,
+          timestamp: Date.now(),
+          type: 'status',
+        }
+      ]);
+      toast.error(message);
+    } else if (desktopBridgeConnected) {
+      offlineDesktopToastRef.current = false;
+    }
+  }, [desktopActionsRequired, desktopBridgeConnected, setThoughts]);
+  
   // Window classes
   const windowClasses = useMemo(() => {
     const classes = ['apple-floatbar-root'];
@@ -2565,6 +2634,23 @@ export default function AppleFloatBar({
               }}
             >
               {resolveMode()==='autonomous' ? 'auto' : resolveMode()==='chatty' ? 'chatty' : 'helpful'}
+            </div>
+            <div
+              onClick={!desktopBridgeConnected ? handleDesktopReconnect : undefined}
+              title={desktopBridgeConnected ? 'Desktop helper connected' : 'Desktop helper offline. Click to retry connection.'}
+              style={{
+                fontSize: '0.74rem',
+                color: desktopBridgeConnected ? 'rgba(34,197,94,0.95)' : 'rgba(248,113,113,0.95)',
+                background: desktopBridgeConnected ? 'rgba(34,197,94,0.12)' : 'rgba(248,113,113,0.12)',
+                border: `1px solid ${desktopBridgeConnected ? 'rgba(34,197,94,0.25)' : 'rgba(248,113,113,0.25)'}`,
+                padding: '4px 8px',
+                borderRadius: 8,
+                textTransform: 'capitalize',
+                cursor: desktopBridgeConnected ? 'default' : 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              Desktop {desktopBridgeConnected ? 'online' : 'offline'}
             </div>
             <CreditDisplay userId={currentUser?.id || localStorage.getItem('user_id')} variant="tool" />
             <button className="apple-tool-btn" ref={toolBtnRef} onClick={handleTools} title="Tools">
@@ -2748,6 +2834,28 @@ export default function AppleFloatBar({
                 onApprove={handlePlanApprove}
                 onReject={handlePlanReject}
               />
+            </div>
+          )}
+          
+          {desktopActionsRequired && !desktopBridgeConnected && (
+            <div
+              style={{
+                display: 'flex',
+                gap: 10,
+                alignItems: 'flex-start',
+                padding: '10px 12px',
+                borderRadius: 10,
+                border: '1px solid rgba(248,113,113,0.3)',
+                background: 'rgba(248,113,113,0.08)',
+                color: '#fecaca',
+                marginBottom: 12,
+              }}
+            >
+              <Lightbulb size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+              <div style={{ fontSize: '0.85rem', lineHeight: 1.4 }}>
+                <strong style={{ display: 'block', marginBottom: 2 }}>Desktop helper is offline</strong>
+                File steps will stall until the helper reconnects. Reopen the Agent Max desktop app and grant Desktop permissions so Auto Mode can write locally.
+              </div>
             </div>
           )}
           

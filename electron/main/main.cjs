@@ -22,7 +22,7 @@ const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 // Hands-on desktop device stream currently unsupported in production.
 // Default to disabled unless explicitly enabled via env.
 if (typeof process.env.HANDS_ON_DESKTOP_DEVICE_STREAM === 'undefined') {
-  process.env.HANDS_ON_DESKTOP_DEVICE_STREAM = '0';
+  process.env.HANDS_ON_DESKTOP_DEVICE_STREAM = '1';
 }
 
 // ===========================================
