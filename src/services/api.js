@@ -604,6 +604,34 @@ export const chatAPI = {
     let lastStatus = 0;
     let lastBody = '';
     const MAX_NETWORK_RETRIES = 3;
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const waitForReconnect = async (attempt = 1, reason = 'network') => {
+      const clamped = Math.min(8000, 500 * attempt);
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('api:reconnecting', { detail: { area: 'chat_stream', attempt, reason } }));
+        }
+      } catch {}
+      if (typeof window !== 'undefined' && window.addEventListener) {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          await new Promise((resolve) => {
+            let settled = false;
+            const cleanup = () => {
+              if (settled) return;
+              settled = true;
+              window.removeEventListener('online', handleOnline);
+              clearTimeout(timer);
+              resolve();
+            };
+            const handleOnline = () => cleanup();
+            const timer = setTimeout(cleanup, Math.max(clamped, 1000));
+            window.addEventListener('online', handleOnline, { once: true });
+          });
+          return;
+        }
+      }
+      await wait(clamped);
+    };
     const shouldRetryNetworkError = (err) => {
       if (!err) return false;
       const rawMessage = err?.message || String(err || '');
@@ -624,6 +652,8 @@ export const chatAPI = {
     const endpointQueue = [...endpoints];
     const MAX_STREAM_RESUME_RETRIES = 2;
     let streamResumeAttempts = 0;
+    const MAX_TOTAL_NETWORK_RETRIES = isAutonomous ? 6 : 3;
+    let totalNetworkRetries = 0;
     let streamCompleted = false;
     let lastSequenceSeen = (userContext && userContext.__resume && (userContext.__resume.lastSequenceSeen ?? null)) || null;
     let ackStreamId = null;
@@ -664,6 +694,10 @@ export const chatAPI = {
             });
           } catch {}
           if (retryable) {
+            totalNetworkRetries += 1;
+            if (totalNetworkRetries > MAX_TOTAL_NETWORK_RETRIES) {
+              throw netErr;
+            }
             try {
               telemetry.logEvent('api.chat_stream.network_error_retry', {
                 endpoint,
@@ -671,6 +705,7 @@ export const chatAPI = {
                 attempt,
               });
             } catch {}
+            await waitForReconnect(totalNetworkRetries, 'fetch');
             continue;
           }
           try {
@@ -906,6 +941,10 @@ export const chatAPI = {
           const retryableStreamError = shouldRetryNetworkError(streamErr) && streamResumeAttempts < MAX_STREAM_RESUME_RETRIES;
           if (retryableStreamError) {
             streamResumeAttempts += 1;
+            totalNetworkRetries += 1;
+            if (totalNetworkRetries > MAX_TOTAL_NETWORK_RETRIES) {
+              throw streamErr;
+            }
             try {
               telemetry.logEvent('api.chat_stream.stream_error_retry', {
                 endpoint,
@@ -914,6 +953,7 @@ export const chatAPI = {
                 error: lastBody,
               });
             } catch {}
+            await waitForReconnect(totalNetworkRetries, 'stream');
             const sidForResume = (typeof ackStreamId === 'string' && ackStreamId) || baseHeaders['X-Stream-Id'] || streamId;
             const resumeHeaders = { ...baseHeaders };
             if (sidForResume) resumeHeaders['X-Stream-Id'] = sidForResume;
