@@ -78,6 +78,7 @@ class HandsOnDesktopClient {
         this.pollTimer = null;
         this.pollIntervalMs = parseInt(process.env.HANDS_ON_DESKTOP_POLL_INTERVAL_MS || '2000', 10);
         this.pollBatchSize = parseInt(process.env.HANDS_ON_DESKTOP_POLL_BATCH || '3', 10);
+        this.pendingArtifacts = new Map();
         this.startPolling();
     }
 
@@ -197,11 +198,19 @@ class HandsOnDesktopClient {
             let result;
             
             if (tool === 'shell') {
+                const shellArtifacts = this.extractArtifactsFromShellCommand(command);
+                if (shellArtifacts.length) {
+                    shellArtifacts.forEach((artifactPath) => this.trackArtifact(request_id, artifactPath));
+                }
                 result = await this.executeShellCommand(command, requires_elevation, timeout_sec);
             } else if (tool === 'fs.write') {
-                result = await this.executeWriteFile(request.args || {});
+                const resolvedPath = this.resolveSafePath((request.args || {}).path);
+                this.trackArtifact(request_id, resolvedPath);
+                result = await this.executeWriteFile(resolvedPath, request.args || {});
             } else if (tool === 'fs.mkdir') {
-                result = await this.executeMkdir(request.args || {});
+                const resolvedPath = this.resolveSafePath((request.args || {}).path);
+                this.trackArtifact(request_id, resolvedPath);
+                result = await this.executeMkdir(resolvedPath);
             } else {
                 result = {
                     success: false,
@@ -287,9 +296,8 @@ class HandsOnDesktopClient {
         return resolved;
     }
 
-    async executeWriteFile(args) {
+    async executeWriteFile(resolvedPath, args) {
         const start = Date.now();
-        const resolvedPath = this.resolveSafePath(args.path);
         const content = typeof args.content === 'string' ? args.content : '';
         await fs.promises.mkdir(path.dirname(resolvedPath), { recursive: true });
         await fs.promises.writeFile(resolvedPath, content, 'utf8');
@@ -302,9 +310,8 @@ class HandsOnDesktopClient {
         };
     }
 
-    async executeMkdir(args) {
+    async executeMkdir(resolvedPath) {
         const start = Date.now();
-        const resolvedPath = this.resolveSafePath(args.path);
         await fs.promises.mkdir(resolvedPath, { recursive: true });
         return {
             success: true,
@@ -557,6 +564,7 @@ class HandsOnDesktopClient {
 
             if (response.ok) {
                 console.log('[HandsOnDesktop] Result submitted:', payload.request_id);
+                this.pendingArtifacts.delete(payload.request_id);
                 return;
             }
 
@@ -573,10 +581,11 @@ class HandsOnDesktopClient {
                     return this.submitResult(result, attempt + 1);
                 }
             }
+            await this.cleanupArtifacts(payload.request_id);
 
         } catch (error) {
             console.error('[HandsOnDesktop] Network error submitting result:', error);
-            // TODO: Implement retry logic with exponential backoff
+            await this.cleanupArtifacts(payload.request_id);
         }
     }
 
@@ -663,6 +672,71 @@ class HandsOnDesktopClient {
         this.handleToolRequest(normalized).catch((err) => {
             console.error('[HandsOnDesktop] Failed to handle polled request:', err);
         });
+    }
+
+    trackArtifact(requestId, artifactPath) {
+        if (!requestId || !artifactPath) return;
+        const resolved = path.resolve(artifactPath);
+        const list = this.pendingArtifacts.get(requestId) || [];
+        if (!list.includes(resolved)) {
+            list.push(resolved);
+            this.pendingArtifacts.set(requestId, list);
+        }
+    }
+
+    async cleanupArtifacts(requestId) {
+        const artifacts = this.pendingArtifacts.get(requestId);
+        if (!artifacts || !artifacts.length) return;
+        for (const target of artifacts) {
+            try {
+                const stats = await fs.promises.stat(target);
+                if (stats.isDirectory()) {
+                    continue;
+                }
+                await fs.promises.unlink(target);
+                console.log('[HandsOnDesktop] Cleaned artifact:', target);
+            } catch (err) {
+                console.warn('[HandsOnDesktop] Failed to clean artifact', target, err.message || err);
+            }
+        }
+        this.pendingArtifacts.delete(requestId);
+    }
+
+    extractArtifactsFromShellCommand(command) {
+        if (!command || typeof command !== 'string') return [];
+        const matches = [];
+        const patterns = [
+            /(?:^|\s)(?:-o|--output)\s+(['"]?)([^'"\s]+)\1/g,
+            />\s*(['"]?)([^'"\s]+)\1/g,
+            />>\s*(['"]?)([^'"\s]+)\1/g,
+        ];
+        for (const regex of patterns) {
+            let match;
+            while ((match = regex.exec(command)) !== null) {
+                const resolved = this.tryResolveShellPath(match[2]);
+                if (resolved) {
+                    matches.push(resolved);
+                }
+            }
+        }
+        return matches;
+    }
+
+    tryResolveShellPath(rawPath) {
+        if (!rawPath) return null;
+        let candidate = rawPath.trim();
+        candidate = candidate.replace(/^['"]|['"]$/g, '');
+        if (!candidate) return null;
+        const homeDir = getPreferredHomeDir();
+        candidate = candidate.replace(/\$HOME/g, homeDir);
+        if (candidate.startsWith('~/')) {
+            candidate = candidate.replace(/^~(?=$|[\/\\])/, homeDir);
+        }
+        try {
+            return this.resolveSafePath(candidate);
+        } catch (_) {
+            return null;
+        }
     }
 }
 
