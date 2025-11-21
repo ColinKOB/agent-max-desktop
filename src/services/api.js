@@ -612,6 +612,7 @@ export const chatAPI = {
       const retryMarkers = [
         'err_network_changed',
         'failed to fetch',
+        'network error',
         'networkerror',
         'network request failed',
         'connection was interrupted',

@@ -79,6 +79,17 @@ export const supabase = SUPABASE_ENABLED
 
 logger.info('Supabase client initialized', { url: supabaseUrl, enabled: SUPABASE_ENABLED });
 
+export const isLocalUserId = (userId) =>
+  typeof userId === 'string' && userId.toLowerCase().startsWith('local-');
+
+export const isSupabaseAvailable = () => SUPABASE_ENABLED && Boolean(supabase);
+
+export const canUseSupabase = (userId = null) => {
+  if (!isSupabaseAvailable()) return false;
+  if (userId && isLocalUserId(userId)) return false;
+  return true;
+};
+
 function fallbackUser(deviceId) {
   return {
     id: `local-${deviceId}`,

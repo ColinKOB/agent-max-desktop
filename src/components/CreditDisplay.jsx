@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { Coins, AlertCircle, Plus, TrendingDown } from 'lucide-react';
-import { supabase } from '../services/supabase';
+import { supabase, canUseSupabase } from '../services/supabase';
 import { creditsAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -12,25 +12,36 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
   const [credits, setCredits] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
+  const supabaseReady = canUseSupabase(userId);
 
   // Fetch initial credits
   useEffect(() => {
     if (!userId) return;
+    if (!supabaseReady) {
+      setCredits(0);
+      setLoading(false);
+      return;
+    }
     fetchCredits();
-  }, [userId]);
+  }, [userId, supabaseReady]);
 
   // Poll for updates every 3 seconds (live updates)
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !supabaseReady) return;
     
     const interval = setInterval(() => {
       fetchCredits();
     }, 3000);
     
     return () => clearInterval(interval);
-  }, [userId]);
+  }, [userId, supabaseReady]);
 
   const fetchCredits = async () => {
+    if (!supabaseReady) {
+      setCredits((prev) => (prev ?? 0));
+      setLoading(false);
+      return;
+    }
     try {
       const { data, error } = await supabase
         .from('users')
@@ -198,10 +209,11 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
 // Optimistic credit counter (for immediate UI updates)
 export function useOptimisticCredits(userId) {
   const [optimisticCredits, setOptimisticCredits] = useState(null);
+  const supabaseReady = canUseSupabase(userId);
 
   // Fetch initial from Supabase
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !supabaseReady) return;
     
     supabase
       .from('users')
@@ -212,7 +224,7 @@ export function useOptimisticCredits(userId) {
         setOptimisticCredits(data?.metadata?.credits || 0);
       })
       .catch(console.error);
-  }, [userId]);
+  }, [userId, supabaseReady]);
 
   const deductCredit = () => {
     setOptimisticCredits(prev => Math.max(0, prev - 1));
