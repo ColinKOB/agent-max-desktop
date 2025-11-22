@@ -125,7 +125,6 @@ export default function AppleFloatBar({
   const [execPanelOpen, setExecPanelOpen] = useState(true);
   const [executionDetails, setExecutionDetails] = useState(null);
   const [planCardDismissed, setPlanCardDismissed] = useState(false);
-  const planIdRef = useRef(null);
   const executionModeRef = useRef(null);
   const desktopActionsRef = useRef(false);
   const chatModeAnnouncementRef = useRef(false);
