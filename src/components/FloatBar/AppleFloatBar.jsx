@@ -291,29 +291,11 @@ export default function AppleFloatBar({
     };
   }, [setApiConnected]);
 
-  // If onboarding should be shown, auto-expand the bar so the overlay is visible
+  // Keep pill in mini state by default; onboarding no longer forces auto-expand
   useEffect(() => {
-    if (showWelcome === true && isMiniRef.current) {
-      try {
-        // Inline minimal expansion to avoid referencing handleExpand before init
-        setIsTransitioning(true);
-        setIsMini(false);
-        isMiniRef.current = false;
-        (async () => {
-          try {
-            const base = MIN_EXPANDED_HEIGHT;
-            if (window.electron?.resizeWindow) {
-              await window.electron.resizeWindow(360, base);
-              lastHeightRef.current = base;
-            }
-          } catch {}
-          setTimeout(() => {
-            inputRef.current?.focus();
-            setIsTransitioning(false);
-          }, 300);
-        })();
-      } catch {}
-    }
+    if (showWelcome !== true) return;
+    // If we ever want to auto-expand for onboarding, handle via explicit user action
+    // leaving mini state intact ensures the pill is always present
   }, [showWelcome]);
 
   // While offline, ping every 2s to auto-reconnect without spamming UI
@@ -2750,7 +2732,8 @@ export default function AppleFloatBar({
           </div>
 
           {/* Onboarding overlay: only after expansion and when requested */}
-          {showWelcome === true && !isTransitioning && (
+          {/* Onboarding overlay disabled in this build to keep pill/bar interaction unobstructed */}
+          {false && showWelcome === true && !isTransitioning && (
             <div style={{ position: 'absolute', inset: 0, zIndex: 80 }}>
               <OnboardingFlow onComplete={onWelcomeComplete} />
             </div>

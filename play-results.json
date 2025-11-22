@@ -125,7 +125,7 @@
     "version": "1.56.1",
     "workers": 5,
     "webServer": {
-      "command": "npm run dev",
+      "command": "npm run dev -- --port 5173 --strictPort",
       "url": "http://localhost:5173",
       "reuseExistingServer": true,
       "timeout": 120000
@@ -147,7 +147,7 @@
           "specs": [
             {
               "title": "Pill is present, expands to bar, shrink returns to pill, no card",
-              "ok": false,
+              "ok": true,
               "tags": [],
               "tests": [
                 {
@@ -160,53 +160,18 @@
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 5488,
-                      "error": {
-                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.amx-root.amx-mini')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.amx-root.amx-mini')\u001b[22m\n",
-                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.amx-root.amx-mini')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.amx-root.amx-mini')\u001b[22m\n\n    at /Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e/floatbar-ui.spec.js:14:24",
-                        "location": {
-                          "file": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e/floatbar-ui.spec.js",
-                          "column": 24,
-                          "line": 14
-                        },
-                        "snippet": "  12 |     // Pill present\n  13 |     const pill = page.locator('.amx-root.amx-mini');\n> 14 |     await expect(pill).toBeVisible();\n     |                        ^\n  15 |\n  16 |     // Expand to bar by clicking pill\n  17 |     await pill.click();"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e/floatbar-ui.spec.js",
-                            "column": 24,
-                            "line": 14
-                          },
-                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.amx-root.amx-mini')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.amx-root.amx-mini')\u001b[22m\n\n\n  12 |     // Pill present\n  13 |     const pill = page.locator('.amx-root.amx-mini');\n> 14 |     await expect(pill).toBeVisible();\n     |                        ^\n  15 |\n  16 |     // Expand to bar by clicking pill\n  17 |     await pill.click();\n    at /Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e/floatbar-ui.spec.js:14:24"
-                        }
-                      ],
+                      "status": "passed",
+                      "duration": 1293,
+                      "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-22T16:38:37.793Z",
+                      "startTime": "2025-11-22T16:49:33.357Z",
                       "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results/floatbar-ui-Apple-FloatBar-e09f8-ink-returns-to-pill-no-card-chromium/test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results/floatbar-ui-Apple-FloatBar-e09f8-ink-returns-to-pill-no-card-chromium/video.webm"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e/floatbar-ui.spec.js",
-                        "column": 24,
-                        "line": 14
-                      }
+                      "attachments": []
                     }
                   ],
-                  "status": "unexpected"
+                  "status": "expected"
                 }
               ],
               "id": "798846d4a26ba70728ac-d3c9dd34d995477736bf",
@@ -221,11 +186,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-11-22T16:38:36.501Z",
-    "duration": 8054.424000000001,
-    "expected": 0,
+    "startTime": "2025-11-22T16:49:32.975Z",
+    "duration": 1931.244,
+    "expected": 1,
     "skipped": 0,
-    "unexpected": 1,
+    "unexpected": 0,
     "flaky": 0
   }
 }

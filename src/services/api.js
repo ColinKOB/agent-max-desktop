@@ -1647,6 +1647,20 @@ export const draftsAPI = {
 };
 
 // ============================================
+// RUN CONTROL (viewer stream)
+// ============================================
+export const runAPI = {
+  cancel: (runId) =>
+    api.post(`/api/v2/runs/${runId}/cancel`).catch(() => api.post(`/api/runs/${runId}/cancel`)),
+  pause: (runId) =>
+    api.post(`/api/v2/runs/${runId}/pause`).catch(() => api.post(`/api/runs/${runId}/pause`)),
+  resume: (runId) =>
+    api.post(`/api/v2/runs/${runId}/resume`).catch(() => api.post(`/api/runs/${runId}/resume`)),
+  get: (runId) =>
+    api.get(`/api/v2/runs/${runId}`).catch(() => api.get(`/api/runs/${runId}`)),
+};
+
+// ============================================
 // HEALTH CHECK
 // ============================================
 export const healthAPI = libHealthAPI;

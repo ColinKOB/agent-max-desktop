@@ -16,8 +16,9 @@ const logger = createLogger('App');
 
 function App({ windowMode = 'single' }) {
   const { setApiConnected, setProfile, setGreeting } = useStore();
-  const [showWelcome, setShowWelcome] = useState(null); // null = checking, true = show, false = hide
-  const [isLoading, setIsLoading] = useState(true);
+  // Default to ready state so the floatbar pill renders immediately; async inits can adjust afterward.
+  const [showWelcome, setShowWelcome] = useState(false); // true = show onboarding, false = hide
+  const [isLoading, setIsLoading] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [updateProgress, setUpdateProgress] = useState(null);
 
