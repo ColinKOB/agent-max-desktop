@@ -601,6 +601,64 @@ export const chatAPI = {
     } catch {}
 
     let response;
+    let runStream = null;
+    const closeRunStream = () => {
+      if (runStream) {
+        try { runStream.close(); } catch (_) {}
+        runStream = null;
+      }
+    };
+    const startRunStream = (planId) => {
+      if (!planId || runStream) return;
+      try {
+        const url = `${baseURL}/api/v2/runs/${planId}/stream`;
+        runStream = new EventSource(url);
+        runStream.addEventListener('metadata', (ev) => {
+          try {
+            const data = JSON.parse(ev.data || '{}');
+            const md = data.value ? data : (data.metadata || data);
+            if (md && (md.key === 'run_status' || md.run_status)) {
+              const payload = md.value || md.run_status || md;
+              onEvent({ type: 'metadata', data: { run_status: payload, source: 'run_stream' } });
+            }
+          } catch (err) {
+            logger.warn('[API] run_stream metadata parse error', err);
+          }
+        });
+        runStream.addEventListener('exec_log', (ev) => {
+          try {
+            const data = JSON.parse(ev.data || '{}');
+            onEvent({ type: 'exec_log', data: { ...data, source: 'run_stream' } });
+          } catch (err) {
+            logger.warn('[API] run_stream exec_log parse error', err);
+          }
+        });
+        runStream.addEventListener('final', (ev) => {
+          try {
+            const data = JSON.parse(ev.data || '{}');
+            onEvent({ type: 'final', data: { ...data, source: 'run_stream' } });
+          } catch (err) {
+            logger.warn('[API] run_stream final parse error', err);
+          }
+        });
+        runStream.addEventListener('done', (ev) => {
+          try {
+            const data = JSON.parse(ev.data || '{}');
+            onEvent({ type: 'done', data: { ...data, source: 'run_stream' } });
+          } catch (err) {
+            logger.warn('[API] run_stream done parse error', err);
+          } finally {
+            closeRunStream();
+          }
+        });
+        runStream.addEventListener('error', (err) => {
+          logger.warn('[API] run_stream error', err);
+          closeRunStream();
+        });
+      } catch (err) {
+        logger.warn('[API] Failed to start run stream', err);
+      }
+    };
     let lastStatus = 0;
     let lastBody = '';
     const MAX_NETWORK_RETRIES = 3;
@@ -767,12 +825,12 @@ export const chatAPI = {
                       }
                     } catch {}
 
-                    const getPayloadData = (obj) => {
-                      if (obj && typeof obj.data === 'object' && obj.data !== null) return obj.data;
-                      if (obj && typeof obj === 'object') {
-                        const { type, id, ...rest } = obj;
-                        return rest;
-                      }
+                  const getPayloadData = (obj) => {
+                    if (obj && typeof obj.data === 'object' && obj.data !== null) return obj.data;
+                    if (obj && typeof obj === 'object') {
+                      const { type, id, ...rest } = obj;
+                      return rest;
+                    }
                       return {};
                     };
 
@@ -787,6 +845,9 @@ export const chatAPI = {
                     onEvent({ type: 'ack', data: ackData });
                     } else if (eventType === 'plan') {
                       const planData = getPayloadData(parsed);
+                      if (planData && (planData.plan_id || planData.planId)) {
+                        startRunStream(planData.plan_id || planData.planId);
+                      }
                       onEvent({ type: 'plan', data: planData });
                     } else if (eventType === 'exec_log') {
                       const logData = getPayloadData(parsed);
@@ -842,10 +903,10 @@ export const chatAPI = {
                       };
                       onEvent({ type: 'final', data: { final_response: finalResponse, ...metrics } });
                     } else if (eventType === 'token') {
-                      const tokenData = getPayloadData(parsed);
-                      onEvent({ type: 'token', data: tokenData });
-                    } else if (eventType === 'done') {
-                      const doneData = getPayloadData(parsed);
+                  const tokenData = getPayloadData(parsed);
+                  onEvent({ type: 'token', data: tokenData });
+                } else if (eventType === 'done') {
+                  const doneData = getPayloadData(parsed);
                       const finalResponse =
                         doneData.final_response || doneData.response || parsed.final_response || '';
                       const metrics = {
@@ -855,20 +916,22 @@ export const chatAPI = {
                         cost_usd: doneData.cost_usd ?? parsed.cost_usd,
                         checksum: doneData.checksum ?? parsed.checksum,
                       };
-                      onEvent({ type: 'done', data: { final_response: finalResponse, ...metrics } });
-                    } else if (eventType === 'error') {
-                      const errData = getPayloadData(parsed);
-                      const msg = errData.error || errData.message || 'Unknown error';
-                      const isTerminal = !!errData.terminal;
-                      onEvent({ type: 'error', data: { error: msg, code: errData.code, terminal: isTerminal, context: errData.context, details: errData.details } });
-                      if (isTerminal) {
-                        console.log('[API] Terminal error received, stopping SSE stream');
-                        terminalErrorReceived = true;
-                        break;
-                      }
-                    } else if (eventType === 'metadata') {
-                      const md = getPayloadData(parsed);
-                      onEvent({ type: 'metadata', data: md });
+                  onEvent({ type: 'done', data: { final_response: finalResponse, ...metrics } });
+                  closeRunStream();
+                } else if (eventType === 'error') {
+                  const errData = getPayloadData(parsed);
+                  const msg = errData.error || errData.message || 'Unknown error';
+                  const isTerminal = !!errData.terminal;
+                  onEvent({ type: 'error', data: { error: msg, code: errData.code, terminal: isTerminal, context: errData.context, details: errData.details } });
+                  if (isTerminal) {
+                    console.log('[API] Terminal error received, stopping SSE stream');
+                    terminalErrorReceived = true;
+                    closeRunStream();
+                    break;
+                  }
+                } else if (eventType === 'metadata') {
+                  const md = getPayloadData(parsed);
+                  onEvent({ type: 'metadata', data: md });
                     } else {
                       onEvent(parsed);
                     }

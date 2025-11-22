@@ -78,8 +78,13 @@ class HandsOnDesktopClient {
         this.pollTimer = null;
         this.pollIntervalMs = parseInt(process.env.HANDS_ON_DESKTOP_POLL_INTERVAL_MS || '2000', 10);
         this.pollBatchSize = parseInt(process.env.HANDS_ON_DESKTOP_POLL_BATCH || '3', 10);
+        this.heartbeatTimers = new Map();
+        this.heartbeatIntervalMs = parseInt(process.env.HANDS_ON_DESKTOP_HEARTBEAT_MS || '8000', 10);
         this.pendingArtifacts = new Map();
         this.startPolling();
+        if (process.env.HANDS_ON_DESKTOP_ENABLE_STREAM !== '0') {
+            this.connect();
+        }
     }
 
     /**
@@ -195,6 +200,7 @@ class HandsOnDesktopClient {
         }
 
         try {
+            this.startHeartbeatLoop(run_id, request_id, timeout_sec);
             let result;
             
             if (tool === 'shell') {
@@ -248,6 +254,7 @@ class HandsOnDesktopClient {
                 metadata: { timestamp: new Date().toISOString() }
             });
         } finally {
+            this.stopHeartbeatLoop(request_id);
             this.executingRequests.delete(request_id);
         }
     }
@@ -672,6 +679,53 @@ class HandsOnDesktopClient {
         this.handleToolRequest(normalized).catch((err) => {
             console.error('[HandsOnDesktop] Failed to handle polled request:', err);
         });
+    }
+
+    startHeartbeatLoop(runId, requestId, leaseSeconds = 30) {
+        if (!runId || !requestId || this.heartbeatTimers.has(requestId)) {
+            return;
+        }
+        const intervalMs = Math.max(2000, this.heartbeatIntervalMs);
+        const sendBeat = async () => {
+            try {
+                await this.sendHeartbeat(runId, requestId, leaseSeconds);
+            } catch (err) {
+                console.warn('[HandsOnDesktop] Heartbeat failed:', err?.message || err);
+            }
+        };
+        sendBeat();
+        const timer = setInterval(sendBeat, intervalMs);
+        this.heartbeatTimers.set(requestId, timer);
+    }
+
+    stopHeartbeatLoop(requestId) {
+        const timer = this.heartbeatTimers.get(requestId);
+        if (timer) {
+            clearInterval(timer);
+            this.heartbeatTimers.delete(requestId);
+        }
+    }
+
+    async sendHeartbeat(runId, requestId, leaseSeconds) {
+        if (!this.deviceToken || !this.backendUrl) return;
+        const url = `${this.backendUrl}/api/v2/autonomous/device/heartbeat`;
+        const payload = {
+            run_id: runId,
+            request_id: requestId,
+            lease_seconds: leaseSeconds || 30
+        };
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${this.deviceToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            const text = await response.text().catch(() => '');
+            console.warn('[HandsOnDesktop] Heartbeat rejected:', response.status, text);
+        }
     }
 
     trackArtifact(requestId, artifactPath) {

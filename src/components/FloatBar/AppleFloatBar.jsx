@@ -9,7 +9,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Settings, RotateCcw, Wrench, ArrowUp, Loader2, Minimize2, Check, ChevronDown, ChevronRight, Lightbulb } from 'lucide-react';
 import useStore from '../../store/useStore';
-import { chatAPI, permissionAPI, googleAPI, ambiguityAPI, semanticAPI, factsAPI, addConnectionListener, healthAPI } from '../../services/api';
+import { chatAPI, permissionAPI, googleAPI, ambiguityAPI, semanticAPI, factsAPI, addConnectionListener, healthAPI, runAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { CreditDisplay } from '../CreditDisplay';
@@ -95,6 +95,7 @@ export default function AppleFloatBar({
   const lastAssistantTsRef = useRef(null);
   const accumulatedResponseRef = useRef('');  // For fs_command extraction
   const executedCommandsRef = useRef(new Set());  // Track executed commands to avoid duplicates
+  const planIdRef = useRef(null);
   // Approval dialog state
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [approvalDetails, setApprovalDetails] = useState({ action: '', markers: [], reason: '', isHighRisk: false, onApprove: null });
@@ -124,9 +125,54 @@ export default function AppleFloatBar({
   const [execPanelOpen, setExecPanelOpen] = useState(true);
   const [executionDetails, setExecutionDetails] = useState(null);
   const [planCardDismissed, setPlanCardDismissed] = useState(false);
+  const planIdRef = useRef(null);
   const executionModeRef = useRef(null);
   const desktopActionsRef = useRef(false);
   const chatModeAnnouncementRef = useRef(false);
+  const [heartbeatStatus, setHeartbeatStatus] = useState({ stale: false, last: null });
+  const [runExecLogs, setRunExecLogs] = useState([]);
+  const [artifactSummary, setArtifactSummary] = useState(null);
+  const handleCancelRun = useCallback(async () => {
+    const planId = planIdRef.current || executionPlan?.plan_id || executionPlan?.planId;
+    if (!planId) {
+      toast.error('No active run to cancel');
+      return;
+    }
+    try {
+      await runAPI.cancel(planId);
+      toast('Run cancelled', { icon: '🛑', duration: 2500 });
+    } catch (err) {
+      toast.error(`Cancel failed: ${err?.message || err}`);
+    }
+  }, [executionPlan]);
+
+  const handlePauseRun = useCallback(async () => {
+    const planId = planIdRef.current || executionPlan?.plan_id || executionPlan?.planId;
+    if (!planId) {
+      toast.error('No active run to pause');
+      return;
+    }
+    try {
+      await runAPI.pause(planId);
+      toast('Run paused', { icon: '⏸️', duration: 2500 });
+    } catch (err) {
+      toast.error(`Pause failed: ${err?.message || err}`);
+    }
+  }, [executionPlan]);
+
+  const handleResumeRun = useCallback(async () => {
+    const planId = planIdRef.current || executionPlan?.plan_id || executionPlan?.planId;
+    if (!planId) {
+      toast.error('No paused run to resume');
+      return;
+    }
+    try {
+      await runAPI.resume(planId);
+      toast('Run resumed', { icon: '▶️', duration: 2500 });
+    } catch (err) {
+      toast.error(`Resume failed: ${err?.message || err}`);
+    }
+  }, [executionPlan]);
   const copyToClipboard = useCallback(async (text, note = 'Copied') => {
     try {
       await navigator.clipboard.writeText(String(text || ''));
@@ -724,8 +770,26 @@ export default function AppleFloatBar({
           console.warn('[Chat] metadata event missing key', meta);
         } else if (key === 'action_plan') {
           setActionPlanMetadata(value);
-          setExecutionPlan(prev => prev ? { ...prev, actionPlanMetadata: value } : prev);
-        } else if (key === 'clarify_stats') {
+         setExecutionPlan(prev => prev ? { ...prev, actionPlanMetadata: value } : prev);
+       } else if (key === 'run_status' || meta.run_status) {
+         const runState = meta.run_status || value || meta;
+         if (runState?.last_heartbeat_at) {
+           const hbMs = new Date(runState.last_heartbeat_at).getTime();
+           const ageMs = Date.now() - hbMs;
+           const stale = ageMs > 30000;
+           setHeartbeatStatus({ stale, last: hbMs });
+         }
+         if (runState?.status === 'cancelled') {
+           toast('Run cancelled', { icon: '🛑', duration: 2500 });
+           setThinkingStatus('Cancelled');
+         } else if (runState?.status === 'paused') {
+           toast('Run paused', { icon: '⏸️', duration: 2500 });
+           setThinkingStatus('Paused');
+         } else if (runState?.status === 'failed') {
+           toast.error('Run failed', { duration: 3000 });
+           setThinkingStatus('Failed');
+         }
+       } else if (key === 'clarify_stats') {
           setClarifyStats(value);
         } else if (key === 'confirm_stats') {
           setConfirmStats(value);
@@ -752,6 +816,22 @@ export default function AppleFloatBar({
           desktopActionsRef.current = normalized;
           setDesktopActionsRequired(normalized);
         }
+      } else if (event.type === 'exec_log' && event.data?.source === 'run_stream') {
+        // Mirror run stream exec logs into the Thoughts area and progress UI
+        const log = event.data;
+        const msg = log.message || log.stdout || log.error || '';
+        const status = log.status || 'info';
+        if (msg) {
+          appendThought(msg);
+          setThinkingStatus(msg);
+        }
+        if (status === 'replanning') {
+          toast(`🔄 ${msg || 'Replanning...'}`, { duration: 3000 });
+        }
+        setRunExecLogs(prev => {
+          const next = [{ ...log, ts: Date.now() }, ...prev];
+          return next.slice(0, 10);
+        });
       } else if (event.type === 'tool_result') {
         // Phase 2: Deterministic tool result
         const toolName = event.tool_name || event.data?.tool_name;
@@ -851,6 +931,7 @@ export default function AppleFloatBar({
         const rawPlan = event.data || event;
         const mergedMetadata = rawPlan.actionPlanMetadata || actionPlanMetadata || null;
         const planData = { ...rawPlan, actionPlanMetadata: mergedMetadata };
+        planIdRef.current = planData.plan_id || planData.planId || planData.id || null;
         console.log('[Chat] Execution plan received:', planData);
         setExecutionPlan(planData);
         setPlanCardDismissed(!shouldDisplayPlanCard());
@@ -1094,6 +1175,7 @@ export default function AppleFloatBar({
             timestamp: Date.now(),
             type: 'artifacts'
           }]);
+          setArtifactSummary(artifactLines);
         }
         if ((clarifyStats && clarifyStats.requested) || (confirmStats && confirmStats.requested)) {
           const parts = [];
@@ -1136,6 +1218,7 @@ export default function AppleFloatBar({
         } catch {}
       } else if (event.type === 'done') {
         // Final response received - mark streaming message as complete
+        planIdRef.current = null;
         const d = event.data || event || {};
         // Try common keys first
         const primaryKeys = ['final_response','final','response','text','content','message','result','answer','output'];
@@ -2824,6 +2907,53 @@ export default function AppleFloatBar({
               <div className="amx-progress-bar">
                 <div className="amx-progress-fill" style={{ width: totalSteps > 0 ? `${(currentStep / totalSteps) * 100}%` : '0%' }} />
               </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 6, alignItems: 'center', fontSize: 12 }}>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  color: heartbeatStatus.stale ? '#f87171' : '#10b981'
+                }}>
+                  <span style={{
+                    width: 8, height: 8, borderRadius: 9999,
+                    background: heartbeatStatus.stale ? '#f87171' : '#10b981',
+                    display: 'inline-block'
+                  }} />
+                  {heartbeatStatus.stale ? 'Desktop heartbeat stale' : 'Desktop live'}
+                </span>
+                {heartbeatStatus.last && (
+                  <span style={{ color: '#94a3b8' }}>
+                    {`Last beat: ${new Date(heartbeatStatus.last).toLocaleTimeString()}`}
+                  </span>
+                )}
+              </div>
+              {runExecLogs.length > 0 && (
+                <div style={{ marginTop: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '8px 10px' }}>
+                  <div style={{ fontSize: 12, color: '#cbd5e1', marginBottom: 4 }}>Recent activity</div>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, maxHeight: 120, overflow: 'auto', fontSize: 12, color: '#e2e8f0' }}>
+                    {runExecLogs.map((log, idx) => (
+                      <li key={log.ts + idx} style={{ marginBottom: 4 }}>
+                        <span style={{ color: '#94a3b8' }}>{log.step ? `Step ${log.step}: ` : ''}</span>
+                        {log.message || log.stdout || log.error || ''}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {artifactSummary && (
+                <div style={{ marginTop: 8, background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 8, padding: '8px 10px', color: '#dbeafe', fontSize: 12 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>Artifacts</div>
+                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{artifactSummary}</pre>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {(executionPlan || planIdRef.current) && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <button className="amx-button ghost" onClick={handlePauseRun} style={{ padding: '6px 10px' }}>Pause</button>
+              <button className="amx-button ghost" onClick={handleResumeRun} style={{ padding: '6px 10px' }}>Resume</button>
+              <button className="amx-button danger" onClick={handleCancelRun} style={{ padding: '6px 10px' }}>Cancel</button>
             </div>
           )}
           
