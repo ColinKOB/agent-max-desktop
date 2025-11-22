@@ -379,6 +379,16 @@
 }
 
 /* Mini state specific */
+.amx-mini {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  width: 80px;
+  height: 80px;
+  z-index: 9999;
+  pointer-events: auto;
+}
+
 .amx-mini .amx-mini-content {
   display: flex;
   align-items: center;

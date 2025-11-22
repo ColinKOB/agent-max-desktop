@@ -2665,26 +2665,26 @@ export default function AppleFloatBar({
   // Render mini pill (use original unchanged pill markup and classes)
   if (isMini) {
     return (
-      <div
-        className={`amx-root amx-mini amx-mini-draggable ${isTransitioning ? 'amx-transitioning' : ''}`}
-        onClick={() => {
-          handleExpand();
-        }}
-      >
-        <img
-          src={LogoPng}
-          alt="Agent Max"
-          className="amx-mini-logo"
-          draggable={false}
-          style={{ WebkitAppRegion: 'no-drag' }}
-        />
-        <div className="amx-drag-handle-mini">
-          <span className="amx-dot"></span>
-          <span className="amx-dot"></span>
-          <span className="amx-dot"></span>
-          <span className="amx-dot"></span>
-          <span className="amx-dot"></span>
-          <span className="amx-dot"></span>
+      <div className="apple-floatbar-root mini">
+        <div
+          className={`amx-root amx-mini amx-mini-draggable ${isTransitioning ? 'amx-transitioning' : ''}`}
+          onClick={handleExpand}
+        >
+          <img
+            src={LogoPng}
+            alt="Agent Max"
+            className="amx-mini-logo"
+            draggable={false}
+            style={{ WebkitAppRegion: 'no-drag' }}
+          />
+          <div className="amx-drag-handle-mini">
+            <span className="amx-dot"></span>
+            <span className="amx-dot"></span>
+            <span className="amx-dot"></span>
+            <span className="amx-dot"></span>
+            <span className="amx-dot"></span>
+            <span className="amx-dot"></span>
+          </div>
         </div>
       </div>
     );
