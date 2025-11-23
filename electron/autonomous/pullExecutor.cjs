@@ -261,9 +261,16 @@ class PullExecutor {
                 }
                 
                 // Extract content from description (e.g., "hello world", "containing X")
-                const contentMatch = description.match(/(?:containing|with|text)\s+['""]?([^'""\n]+)['""]?/i);
+                // Try quoted strings first
+                let contentMatch = description.match(/['""]([^'""]+)['"]/);
                 if (contentMatch && !content) {
                     content = contentMatch[1].trim();
+                } else {
+                    // Try pattern like "containing X" or "with X"
+                    contentMatch = description.match(/(?:containing|with)\s+(?:the\s+)?(?:text\s+)?['""]?([^'""\n.]+)/i);
+                    if (contentMatch && !content) {
+                        content = contentMatch[1].trim().replace(/['""]$/, '');
+                    }
                 }
             }
 
