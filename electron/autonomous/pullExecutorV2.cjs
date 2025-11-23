@@ -131,7 +131,9 @@ class PullExecutorV2 extends PullExecutor {
             // If no pending steps locally, try to pull from cloud
             if (!step) {
                 const run = this.stateStore.getRun(runId);
-                const cloudStep = await this.fetchNextStep(runId, run.current_step_index);
+                // current_step_index points to NEXT step, so subtract 1 to get last completed
+                const lastCompleted = run.current_step_index > 0 ? run.current_step_index - 1 : -1;
+                const cloudStep = await this.fetchNextStep(runId, lastCompleted);
 
                 if (cloudStep.status === 'complete') {
                     console.log(`[PullExecutorV2] Run complete`);
