@@ -35,11 +35,14 @@ class PullAutonomousService {
             const runTracker = {
                 runId: run.run_id,
                 startTime: Date.now(),
-                status: 'running',
-                plan: null,
-                steps: [],
+                status: run.status || 'running',
+                plan: run.plan || null,
+                steps: run.plan?.steps || [],
+                totalSteps: run.total_steps || 0,
                 currentStep: null,
-                events: []
+                events: [],
+                goalSummary: run.plan?.goal_summary,
+                definitionOfDone: run.plan?.definition_of_done
             };
 
             this.activeRuns.set(run.run_id, runTracker);
@@ -57,7 +60,7 @@ class PullAutonomousService {
      * Create a run via backend API
      */
     async createRun(message, context) {
-        const response = await fetch(`${window.apiConfig.baseURL}/api/v2/autonomous/runs`, {
+        const response = await fetch(`${window.apiConfig.baseURL}/api/v2/runs`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
