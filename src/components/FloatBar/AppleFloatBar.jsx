@@ -10,6 +10,7 @@ import remarkGfm from 'remark-gfm';
 import { Settings, RotateCcw, Wrench, ArrowUp, Loader2, Minimize2, Check, ChevronDown, ChevronRight, Lightbulb } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { chatAPI, permissionAPI, googleAPI, ambiguityAPI, semanticAPI, factsAPI, addConnectionListener, healthAPI, runAPI } from '../../services/api';
+import PullAutonomousService from '../../services/pullAutonomous';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { CreditDisplay } from '../CreditDisplay';
@@ -66,6 +67,9 @@ export default function AppleFloatBar({
   windowMode = 'single',
   autoSend = true 
 }) {
+  // Feature flags
+  const usePullExecution = import.meta.env.VITE_ENABLE_PULL_EXECUTION === 'true';
+  
   // Core state
   const [isMini, setIsMini] = useState(true); // Start as mini pill
   const [message, setMessage] = useState('');
@@ -2145,9 +2149,63 @@ export default function AppleFloatBar({
       }
     }
 
-    // Execute the streaming call (reuse the existing sendChat logic)
-    sendChat(text, userContext, screenshotData);
-  }, [thoughts, contextPack]);
+    // Execute using pull-based OR streaming approach
+    const lvl = (permissionLevel || '').toLowerCase();
+    const isAutonomous = lvl === 'powerful' || lvl === 'autonomous';
+    
+    if (usePullExecution && isAutonomous) {
+      // NEW: Pull-based execution
+      console.log('[FloatBar] Using PULL execution (Phase 2)');
+      
+      try {
+        const pullService = new PullAutonomousService();
+        const runTracker = await pullService.execute(text, userContext);
+        
+        // Display the AI-generated plan
+        if (runTracker.plan && runTracker.steps) {
+          console.log('[FloatBar] Plan received:', {
+            steps: runTracker.steps.length,
+            goal: runTracker.goalSummary
+          });
+          
+          setExecutionPlan({
+            steps: runTracker.steps.map((step, i) => ({
+              id: step.step_id || `step-${i+1}`,
+              description: step.description,
+              goal: step.goal,
+              tool_name: step.tool_name
+            })),
+            goal: runTracker.goalSummary,
+            definition_of_done: runTracker.definitionOfDone
+          });
+          setTotalSteps(runTracker.totalSteps);
+          setPlanCardDismissed(false);
+          
+          // Add plan summary to thoughts
+          setThoughts(prev => [...prev, {
+            role: 'assistant',
+            content: `**Execution Plan:**\n${runTracker.steps.map((s, i) => `${i+1}. ${s.description}`).join('\n')}\n\n**Goal:** ${runTracker.goalSummary}`,
+            timestamp: Date.now(),
+            metadata: { plan: runTracker.plan }
+          }]);
+          
+          setThinkingStatus('Executing locally...');
+          toast.success(`Plan generated: ${runTracker.totalSteps} steps`, { duration: 3000 });
+        }
+        
+        setIsThinking(false);
+      } catch (error) {
+        console.error('[FloatBar] Pull execution failed:', error);
+        toast.error(`Execution failed: ${error.message}`, { duration: 4000 });
+        setIsThinking(false);
+        setThinkingStatus('');
+      }
+    } else {
+      // OLD: SSE streaming execution
+      console.log('[FloatBar] Using SSE streaming execution (legacy)');
+      sendChat(text, userContext, screenshotData);
+    }
+  }, [thoughts, contextPack, permissionLevel, usePullExecution]);
 
   // Keep dispatcher ref in sync
   useEffect(() => {
