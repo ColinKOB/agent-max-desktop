@@ -266,34 +266,94 @@ class PullExecutor {
         const os = require('os');
 
         try {
-            let filePath = args.path || args.file_path || args.filename;
-            let content = args.content || args.text || args.data || '';
+            // Helper to check if arg is "NA" or missing
+            const isNA = (val) => !val || val === "NA" || val === "na";
+            
+            // Extract args (skip if "NA")
+            let filePath = !isNA(args.filename) ? args.filename : (args.path || args.file_path);
+            let content = !isNA(args.content) ? args.content : (args.text || args.data || '');
+            const shouldAppend = !isNA(args.append) && args.append === "true";
+            const encoding = !isNA(args.encoding) ? args.encoding : 'utf8';
 
             // If no path provided, try to extract from step description
             if (!filePath && step) {
                 const description = step.description || step.goal || '';
-                
-                // Extract filename from description (e.g., "test.txt", "weather.txt")
-                const filenameMatch = description.match(/(?:file|named|called)\s+([a-zA-Z0-9_-]+\.txt)/i);
-                if (filenameMatch) {
-                    const filename = filenameMatch[1];
-                    // Get desktop path based on OS
-                    const desktopPath = path.join(os.homedir(), 'Desktop');
-                    filePath = path.join(desktopPath, filename);
+                const lower = description.toLowerCase();
+
+                // Collect all quoted strings in order (e.g. 'I love becky', 'She is the greatest')
+                const quoted = [];
+                const quoteRegex = /["']([^"']+)["']/g;
+                let m;
+                while ((m = quoteRegex.exec(description)) !== null) {
+                    quoted.push(m[1]);
                 }
-                
-                // Extract content from description (e.g., "hello world", "containing X")
-                // Try quoted strings first
-                let contentMatch = description.match(/['""]([^'""]+)['"]/);
-                if (contentMatch && !content) {
-                    content = contentMatch[1].trim();
-                } else {
-                    // Try pattern like "containing X" or "with X"
-                    contentMatch = description.match(/(?:containing|with)\s+(?:the\s+)?(?:text\s+)?['""]?([^'""\n.]+)/i);
-                    if (contentMatch && !content) {
-                        content = contentMatch[1].trim().replace(/['""]$/, '');
+
+                // Derive filename: if prompt talks about a desktop file "called" or "named",
+                // use the FIRST quoted string as the base name, and default to .txt
+                if (!filePath && lower.includes('desktop') && (lower.includes('file') || lower.includes('named') || lower.includes('called'))) {
+                    let rawName = quoted.length > 0 ? quoted[0] : null;
+
+                    if (!rawName) {
+                        const nameMatch = description.match(/(?:named|called)\s+([^\s'".]+)/i);
+                        if (nameMatch) rawName = nameMatch[1];
+                    }
+
+                    if (rawName) {
+                        // Sanitize into a safe filename
+                        let safeName = rawName.trim().replace(/[\/]/g, '_').replace(/\s+/g, '_');
+                        if (!/\.[a-zA-Z0-9]+$/.test(safeName)) {
+                            safeName = safeName + '.txt';
+                        }
+
+                        const desktopPath = path.join(os.homedir(), 'Desktop');
+                        filePath = path.join(desktopPath, safeName);
                     }
                 }
+
+                // Derive content: if there are TWO quoted strings, use the SECOND as content
+                if (!content) {
+                    if (quoted.length > 1) {
+                        content = quoted[1].trim();
+                    } else if (quoted.length === 1 && !lower.includes('named') && !lower.includes('called')) {
+                        // For descriptions like "containing 'hello world'"
+                        content = quoted[0].trim();
+                    } else {
+                        // Fallback: pattern like "containing X" or "with X"
+                        const contentMatch = description.match(/(?:containing|with)\s+(?:the\s+)?(?:text\s+)?['"]?([^'"\n.]+)/i);
+                        if (contentMatch) {
+                            content = contentMatch[1].trim().replace(/['"]$/, '');
+                        }
+                    }
+                }
+            }
+
+            // If we still don't have a filePath but we DO have (or can derive) content,
+            // pick a reasonable default on the Desktop so the task can complete.
+            if (!filePath && (content || (step && (step.description || step.goal)))) {
+                const description = step ? (step.description || step.goal || '') : '';
+                // If content is still empty, try one more time to derive from description.
+                if (!content && description) {
+                    const quoted = [];
+                    const quoteRegex = /["']([^"']+)["']/g;
+                    let m2;
+                    while ((m2 = quoteRegex.exec(description)) !== null) {
+                        quoted.push(m2[1]);
+                    }
+                    if (quoted.length > 0) {
+                        content = quoted[quoted.length - 1].trim();
+                    }
+                }
+
+                const desktopPath = path.join(os.homedir(), 'Desktop');
+                let base = 'note';
+                if (content) {
+                    base = content
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, '_')
+                        .replace(/^_+|_+$/g, '')
+                        .slice(0, 40) || 'note';
+                }
+                filePath = path.join(desktopPath, `${base}.txt`);
             }
 
             if (!filePath) {
@@ -306,13 +366,18 @@ class PullExecutor {
 
             console.log(`[PullExecutor] Writing file: ${filePath}`);
             console.log(`[PullExecutor] Content: ${content.substring(0, 100)}...`);
+            console.log(`[PullExecutor] Mode: ${shouldAppend ? 'append' : 'overwrite'}, Encoding: ${encoding}`);
 
             // Ensure directory exists
             const dir = path.dirname(filePath);
             await fs.mkdir(dir, { recursive: true });
 
-            // Write file
-            await fs.writeFile(filePath, content, 'utf8');
+            // Write or append file
+            if (shouldAppend) {
+                await fs.appendFile(filePath, content, encoding);
+            } else {
+                await fs.writeFile(filePath, content, encoding);
+            }
 
             return {
                 success: true,
@@ -321,6 +386,11 @@ class PullExecutor {
                 exit_code: 0
             };
         } catch (error) {
+            console.error('[PullExecutor] fs.write failed', {
+                message: error.message,
+                args,
+                stepDescription: step && step.description
+            });
             return {
                 success: false,
                 stdout: '',
