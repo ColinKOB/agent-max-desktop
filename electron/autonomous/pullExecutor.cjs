@@ -189,8 +189,8 @@ class PullExecutor {
         console.log(`[PullExecutor] Executing: ${tool}`);
 
         // Handle different tool types
-        if (tool === 'shell.command' || tool === 'command') {
-            return await this.executeShellCommand(args.command, timeoutSec);
+        if (tool === 'shell.command' || tool === 'command' || tool === 'shell_exec') {
+            return await this.executeShellCommand(args.command || args.cmd, timeoutSec, step);
         } else if (tool === 'fs.write') {
             return await this.executeFileWrite(args, step);
         } else if (tool === 'fs.read') {
@@ -211,8 +211,30 @@ class PullExecutor {
     /**
      * Execute shell command
      */
-    async executeShellCommand(command, timeoutSec) {
+    async executeShellCommand(command, timeoutSec, step) {
+        const os = require('os');
+        const path = require('path');
+        
         try {
+            // If no command but step description mentions Desktop path, provide it directly
+            if (!command && step) {
+                const description = (step.description || step.goal || '').toLowerCase();
+                if (description.includes('desktop') && (description.includes('path') || description.includes('directory'))) {
+                    const desktopPath = path.join(os.homedir(), 'Desktop');
+                    console.log(`[PullExecutor] Auto-providing Desktop path: ${desktopPath}`);
+                    return {
+                        success: true,
+                        stdout: desktopPath,
+                        stderr: '',
+                        exit_code: 0
+                    };
+                }
+            }
+            
+            if (!command) {
+                throw new Error('No command specified');
+            }
+            
             const { stdout, stderr } = await execAsync(command, {
                 timeout: timeoutSec * 1000,
                 maxBuffer: 10 * 1024 * 1024 // 10MB
