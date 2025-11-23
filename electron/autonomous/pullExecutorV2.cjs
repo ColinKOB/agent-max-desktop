@@ -188,7 +188,7 @@ class PullExecutorV2 extends PullExecutor {
             // Update run progress
             if (result.success) {
                 this.stateStore.updateRun(runId, {
-                    current_step_index: step.step_index
+                    current_step_index: step.step_index + 1  // Point to NEXT step
                 });
             }
 
