@@ -141,3 +141,14 @@ contextBridge.exposeInMainWorld('telemetry', {
     return ipcRenderer.invoke('telemetry:record', eventOrType);
   },
 });
+
+// Executor IPC bridge for pull-based execution (Phase 2)
+contextBridge.exposeInMainWorld('executor', {
+  startRun: (runId) => ipcRenderer.invoke('executor:start-run', runId),
+  stopRun: (runId) => ipcRenderer.invoke('executor:stop-run', runId),
+  getStatus: (runId) => ipcRenderer.invoke('executor:get-status', runId),
+  listActive: () => ipcRenderer.invoke('executor:list-active'),
+  getStats: () => ipcRenderer.invoke('executor:get-stats'),
+  setOnline: (isOnline) => ipcRenderer.invoke('executor:set-online', isOnline),
+  cleanup: (olderThanDays) => ipcRenderer.invoke('executor:cleanup', olderThanDays),
+});

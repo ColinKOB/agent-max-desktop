@@ -74,6 +74,14 @@ const { HandsOnDesktopClient } = require('../integrations/hands-on-desktop-clien
 const { DevicePairing } = require('./devicePairing.cjs');
 const telemetry = require('../telemetry/telemetry.cjs');
 
+// Phase 2: Pull-based executor
+const { 
+  initializeExecutorManager, 
+  registerExecutorHandlers, 
+  resumeActiveRunsOnStartup,
+  cleanupOnQuit 
+} = require('../autonomous/executorIPC.cjs');
+
 // Resolve the built index.html once for all production windows.
 // __dirname here is .../electron/main; our Vite build outputs to root-level /dist
 // so we must go two directories up.
@@ -369,7 +377,7 @@ function showPillWindow() {
   mainWindow.focus();
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   telemetry.initialize({ app, ipcMain });
   // Initialize crash reporter first (to catch any startup errors)
   setupCrashReporter();
@@ -384,6 +392,16 @@ app.whenReady().then(() => {
   console.log('✓ Memory manager initialized');
   console.log('  Storage location:', memoryManager.getMemoryLocation());
 
+  // Initialize executor manager (Phase 2)
+  const apiClient = {
+    baseUrl: mmApiBase,
+    apiKey: mmApiKey
+  };
+  registerExecutorHandlers(apiClient, {
+    usePhase2: true // Enable Phase 2 by default
+  });
+  console.log('✓ Executor manager initialized (Phase 2)');
+
   createWindow();
   
   // Initialize desktop features
@@ -392,6 +410,13 @@ app.whenReady().then(() => {
   
   // Initialize Hands on Desktop client (connects to backend for remote execution)
   initializeHandsOnDesktop();
+
+  // Resume active runs (Phase 2)
+  setTimeout(() => {
+    resumeActiveRunsOnStartup().catch(err => {
+      console.error('Failed to resume active runs:', err);
+    });
+  }, 2000); // Give app time to fully initialize
 });
 
 app.on('before-quit', () => {
@@ -399,6 +424,9 @@ app.on('before-quit', () => {
     openWindows: BrowserWindow.getAllWindows().length,
   });
   telemetry.flush();
+  
+  // Cleanup executor (Phase 2)
+  cleanupOnQuit();
 });
 
 app.on('window-all-closed', () => {
