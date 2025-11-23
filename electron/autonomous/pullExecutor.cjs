@@ -192,7 +192,7 @@ class PullExecutor {
         if (tool === 'shell.command' || tool === 'command') {
             return await this.executeShellCommand(args.command, timeoutSec);
         } else if (tool === 'fs.write') {
-            return await this.executeFileWrite(args);
+            return await this.executeFileWrite(args, step);
         } else if (tool === 'fs.read') {
             return await this.executeFileRead(args);
         } else if (tool === 'browser') {
@@ -238,13 +238,45 @@ class PullExecutor {
     /**
      * Execute file write
      */
-    async executeFileWrite(args) {
+    async executeFileWrite(args, step) {
         const fs = require('fs').promises;
         const path = require('path');
+        const os = require('os');
 
         try {
-            const filePath = args.path || args.file_path;
-            const content = args.content;
+            let filePath = args.path || args.file_path || args.filename;
+            let content = args.content || args.text || args.data || '';
+
+            // If no path provided, try to extract from step description
+            if (!filePath && step) {
+                const description = step.description || step.goal || '';
+                
+                // Extract filename from description (e.g., "test.txt", "weather.txt")
+                const filenameMatch = description.match(/(?:file|named|called)\s+([a-zA-Z0-9_-]+\.txt)/i);
+                if (filenameMatch) {
+                    const filename = filenameMatch[1];
+                    // Get desktop path based on OS
+                    const desktopPath = path.join(os.homedir(), 'Desktop');
+                    filePath = path.join(desktopPath, filename);
+                }
+                
+                // Extract content from description (e.g., "hello world", "containing X")
+                const contentMatch = description.match(/(?:containing|with|text)\s+['""]?([^'""\n]+)['""]?/i);
+                if (contentMatch && !content) {
+                    content = contentMatch[1].trim();
+                }
+            }
+
+            if (!filePath) {
+                throw new Error('No file path specified and could not extract from description');
+            }
+
+            if (!content && content !== '') {
+                throw new Error('No content specified and could not extract from description');
+            }
+
+            console.log(`[PullExecutor] Writing file: ${filePath}`);
+            console.log(`[PullExecutor] Content: ${content.substring(0, 100)}...`);
 
             // Ensure directory exists
             const dir = path.dirname(filePath);
@@ -255,7 +287,7 @@ class PullExecutor {
 
             return {
                 success: true,
-                stdout: `File written: ${filePath}`,
+                stdout: `File written: ${filePath}\nContent: ${content}`,
                 stderr: '',
                 exit_code: 0
             };
