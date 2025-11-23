@@ -10,7 +10,7 @@ import remarkGfm from 'remark-gfm';
 import { Settings, RotateCcw, Wrench, ArrowUp, Loader2, Minimize2, Check, ChevronDown, ChevronRight, Lightbulb } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { chatAPI, permissionAPI, googleAPI, ambiguityAPI, semanticAPI, factsAPI, addConnectionListener, healthAPI, runAPI } from '../../services/api';
-import PullAutonomousService from '../../services/pullAutonomous';
+import { PullAutonomousService } from '../../services/pullAutonomous';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { CreditDisplay } from '../CreditDisplay';
@@ -2205,7 +2205,7 @@ export default function AppleFloatBar({
       console.log('[FloatBar] Using SSE streaming execution (legacy)');
       sendChat(text, userContext, screenshotData);
     }
-  }, [thoughts, contextPack, permissionLevel, usePullExecution]);
+  }, [thoughts, contextPack, permissionLevel, usePullExecution, sendChat]);
 
   // Keep dispatcher ref in sync
   useEffect(() => {
