@@ -195,6 +195,10 @@ class PullExecutor {
             return await this.executeFileWrite(args);
         } else if (tool === 'fs.read') {
             return await this.executeFileRead(args);
+        } else if (tool === 'browser') {
+            return await this.executeBrowserSearch(args);
+        } else if (tool === 'think') {
+            return await this.executeThink(args);
         } else {
             return {
                 success: false,
@@ -279,6 +283,89 @@ class PullExecutor {
             return {
                 success: true,
                 stdout: content,
+                stderr: '',
+                exit_code: 0
+            };
+        } catch (error) {
+            return {
+                success: false,
+                stdout: '',
+                stderr: error.message,
+                exit_code: 1,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Execute browser search (web scraping)
+     */
+    async executeBrowserSearch(args) {
+        try {
+            const query = args.query || args.search || args.q;
+            
+            if (!query) {
+                throw new Error('No search query provided');
+            }
+
+            // Use DuckDuckGo Instant Answer API (no API key required)
+            const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+            
+            const response = await fetch(url);
+            const data = await response.json();
+
+            // Format the results
+            let result = `Search results for: ${query}\n\n`;
+            
+            if (data.AbstractText) {
+                result += `Summary: ${data.AbstractText}\n`;
+                if (data.AbstractURL) {
+                    result += `Source: ${data.AbstractURL}\n`;
+                }
+            }
+            
+            if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+                result += `\nRelated Topics:\n`;
+                data.RelatedTopics.slice(0, 5).forEach((topic, i) => {
+                    if (topic.Text) {
+                        result += `${i + 1}. ${topic.Text}\n`;
+                        if (topic.FirstURL) {
+                            result += `   ${topic.FirstURL}\n`;
+                        }
+                    }
+                });
+            }
+
+            return {
+                success: true,
+                stdout: result || `No results found for: ${query}`,
+                stderr: '',
+                exit_code: 0
+            };
+        } catch (error) {
+            return {
+                success: false,
+                stdout: '',
+                stderr: error.message,
+                exit_code: 1,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Execute think tool (internal reasoning, no external action)
+     */
+    async executeThink(args) {
+        try {
+            const thought = args.thought || args.content || args.message || '';
+            
+            // Think tool just logs reasoning and succeeds
+            console.log(`[PullExecutor] Think: ${thought}`);
+            
+            return {
+                success: true,
+                stdout: `Thought: ${thought}`,
                 stderr: '',
                 exit_code: 0
             };
