@@ -12,6 +12,7 @@
 const { PullExecutor } = require('./pullExecutor.cjs');
 const { PullExecutorV2 } = require('./pullExecutorV2.cjs');
 const { DesktopStateStore } = require('../storage/desktopStateStore.cjs');
+const { NetworkMonitor } = require('../utils/networkMonitor.cjs');
 
 class ExecutorManager {
     constructor(apiClient, config = {}) {
@@ -31,6 +32,23 @@ class ExecutorManager {
         
         // Track active runs
         this.activeRuns = new Map();
+        
+        // Initialize network monitor (Phase 2)
+        if (this.usePhase2) {
+            this.networkMonitor = new NetworkMonitor({
+                checkUrl: `${apiClient.baseUrl}/health`,
+                checkIntervalMs: config.networkCheckIntervalMs || 10000
+            });
+            
+            // Listen for network status changes
+            this.networkMonitor.on('status-changed', (status) => {
+                console.log(`[ExecutorManager] Network status: ${status.isOnline ? 'online' : 'offline'}`);
+                this.executor.setOnlineStatus(status.isOnline);
+            });
+            
+            // Start monitoring
+            this.networkMonitor.start();
+        }
         
         // Online status
         this.isOnline = true;
@@ -209,6 +227,11 @@ class ExecutorManager {
      */
     close() {
         console.log(`[ExecutorManager] Closing...`);
+        
+        // Stop network monitor
+        if (this.networkMonitor) {
+            this.networkMonitor.stop();
+        }
         
         if (this.executor.close) {
             this.executor.close();
