@@ -8,6 +8,7 @@
  */
 
 import { logger } from './logger';
+import apiConfigManager from '../config/apiConfig';
 
 class PullAutonomousService {
     constructor() {
@@ -60,11 +61,12 @@ class PullAutonomousService {
      * Create a run via backend API
      */
     async createRun(message, context) {
-        const response = await fetch(`${window.apiConfig.baseURL}/api/v2/runs`, {
+        const config = apiConfigManager.getConfig();
+        const response = await fetch(`${config.baseURL}/api/v2/runs`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-API-Key': window.apiConfig.apiKey,
+                'X-API-Key': config.apiKey,
                 'X-User-Id': context.userId || 'desktop_user'
             },
             body: JSON.stringify({
@@ -157,11 +159,12 @@ class PullAutonomousService {
             }
 
             // Fall back to backend API
+            const config = apiConfigManager.getConfig();
             const response = await fetch(
-                `${window.apiConfig.baseURL}/api/v2/runs/${runId}`,
+                `${config.baseURL}/api/v2/runs/${runId}`,
                 {
                     headers: {
-                        'X-API-Key': window.apiConfig.apiKey
+                        'X-API-Key': config.apiKey
                     }
                 }
             );
@@ -186,11 +189,12 @@ class PullAutonomousService {
      */
     async getStepDetails(runId, stepIndex) {
         try {
+            const config = apiConfigManager.getConfig();
             const response = await fetch(
-                `${window.apiConfig.baseURL}/api/v2/runs/${runId}/steps/${stepIndex}`,
+                `${config.baseURL}/api/v2/runs/${runId}/steps/${stepIndex}`,
                 {
                     headers: {
-                        'X-API-Key': window.apiConfig.apiKey
+                        'X-API-Key': config.apiKey
                     }
                 }
             );
