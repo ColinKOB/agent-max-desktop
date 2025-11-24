@@ -144,6 +144,38 @@ export default function AppleFloatBar({
   const [heartbeatStatus, setHeartbeatStatus] = useState({ stale: false, last: null });
   const [runExecLogs, setRunExecLogs] = useState([]);
   const [artifactSummary, setArtifactSummary] = useState(null);
+  // User input state - for when AI needs user response during execution
+  const [userInputRequest, setUserInputRequest] = useState(null); // {requestId, prompt, defaultValue}
+  // Handle user input response submission
+  const handleUserInputSubmit = useCallback(() => {
+    if (!userInputRequest || !message.trim()) return;
+    
+    logger.info('[FloatBar] Sending user input response', { 
+      requestId: userInputRequest.requestId,
+      response: message 
+    });
+    
+    // Send response back to executor via IPC
+    if (window.electron?.ipcRenderer) {
+      window.electron.ipcRenderer.send('user-input-response', {
+        requestId: userInputRequest.requestId,
+        response: message
+      });
+    }
+    
+    // Add to chat history
+    setThoughts(prev => [
+      ...prev,
+      { role: 'user', content: message, timestamp: Date.now() }
+    ]);
+    
+    // Clear state
+    setMessage('');
+    setUserInputRequest(null);
+    
+    toast.success('Response sent', { icon: '✅', duration: 2000 });
+  }, [userInputRequest, message]);
+
   const handleCancelRun = useCallback(async () => {
     const planId = planIdRef.current || executionPlan?.plan_id || executionPlan?.planId;
     if (!planId) {
@@ -2529,10 +2561,24 @@ export default function AppleFloatBar({
   
   // Handle clear conversation
   const handleClear = useCallback(() => {
+    // Clear chat transcript and tiles
     setThoughts([]);
     setFactTiles([]);
     enrichTileIdRef.current = null;
     clearMessages();
+    
+    // Clear multi-step execution state so progress UI resets
+    setExecutionPlan(null);
+    setStepStatuses({});
+    setExecutionSummary(null);
+    setCurrentStep(0);
+    setTotalSteps(0);
+    setRunStatus(null);
+    setActiveRunId(null);
+    setExecutionDetails(null);
+    setRunExecLogs([]);
+    setArtifactSummary(null);
+    planIdRef.current = null;
     
     // Start new session in memory manager
     if (localStorage.getItem('user_id')) {
@@ -2828,6 +2874,51 @@ export default function AppleFloatBar({
       offlineDesktopToastRef.current = false;
     }
   }, [desktopActionsRequired, desktopBridgeConnected, setThoughts]);
+  
+  // Listen for user input requests from executor
+  useEffect(() => {
+    if (!window.electron?.ipcRenderer) return;
+    
+    const handleUserInputRequest = (event, data) => {
+      logger.info('[FloatBar] User input requested', data);
+      
+      // Show the prompt in the UI
+      setUserInputRequest({
+        requestId: data.requestId,
+        prompt: data.prompt,
+        defaultValue: data.defaultValue || ''
+      });
+      
+      // Pre-fill with default if provided
+      if (data.defaultValue) {
+        setMessage(data.defaultValue);
+      }
+      
+      // Add AI message showing the question
+      setThoughts(prev => [
+        ...prev,
+        { 
+          role: 'assistant', 
+          content: data.prompt, 
+          timestamp: Date.now(),
+          type: 'user_input_request'
+        }
+      ]);
+      
+      // Focus input
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 100);
+    };
+    
+    window.electron.ipcRenderer.on('user-input-request', handleUserInputRequest);
+    
+    return () => {
+      window.electron.ipcRenderer.removeListener('user-input-request', handleUserInputRequest);
+    };
+  }, []);
   
   // Window classes
   const windowClasses = useMemo(() => {
@@ -3346,16 +3437,35 @@ export default function AppleFloatBar({
               ref={inputRef}
               type="text"
               className="apple-input"
-              placeholder={apiConnected ? "Ask anything..." : "Connecting..."}
+              placeholder={
+                userInputRequest 
+                  ? "Type your response..." 
+                  : (apiConnected ? "Ask anything..." : "Connecting...")
+              }
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSubmit()}
-              disabled={!apiConnected || isThinking}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  if (userInputRequest) {
+                    handleUserInputSubmit();
+                  } else {
+                    handleSubmit();
+                  }
+                }
+              }}
+              disabled={!apiConnected || (isThinking && !userInputRequest)}
+              style={userInputRequest ? {
+                borderColor: 'rgba(59, 130, 246, 0.5)',
+                background: 'rgba(59, 130, 246, 0.05)'
+              } : {}}
             />
             <button 
               className="apple-send-btn"
-              onClick={handleSubmit}
-              disabled={!message.trim() || !apiConnected || isThinking}
+              onClick={userInputRequest ? handleUserInputSubmit : handleSubmit}
+              disabled={!message.trim() || (!userInputRequest && (!apiConnected || isThinking))}
+              style={userInputRequest ? {
+                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'
+              } : {}}
             >
               <ArrowUp size={16} />
             </button>
