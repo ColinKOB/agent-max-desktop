@@ -3130,17 +3130,10 @@ export default function AppleFloatBar({
               </div>
             )}
             
-            {/* Pull Execution Progress Checklist */}
-            {usePullExecution && executionPlan && executionPlan.steps && (
-              <ExecutionProgress
-                steps={executionPlan.steps}
-                stepStatuses={stepStatuses}
-                currentStep={currentStep}
-                summary={executionSummary}
-              />
-            )}
-            
             {thoughts.map((thought, idx) => {
+              // Render user message first, then execution progress checklist
+              const isUserMessage = thought.role === 'user';
+              const shouldShowProgress = isUserMessage && usePullExecution && executionPlan && executionPlan.steps;
               if (thought.type === 'thought') {
                 const isExpanded = thought.expanded !== false;
                 return (
@@ -3187,29 +3180,40 @@ export default function AppleFloatBar({
                 );
               }
               return (
-                <div key={idx} className={`apple-message apple-message-${thought.role}`}>
-                  <div className={`apple-message-content ${thought.type === 'plan' ? 'plan-message' : ''}`}>
-                    {thought.role === 'assistant' || thought.role === 'system' ? (
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          a: ({ node, ...props }) => (
-                            <a target="_blank" rel="noreferrer" {...props} />
-                          ),
-                        }}
-                      >
-                        {(thought.content || '').trim()}
-                      </ReactMarkdown>
-                    ) : (
-                      thought.content
-                    )}
-                    {thought.role === 'assistant' && thought.memoryLabel && (
-                      <div style={{ marginTop: 6, fontSize: '0.75rem', color: '#065f46', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, padding: '6px 8px' }}>
-                        {thought.memoryLabel}
-                      </div>
-                    )}
+                <React.Fragment key={idx}>
+                  <div className={`apple-message apple-message-${thought.role}`}>
+                    <div className={`apple-message-content ${thought.type === 'plan' ? 'plan-message' : ''}`}>
+                      {thought.role === 'assistant' || thought.role === 'system' ? (
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            a: ({ node, ...props }) => (
+                              <a target="_blank" rel="noreferrer" {...props} />
+                            ),
+                          }}
+                        >
+                          {(thought.content || '').trim()}
+                        </ReactMarkdown>
+                      ) : (
+                        thought.content
+                      )}
+                      {thought.role === 'assistant' && thought.memoryLabel && (
+                        <div style={{ marginTop: 6, fontSize: '0.75rem', color: '#065f46', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, padding: '6px 8px' }}>
+                          {thought.memoryLabel}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                  {/* Show execution progress checklist after user message */}
+                  {shouldShowProgress && (
+                    <ExecutionProgress
+                      steps={executionPlan.steps}
+                      stepStatuses={stepStatuses}
+                      currentStep={currentStep}
+                      summary={executionSummary}
+                    />
+                  )}
+                </React.Fragment>
               );
             })}
             {isThinking && (
