@@ -274,6 +274,13 @@ class PullExecutor {
             let content = !isNA(args.content) ? args.content : (args.text || args.data || '');
             const shouldAppend = !isNA(args.append) && args.append === "true";
             const encoding = !isNA(args.encoding) ? args.encoding : 'utf8';
+            
+            // If filePath starts with "Desktop/", replace with actual Desktop path
+            if (filePath && filePath.startsWith('Desktop/')) {
+                const desktopPath = path.join(os.homedir(), 'Desktop');
+                filePath = path.join(desktopPath, filePath.substring('Desktop/'.length));
+                console.log(`[PullExecutor] Resolved Desktop path: ${filePath}`);
+            }
 
             // If no path provided, try to extract from step description
             if (!filePath && step) {
