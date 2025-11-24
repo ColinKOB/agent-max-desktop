@@ -319,6 +319,12 @@ class PullExecutor {
             return await this.executeBrowserSearch(args);
         } else if (tool === 'think') {
             return await this.executeThink(args);
+        } else if (tool === 'start_background_process') {
+            return await this.executeStartBackgroundProcess(args);
+        } else if (tool === 'monitor_process') {
+            return await this.executeMonitorProcess(args);
+        } else if (tool === 'stop_process') {
+            return await this.executeStopProcess(args);
         } else {
             return {
                 success: false,
