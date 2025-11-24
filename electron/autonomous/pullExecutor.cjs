@@ -319,6 +319,8 @@ class PullExecutor {
             return await this.executeBrowserSearch(args);
         } else if (tool === 'think') {
             return await this.executeThink(args);
+        } else if (tool === 'user_input') {
+            return await this.executeUserInput(args);
         } else if (tool === 'start_background_process') {
             return await this.executeStartBackgroundProcess(args);
         } else if (tool === 'monitor_process') {
@@ -616,6 +618,70 @@ class PullExecutor {
                 exit_code: 0
             };
         } catch (error) {
+            return {
+                success: false,
+                stdout: '',
+                stderr: error.message,
+                exit_code: 1,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Execute user_input tool (prompt user and wait for response)
+     */
+    async executeUserInput(args) {
+        try {
+            const prompt = args.prompt || args.question || args.message || 'Please provide input:';
+            const defaultValue = args.default || '';
+            
+            console.log(`[PullExecutor] Requesting user input: ${prompt}`);
+            
+            // Create a promise that will be resolved when user responds
+            const userResponse = await new Promise((resolve, reject) => {
+                const timeoutId = setTimeout(() => {
+                    reject(new Error('User input timeout (60s)'));
+                }, 60000); // 60 second timeout
+                
+                // Send request to renderer via IPC
+                const { ipcMain } = require('electron');
+                const requestId = `user_input_${Date.now()}`;
+                
+                // Listen for response
+                const responseHandler = (event, data) => {
+                    if (data.requestId === requestId) {
+                        clearTimeout(timeoutId);
+                        ipcMain.removeListener('user-input-response', responseHandler);
+                        resolve(data.response);
+                    }
+                };
+                
+                ipcMain.on('user-input-response', responseHandler);
+                
+                // Send request to all windows
+                const { BrowserWindow } = require('electron');
+                const windows = BrowserWindow.getAllWindows();
+                windows.forEach(win => {
+                    win.webContents.send('user-input-request', {
+                        requestId,
+                        prompt,
+                        defaultValue
+                    });
+                });
+            });
+            
+            console.log(`[PullExecutor] User responded: ${userResponse}`);
+            
+            return {
+                success: true,
+                stdout: userResponse,
+                stderr: '',
+                exit_code: 0,
+                user_response: userResponse
+            };
+        } catch (error) {
+            console.error(`[PullExecutor] User input error:`, error);
             return {
                 success: false,
                 stdout: '',

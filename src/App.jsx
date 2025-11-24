@@ -11,6 +11,7 @@ import { preloadModel } from './services/embeddings';
 import { createLogger } from './services/logger';
 import { PermissionProvider } from './contexts/PermissionContext';
 import UpdateNotification from './components/UpdateNotification';
+import { UserInputDialog } from './components/UserInputDialog';
 
 const logger = createLogger('App');
 
@@ -308,6 +309,7 @@ function App({ windowMode = 'single' }) {
         updateProgress={updateProgress}
         onDismiss={() => setUpdateInfo(null)}
       />
+      <UserInputDialog />
       <Toaster
         position="bottom-right"
         toastOptions={{
