@@ -76,12 +76,41 @@ class PullExecutor {
                 // Report result to cloud
                 const reported = await this.reportStepResult(runId, nextStep.step_index, result);
 
-                if (reported.status === 'failed') {
+                // Phase 3: Handle adaptive recovery
+                if (reported.status === 'needs_recovery') {
+                    console.warn(`[PullExecutor] Step failed, attempting adaptive recovery...`);
+                    
+                    // Fetch recovery step from backend
+                    const recoveryStep = await this.fetchNextStep(runId, lastCompletedStep);
+                    
+                    if (recoveryStep.status === 'ready' && recoveryStep.adaptive_recovery) {
+                        console.log(`[PullExecutor] Executing recovery step: ${recoveryStep.step.tool_name}`);
+                        console.log(`[PullExecutor] Recovery description: ${recoveryStep.step.description}`);
+                        
+                        // Execute recovery step
+                        const recoveryResult = await this.executeStepWithRetry(recoveryStep);
+                        
+                        // Report recovery result
+                        const recoveryReported = await this.reportStepResult(runId, nextStep.step_index, recoveryResult);
+                        
+                        if (recoveryReported.status === 'accepted') {
+                            console.log(`[PullExecutor] ✓ Recovery successful, continuing execution`);
+                            lastCompletedStep = nextStep.step_index;
+                        } else if (recoveryReported.status === 'failed') {
+                            console.error(`[PullExecutor] ✗ Recovery failed, run terminated`);
+                            break;
+                        }
+                    } else {
+                        console.error(`[PullExecutor] No recovery step available, run terminated`);
+                        break;
+                    }
+                } else if (reported.status === 'failed') {
                     console.error(`[PullExecutor] Step failed, run terminated`);
                     break;
+                } else {
+                    // Step succeeded normally
+                    lastCompletedStep = nextStep.step_index;
                 }
-
-                lastCompletedStep = nextStep.step_index;
             }
         } catch (error) {
             console.error(`[PullExecutor] Fatal error:`, error);

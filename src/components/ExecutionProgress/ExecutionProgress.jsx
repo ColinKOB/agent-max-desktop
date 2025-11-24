@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Loader2, X, Circle } from 'lucide-react';
+import { Check, Loader2, X, Circle, RefreshCw } from 'lucide-react';
 import './ExecutionProgress.css';
 
 /**
@@ -7,7 +7,7 @@ import './ExecutionProgress.css';
  * 
  * Props:
  * - steps: Array of step objects with {id, description, goal, tool_name}
- * - stepStatuses: Object mapping step index to status ('pending'|'running'|'done'|'failed')
+ * - stepStatuses: Object mapping step index to status ('pending'|'running'|'done'|'failed'|'recovering')
  * - currentStep: Current step index
  * - summary: Final summary object when execution completes
  */
@@ -48,6 +48,11 @@ export default function ExecutionProgress({ steps, stepStatuses, currentStep, su
                     <Loader2 size={16} className="spinner" />
                   </div>
                 )}
+                {status === 'recovering' && (
+                  <div className="step-icon recovering">
+                    <RefreshCw size={16} className="spinner" />
+                  </div>
+                )}
                 {status === 'failed' && (
                   <div className="step-icon failed">
                     <X size={16} />
@@ -63,6 +68,9 @@ export default function ExecutionProgress({ steps, stepStatuses, currentStep, su
               <div className="step-content">
                 <div className="step-number">Step {index + 1}</div>
                 <div className="step-description">{step.description}</div>
+                {status === 'recovering' && (
+                  <div className="step-recovery-notice">🔄 Attempting recovery...</div>
+                )}
                 {step.tool_name && (
                   <div className="step-tool">{step.tool_name}</div>
                 )}

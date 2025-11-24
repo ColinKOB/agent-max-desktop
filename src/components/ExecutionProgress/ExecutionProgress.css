@@ -101,8 +101,24 @@
   color: rgba(255, 255, 255, 0.3);
 }
 
+.step-icon.recovering {
+  background: rgba(251, 146, 60, 0.2);
+  color: #fb923c;
+}
+
 .step-icon .spinner {
   animation: spin 1s linear infinite;
+}
+
+.step-recovery-notice {
+  font-size: 12px;
+  color: #fb923c;
+  font-weight: 500;
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: rgba(251, 146, 60, 0.1);
+  border-radius: 4px;
+  display: inline-block;
 }
 
 @keyframes spin {
