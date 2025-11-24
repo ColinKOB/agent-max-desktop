@@ -627,6 +627,257 @@ class PullExecutor {
     }
 
     /**
+     * Start a background process (Phase 4)
+     */
+    async executeStartBackgroundProcess(args) {
+        const { command, cwd, name, wait_for_ready } = args;
+        const { spawn } = require('child_process');
+        const crypto = require('crypto');
+        
+        console.log(`[PullExecutor] Starting background process: ${command}`);
+        
+        try {
+            // Generate unique process ID
+            const processId = `proc-${crypto.randomBytes(6).toString('hex')}`;
+            
+            // Spawn process
+            const proc = spawn(command, [], {
+                cwd: cwd || process.cwd(),
+                shell: true,
+                detached: true,
+                stdio: ['ignore', 'pipe', 'pipe']
+            });
+            
+            // Store process reference
+            if (!this.backgroundProcesses) {
+                this.backgroundProcesses = new Map();
+            }
+            this.backgroundProcesses.set(processId, {
+                process: proc,
+                command,
+                name: name || command,
+                logs: [],
+                startTime: Date.now()
+            });
+            
+            // Capture logs
+            let readyDetected = false;
+            const logBuffer = [];
+            
+            proc.stdout.on('data', (data) => {
+                const line = data.toString();
+                logBuffer.push(line);
+                const procData = this.backgroundProcesses.get(processId);
+                if (procData) {
+                    procData.logs.push(line);
+                }
+                console.log(`[Process ${processId}] ${line}`);
+                
+                // Check for ready signal
+                if (wait_for_ready && !readyDetected && line.includes(wait_for_ready)) {
+                    readyDetected = true;
+                    console.log(`[PullExecutor] Process ready detected: ${wait_for_ready}`);
+                }
+            });
+            
+            proc.stderr.on('data', (data) => {
+                const line = data.toString();
+                logBuffer.push(line);
+                const procData = this.backgroundProcesses.get(processId);
+                if (procData) {
+                    procData.logs.push(line);
+                }
+                console.error(`[Process ${processId}] ${line}`);
+            });
+            
+            proc.on('exit', (code) => {
+                console.log(`[PullExecutor] Process ${processId} exited with code ${code}`);
+                const procData = this.backgroundProcesses.get(processId);
+                if (procData) {
+                    procData.exitCode = code;
+                    procData.exitTime = Date.now();
+                }
+            });
+            
+            // Wait for ready signal if specified
+            if (wait_for_ready) {
+                const timeout = 30000; // 30 seconds
+                const startWait = Date.now();
+                
+                while (!readyDetected && Date.now() - startWait < timeout) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    // Check if process died
+                    if (proc.exitCode !== null) {
+                        return {
+                            success: false,
+                            error: `Process exited with code ${proc.exitCode} before ready signal`,
+                            stdout: logBuffer.join(''),
+                            exit_code: proc.exitCode
+                        };
+                    }
+                }
+                
+                if (!readyDetected) {
+                    return {
+                        success: false,
+                        error: `Timeout waiting for ready signal: "${wait_for_ready}"`,
+                        stdout: logBuffer.join(''),
+                        exit_code: -1
+                    };
+                }
+            } else {
+                // Give process a moment to start
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            return {
+                success: true,
+                stdout: `Process started with ID: ${processId}\nPID: ${proc.pid}\n${logBuffer.join('')}`,
+                process_id: processId,
+                pid: proc.pid,
+                exit_code: 0
+            };
+            
+        } catch (error) {
+            console.error(`[PullExecutor] Error starting background process:`, error);
+            return {
+                success: false,
+                error: error.message,
+                stdout: '',
+                stderr: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * Monitor a background process (Phase 4)
+     */
+    async executeMonitorProcess(args) {
+        const { process_id, log_lines = 50 } = args;
+        
+        console.log(`[PullExecutor] Monitoring process: ${process_id}`);
+        
+        try {
+            if (!this.backgroundProcesses || !this.backgroundProcesses.has(process_id)) {
+                return {
+                    success: false,
+                    error: `Process not found: ${process_id}`,
+                    exit_code: 1
+                };
+            }
+            
+            const procData = this.backgroundProcesses.get(process_id);
+            const isRunning = procData.process.exitCode === null;
+            const uptime = isRunning ? Date.now() - procData.startTime : procData.exitTime - procData.startTime;
+            
+            const recentLogs = procData.logs.slice(-log_lines).join('');
+            
+            const status = {
+                process_id,
+                name: procData.name,
+                command: procData.command,
+                pid: procData.process.pid,
+                status: isRunning ? 'running' : 'stopped',
+                exit_code: procData.process.exitCode,
+                uptime_ms: uptime,
+                uptime_seconds: Math.floor(uptime / 1000),
+                log_line_count: procData.logs.length
+            };
+            
+            return {
+                success: true,
+                stdout: `Process Status:\n${JSON.stringify(status, null, 2)}\n\nRecent Logs:\n${recentLogs}`,
+                process_status: status,
+                exit_code: 0
+            };
+            
+        } catch (error) {
+            console.error(`[PullExecutor] Error monitoring process:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * Stop a background process (Phase 4)
+     */
+    async executeStopProcess(args) {
+        const { process_id, force = false } = args;
+        
+        console.log(`[PullExecutor] Stopping process: ${process_id} (force: ${force})`);
+        
+        try {
+            if (!this.backgroundProcesses || !this.backgroundProcesses.has(process_id)) {
+                return {
+                    success: false,
+                    error: `Process not found: ${process_id}`,
+                    exit_code: 1
+                };
+            }
+            
+            const procData = this.backgroundProcesses.get(process_id);
+            const proc = procData.process;
+            
+            if (proc.exitCode !== null) {
+                return {
+                    success: true,
+                    stdout: `Process already stopped with exit code ${proc.exitCode}`,
+                    exit_code: 0
+                };
+            }
+            
+            // Try graceful shutdown first
+            if (!force) {
+                proc.kill('SIGTERM');
+                
+                // Wait up to 5 seconds for graceful shutdown
+                const timeout = 5000;
+                const startWait = Date.now();
+                
+                while (proc.exitCode === null && Date.now() - startWait < timeout) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                if (proc.exitCode !== null) {
+                    this.backgroundProcesses.delete(process_id);
+                    return {
+                        success: true,
+                        stdout: `Process stopped gracefully (exit code ${proc.exitCode})`,
+                        exit_code: 0
+                    };
+                }
+            }
+            
+            // Force kill if graceful failed or force=true
+            proc.kill('SIGKILL');
+            
+            // Wait a moment for kill to take effect
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            this.backgroundProcesses.delete(process_id);
+            
+            return {
+                success: true,
+                stdout: `Process force killed`,
+                exit_code: 0
+            };
+            
+        } catch (error) {
+            console.error(`[PullExecutor] Error stopping process:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
      * Report step result to cloud
      */
     async reportStepResult(runId, stepIndex, result) {
@@ -657,11 +908,27 @@ class PullExecutor {
     }
 
     /**
-     * Stop execution
+     * Stop execution and cleanup background processes
      */
     stop() {
         console.log(`[PullExecutor] Stopping execution`);
         this.isRunning = false;
+        
+        // Cleanup background processes
+        if (this.backgroundProcesses && this.backgroundProcesses.size > 0) {
+            console.log(`[PullExecutor] Cleaning up ${this.backgroundProcesses.size} background processes`);
+            for (const [processId, procData] of this.backgroundProcesses.entries()) {
+                try {
+                    if (procData.process.exitCode === null) {
+                        console.log(`[PullExecutor] Killing background process ${processId} (PID: ${procData.process.pid})`);
+                        procData.process.kill('SIGTERM');
+                    }
+                } catch (error) {
+                    console.error(`[PullExecutor] Error killing process ${processId}:`, error);
+                }
+            }
+            this.backgroundProcesses.clear();
+        }
     }
 
     /**
