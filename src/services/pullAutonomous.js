@@ -114,7 +114,12 @@ class PullAutonomousService {
 
             try {
                 // Get status from executor (via IPC)
-                const status = await window.executor.getStatus(runId);
+                const result = await window.executor.getStatus(runId);
+                
+                // Handle IPC response wrapper
+                const status = result?.success ? result.status : result;
+                
+                console.log('[PullAutonomous] Poll result:', { result, status, hasStatus: !!status });
                 
                 if (status) {
                     // Update tracker
@@ -122,14 +127,22 @@ class PullAutonomousService {
                     tracker.currentStep = status.currentStepIndex;
                     tracker.totalSteps = status.totalSteps;
                     
+                    console.log('[PullAutonomous] Updated tracker:', { 
+                        status: tracker.status, 
+                        currentStep: tracker.currentStep,
+                        totalSteps: tracker.totalSteps
+                    });
+                    
                     // Notify UI
                     onUpdate(tracker);
 
                     // Continue polling if still running
                     if (status.status === 'running' || status.status === 'executing') {
+                        console.log('[PullAutonomous] Still running, continuing poll...');
                         setTimeout(poll, this.pollIntervalMs);
                     } else {
                         // Run complete
+                        console.log('[PullAutonomous] Run finished with status:', status.status);
                         logger.info('[PullAutonomous] Run complete', { 
                             runId, 
                             status: status.status 
@@ -138,6 +151,7 @@ class PullAutonomousService {
                     }
                 } else {
                     // No status yet, keep polling
+                    console.log('[PullAutonomous] No status, continuing poll...');
                     setTimeout(poll, this.pollIntervalMs);
                 }
 
