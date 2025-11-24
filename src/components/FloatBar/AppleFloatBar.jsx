@@ -95,6 +95,10 @@ export default function AppleFloatBar({
   const [executionMode, setExecutionMode] = useState(null);
   const [desktopActionsRequired, setDesktopActionsRequired] = useState(false);
   const [desktopBridgeStatus, setDesktopBridgeStatus] = useState(null);
+  // Pull execution progress tracking
+  const [stepStatuses, setStepStatuses] = useState({}); // {stepIndex: 'pending'|'running'|'done'|'failed'}
+  const [executionSummary, setExecutionSummary] = useState(null); // Final summary when complete
+  const [activeRunId, setActiveRunId] = useState(null); // Track active run ID for polling
   const lastUserPromptRef = useRef('');
   const lastAssistantTsRef = useRef(null);
   const accumulatedResponseRef = useRef('');  // For fs_command extraction
@@ -2161,6 +2165,9 @@ export default function AppleFloatBar({
         const pullService = new PullAutonomousService();
         const runTracker = await pullService.execute(text, userContext);
         
+        // Store run ID for polling
+        setActiveRunId(runTracker.runId);
+        
         // Display the AI-generated plan
         if (runTracker.plan && runTracker.steps) {
           console.log('[FloatBar] Plan received:', {
@@ -2181,6 +2188,13 @@ export default function AppleFloatBar({
           setTotalSteps(runTracker.totalSteps);
           setPlanCardDismissed(false);
           
+          // Initialize all steps as pending
+          const initialStatuses = {};
+          runTracker.steps.forEach((_, i) => {
+            initialStatuses[i] = 'pending';
+          });
+          setStepStatuses(initialStatuses);
+          
           // Add plan summary to thoughts
           setThoughts(prev => [...prev, {
             role: 'assistant',
@@ -2191,14 +2205,87 @@ export default function AppleFloatBar({
           
           setThinkingStatus('Executing locally...');
           toast.success(`Plan generated: ${runTracker.totalSteps} steps`, { duration: 3000 });
+          
+          // Start polling for progress
+          pullService.pollRunStatus(runTracker.runId, (status) => {
+            console.log('[FloatBar] Status update:', status);
+            
+            // Update current step
+            if (status.currentStep !== undefined) {
+              setCurrentStep(status.currentStep);
+              
+              // Mark previous steps as done
+              setStepStatuses(prev => {
+                const updated = { ...prev };
+                for (let i = 0; i < status.currentStep; i++) {
+                  if (updated[i] === 'running' || updated[i] === 'pending') {
+                    updated[i] = 'done';
+                  }
+                }
+                // Mark current step as running
+                if (status.status === 'running' && updated[status.currentStep] !== 'failed') {
+                  updated[status.currentStep] = 'running';
+                }
+                return updated;
+              });
+            }
+            
+            // Handle completion
+            if (status.status === 'complete' || status.status === 'failed') {
+              setIsThinking(false);
+              setThinkingStatus('');
+              
+              // Mark all steps as done/failed
+              setStepStatuses(prev => {
+                const updated = { ...prev };
+                Object.keys(updated).forEach(key => {
+                  if (updated[key] !== 'failed') {
+                    updated[key] = status.status === 'complete' ? 'done' : 'failed';
+                  }
+                });
+                return updated;
+              });
+              
+              // Show summary
+              const successCount = Object.values(stepStatuses).filter(s => s === 'done').length;
+              const failedCount = Object.values(stepStatuses).filter(s => s === 'failed').length;
+              
+              setExecutionSummary({
+                status: status.status,
+                totalSteps: runTracker.totalSteps,
+                successCount: runTracker.totalSteps - failedCount,
+                failedCount,
+                goalAchieved: status.status === 'complete',
+                message: status.status === 'complete' 
+                  ? `✅ Successfully completed all ${runTracker.totalSteps} steps`
+                  : `❌ Execution failed after ${successCount} steps`
+              });
+              
+              // Add summary to thoughts
+              setThoughts(prev => [...prev, {
+                role: 'assistant',
+                content: status.status === 'complete'
+                  ? `✅ **Execution Complete!**\n\nSuccessfully completed all ${runTracker.totalSteps} steps.\n\n${runTracker.definitionOfDone}`
+                  : `❌ **Execution Failed**\n\nCompleted ${successCount} out of ${runTracker.totalSteps} steps before encountering an error.`,
+                timestamp: Date.now(),
+                metadata: { summary: true }
+              }]);
+              
+              toast(status.status === 'complete' ? '✅ Execution complete!' : '❌ Execution failed', {
+                duration: 4000
+              });
+            }
+          });
         }
-        
-        setIsThinking(false);
       } catch (error) {
         console.error('[FloatBar] Pull execution failed:', error);
         toast.error(`Execution failed: ${error.message}`, { duration: 4000 });
         setIsThinking(false);
         setThinkingStatus('');
+        setExecutionSummary({
+          status: 'error',
+          message: `❌ ${error.message}`
+        });
       }
     } else {
       // OLD: SSE streaming execution
