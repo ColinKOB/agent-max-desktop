@@ -19,6 +19,24 @@ class PullExecutor {
         this.pollIntervalMs = config.pollIntervalMs || 1000;
         this.isRunning = false;
         this.currentRunId = null;
+        this.stepResults = []; // Track completed steps for context
+        this.systemContext = this.getSystemContext(); // Cache system context
+    }
+    
+    /**
+     * Get system context for arg generation
+     */
+    getSystemContext() {
+        const os = require('os');
+        const path = require('path');
+        
+        return {
+            os: os.platform(),
+            user: os.userInfo().username,
+            home_dir: os.homedir(),
+            desktop_path: path.join(os.homedir(), 'Desktop'),
+            shell: process.env.SHELL || 'bash'
+        };
     }
 
     /**
@@ -152,6 +170,67 @@ class PullExecutor {
     }
 
     /**
+     * Generate args for a step using backend API (Adaptive Execution - Ping-Pong Pattern)
+     */
+    async generateStepArgs(runId, step, previousError = null) {
+        const url = `${this.apiClient.baseUrl}/api/v2/runs/${runId}/steps/${step.step_id}/generate-args`;
+        
+        console.log(`[PullExecutor] 🤔 Generating args for step ${step.step_id}`);
+        
+        // Build request body with full context
+        const requestBody = {
+            step: {
+                step_id: step.step_id,
+                tool_name: step.tool_name || step.tool,
+                intent: step.intent,
+                description: step.description,
+                goal: step.goal
+            },
+            context: this.systemContext,
+            previous_steps: this.stepResults.map(r => ({
+                step_id: r.step_id,
+                description: r.description,
+                result: {
+                    success: r.success,
+                    output: r.stdout || r.output,
+                    filename: r.filename
+                }
+            })),
+            error: previousError
+        };
+        
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.apiClient.token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!response.ok) {
+                console.error(`[PullExecutor] Arg generation failed: ${response.status}`);
+                return null;
+            }
+            
+            const result = await response.json();
+            
+            if (result.status === 'error') {
+                console.error(`[PullExecutor] Arg generation error: ${result.error}`);
+                return null;
+            }
+            
+            console.log(`[PullExecutor] ✓ Args generated successfully`);
+            return result.args;
+            
+        } catch (error) {
+            console.error(`[PullExecutor] Failed to generate args:`, error);
+            return null;
+        }
+    }
+
+    /**
      * Execute step with retry logic
      */
     async executeStepWithRetry(stepConfig) {
@@ -170,6 +249,39 @@ class PullExecutor {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 console.log(`[PullExecutor] Attempt ${attempt}/${maxRetries}`);
+                
+                // ADAPTIVE EXECUTION: Generate args if not present or if retrying after error
+                if (!step.args || (attempt > 1 && lastError)) {
+                    console.log(`[PullExecutor] ${!step.args ? 'No args in plan' : 'Retrying with adaptive args'}`);
+                    
+                    const generatedArgs = await this.generateStepArgs(
+                        this.currentRunId,
+                        step,
+                        lastError ? {
+                            args: step.args,
+                            message: lastError,
+                            attempt: attempt - 1
+                        } : null
+                    );
+                    
+                    if (generatedArgs) {
+                        // Update step with generated args
+                        step.args = generatedArgs;
+                        console.log(`[PullExecutor] ✓ Using ${attempt > 1 ? 'adaptive' : 'generated'} args`);
+                    } else if (!step.args) {
+                        // Arg generation failed and no fallback args
+                        console.error(`[PullExecutor] ✗ Arg generation failed, no fallback available`);
+                        return {
+                            success: false,
+                            error: 'Failed to generate args and no fallback available',
+                            attempts: attempt,
+                            execution_time_ms: Date.now() - startTime
+                        };
+                    } else {
+                        // Generation failed but step has args from previous attempt, use them
+                        console.warn(`[PullExecutor] ⚠️  Arg generation failed, using previous args as fallback`);
+                    }
+                }
                 
                 // Resolve placeholders in fs.write content before execution
                 let resolvedStep = step;
@@ -196,10 +308,14 @@ class PullExecutor {
                         stderr: result.stderr,
                         exit_code: result.exit_code,
                         attempts: attempt,
-                        execution_time_ms: executionTime
+                        execution_time_ms: executionTime,
+                        // Store step context for future arg generation
+                        step_id: step.step_id,
+                        description: step.description,
+                        filename: result.filename || (step.args && step.args.filename)
                     };
                     
-                    // Store result for future placeholder resolution
+                    // Store result for future context
                     this.stepResults.push(finalResult);
                     
                     return finalResult;
