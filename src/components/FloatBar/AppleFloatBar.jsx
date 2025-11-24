@@ -34,6 +34,7 @@ import memoryAPI from '../../services/memoryAPI';
 import ContextPreview from './ContextPreview';
 import MemoryToast from '../MemoryToast';
 import { OnboardingFlow } from '../onboarding/OnboardingFlow';
+import ExecutionProgress from '../ExecutionProgress/ExecutionProgress';
 
 const logger = createLogger('FloatBar');
 
@@ -3124,6 +3125,17 @@ export default function AppleFloatBar({
                 <span>Answering directly — no desktop actions required</span>
               </div>
             )}
+            
+            {/* Pull Execution Progress Checklist */}
+            {usePullExecution && executionPlan && executionPlan.steps && (
+              <ExecutionProgress
+                steps={executionPlan.steps}
+                stepStatuses={stepStatuses}
+                currentStep={currentStep}
+                summary={executionSummary}
+              />
+            )}
+            
             {thoughts.map((thought, idx) => {
               if (thought.type === 'thought') {
                 const isExpanded = thought.expanded !== false;
