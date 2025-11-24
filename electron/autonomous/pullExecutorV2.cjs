@@ -127,13 +127,16 @@ class PullExecutorV2 extends PullExecutor {
         while (this.isRunning) {
             // Get next pending step from local state
             let step = this.stateStore.getNextPendingStep(runId);
+            console.log(`[PullExecutorV2] Next pending step from local state:`, step ? `step ${step.step_index}` : 'none');
 
             // If no pending steps locally, try to pull from cloud
             if (!step) {
                 const run = this.stateStore.getRun(runId);
                 // current_step_index points to NEXT step, so subtract 1 to get last completed
                 const lastCompleted = run.current_step_index > 0 ? run.current_step_index - 1 : -1;
+                console.log(`[PullExecutorV2] Fetching next step from cloud: last_completed=${lastCompleted}, current_step_index=${run.current_step_index}`);
                 const cloudStep = await this.fetchNextStep(runId, lastCompleted);
+                console.log(`[PullExecutorV2] Cloud step response:`, cloudStep ? cloudStep.status : 'null');
 
                 if (cloudStep.status === 'complete') {
                     console.log(`[PullExecutorV2] Run complete`);
@@ -145,16 +148,21 @@ class PullExecutorV2 extends PullExecutor {
                 }
 
                 if (cloudStep.status === 'ready') {
+                    console.log(`[PullExecutorV2] Got new step from cloud: step ${cloudStep.step_index}`);
                     // Save new step to local state
                     this.stateStore.saveStep(runId, cloudStep.step_index, cloudStep.step);
                     step = this.stateStore.getStep(cloudStep.step.step_id);
                 } else {
+                    console.log(`[PullExecutorV2] Unexpected cloud step status: ${cloudStep.status}, stopping execution`);
                     // No more steps
                     break;
                 }
             }
 
-            if (!step) break;
+            if (!step) {
+                console.log(`[PullExecutorV2] No step available, breaking loop`);
+                break;
+            }
 
             // Execute step locally
             console.log(`[PullExecutorV2] Executing step ${step.step_index}`);
