@@ -7,7 +7,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Settings, RotateCcw, Wrench, ArrowUp, Loader2, Minimize2, Check, ChevronDown, ChevronRight, Lightbulb } from 'lucide-react';
+import { Settings, RotateCcw, Wrench, ArrowUp, Loader2, Minimize2, Check, ChevronDown, ChevronRight, Lightbulb, Pause, Play, X } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { chatAPI, permissionAPI, googleAPI, ambiguityAPI, semanticAPI, factsAPI, addConnectionListener, healthAPI, runAPI } from '../../services/api';
 import { PullAutonomousService } from '../../services/pullAutonomous';
@@ -99,6 +99,7 @@ export default function AppleFloatBar({
   // Pull execution progress tracking
   const [stepStatuses, setStepStatuses] = useState({}); // {stepIndex: 'pending'|'running'|'done'|'failed'}
   const [executionSummary, setExecutionSummary] = useState(null); // Final summary when complete
+  const [runStatus, setRunStatus] = useState(null); // "running" | "paused" | "cancelled" | "failed" | "completed"
   const [activeRunId, setActiveRunId] = useState(null); // Track active run ID for polling
   const [backgroundProcesses, setBackgroundProcesses] = useState([]); // Track active background processes
   const lastUserPromptRef = useRef('');
@@ -108,6 +109,8 @@ export default function AppleFloatBar({
   const planIdRef = useRef(null);
   // Approval dialog state
   const [approvalOpen, setApprovalOpen] = useState(false);
+  // Hover state for send button controls
+  const [showSendControls, setShowSendControls] = useState(false);
   const [approvalDetails, setApprovalDetails] = useState({ action: '', markers: [], reason: '', isHighRisk: false, onApprove: null });
   
   // Screenshot permission state
@@ -761,47 +764,30 @@ export default function AppleFloatBar({
           console.warn('[Chat] metadata event missing key', meta);
         } else if (key === 'action_plan') {
           setActionPlanMetadata(value);
-         setExecutionPlan(prev => prev ? { ...prev, actionPlanMetadata: value } : prev);
-       } else if (key === 'run_status' || meta.run_status) {
-         const runState = meta.run_status || value || meta;
-         if (runState?.last_heartbeat_at) {
-           const hbMs = new Date(runState.last_heartbeat_at).getTime();
-           const ageMs = Date.now() - hbMs;
-           const stale = ageMs > 30000;
-           setHeartbeatStatus({ stale, last: hbMs });
-         }
-         if (runState?.status === 'cancelled') {
-           toast('Run cancelled', { icon: '🛑', duration: 2500 });
-           setThinkingStatus('Cancelled');
-         } else if (runState?.status === 'paused') {
-           toast('Run paused', { icon: '⏸️', duration: 2500 });
-           setThinkingStatus('Paused');
-         } else if (runState?.status === 'failed') {
-           toast.error('Run failed', { duration: 3000 });
-           setThinkingStatus('Failed');
-         }
-       } else if (key === 'clarify_stats') {
-          setClarifyStats(value);
-        } else if (key === 'confirm_stats') {
-          setConfirmStats(value);
-        } else if (key === 'execution_mode') {
-          executionModeRef.current = value;
-          setExecutionMode(value);
-          if (value === 'chat') {
-            setThinkingStatus('Answering directly…');
-            if (!chatModeAnnouncementRef.current) {
-              chatModeAnnouncementRef.current = true;
-              setThoughts(prev => [...prev, {
-                role: 'system',
-                content: '💬 Answering directly — no desktop actions required.',
-                timestamp: Date.now(),
-                type: 'status'
-              }]);
-            }
-          } else {
-            chatModeAnnouncementRef.current = false;
-            setThinkingStatus('Planning actions…');
+          setExecutionPlan((prev) => (prev ? { ...prev, actionPlanMetadata: value } : prev));
+        } else if (key === 'run_status' || meta.run_status) {
+          const runState = meta.run_status || value || meta;
+          if (runState?.last_heartbeat_at) {
+            const hbMs = new Date(runState.last_heartbeat_at).getTime();
+            const ageMs = Date.now() - hbMs;
+            const stale = ageMs > 30000;
+            setHeartbeatStatus({ stale, last: hbMs });
           }
+
+          if (runState?.status === 'cancelled') {
+            toast('Run cancelled', { icon: '🛑', duration: 2500 });
+            setThinkingStatus('Cancelled');
+          } else if (runState?.status === 'paused') {
+            toast('Run paused', { icon: '⏸️', duration: 2500 });
+            setThinkingStatus('Paused');
+          } else if (runState?.status === 'failed') {
+            toast.error('Run failed', { duration: 3000 });
+            setThinkingStatus('Failed');
+          } else if (runState?.status === 'completed' || runState?.status === 'success') {
+            setThinkingStatus('Completed');
+          }
+
+          setRunStatus(runState?.status || null);
         } else if (key === 'desktop_actions_required') {
           const normalized = Boolean(value);
           desktopActionsRef.current = normalized;
@@ -2310,13 +2296,44 @@ export default function AppleFloatBar({
         }
       } catch (error) {
         console.error('[FloatBar] Pull execution failed:', error);
-        toast.error(`Execution failed: ${error.message}`, { duration: 4000 });
+        
+        // Show error in toast
+        toast.error(`❌ ${error.message}`, { duration: 6000 });
+        
+        // Display error in UI
         setIsThinking(false);
         setThinkingStatus('');
-        setExecutionSummary({
-          status: 'error',
-          message: `❌ ${error.message}`
+        
+        // Show error state in execution panel
+        setExecutionPlan({
+          steps: [{
+            id: 'error-step',
+            description: 'Planning failed',
+            goal: error.message,
+            tool_name: 'error'
+          }],
+          goal: text,
+          definition_of_done: 'Fix the error and try again'
         });
+        
+        setStepStatuses({ 0: 'failed' });
+        setExecutionSummary({
+          status: 'failed',
+          totalSteps: 0,
+          successCount: 0,
+          failedCount: 1,
+          goalAchieved: false,
+          message: `❌ Planning failed: ${error.message}`
+        });
+        setPlanCardDismissed(false);
+        
+        // Add error to thoughts
+        setThoughts(prev => [...prev, {
+          role: 'assistant',
+          content: `❌ **Planning Failed**\n\n${error.message}\n\nPlease try again with a simpler request or break your task into smaller steps.`,
+          timestamp: Date.now(),
+          metadata: { error: true }
+        }]);
       }
     } else {
       // OLD: SSE streaming execution
@@ -3134,13 +3151,6 @@ export default function AppleFloatBar({
             </div>
           )}
           
-          {(executionPlan || planIdRef.current) && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <button className="amx-button ghost" onClick={handlePauseRun} style={{ padding: '6px 10px' }}>Pause</button>
-              <button className="amx-button ghost" onClick={handleResumeRun} style={{ padding: '6px 10px' }}>Resume</button>
-              <button className="amx-button danger" onClick={handleCancelRun} style={{ padding: '6px 10px' }}>Cancel</button>
-            </div>
-          )}
           
           {planCardAllowed && planCardData && !planCardDismissed && (
             <div style={{ marginBottom: 12 }}>
@@ -3282,7 +3292,56 @@ export default function AppleFloatBar({
           </div>
           
           {/* Input Area */}
-          <div className="apple-input-area">
+          <div 
+            className="apple-input-area"
+            onMouseEnter={() => (executionPlan || planIdRef.current) && setShowSendControls(true)}
+            onMouseLeave={() => setShowSendControls(false)}
+            style={{ position: 'relative' }}
+          >
+            {/* Hover Controls */}
+            {showSendControls && (executionPlan || planIdRef.current) && (
+              <div className="send-controls-popup">
+                {runStatus === 'paused' ? (
+                  <>
+                    <button
+                      className="control-btn resume-btn"
+                      onClick={handleResumeRun}
+                      title="Resume execution"
+                    >
+                      <Play size={14} />
+                      <span>Resume</span>
+                    </button>
+                    <button
+                      className="control-btn cancel-btn"
+                      onClick={handleCancelRun}
+                      title="Cancel execution"
+                    >
+                      <X size={14} />
+                      <span>Cancel</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      className="control-btn pause-btn"
+                      onClick={handlePauseRun}
+                      title="Pause execution"
+                    >
+                      <Pause size={14} />
+                      <span>Pause</span>
+                    </button>
+                    <button
+                      className="control-btn cancel-btn"
+                      onClick={handleCancelRun}
+                      title="Cancel execution"
+                    >
+                      <X size={14} />
+                      <span>Cancel</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
             <input
               ref={inputRef}
               type="text"

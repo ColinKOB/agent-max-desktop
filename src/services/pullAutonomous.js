@@ -88,7 +88,19 @@ class PullAutonomousService {
             throw new Error(`Failed to create run: ${response.status}`);
         }
 
-        return await response.json();
+        const result = await response.json();
+        
+        // Check if planning failed (backend returns success: false)
+        if (result.success === false) {
+            const errorMsg = result.error || 'Planning failed';
+            logger.error('[PullAutonomous] Planning failed', { 
+                error: errorMsg, 
+                errorCode: result.error_code 
+            });
+            throw new Error(errorMsg);
+        }
+
+        return result;
     }
 
     /**
