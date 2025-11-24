@@ -129,6 +129,11 @@ class PullExecutor {
         const step = stepConfig.step;
         const maxRetries = stepConfig.max_retries || this.maxRetries;
         const timeoutSec = stepConfig.timeout_sec || (this.timeoutMs / 1000);
+        
+        // Track step results for placeholder resolution
+        if (!this.stepResults) {
+            this.stepResults = [];
+        }
 
         let lastError = null;
         const startTime = Date.now();
@@ -136,11 +141,27 @@ class PullExecutor {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 console.log(`[PullExecutor] Attempt ${attempt}/${maxRetries}`);
-                const result = await this.executeStep(step, timeoutSec);
+                
+                // Resolve placeholders in fs.write content before execution
+                let resolvedStep = step;
+                if ((step.tool_name === 'fs.write' || step.tool === 'fs.write') && step.args && step.args.content) {
+                    const resolvedContent = this.resolvePlaceholders(step.args.content, this.stepResults);
+                    if (resolvedContent !== step.args.content) {
+                        resolvedStep = {
+                            ...step,
+                            args: {
+                                ...step.args,
+                                content: resolvedContent
+                            }
+                        };
+                    }
+                }
+                
+                const result = await this.executeStep(resolvedStep, timeoutSec);
 
                 if (result.success) {
                     const executionTime = Date.now() - startTime;
-                    return {
+                    const finalResult = {
                         success: true,
                         stdout: result.stdout,
                         stderr: result.stderr,
@@ -148,6 +169,11 @@ class PullExecutor {
                         attempts: attempt,
                         execution_time_ms: executionTime
                     };
+                    
+                    // Store result for future placeholder resolution
+                    this.stepResults.push(finalResult);
+                    
+                    return finalResult;
                 }
 
                 lastError = result.error || `Exit code ${result.exit_code}`;
@@ -180,13 +206,78 @@ class PullExecutor {
     }
 
     /**
+     * Translate server paths to local desktop paths
+     */
+    translatePath(filePath) {
+        if (!filePath || typeof filePath !== 'string') return filePath;
+        
+        const os = require('os');
+        const path = require('path');
+        
+        // If path contains /home/appuser/Desktop, map to local Desktop
+        if (filePath.includes('/home/appuser/Desktop')) {
+            const basename = path.basename(filePath);
+            const localDesktop = path.join(os.homedir(), 'Desktop');
+            const translated = path.join(localDesktop, basename);
+            console.log(`[PullExecutor] Path translation: ${filePath} -> ${translated}`);
+            return translated;
+        }
+        
+        return filePath;
+    }
+
+    /**
+     * Resolve placeholders in content using previous step results
+     */
+    resolvePlaceholders(content, stepResults) {
+        if (!content || typeof content !== 'string') return content;
+        if (!stepResults || stepResults.length === 0) return content;
+        
+        // Pattern: <SOMETHING_PLACEHOLDER>
+        const placeholderPattern = /<([A-Z_]+)_PLACEHOLDER>/g;
+        
+        let resolved = content;
+        const matches = content.match(placeholderPattern);
+        
+        if (matches && matches.length > 0) {
+            console.log(`[PullExecutor] Found ${matches.length} placeholder(s) to resolve`);
+            
+            // Use the most recent step result that has stdout
+            const lastResult = stepResults.slice().reverse().find(r => r && r.stdout);
+            
+            if (lastResult && lastResult.stdout) {
+                // Replace all placeholders with the last step's output
+                resolved = content.replace(placeholderPattern, lastResult.stdout.trim());
+                console.log(`[PullExecutor] Resolved placeholders using previous step output`);
+            } else {
+                console.warn(`[PullExecutor] No previous step output available to resolve placeholders`);
+            }
+        }
+        
+        return resolved;
+    }
+
+    /**
      * Execute a single step
      */
     async executeStep(step, timeoutSec) {
         const tool = step.tool_name || step.tool;
-        const args = step.args || {};
+        let args = step.args || {};
 
         console.log(`[PullExecutor] Executing: ${tool}`);
+        
+        // Apply path translation for file operations
+        if (tool === 'fs.write' || tool === 'fs.read') {
+            if (args.filename) {
+                args = { ...args, filename: this.translatePath(args.filename) };
+            }
+            if (args.path) {
+                args = { ...args, path: this.translatePath(args.path) };
+            }
+            if (args.file_path) {
+                args = { ...args, file_path: this.translatePath(args.file_path) };
+            }
+        }
 
         // Handle different tool types
         if (tool === 'shell.command' || tool === 'command' || tool === 'shell_exec') {
