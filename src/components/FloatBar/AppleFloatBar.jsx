@@ -4,7 +4,7 @@
  * Replaces card mode entirely with a dynamic expanding bar
  */
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Settings, RotateCcw, Wrench, ArrowUp, Loader2, Minimize2, Check, ChevronDown, ChevronRight, Lightbulb } from 'lucide-react';
@@ -100,6 +100,7 @@ export default function AppleFloatBar({
   const [stepStatuses, setStepStatuses] = useState({}); // {stepIndex: 'pending'|'running'|'done'|'failed'}
   const [executionSummary, setExecutionSummary] = useState(null); // Final summary when complete
   const [activeRunId, setActiveRunId] = useState(null); // Track active run ID for polling
+  const [backgroundProcesses, setBackgroundProcesses] = useState([]); // Track active background processes
   const lastUserPromptRef = useRef('');
   const lastAssistantTsRef = useRef(null);
   const accumulatedResponseRef = useRef('');  // For fs_command extraction
@@ -822,6 +823,31 @@ export default function AppleFloatBar({
           const next = [{ ...log, ts: Date.now() }, ...prev];
           return next.slice(0, 10);
         });
+        
+        // Track background processes
+        if (log.tool_name === 'start_background_process' && log.stdout) {
+          try {
+            const processIdMatch = log.stdout.match(/Process started with ID: (proc-[a-f0-9]+)/);
+            const nameMatch = log.message?.match(/Starting (.+)/);
+            if (processIdMatch) {
+              const processId = processIdMatch[1];
+              const name = nameMatch ? nameMatch[1] : 'Background Process';
+              setBackgroundProcesses(prev => [...prev, { id: processId, name, startedAt: Date.now() }]);
+            }
+          } catch (e) {
+            console.error('[FloatBar] Error parsing background process start:', e);
+          }
+        } else if (log.tool_name === 'stop_process' && log.stdout?.includes('stopped')) {
+          try {
+            const processIdMatch = log.message?.match(/proc-[a-f0-9]+/);
+            if (processIdMatch) {
+              const processId = processIdMatch[0];
+              setBackgroundProcesses(prev => prev.filter(p => p.id !== processId));
+            }
+          } catch (e) {
+            console.error('[FloatBar] Error parsing background process stop:', e);
+          }
+        }
       } else if (event.type === 'tool_result') {
         // Phase 2: Deterministic tool result
         const toolName = event.tool_name || event.data?.tool_name;
@@ -3033,11 +3059,18 @@ export default function AppleFloatBar({
           {(executionPlan || currentStep > 0) && (
             <div className="amx-progress-card">
               <div className="amx-progress-head">
-                <span className="label">{currentStep > 0 ? `Step ${currentStep}/${totalSteps}` : 'Planning...'}</span>
-                <span className="percent">{totalSteps > 0 ? `${Math.round((currentStep / totalSteps) * 100)}%` : '0%'}</span>
+                <span className="label">
+                  {currentStep >= 0 && totalSteps > 0 ? `Step ${currentStep + 1}/${totalSteps}` : 'Planning...'}
+                  {backgroundProcesses.length > 0 && (
+                    <span style={{ marginLeft: 8, color: '#a855f7', fontSize: 11, fontWeight: 500 }}>
+                      🔄 {backgroundProcesses.length} process{backgroundProcesses.length > 1 ? 'es' : ''} running
+                    </span>
+                  )}
+                </span>
+                <span className="percent">{totalSteps > 0 ? `${Math.round(((currentStep + 1) / totalSteps) * 100)}%` : '0%'}</span>
               </div>
               <div className="amx-progress-bar">
-                <div className="amx-progress-fill" style={{ width: totalSteps > 0 ? `${(currentStep / totalSteps) * 100}%` : '0%' }} />
+                <div className="amx-progress-fill" style={{ width: totalSteps > 0 ? `${((currentStep + 1) / totalSteps) * 100}%` : '0%' }} />
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 6, alignItems: 'center', fontSize: 12 }}>
                 <span style={{
@@ -3059,6 +3092,26 @@ export default function AppleFloatBar({
                   </span>
                 )}
               </div>
+              {backgroundProcesses.length > 0 && (
+                <div style={{ marginTop: 8, background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: 8, padding: '8px 10px' }}>
+                  <div style={{ fontSize: 12, color: '#e9d5ff', marginBottom: 4, fontWeight: 600 }}>🔄 Background Processes</div>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: 12, color: '#e9d5ff' }}>
+                    {backgroundProcesses.map((proc) => {
+                      const uptimeSeconds = Math.floor((Date.now() - proc.startedAt) / 1000);
+                      const uptimeStr = uptimeSeconds < 60 ? `${uptimeSeconds}s` : `${Math.floor(uptimeSeconds / 60)}m ${uptimeSeconds % 60}s`;
+                      return (
+                        <li key={proc.id} style={{ marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ flex: 1 }}>
+                            <span style={{ color: '#c084fc', fontWeight: 500 }}>{proc.name}</span>
+                            <span style={{ color: '#a78bfa', fontSize: 10, marginLeft: 6 }}>({proc.id})</span>
+                          </span>
+                          <span style={{ color: '#d8b4fe', fontSize: 11 }}>{uptimeStr}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
               {runExecLogs.length > 0 && (
                 <div style={{ marginTop: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '8px 10px' }}>
                   <div style={{ fontSize: 12, color: '#cbd5e1', marginBottom: 4 }}>Recent activity</div>

@@ -688,6 +688,12 @@ class PullExecutor {
                     procData.logs.push(line);
                 }
                 console.error(`[Process ${processId}] ${line}`);
+                
+                // Check for ready signal in stderr too
+                if (wait_for_ready && !readyDetected && line.includes(wait_for_ready)) {
+                    readyDetected = true;
+                    console.log(`[PullExecutor] Process ready detected (stderr): ${wait_for_ready}`);
+                }
             });
             
             proc.on('exit', (code) => {
