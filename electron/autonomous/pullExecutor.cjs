@@ -266,109 +266,19 @@ class PullExecutor {
         const os = require('os');
 
         try {
-            // Helper to check if arg is "NA" or missing
-            const isNA = (val) => !val || val === "NA" || val === "na";
-            
-            // Extract args (skip if "NA")
-            let filePath = !isNA(args.filename) ? args.filename : (args.path || args.file_path);
-            let content = !isNA(args.content) ? args.content : (args.text || args.data || '');
-            const shouldAppend = !isNA(args.append) && args.append === "true";
-            const encoding = !isNA(args.encoding) ? args.encoding : 'utf8';
-            
-            // If filePath starts with "Desktop/", replace with actual Desktop path
-            if (filePath && filePath.startsWith('Desktop/')) {
-                const desktopPath = path.join(os.homedir(), 'Desktop');
-                filePath = path.join(desktopPath, filePath.substring('Desktop/'.length));
-                console.log(`[PullExecutor] Resolved Desktop path: ${filePath}`);
-            }
+            // Extract args - trust AI to provide correct values
+            const filePath = args.filename || args.path || args.file_path;
+            const content = args.content || args.text || args.data || '';
+            const shouldAppend = args.append === "true" || args.append === true;
+            const encoding = args.encoding || 'utf8';
 
-            // If no path provided, try to extract from step description
-            if (!filePath && step) {
-                const description = step.description || step.goal || '';
-                const lower = description.toLowerCase();
-
-                // Collect all quoted strings in order (e.g. 'I love becky', 'She is the greatest')
-                const quoted = [];
-                const quoteRegex = /["']([^"']+)["']/g;
-                let m;
-                while ((m = quoteRegex.exec(description)) !== null) {
-                    quoted.push(m[1]);
-                }
-
-                // Derive filename: if prompt talks about a desktop file "called" or "named",
-                // use the FIRST quoted string as the base name, and default to .txt
-                if (!filePath && lower.includes('desktop') && (lower.includes('file') || lower.includes('named') || lower.includes('called'))) {
-                    let rawName = quoted.length > 0 ? quoted[0] : null;
-
-                    if (!rawName) {
-                        const nameMatch = description.match(/(?:named|called)\s+([^\s'".]+)/i);
-                        if (nameMatch) rawName = nameMatch[1];
-                    }
-
-                    if (rawName) {
-                        // Sanitize into a safe filename
-                        let safeName = rawName.trim().replace(/[\/]/g, '_').replace(/\s+/g, '_');
-                        if (!/\.[a-zA-Z0-9]+$/.test(safeName)) {
-                            safeName = safeName + '.txt';
-                        }
-
-                        const desktopPath = path.join(os.homedir(), 'Desktop');
-                        filePath = path.join(desktopPath, safeName);
-                    }
-                }
-
-                // Derive content: if there are TWO quoted strings, use the SECOND as content
-                if (!content) {
-                    if (quoted.length > 1) {
-                        content = quoted[1].trim();
-                    } else if (quoted.length === 1 && !lower.includes('named') && !lower.includes('called')) {
-                        // For descriptions like "containing 'hello world'"
-                        content = quoted[0].trim();
-                    } else {
-                        // Fallback: pattern like "containing X" or "with X"
-                        const contentMatch = description.match(/(?:containing|with)\s+(?:the\s+)?(?:text\s+)?['"]?([^'"\n.]+)/i);
-                        if (contentMatch) {
-                            content = contentMatch[1].trim().replace(/['"]$/, '');
-                        }
-                    }
-                }
-            }
-
-            // If we still don't have a filePath but we DO have (or can derive) content,
-            // pick a reasonable default on the Desktop so the task can complete.
-            if (!filePath && (content || (step && (step.description || step.goal)))) {
-                const description = step ? (step.description || step.goal || '') : '';
-                // If content is still empty, try one more time to derive from description.
-                if (!content && description) {
-                    const quoted = [];
-                    const quoteRegex = /["']([^"']+)["']/g;
-                    let m2;
-                    while ((m2 = quoteRegex.exec(description)) !== null) {
-                        quoted.push(m2[1]);
-                    }
-                    if (quoted.length > 0) {
-                        content = quoted[quoted.length - 1].trim();
-                    }
-                }
-
-                const desktopPath = path.join(os.homedir(), 'Desktop');
-                let base = 'note';
-                if (content) {
-                    base = content
-                        .toLowerCase()
-                        .replace(/[^a-z0-9]+/g, '_')
-                        .replace(/^_+|_+$/g, '')
-                        .slice(0, 40) || 'note';
-                }
-                filePath = path.join(desktopPath, `${base}.txt`);
-            }
-
+            // Validate required args
             if (!filePath) {
-                throw new Error('No file path specified and could not extract from description');
+                throw new Error('No file path specified in args. AI must provide full absolute path (e.g., /Users/user/Desktop/file.txt)');
             }
 
-            if (!content && content !== '') {
-                throw new Error('No content specified and could not extract from description');
+            if (content === undefined || content === null) {
+                throw new Error('No content specified in args. AI must provide content to write');
             }
 
             console.log(`[PullExecutor] Writing file: ${filePath}`);
