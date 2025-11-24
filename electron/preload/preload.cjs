@@ -144,6 +144,8 @@ contextBridge.exposeInMainWorld('telemetry', {
 
 // Executor IPC bridge for pull-based execution (Phase 2)
 contextBridge.exposeInMainWorld('executor', {
+  createRun: (message, context, systemContext) => 
+    ipcRenderer.invoke('autonomous:create-run', { message, context, systemContext }),
   startRun: (runId) => ipcRenderer.invoke('executor:start-run', runId),
   stopRun: (runId) => ipcRenderer.invoke('executor:stop-run', runId),
   getStatus: (runId) => ipcRenderer.invoke('executor:get-status', runId),

@@ -58,49 +58,36 @@ class PullAutonomousService {
     }
 
     /**
-     * Create a run via backend API
+     * Create a run via backend API (using main process for network stability)
      */
     async createRun(message, context) {
-        const config = apiConfigManager.getConfig();
-        
         // Get system context from desktop (where files will actually be created)
         const systemContext = await window.executor.getSystemContext();
         
-        const response = await fetch(`${config.baseURL}/api/v2/runs`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': config.apiKey,
-                'X-User-Id': context.userId || 'desktop_user'
-            },
-            body: JSON.stringify({
-                message,
-                context: {
-                    ...context,
-                    system: systemContext // Add desktop system context
-                },
-                mode: 'autonomous',
-                execution_mode: 'pull' // Signal pull-based execution
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Failed to create run: ${response.status}`);
-        }
-
-        const result = await response.json();
+        // Use main process IPC for stable network calls with automatic retry
+        // This avoids ERR_NETWORK_CHANGED errors from renderer process
+        logger.info('[PullAutonomous] Creating run via main process (stable network)');
         
-        // Check if planning failed (backend returns success: false)
-        if (result.success === false) {
-            const errorMsg = result.error || 'Planning failed';
-            logger.error('[PullAutonomous] Planning failed', { 
-                error: errorMsg, 
-                errorCode: result.error_code 
-            });
-            throw new Error(errorMsg);
-        }
+        try {
+            const result = await window.executor.createRun(message, context, systemContext);
+            
+            // Check if planning failed (backend returns success: false)
+            if (result.success === false) {
+                const errorMsg = result.error || 'Planning failed';
+                logger.error('[PullAutonomous] Planning failed', { 
+                    error: errorMsg, 
+                    errorCode: result.error_code 
+                });
+                throw new Error(errorMsg);
+            }
 
-        return result;
+            logger.info('[PullAutonomous] ✓ Run created successfully', { runId: result.run_id });
+            return result;
+            
+        } catch (error) {
+            logger.error('[PullAutonomous] Failed to create run', { error: error.message });
+            throw error;
+        }
     }
 
     /**

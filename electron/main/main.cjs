@@ -1191,3 +1191,78 @@ ipcMain.handle('take-screenshot', async () => {
     throw error;
   }
 });
+
+// Create autonomous run with retry logic (main process for network stability)
+ipcMain.handle('autonomous:create-run', async (event, { message, context, systemContext }) => {
+  const backendUrl = resolveBackendUrl();
+  const apiKey = process.env.AMX_API_KEY || process.env.VITE_API_KEY || '';
+  const maxRetries = 3;
+  let lastError;
+
+  console.log('[Autonomous] Creating run via main process (stable network)');
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[Autonomous] Attempt ${attempt}/${maxRetries}`);
+
+      const response = await fetch(`${backendUrl}/api/v2/runs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey,
+          'X-User-Id': context?.userId || 'desktop_user'
+        },
+        body: JSON.stringify({
+          message,
+          context: {
+            ...context,
+            system: systemContext
+          },
+          mode: 'autonomous',
+          execution_mode: 'pull'
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        // Check if planning failed (backend returns success: false)
+        if (result.success === false) {
+          const errorMsg = result.error || 'Planning failed';
+          console.error('[Autonomous] Planning failed:', errorMsg);
+          throw new Error(errorMsg);
+        }
+
+        console.log(`[Autonomous] ✓ Run created successfully: ${result.run_id}`);
+        return result;
+      }
+
+      // HTTP error
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+
+    } catch (error) {
+      lastError = error;
+      const errorMsg = error.message || String(error);
+
+      // Don't retry on 4xx errors (client errors - won't succeed on retry)
+      if (errorMsg.includes('HTTP 4')) {
+        console.error('[Autonomous] Client error, not retrying:', errorMsg);
+        throw error;
+      }
+
+      // Log and retry on network errors
+      if (attempt < maxRetries) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Exponential backoff, max 5s
+        console.warn(`[Autonomous] Attempt ${attempt} failed: ${errorMsg}`);
+        console.log(`[Autonomous] Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+    }
+  }
+
+  // All retries failed
+  console.error('[Autonomous] All retry attempts failed:', lastError.message);
+  throw lastError;
+});
