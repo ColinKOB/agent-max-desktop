@@ -2236,7 +2236,10 @@ export default function AppleFloatBar({
               setIsThinking(false);
               setThinkingStatus('');
               
-              // Mark all steps as done/failed
+              // Calculate summary values
+              const totalSteps = runTracker.totalSteps || runTracker.steps?.length || 0;
+              
+              // Mark all steps as done/failed and calculate summary
               setStepStatuses(prev => {
                 const updated = { ...prev };
                 Object.keys(updated).forEach(key => {
@@ -2244,33 +2247,34 @@ export default function AppleFloatBar({
                     updated[key] = status.status === 'complete' ? 'done' : 'failed';
                   }
                 });
+                
+                // Calculate summary with updated statuses
+                const successCount = Object.values(updated).filter(s => s === 'done').length;
+                const failedCount = Object.values(updated).filter(s => s === 'failed').length;
+                
+                setExecutionSummary({
+                  status: status.status,
+                  totalSteps,
+                  successCount,
+                  failedCount,
+                  goalAchieved: status.status === 'complete',
+                  message: status.status === 'complete' 
+                    ? `✅ Successfully completed all ${totalSteps} steps`
+                    : `❌ Execution failed after ${successCount} steps`
+                });
+                
+                // Add summary to thoughts
+                setThoughts(prev => [...prev, {
+                  role: 'assistant',
+                  content: status.status === 'complete'
+                    ? `✅ **Execution Complete!**\n\nSuccessfully completed all ${totalSteps} steps.\n\n${runTracker.definitionOfDone}`
+                    : `❌ **Execution Failed**\n\nCompleted ${successCount} out of ${totalSteps} steps before encountering an error.`,
+                  timestamp: Date.now(),
+                  metadata: { summary: true }
+                }]);
+                
                 return updated;
               });
-              
-              // Show summary
-              const successCount = Object.values(stepStatuses).filter(s => s === 'done').length;
-              const failedCount = Object.values(stepStatuses).filter(s => s === 'failed').length;
-              
-              setExecutionSummary({
-                status: status.status,
-                totalSteps: runTracker.totalSteps,
-                successCount: runTracker.totalSteps - failedCount,
-                failedCount,
-                goalAchieved: status.status === 'complete',
-                message: status.status === 'complete' 
-                  ? `✅ Successfully completed all ${runTracker.totalSteps} steps`
-                  : `❌ Execution failed after ${successCount} steps`
-              });
-              
-              // Add summary to thoughts
-              setThoughts(prev => [...prev, {
-                role: 'assistant',
-                content: status.status === 'complete'
-                  ? `✅ **Execution Complete!**\n\nSuccessfully completed all ${runTracker.totalSteps} steps.\n\n${runTracker.definitionOfDone}`
-                  : `❌ **Execution Failed**\n\nCompleted ${successCount} out of ${runTracker.totalSteps} steps before encountering an error.`,
-                timestamp: Date.now(),
-                metadata: { summary: true }
-              }]);
               
               toast(status.status === 'complete' ? '✅ Execution complete!' : '❌ Execution failed', {
                 duration: 4000
