@@ -190,7 +190,7 @@ class PullExecutor {
 
         // Handle different tool types
         if (tool === 'shell.command' || tool === 'command' || tool === 'shell_exec') {
-            return await this.executeShellCommand(args.command || args.cmd, timeoutSec, step);
+            return await this.executeShellCommand(args, timeoutSec, step);
         } else if (tool === 'fs.write') {
             return await this.executeFileWrite(args, step);
         } else if (tool === 'fs.read') {
@@ -211,11 +211,21 @@ class PullExecutor {
     /**
      * Execute shell command
      */
-    async executeShellCommand(command, timeoutSec, step) {
+    async executeShellCommand(commandOrArgs, timeoutSec, step) {
         const os = require('os');
         const path = require('path');
         
         try {
+            // Handle both string command and args object
+            let command, cwd, env;
+            if (typeof commandOrArgs === 'string') {
+                command = commandOrArgs;
+            } else if (typeof commandOrArgs === 'object') {
+                command = commandOrArgs.command || commandOrArgs.cmd;
+                cwd = commandOrArgs.cwd;
+                env = commandOrArgs.env;
+            }
+            
             // If no command but step description mentions Desktop path, provide it directly
             if (!command && step) {
                 const description = (step.description || step.goal || '').toLowerCase();
@@ -235,10 +245,21 @@ class PullExecutor {
                 throw new Error('No command specified');
             }
             
-            const { stdout, stderr } = await execAsync(command, {
+            const execOptions = {
                 timeout: timeoutSec * 1000,
-                maxBuffer: 10 * 1024 * 1024 // 10MB
-            });
+            };
+            
+            if (cwd) {
+                execOptions.cwd = cwd;
+                console.log(`[PullExecutor] Executing in directory: ${cwd}`);
+            }
+            
+            if (env) {
+                execOptions.env = { ...process.env, ...env };
+                console.log(`[PullExecutor] With environment variables: ${Object.keys(env).join(', ')}`);
+            }
+            
+            const { stdout, stderr } = await execAsync(command, execOptions);
 
             return {
                 success: true,
@@ -253,6 +274,57 @@ class PullExecutor {
                 stderr: error.stderr || error.message,
                 exit_code: error.code || 1,
                 error: error.message
+            };
+        }
+    }
+
+    /**
+     * Execute file read
+     */
+    async executeFileRead(args) {
+        const fs = require('fs').promises;
+        
+        try {
+            const filePath = args.filename || args.path || args.file_path;
+            const encoding = args.encoding || 'utf8';
+            const maxLines = args.max_lines || args.maxLines;
+            
+            if (!filePath) {
+                throw new Error('No file path specified in args. AI must provide full absolute path');
+            }
+            
+            console.log(`[PullExecutor] Reading file: ${filePath}`);
+            
+            // Read file
+            const content = await fs.readFile(filePath, encoding);
+            
+            // Limit lines if requested
+            let finalContent = content;
+            if (maxLines && typeof maxLines === 'number') {
+                const lines = content.split('\n');
+                finalContent = lines.slice(0, maxLines).join('\n');
+                console.log(`[PullExecutor] Limited to ${maxLines} lines (total: ${lines.length})`);
+            }
+            
+            console.log(`[PullExecutor] Read ${finalContent.length} characters`);
+            
+            return {
+                success: true,
+                stdout: finalContent,
+                stderr: '',
+                exit_code: 0
+            };
+        } catch (error) {
+            console.error('[PullExecutor] fs.read failed', {
+                message: error.message,
+                args
+            });
+            return {
+                success: false,
+                error: error.message,
+                stdout: '',
+                stderr: error.message,
+                exit_code: 1
             };
         }
     }
