@@ -195,19 +195,33 @@ class PullExecutorV2 extends PullExecutor {
                 completed_at: Date.now()
             });
 
+            // Report result to backend IMMEDIATELY before fetching next step
+            // This prevents out_of_sync errors in multi-step plans
+            try {
+                console.log(`[PullExecutorV2] Reporting step ${step.step_index} result to backend`);
+                await this.reportStepResult(runId, step.step_index, result);
+                
+                // Mark result as synced
+                if (resultId) {
+                    this.stateStore.markResultSynced(resultId);
+                }
+                console.log(`[PullExecutorV2] Step ${step.step_index} result reported successfully`);
+            } catch (error) {
+                console.error(`[PullExecutorV2] Failed to report step result:`, error);
+                // Queue for retry
+                this.stateStore.queueSync(runId, 'report_result', {
+                    step_index: step.step_index,
+                    result_id: resultId,
+                    result: result
+                }, 1);
+            }
+
             // Update run progress
             if (result.success) {
                 this.stateStore.updateRun(runId, {
                     current_step_index: step.step_index + 1  // Point to NEXT step
                 });
             }
-
-            // Queue sync to cloud
-            this.stateStore.queueSync(runId, 'report_result', {
-                step_index: step.step_index,
-                result_id: resultId,
-                result: result
-            }, 1); // High priority
 
             // If step failed, stop execution
             if (!result.success) {
