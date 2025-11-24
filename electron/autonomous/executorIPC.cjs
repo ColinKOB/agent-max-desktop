@@ -91,6 +91,39 @@ function registerExecutorHandlers(apiClient, config = {}) {
         }
     });
 
+    // Get system context (for sending to backend)
+    ipcMain.handle('executor:get-system-context', async (event) => {
+        try {
+            const os = require('os');
+            const path = require('path');
+            
+            const homeDir = os.homedir();
+            const desktopPath = path.join(homeDir, 'Desktop');
+            const username = os.userInfo().username;
+            const platform = os.platform(); // 'darwin', 'linux', 'win32'
+            const shell = process.env.SHELL || '/bin/zsh';
+            
+            return {
+                os: platform === 'darwin' ? 'macOS' : (platform === 'win32' ? 'Windows' : 'Linux'),
+                user: username,
+                home_dir: homeDir,
+                desktop_path: desktopPath,
+                shell: shell.split('/').pop(),
+                platform: platform
+            };
+        } catch (error) {
+            console.error('[ExecutorIPC] Get system context error:', error);
+            return {
+                os: 'unknown',
+                user: 'user',
+                home_dir: require('os').homedir(),
+                desktop_path: require('path').join(require('os').homedir(), 'Desktop'),
+                shell: 'zsh',
+                platform: 'unknown'
+            };
+        }
+    });
+
     // List active runs
     ipcMain.handle('executor:list-active', async (event) => {
         try {

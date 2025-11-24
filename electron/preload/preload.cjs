@@ -147,6 +147,7 @@ contextBridge.exposeInMainWorld('executor', {
   startRun: (runId) => ipcRenderer.invoke('executor:start-run', runId),
   stopRun: (runId) => ipcRenderer.invoke('executor:stop-run', runId),
   getStatus: (runId) => ipcRenderer.invoke('executor:get-status', runId),
+  getSystemContext: () => ipcRenderer.invoke('executor:get-system-context'),
   listActive: () => ipcRenderer.invoke('executor:list-active'),
   getStats: () => ipcRenderer.invoke('executor:get-stats'),
   setOnline: (isOnline) => ipcRenderer.invoke('executor:set-online', isOnline),

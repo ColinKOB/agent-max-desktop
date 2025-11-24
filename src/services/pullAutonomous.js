@@ -62,6 +62,10 @@ class PullAutonomousService {
      */
     async createRun(message, context) {
         const config = apiConfigManager.getConfig();
+        
+        // Get system context from desktop (where files will actually be created)
+        const systemContext = await window.executor.getSystemContext();
+        
         const response = await fetch(`${config.baseURL}/api/v2/runs`, {
             method: 'POST',
             headers: {
@@ -71,7 +75,10 @@ class PullAutonomousService {
             },
             body: JSON.stringify({
                 message,
-                context,
+                context: {
+                    ...context,
+                    system: systemContext // Add desktop system context
+                },
                 mode: 'autonomous',
                 execution_mode: 'pull' // Signal pull-based execution
             })
