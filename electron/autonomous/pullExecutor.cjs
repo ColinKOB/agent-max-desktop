@@ -812,9 +812,19 @@ class PullExecutor {
      * Start a background process (Phase 4)
      */
     async executeStartBackgroundProcess(args) {
-        const { command, cwd, name, wait_for_ready } = args;
+        let { command, cwd, name, wait_for_ready } = args;
         const { spawn } = require('child_process');
         const crypto = require('crypto');
+        
+        // Handle command as array or string (backend may send either format)
+        if (Array.isArray(command)) {
+            command = command.join(' ');
+        }
+        
+        // Validate command
+        if (!command || typeof command !== 'string') {
+            throw new Error(`Invalid command: ${JSON.stringify(command)}. Expected string or array.`);
+        }
         
         console.log(`[PullExecutor] Starting background process: ${command}`);
         
