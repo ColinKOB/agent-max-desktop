@@ -133,6 +133,7 @@ export default function AppleFloatBar({
   const offlineRef = useRef(false); // suppress toast spam while offline
   const offlineDesktopToastRef = useRef(false);
   const continueSendMessageRef = useRef(null); // dispatcher to avoid TDZ
+  const hoverTimeoutRef = useRef(null);
   const [showReconnected, setShowReconnected] = useState(false);
   const thoughtIdRef = useRef(null); // current inline thought entry id
   const [execPanelOpen, setExecPanelOpen] = useState(true);
@@ -249,6 +250,8 @@ export default function AppleFloatBar({
     const execMode = executionModeRef.current;
     return key === 'helpful' && execMode !== 'chat';
   }, []);
+
+  const showTopExecutionCard = false;
 
   const planCardData = useMemo(() => {
     if (!executionPlan || !executionPlan.steps) return null;
@@ -979,23 +982,8 @@ export default function AppleFloatBar({
           const suffix = detail ? ` _(risk: ${detail.risk_level || 'unknown'}${detail.parallel_safe ? ', parallel' : ''})_` : '';
           return `${idx + 1}. ${step.description || step.command || 'Processing...'}${suffix}`;
         }).join('\n');
-        let metadataBlock = '';
-        if (mergedMetadata && mergedMetadata.length) {
-          metadataBlock = '\n\n_Action Details:_\n' + mergedMetadata.map((item, idx) => {
-            const label = item.action || `Step ${idx + 1}`;
-            const safe = item.parallel_safe ? 'parallel-safe' : 'serial-only';
-            return `- ${label}: risk=${item.risk_level || 'unknown'}, ${safe}`;
-          }).join('\n');
-        }
-        const desktopNote = desktopActionsRef.current ? '\n\n🖥️ Hands-on Desktop will run these actions.' : '\n\n☁️ Running entirely in the cloud.';
-        
-        setThoughts(prev => [...prev, {
-          role: 'assistant',
-          content: `**Execution Plan:**\n${planSteps}${planData.reasoning ? `\n\n*${planData.reasoning}*` : ''}${metadataBlock}${desktopNote}`,
-          timestamp: Date.now(),
-          type: 'plan'
-        }]);
-        // Append a brief summary into the Thought bubble as well
+        // Previously we rendered a detailed "Execution Plan" bubble here.
+        // To reduce UI noise, we now only record a brief summary in the inline thought bubble.
         const summary = `Plan ready: ${(planData.total_steps || planData.steps?.length || 0)} steps`;
         appendThought(summary);
       } else if (event.type === 'exec_log') {
@@ -2240,14 +2228,7 @@ export default function AppleFloatBar({
           });
           setStepStatuses(initialStatuses);
           
-          // Add plan summary to thoughts
-          setThoughts(prev => [...prev, {
-            role: 'assistant',
-            content: `**Execution Plan:**\n${runTracker.steps.map((s, i) => `${i+1}. ${s.description}`).join('\n')}\n\n**Goal:** ${runTracker.goalSummary}`,
-            timestamp: Date.now(),
-            metadata: { plan: runTracker.plan }
-          }]);
-          
+          // Do not render a separate "Execution Plan" message; rely on ExecutionProgress + final summary.
           setThinkingStatus('Executing locally...');
           toast.success(`Plan generated: ${runTracker.totalSteps} steps`, { duration: 3000 });
           
@@ -3163,8 +3144,8 @@ export default function AppleFloatBar({
             </div>
           )}
           
-          {/* Autonomous Execution Progress */}
-          {(executionPlan || currentStep > 0) && (
+          {/* Autonomous Execution Progress (top card) - currently disabled via showTopExecutionCard flag */}
+          {showTopExecutionCard && (executionPlan || currentStep > 0) && (
             <div className="amx-progress-card">
               <div className="amx-progress-head">
                 <span className="label">
@@ -3385,54 +3366,7 @@ export default function AppleFloatBar({
           {/* Input Area */}
           <div 
             className="apple-input-area"
-            onMouseEnter={() => (executionPlan || planIdRef.current) && setShowSendControls(true)}
-            onMouseLeave={() => setShowSendControls(false)}
-            style={{ position: 'relative' }}
           >
-            {/* Hover Controls */}
-            {showSendControls && (executionPlan || planIdRef.current) && (
-              <div className="send-controls-popup">
-                {runStatus === 'paused' ? (
-                  <>
-                    <button
-                      className="control-btn resume-btn"
-                      onClick={handleResumeRun}
-                      title="Resume execution"
-                    >
-                      <Play size={14} />
-                      <span>Resume</span>
-                    </button>
-                    <button
-                      className="control-btn cancel-btn"
-                      onClick={handleCancelRun}
-                      title="Cancel execution"
-                    >
-                      <X size={14} />
-                      <span>Cancel</span>
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      className="control-btn pause-btn"
-                      onClick={handlePauseRun}
-                      title="Pause execution"
-                    >
-                      <Pause size={14} />
-                      <span>Pause</span>
-                    </button>
-                    <button
-                      className="control-btn cancel-btn"
-                      onClick={handleCancelRun}
-                      title="Cancel execution"
-                    >
-                      <X size={14} />
-                      <span>Cancel</span>
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
             <input
               ref={inputRef}
               type="text"
@@ -3459,16 +3393,88 @@ export default function AppleFloatBar({
                 background: 'rgba(59, 130, 246, 0.05)'
               } : {}}
             />
-            <button 
-              className="apple-send-btn"
-              onClick={userInputRequest ? handleUserInputSubmit : handleSubmit}
-              disabled={!message.trim() || (!userInputRequest && (!apiConnected || isThinking))}
-              style={userInputRequest ? {
-                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'
-              } : {}}
+            <div
+              className="apple-send-wrapper"
+              onMouseEnter={() => {
+                if (hoverTimeoutRef.current) {
+                  clearTimeout(hoverTimeoutRef.current);
+                  hoverTimeoutRef.current = null;
+                }
+                const hasActiveRun = (
+                  (executionPlan && !executionSummary) ||
+                  ((runStatus === 'running' || runStatus === 'paused') && (executionPlan || planIdRef.current))
+                );
+                if (hasActiveRun) {
+                  setShowSendControls(true);
+                }
+              }}
+              onMouseLeave={() => {
+                if (hoverTimeoutRef.current) {
+                  clearTimeout(hoverTimeoutRef.current);
+                }
+                hoverTimeoutRef.current = setTimeout(() => {
+                  setShowSendControls(false);
+                  hoverTimeoutRef.current = null;
+                }, 500);
+              }}
             >
-              <ArrowUp size={16} />
-            </button>
+              {showSendControls && (
+                (executionPlan && !executionSummary) ||
+                ((runStatus === 'running' || runStatus === 'paused') && (executionPlan || planIdRef.current))
+              ) && (
+                <div className="send-controls-popup">
+                  {runStatus === 'paused' ? (
+                    <>
+                      <button
+                        className="control-btn resume-btn"
+                        onClick={handleResumeRun}
+                        title="Resume execution"
+                      >
+                        <Play size={14} />
+                        <span>Resume</span>
+                      </button>
+                      <button
+                        className="control-btn cancel-btn"
+                        onClick={handleCancelRun}
+                        title="Cancel execution"
+                      >
+                        <X size={14} />
+                        <span>Cancel</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="control-btn pause-btn"
+                        onClick={handlePauseRun}
+                        title="Pause execution"
+                      >
+                        <Pause size={14} />
+                        <span>Pause</span>
+                      </button>
+                      <button
+                        className="control-btn cancel-btn"
+                        onClick={handleCancelRun}
+                        title="Cancel execution"
+                      >
+                        <X size={14} />
+                        <span>Cancel</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+              <button 
+                className="apple-send-btn"
+                onClick={userInputRequest ? handleUserInputSubmit : handleSubmit}
+                disabled={!message.trim() || (!userInputRequest && (!apiConnected || isThinking))}
+                style={userInputRequest ? {
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'
+                } : {}}
+              >
+                <ArrowUp size={16} />
+              </button>
+            </div>
           </div>
         </div>
       </div>

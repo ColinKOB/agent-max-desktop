@@ -109,12 +109,18 @@
 /* Remove extra top gap from first element in enrichment */
 .fact-tile-enrichment > :first-child { margin-top: 0 !important; }
 
-.apple-input-area { display: flex; gap: 8px; align-items: center; padding: 4px; background: rgba(255,255,255,0.06); border-radius: 12px; border: 1px solid rgba(255,255,255,0.12); flex-shrink: 0; position: relative; }
+.apple-input-area { display: flex; gap: 8px; align-items: center; padding: 4px; background: rgba(255,255,255,0.06); border-radius: 12px; border: 1px solid rgba(255,255,255,0.12); flex-shrink: 0; }
 .apple-input { flex: 1; background: transparent; border: none; outline: none; color: rgba(255,255,255,0.95); font-size: 14px; padding: 8px 12px; }
 .apple-input::placeholder { color: rgba(255,255,255,0.4); }
 .apple-send-btn { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #ac7433 0%, #8a5a28 100%); border: 1px solid rgba(255,255,255,0.2); color: white; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: all 0.15s ease; flex-shrink: 0; }
 .apple-send-btn:hover:not(:disabled) { background: linear-gradient(135deg, #c88a3f 0%, #9c6a32 100%); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(172,116,51,0.4); }
 .apple-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.apple-send-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
 
 /* Hover Controls Popup */
 .send-controls-popup {
