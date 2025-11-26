@@ -30,12 +30,36 @@ class PullExecutor {
         const os = require('os');
         const path = require('path');
         
+        // Get timezone and locale info
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const locale = Intl.DateTimeFormat().resolvedOptions().locale || 'en-US';
+        
+        // Try to infer country from locale (e.g., 'en-US' -> 'US')
+        const localeParts = locale.split('-');
+        const country = localeParts.length > 1 ? localeParts[1] : null;
+        
+        // Get current time for context
+        const now = new Date();
+        const localTime = now.toLocaleString(locale, { 
+            timeZone: timezone,
+            weekday: 'short',
+            month: 'short', 
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+        
         return {
             os: os.platform(),
             user: os.userInfo().username,
             home_dir: os.homedir(),
             desktop_path: path.join(os.homedir(), 'Desktop'),
-            shell: process.env.SHELL || 'bash'
+            shell: process.env.SHELL || 'bash',
+            // Location context
+            timezone: timezone,
+            locale: locale,
+            country: country,
+            local_time: localTime
         };
     }
 

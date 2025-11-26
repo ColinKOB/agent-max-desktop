@@ -71,6 +71,14 @@ class DesktopStateStore {
                 this.db.exec("ALTER TABLE runs ADD COLUMN final_response TEXT");
                 console.log('[DesktopStateStore] Migration complete: final_response column added');
             }
+            
+            // Migration 2: Add current_status_summary column for visibility
+            const hasStatusSummary = tableInfo.some(col => col.name === 'current_status_summary');
+            if (!hasStatusSummary) {
+                console.log('[DesktopStateStore] Running migration: adding current_status_summary column');
+                this.db.exec("ALTER TABLE runs ADD COLUMN current_status_summary TEXT");
+                console.log('[DesktopStateStore] Migration complete: current_status_summary column added');
+            }
         } catch (err) {
             console.error('[DesktopStateStore] Migration error:', err.message);
         }
@@ -140,6 +148,10 @@ class DesktopStateStore {
         if (updates.final_response !== undefined) {
             fields.push('final_response = ?');
             values.push(updates.final_response);
+        }
+        if (updates.current_status_summary !== undefined) {
+            fields.push('current_status_summary = ?');
+            values.push(updates.current_status_summary);
         }
 
         // Always update updated_at

@@ -151,6 +151,8 @@ class PullAutonomousService {
                     tracker.totalSteps = status.totalSteps;
                     tracker.final_response = status.final_response;
                     tracker.final_summary = status.final_summary || status.final_response;
+                    // Current action status for UI visibility
+                    tracker.current_status_summary = status.current_status_summary;
                     
                     console.log('[PullAutonomous] Raw status from IPC:', JSON.stringify(status, null, 2));
                     console.log('[PullAutonomous] Updated tracker:', { 

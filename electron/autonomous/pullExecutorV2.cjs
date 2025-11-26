@@ -154,6 +154,13 @@ class PullExecutorV2 extends PullExecutor {
                     // Save new step to local state
                     this.stateStore.saveStep(runId, cloudStep.step_index, cloudStep.step);
                     step = this.stateStore.getStep(cloudStep.step.step_id);
+                    
+                    // Update run with current status_summary for UI visibility
+                    const statusSummary = cloudStep.status_summary || cloudStep.step?.description || `Executing step ${cloudStep.step_index + 1}`;
+                    this.stateStore.updateRun(runId, {
+                        current_status_summary: statusSummary
+                    });
+                    console.log(`[PullExecutorV2] Updated status_summary: ${statusSummary}`);
                 } else {
                     console.log(`[PullExecutorV2] Unexpected cloud step status: ${cloudStep.status}, stopping execution`);
                     // No more steps
