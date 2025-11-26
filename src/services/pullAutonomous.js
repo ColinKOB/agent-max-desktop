@@ -29,7 +29,8 @@ class PullAutonomousService {
             
             // NEW: Check if this is a direct response (question/conversation/clarify)
             // These don't create runs - the AI answered directly
-            if (result.type && result.type !== 'task') {
+            // Note: 'code' and 'task' types DO create runs
+            if (result.type && !['task', 'code'].includes(result.type)) {
                 logger.info('[PullAutonomous] Direct response (no run needed)', { 
                     type: result.type 
                 });
@@ -48,7 +49,14 @@ class PullAutonomousService {
                 };
             }
             
-            // For tasks, proceed with normal execution
+            // For tasks and code, proceed with normal execution
+            const isCodeTask = result.type === 'code' || result.is_code_task;
+            if (isCodeTask) {
+                logger.info('[PullAutonomous] Code task detected - using expanded prompt', { 
+                    runId: result.run_id,
+                    intent: result.intent?.substring(0, 100)
+                });
+            }
             logger.info('[PullAutonomous] Run created', { runId: result.run_id });
 
             // Step 2: Request desktop executor to start (via IPC)
