@@ -35,8 +35,32 @@ import ContextPreview from './ContextPreview';
 import MemoryToast from '../MemoryToast';
 import { OnboardingFlow } from '../onboarding/OnboardingFlow';
 import ExecutionProgress from '../ExecutionProgress/ExecutionProgress';
+import TypewriterMessage from '../TypewriterMessage/TypewriterMessage';
 
 const logger = createLogger('FloatBar');
+
+// Pre-warm connections when user clicks pill (before typing)
+const warmConnections = async () => {
+  const startTime = Date.now();
+  logger.info('[PreWarm] Starting connection warm-up');
+  
+  try {
+    // Warm the API connection with a lightweight health check
+    const healthPromise = fetch(`${import.meta.env.VITE_API_URL || 'https://agentmax-production.up.railway.app'}/health`, {
+      method: 'GET',
+      cache: 'no-store',
+    }).catch(() => null);
+    
+    // Pre-warm executor IPC if available
+    const executorPromise = window.executor?.getSystemContext?.().catch(() => null);
+    
+    await Promise.all([healthPromise, executorPromise]);
+    
+    logger.info(`[PreWarm] Warm-up complete in ${Date.now() - startTime}ms`);
+  } catch (e) {
+    logger.debug('[PreWarm] Warm-up failed (non-critical)', e);
+  }
+};
 
 const MIN_EXPANDED_HEIGHT = 180;
 
@@ -102,6 +126,8 @@ export default function AppleFloatBar({
   const [runStatus, setRunStatus] = useState(null); // "running" | "paused" | "cancelled" | "failed" | "completed"
   const [activeRunId, setActiveRunId] = useState(null); // Track active run ID for polling
   const [backgroundProcesses, setBackgroundProcesses] = useState([]); // Track active background processes
+  // Track which message timestamps should animate (only new messages)
+  const animatedMessagesRef = useRef(new Set());
   const lastUserPromptRef = useRef('');
   const lastAssistantTsRef = useRef(null);
   const accumulatedResponseRef = useRef('');  // For fs_command extraction
@@ -527,6 +553,9 @@ export default function AppleFloatBar({
     setIsTransitioning(true);
     setIsMini(false);
     isMiniRef.current = false;
+
+    // Pre-warm connections while UI is transitioning (non-blocking)
+    warmConnections();
 
     // Restore last height immediately to avoid visible shrink
     (async () => {
@@ -2242,14 +2271,16 @@ export default function AppleFloatBar({
           setIsThinking(false);
           setThinkingStatus('');
           
-          // Add the AI's response to thoughts
+          // Add the AI's response to thoughts with typewriter animation
+          const directMsgTimestamp = Date.now();
+          animatedMessagesRef.current.add(directMsgTimestamp);
           setThoughts(prev => [
             ...prev,
             {
               role: 'assistant',
               content: runTracker.response,
               type: runTracker.type, // 'question', 'conversation', or 'clarify'
-              timestamp: Date.now()
+              timestamp: directMsgTimestamp
             }
           ]);
           
@@ -2295,13 +2326,16 @@ export default function AppleFloatBar({
               console.log('[FloatBar] Final message to display:', finalMessage?.substring(0, 100));
               
               if (finalMessage) {
+                const msgTimestamp = Date.now();
+                // Mark this message for typewriter animation
+                animatedMessagesRef.current.add(msgTimestamp);
                 setThoughts(prev => [
                   ...prev,
                   {
                     role: 'assistant',
                     content: finalMessage,
                     type: 'completion',
-                    timestamp: Date.now()
+                    timestamp: msgTimestamp
                   }
                 ]);
               } else {
@@ -3456,21 +3490,41 @@ export default function AppleFloatBar({
                   </div>
                 );
               }
+              // Check if this message should animate (new messages only)
+              const shouldAnimate = thought.role === 'assistant' && 
+                thought.timestamp && 
+                animatedMessagesRef.current.has(thought.timestamp);
+              
+              // Mark as animated after first render
+              if (shouldAnimate) {
+                setTimeout(() => {
+                  animatedMessagesRef.current.delete(thought.timestamp);
+                }, 100);
+              }
+              
               return (
                 <React.Fragment key={idx}>
                   <div className={`apple-message apple-message-${thought.role}`}>
                     <div className={`apple-message-content ${thought.type === 'plan' ? 'plan-message' : ''}`}>
                       {thought.role === 'assistant' || thought.role === 'system' ? (
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            a: ({ node, ...props }) => (
-                              <a target="_blank" rel="noreferrer" {...props} />
-                            ),
-                          }}
-                        >
-                          {(thought.content || '').trim()}
-                        </ReactMarkdown>
+                        shouldAnimate ? (
+                          <TypewriterMessage
+                            content={(thought.content || '').trim()}
+                            speed={120}
+                            enabled={true}
+                          />
+                        ) : (
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              a: ({ node, ...props }) => (
+                                <a target="_blank" rel="noreferrer" {...props} />
+                              ),
+                            }}
+                          >
+                            {(thought.content || '').trim()}
+                          </ReactMarkdown>
+                        )
                       ) : (
                         thought.content
                       )}
