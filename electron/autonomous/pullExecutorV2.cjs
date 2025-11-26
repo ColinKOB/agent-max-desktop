@@ -201,7 +201,14 @@ class PullExecutorV2 extends PullExecutor {
             // This prevents out_of_sync errors in multi-step plans
             try {
                 console.log(`[PullExecutorV2] Reporting step ${step.step_index} result to backend`);
-                await this.reportStepResult(runId, step.step_index, result);
+                // Extract action info from step
+                const stepData = step.step ? JSON.parse(step.step_json) : step;
+                const action = {
+                    tool_name: stepData.tool_name || stepData.tool,
+                    args: stepData.args || {},
+                    status_summary: stepData.description || stepData.goal || 'Step completed'
+                };
+                await this.reportStepResult(runId, step.step_index, result, action);
                 
                 // Mark result as synced
                 if (resultId) {
@@ -210,11 +217,18 @@ class PullExecutorV2 extends PullExecutor {
                 console.log(`[PullExecutorV2] Step ${step.step_index} result reported successfully`);
             } catch (error) {
                 console.error(`[PullExecutorV2] Failed to report step result:`, error);
-                // Queue for retry
+                // Queue for retry - include action for retry
+                const stepData = step.step ? JSON.parse(step.step_json) : step;
+                const action = {
+                    tool_name: stepData.tool_name || stepData.tool,
+                    args: stepData.args || {},
+                    status_summary: stepData.description || stepData.goal || 'Step completed'
+                };
                 this.stateStore.queueSync(runId, 'report_result', {
                     step_index: step.step_index,
                     result_id: resultId,
-                    result: result
+                    result: result,
+                    action: action
                 }, 1);
             }
 
@@ -297,7 +311,7 @@ class PullExecutorV2 extends PullExecutor {
 
         switch (action) {
             case 'report_result':
-                await this.reportStepResult(sync.run_id, payload.step_index, payload.result);
+                await this.reportStepResult(sync.run_id, payload.step_index, payload.result, payload.action || {});
                 
                 // Mark result as synced
                 if (payload.result_id) {

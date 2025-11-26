@@ -1176,8 +1176,9 @@ class PullExecutor {
     /**
      * Report step result to cloud
      */
-    async reportStepResult(runId, stepIndex, result) {
-        const url = `${this.apiClient.baseUrl}/api/v2/runs/${runId}/steps/${stepIndex}/result`;
+    async reportStepResult(runId, stepIndex, result, action = {}) {
+        // Use the new action-result endpoint for iterative execution
+        const url = `${this.apiClient.baseUrl}/api/v2/runs/${runId}/action-result`;
 
         try {
             const response = await fetch(url, {
@@ -1186,7 +1187,11 @@ class PullExecutor {
                     'Authorization': `Bearer ${this.apiClient.token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(result)
+                body: JSON.stringify({
+                    step_index: stepIndex,
+                    action: action,
+                    result: result
+                })
             });
 
             if (!response.ok) {
