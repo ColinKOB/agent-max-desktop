@@ -7,7 +7,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Settings, RotateCcw, Wrench, ArrowUp, Loader2, Minimize2, Check, ChevronDown, ChevronRight, Lightbulb, Pause, Play, X } from 'lucide-react';
+import { Settings, Wrench, ArrowUp, Loader2, Minimize2, Check, ChevronDown, ChevronRight, Lightbulb, Pause, Play, X, Wifi, WifiOff, Edit3 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { chatAPI, permissionAPI, googleAPI, ambiguityAPI, semanticAPI, factsAPI, addConnectionListener, healthAPI, runAPI } from '../../services/api';
 import { PullAutonomousService } from '../../services/pullAutonomous';
@@ -2833,6 +2833,7 @@ export default function AppleFloatBar({
   }, []);
   
   const desktopBridgeConnected = Boolean(desktopBridgeStatus?.connected);
+  const backendConnected = apiConnected;
   useEffect(() => {
     if (!desktopActionsRequired) {
       offlineDesktopToastRef.current = false;
@@ -2942,6 +2943,7 @@ export default function AppleFloatBar({
     <div className={windowClasses}>
       <div className="apple-bar-container" ref={barRef}>
         <div className="apple-bar-glass" style={{ position: 'relative' }}>
+          <div className="apple-logo-drag-hit" />
           <div
             className="apple-bar-logo"
             style={{ backgroundImage: `url(${LogoPng})` }}
@@ -2949,8 +2951,10 @@ export default function AppleFloatBar({
           <div className="apple-drag-strip" />
           <div className="apple-toolbar" ref={toolbarRef} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ flexGrow: 1 }} />
-            {/* Mode Badge */}
+            {/* Mode Badge - now also opens Tools menu */}
             <div
+              ref={toolBtnRef}
+              onClick={handleTools}
               title={`Mode: ${resolveMode()}`}
               style={{
                 fontSize: '0.78rem',
@@ -2959,37 +2963,46 @@ export default function AppleFloatBar({
                 border: '1px solid rgba(255,255,255,0.14)',
                 padding: '4px 8px',
                 borderRadius: 8,
-                textTransform: 'capitalize'
+                textTransform: 'capitalize',
+                cursor: 'pointer'
               }}
             >
               {resolveMode()==='autonomous' ? 'auto' : resolveMode()==='chatty' ? 'chatty' : 'helpful'}
             </div>
             <div
-              onClick={!desktopBridgeConnected ? handleDesktopReconnect : undefined}
-              title={desktopBridgeConnected ? 'Desktop helper connected' : 'Desktop helper offline. Click to retry connection.'}
+              onClick={!backendConnected ? () => {
+                healthAPI.check()
+                  .then(() => setApiConnected(true))
+                  .catch(() => setApiConnected(false));
+              } : undefined}
+              title={backendConnected ? 'Connected to Agent Max backend' : 'Backend offline. Click to retry connection.'}
               style={{
                 fontSize: '0.74rem',
-                color: desktopBridgeConnected ? 'rgba(34,197,94,0.95)' : 'rgba(248,113,113,0.95)',
-                background: desktopBridgeConnected ? 'rgba(34,197,94,0.12)' : 'rgba(248,113,113,0.12)',
-                border: `1px solid ${desktopBridgeConnected ? 'rgba(34,197,94,0.25)' : 'rgba(248,113,113,0.25)'}`,
-                padding: '4px 8px',
+                color: backendConnected ? 'rgba(34,197,94,0.95)' : 'rgba(248,113,113,0.95)',
+                background: backendConnected ? 'rgba(34,197,94,0.12)' : 'rgba(248,113,113,0.12)',
+                border: `1px solid ${backendConnected ? 'rgba(34,197,94,0.25)' : 'rgba(248,113,113,0.25)'}`,
+                width: 32,
+                height: 32,
                 borderRadius: 8,
-                textTransform: 'capitalize',
-                cursor: desktopBridgeConnected ? 'default' : 'pointer',
-                transition: 'all 0.15s ease'
+                cursor: backendConnected ? 'default' : 'pointer',
+                transition: 'all 0.15s ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              Desktop {desktopBridgeConnected ? 'online' : 'offline'}
+              {backendConnected ? (
+                <Wifi size={16} />
+              ) : (
+                <WifiOff size={16} />
+              )}
             </div>
             <CreditDisplay userId={currentUser?.id || localStorage.getItem('user_id')} variant="tool" />
-            <button className="apple-tool-btn" ref={toolBtnRef} onClick={handleTools} title="Tools">
-              <Wrench size={16} />
-            </button>
             <button className="apple-tool-btn" onClick={handleSettings} title="Settings">
               <Settings size={16} />
             </button>
             <button className="apple-tool-btn" onClick={handleClear} title="Clear">
-              <RotateCcw size={16} />
+              <Edit3 size={16} />
             </button>
             <button className="apple-tool-btn" onClick={handleCollapse} title="Shrink">
               <Minimize2 size={16} />

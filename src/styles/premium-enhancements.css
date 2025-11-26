@@ -85,8 +85,8 @@ button,
   border-color: rgba(255, 255, 255, 0.25) !important;
 }
 
-/* Premium inputs */
-input[type="text"],
+/* Premium inputs (exclude FloatBar apple-input to avoid dark rectangle there) */
+input[type="text"]:not(.apple-input),
 input[type="email"],
 input[type="password"],
 textarea,

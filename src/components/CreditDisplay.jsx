@@ -148,17 +148,10 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
       <div className="flex items-center gap-2">
         <button
           className="apple-tool-btn"
-          title={`${credits} ${credits === 1 ? 'credit' : 'credits'}`}
-          onClick={() => toast(`${credits} ${credits === 1 ? 'credit' : 'credits'}`, { icon: '💳' })}
+          title={`${credits} ${credits === 1 ? 'credit' : 'credits'} — click to add more`}
+          onClick={handlePurchase}
         >
           <span className="text-[12px] font-semibold">{credits}</span>
-        </button>
-        <button
-          className="apple-tool-btn"
-          onClick={handlePurchase}
-          title="Add credits"
-        >
-          <Plus size={16} />
         </button>
       </div>
     );
