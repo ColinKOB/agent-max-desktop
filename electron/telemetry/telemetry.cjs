@@ -97,6 +97,9 @@ class DesktopTelemetry {
     this.bootstrap = this.buildBootstrapPayload();
     this.initialized = true;
 
+    // Handle EPIPE errors globally to prevent crashes during shutdown
+    this.setupEpipeHandlers();
+    
     this.attachLogHook();
     this.hookConsole();
     this.registerIPCHandlers();
@@ -311,6 +314,47 @@ class DesktopTelemetry {
         }
       })
       .join(' ');
+  }
+
+  /**
+   * Setup handlers to prevent EPIPE errors from crashing the app during shutdown.
+   * EPIPE occurs when stdout/stderr pipes are closed (e.g., parent process exits).
+   */
+  setupEpipeHandlers() {
+    // Handle EPIPE on stdout
+    if (process.stdout && typeof process.stdout.on === 'function') {
+      process.stdout.on('error', (err) => {
+        if (err.code === 'EPIPE') {
+          // Silently ignore - pipe closed during shutdown
+          return;
+        }
+        // Re-throw other errors
+        throw err;
+      });
+    }
+
+    // Handle EPIPE on stderr
+    if (process.stderr && typeof process.stderr.on === 'function') {
+      process.stderr.on('error', (err) => {
+        if (err.code === 'EPIPE') {
+          // Silently ignore - pipe closed during shutdown
+          return;
+        }
+        // Re-throw other errors
+        throw err;
+      });
+    }
+
+    // Global uncaught exception handler for EPIPE
+    process.on('uncaughtException', (err) => {
+      if (err.code === 'EPIPE') {
+        // Silently ignore EPIPE during shutdown
+        return;
+      }
+      // For other errors, log and exit (default behavior)
+      console.error('Uncaught exception:', err);
+      process.exit(1);
+    });
   }
 
   hookConsole() {
