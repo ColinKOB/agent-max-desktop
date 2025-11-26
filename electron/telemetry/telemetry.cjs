@@ -335,8 +335,15 @@ class DesktopTelemetry {
           // Ignore telemetry failures to avoid impacting runtime logging
         }
 
-        if (typeof original === 'function') {
-          original.apply(console, args);
+        try {
+          if (typeof original === 'function') {
+            original.apply(console, args);
+          }
+        } catch (writeError) {
+          // Ignore EPIPE errors when stdout/stderr is closed (app shutting down)
+          if (writeError.code !== 'EPIPE') {
+            throw writeError;
+          }
         }
       };
     });
