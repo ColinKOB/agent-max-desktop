@@ -38,7 +38,7 @@ import ExecutionProgress from '../ExecutionProgress/ExecutionProgress';
 
 const logger = createLogger('FloatBar');
 
-const MIN_EXPANDED_HEIGHT = 140;
+const MIN_EXPANDED_HEIGHT = 180;
 
 const truncateText = (value, limit = 160) => {
   if (!value || typeof value !== 'string') return '';
@@ -321,7 +321,28 @@ export default function AppleFloatBar({
   }, []);
   
   // Store
-  const { clearMessages, apiConnected, currentUser, setApiConnected } = useStore();
+  const { clearMessages, apiConnected, currentUser, profile, setApiConnected } = useStore();
+
+  const userFirstName = useMemo(() => {
+    // Prefer the saved profile name from onboarding/settings
+    const profileName = profile?.name && String(profile.name).trim();
+    if (profileName) {
+      const first = profileName.split(' ')[0];
+      return first || profileName;
+    }
+
+    // Fallback to Supabase currentUser fields
+    if (currentUser) {
+      const raw = currentUser.name || currentUser.fullName || currentUser.email || '';
+      if (raw) {
+        const base = String(raw).split('@')[0];
+        const first = base.split(' ')[0];
+        return first || base;
+      }
+    }
+
+    return 'there';
+  }, [profile, currentUser]);
   
   // Connection status wiring (graceful offline UX)
   useEffect(() => {
@@ -2292,7 +2313,7 @@ export default function AppleFloatBar({
                 setThoughts(prev => [...prev, {
                   role: 'assistant',
                   content: status.status === 'complete'
-                    ? `✅ **Execution Complete!**\n\nSuccessfully completed all ${totalSteps} steps.\n\n${runTracker.definitionOfDone}`
+                    ? `**Execution Complete!**\n\nSuccessfully completed all ${totalSteps} steps.\n\n${runTracker.definitionOfDone}`
                     : `❌ **Execution Failed**\n\nCompleted ${successCount} out of ${totalSteps} steps before encountering an error.`,
                   timestamp: Date.now(),
                   metadata: { summary: true }
@@ -2750,11 +2771,19 @@ export default function AppleFloatBar({
     updateWindowHeight();
   }, [execPanelOpen, executionDetails, updateWindowHeight]);
 
-  // Auto-scroll to bottom when new messages arrive or thinking indicator toggles
+  // Auto-scroll behavior: keep greeting visible in empty state, otherwise stick to bottom
   useEffect(() => {
-    if (messagesRef.current) {
-      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    const el = messagesRef.current;
+    if (!el) return;
+
+    if (thoughts.length === 0 && !isThinking) {
+      // Empty-state: make sure the greeting is visible at the top
+      el.scrollTop = 0;
+      return;
     }
+
+    // With messages or thinking indicator, stick to bottom
+    el.scrollTop = el.scrollHeight;
   }, [thoughts.length, isThinking]);
 
   // Re-measure height when window regains focus or visibility (e.g., after minimize)
@@ -3150,12 +3179,6 @@ export default function AppleFloatBar({
               />
             </div>
           )}
-          {isLoadingContext && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', marginBottom: 8, borderRadius: 8, background: 'rgba(33,150,243,0.08)', color: '#2196F3' }}>
-              <Loader2 size={14} className="spin" />
-              <span style={{ fontSize: '0.85rem' }}>Loading context…</span>
-            </div>
-          )}
           
           {/* Autonomous Execution Progress (top card) - currently disabled via showTopExecutionCard flag */}
           {showTopExecutionCard && (executionPlan || currentStep > 0) && (
@@ -3270,14 +3293,23 @@ export default function AppleFloatBar({
           )}
           
           {/* Messages */}
-          <div className="apple-messages" ref={messagesRef}>
-            {executionMode === 'chat' && (
+          <div
+            className={`apple-messages${thoughts.length === 0 && !isThinking ? ' apple-messages-empty' : ''}`}
+            ref={messagesRef}
+          >
+            {executionMode === 'chat' && thoughts.length > 0 && (
               <div className="chat-mode-indicator">
                 <span role="img" aria-label="chat">💬</span>
                 <span>Answering directly — no desktop actions required</span>
               </div>
             )}
-            
+
+            {thoughts.length === 0 && !isThinking && (
+              <div className="apple-empty-greeting">
+                <div className="apple-empty-greeting-main">{`Hi ${userFirstName}, how can I help?`}</div>
+              </div>
+            )}
+
             {thoughts.map((thought, idx) => {
               // Render user message first, then execution progress checklist
               const isUserMessage = thought.role === 'user';

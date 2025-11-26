@@ -65,6 +65,16 @@
 .apple-messages { min-height: 0; }
 .apple-messages { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 
+/* In the empty-state greeting, avoid showing a scrollable region but
+   let the messages section keep its normal flex sizing */
+.apple-messages-empty {
+  overflow-y: hidden;
+  padding-top: 6px;
+  padding-bottom: 4px;
+  min-height: 28px; /* slim band for single-line greeting */
+  flex: 0 0 auto;   /* don't stretch; just wrap greeting content */
+}
+
 /* Top-left logo */
 .apple-bar-logo {
   position: absolute;
@@ -94,8 +104,19 @@
   z-index: 1;
 }
 
+@keyframes userMessageFloatIn {
+  from {
+    opacity: 0;
+    transform: translateY(26px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .apple-message { max-width: 85%; animation: messageIn 0.2s ease; }
-.apple-message-user { align-self: flex-end; }
+.apple-message-user { align-self: flex-end; animation: userMessageFloatIn 0.22s cubic-bezier(0.22, 0.61, 0.36, 1); }
 .apple-message-assistant { align-self: flex-start; }
 .apple-message-content { padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.4; position: relative; }
 .apple-message-user .apple-message-content { background: #000; border: 2px solid #ac7433; color: #ffffff; box-shadow: 0 2px 8px rgba(255,138,0,0.25); }
@@ -359,4 +380,31 @@
   padding: 6px 12px;
   font-size: 12px;
   color: rgba(255,255,255,0.9);
+}
+
+/* Empty-state greeting: centered horizontally, lightly offset from top */
+.apple-empty-greeting {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  text-align: center;
+  color: rgba(255,255,255,0.7);
+  padding: 4px 12px;
+  margin: 6px 0 4px;
+  user-select: none;
+  pointer-events: none;
+}
+
+.apple-empty-greeting-main {
+  font-size: 0.98rem;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+.apple-empty-greeting-secondary {
+  font-size: 0.8rem;
+  font-weight: 400;
+  opacity: 0.65;
 }

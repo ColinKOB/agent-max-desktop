@@ -78,7 +78,7 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 12px;
+  padding: 10px 12px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.02);
   transition: all 0.3s ease;
@@ -177,8 +177,8 @@
 
 .step-header-left {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: baseline;
+  gap: 10px;
   flex: 1;
   min-width: 0;
 }
@@ -223,19 +223,22 @@
 }
 
 .step-number {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.7);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
+  letter-spacing: 0.7px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
 }
 
 .step-description {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.85);
-  line-height: 1.4;
-  margin-bottom: 4px;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.35;
+  margin-bottom: 0;
 }
 
 .step-tool {
