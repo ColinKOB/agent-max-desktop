@@ -120,23 +120,31 @@ class ExecutorManager {
      * Get run status
      */
     getRunStatus(runId) {
-        if (this.activeRuns.has(runId)) {
-            return this.activeRuns.get(runId);
-        }
+        // Get in-memory status first
+        const activeRun = this.activeRuns.get(runId);
         
-        // Check state store (Phase 2)
+        // Always check state store for complete data (especially final_response)
         if (this.stateStore) {
-            const run = this.stateStore.getRun(runId);
-            if (run) {
+            const storeRun = this.stateStore.getRun(runId);
+            if (storeRun) {
+                // Merge activeRun timing with store data (store has final_response)
                 return {
-                    runId: run.run_id,
-                    status: run.status,
-                    currentStepIndex: run.current_step_index,
-                    totalSteps: run.total_steps,
-                    final_response: run.final_response,  // Include final response for completed runs
-                    final_summary: run.final_response    // Alias for UI compatibility
+                    runId: storeRun.run_id,
+                    status: storeRun.status,
+                    currentStepIndex: storeRun.current_step_index,
+                    totalSteps: storeRun.total_steps,
+                    final_response: storeRun.final_response,
+                    final_summary: storeRun.final_response,
+                    // Include timing from activeRun if available
+                    startedAt: activeRun?.startedAt,
+                    completedAt: storeRun.completed_at
                 };
             }
+        }
+        
+        // Fallback to activeRun only if not in store
+        if (activeRun) {
+            return activeRun;
         }
         
         return null;
