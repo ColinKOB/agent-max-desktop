@@ -34,6 +34,9 @@ class DesktopStateStore {
         // Initialize schema
         this.initSchema();
         
+        // Run migrations for existing databases
+        this.runMigrations();
+        
         console.log(`[DesktopStateStore] Database initialized successfully`);
     }
 
@@ -50,6 +53,26 @@ class DesktopStateStore {
             if (statement.trim()) {
                 this.db.exec(statement);
             }
+        }
+    }
+
+    /**
+     * Run database migrations for existing databases
+     */
+    runMigrations() {
+        // Migration 1: Add final_response column to runs table
+        try {
+            // Check if column exists
+            const tableInfo = this.db.prepare("PRAGMA table_info(runs)").all();
+            const hasFinalResponse = tableInfo.some(col => col.name === 'final_response');
+            
+            if (!hasFinalResponse) {
+                console.log('[DesktopStateStore] Running migration: adding final_response column');
+                this.db.exec("ALTER TABLE runs ADD COLUMN final_response TEXT");
+                console.log('[DesktopStateStore] Migration complete: final_response column added');
+            }
+        } catch (err) {
+            console.error('[DesktopStateStore] Migration error:', err.message);
         }
     }
 
@@ -113,6 +136,10 @@ class DesktopStateStore {
         if (updates.last_synced_at !== undefined) {
             fields.push('last_synced_at = ?');
             values.push(updates.last_synced_at);
+        }
+        if (updates.final_response !== undefined) {
+            fields.push('final_response = ?');
+            values.push(updates.final_response);
         }
 
         // Always update updated_at

@@ -16,9 +16,13 @@ CREATE TABLE IF NOT EXISTS runs (
     completed_at INTEGER,
     plan_json TEXT,  -- Full plan from cloud (JSON)
     metadata_json TEXT,  -- Additional metadata (JSON)
+    final_response TEXT,  -- Final AI response when run completes
     last_synced_at INTEGER,
     sync_status TEXT DEFAULT 'pending' CHECK(sync_status IN ('pending', 'syncing', 'synced', 'failed'))
 );
+
+-- Migration: Add final_response column if it doesn't exist
+-- SQLite doesn't support IF NOT EXISTS for ALTER TABLE, so we use a try-catch approach in code
 
 CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status);
 CREATE INDEX IF NOT EXISTS idx_runs_user ON runs(user_id);
