@@ -312,8 +312,14 @@ class PullExecutor {
                         // Store step context for future arg generation
                         step_id: step.step_id,
                         description: step.description,
-                        filename: result.filename || (step.args && step.args.filename)
+                        filename: result.filename || (step.args && step.args.filename),
+                        // Include screenshot if present (for vision analysis)
+                        screenshot_b64: result.screenshot_b64 || null
                     };
+                    
+                    if (result.screenshot_b64) {
+                        console.log(`[PullExecutor] Screenshot captured, including in result (${result.screenshot_b64.length} chars)`);
+                    }
                     
                     // Store result for future context
                     this.stepResults.push(finalResult);
