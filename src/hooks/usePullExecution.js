@@ -25,7 +25,24 @@ export function usePullExecution() {
             // Create and start run
             const tracker = await pullAutonomousService.execute(message, context);
             
-            // Add to active runs
+            // Handle direct responses (questions, conversations, clarifications)
+            // These don't create runs - the AI answered directly
+            if (tracker.isDirectResponse) {
+                logger.info('[usePullExecution] Direct response received', { 
+                    type: tracker.type,
+                    response: tracker.response?.substring(0, 50) 
+                });
+                
+                // Return the tracker with the response - no need to poll or track
+                // The UI can display the response immediately
+                return {
+                    ...tracker,
+                    message,
+                    context
+                };
+            }
+            
+            // For tasks, add to active runs for tracking
             setActiveRuns(prev => {
                 const next = new Map(prev);
                 next.set(tracker.runId, {

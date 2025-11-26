@@ -25,28 +25,52 @@ class PullAutonomousService {
 
         try {
             // Step 1: Create run via backend
-            const run = await this.createRun(message, context);
-            logger.info('[PullAutonomous] Run created', { runId: run.run_id });
+            const result = await this.createRun(message, context);
+            
+            // NEW: Check if this is a direct response (question/conversation/clarify)
+            // These don't create runs - the AI answered directly
+            if (result.type && result.type !== 'task') {
+                logger.info('[PullAutonomous] Direct response (no run needed)', { 
+                    type: result.type 
+                });
+                
+                // Return a "completed" tracker with the response
+                return {
+                    runId: null,
+                    type: result.type,
+                    response: result.response,
+                    status: 'done',
+                    startTime: Date.now(),
+                    totalSteps: 0,
+                    currentStep: 0,
+                    events: [],
+                    isDirectResponse: true  // Flag for UI to know this was answered directly
+                };
+            }
+            
+            // For tasks, proceed with normal execution
+            logger.info('[PullAutonomous] Run created', { runId: result.run_id });
 
             // Step 2: Request desktop executor to start (via IPC)
-            await window.executor.startRun(run.run_id);
-            logger.info('[PullAutonomous] Executor started', { runId: run.run_id });
+            await window.executor.startRun(result.run_id);
+            logger.info('[PullAutonomous] Executor started', { runId: result.run_id });
 
             // Step 3: Track run and poll for updates
             const runTracker = {
-                runId: run.run_id,
+                runId: result.run_id,
                 startTime: Date.now(),
-                status: run.status || 'running',
-                plan: run.plan || null,
-                steps: run.plan?.steps || [],
-                totalSteps: run.total_steps || 0,
+                status: result.status || 'running',
+                plan: result.plan || null,
+                steps: result.plan?.steps || [],
+                totalSteps: result.total_steps || 0,
                 currentStep: null,
                 events: [],
-                goalSummary: run.plan?.goal_summary,
-                definitionOfDone: run.plan?.definition_of_done
+                goalSummary: result.plan?.goal_summary,
+                definitionOfDone: result.definition_of_done,
+                intent: result.intent  // User-facing intent for iterative runs
             };
 
-            this.activeRuns.set(run.run_id, runTracker);
+            this.activeRuns.set(result.run_id, runTracker);
 
             // Return run tracker for UI to monitor
             return runTracker;

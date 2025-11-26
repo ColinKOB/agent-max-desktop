@@ -2230,10 +2230,88 @@ export default function AppleFloatBar({
         const pullService = new PullAutonomousService();
         const runTracker = await pullService.execute(text, userContext);
         
-        // Store run ID for polling
+        // NEW: Handle direct responses (questions, conversations, clarifications)
+        // These don't require tool execution - the AI answered directly
+        if (runTracker.isDirectResponse) {
+          console.log('[FloatBar] Direct response received:', {
+            type: runTracker.type,
+            responsePreview: runTracker.response?.substring(0, 100)
+          });
+          
+          // Display the response as an assistant message
+          setIsThinking(false);
+          setThinkingStatus('');
+          
+          // Add the AI's response to thoughts
+          setThoughts(prev => [
+            ...prev,
+            {
+              role: 'assistant',
+              content: runTracker.response,
+              type: runTracker.type, // 'question', 'conversation', or 'clarify'
+              timestamp: Date.now()
+            }
+          ]);
+          
+          return; // Done - no need to poll or track execution
+        }
+        
+        // Store run ID for polling (only for tasks)
         setActiveRunId(runTracker.runId);
         
-        // Display the AI-generated plan
+        // NEW: Handle iterative execution (new style - no upfront plan)
+        if (runTracker.intent && !runTracker.plan) {
+          console.log('[FloatBar] Iterative execution started:', {
+            runId: runTracker.runId,
+            intent: runTracker.intent
+          });
+          
+          // Show intent as the AI's initial response
+          setThoughts(prev => [
+            ...prev,
+            {
+              role: 'assistant',
+              content: runTracker.intent,
+              type: 'intent',
+              timestamp: Date.now()
+            }
+          ]);
+          
+          setThinkingStatus('Working...');
+          
+          // Start polling for updates - iterative execution will provide status_summary
+          pullService.pollRunStatus(runTracker.runId, (status) => {
+            console.log('[FloatBar] Iterative status update:', status);
+            
+            if (status.status === 'complete' || status.status === 'done') {
+              setIsThinking(false);
+              setThinkingStatus('');
+              
+              // Add final summary as message
+              if (status.final_summary) {
+                setThoughts(prev => [
+                  ...prev,
+                  {
+                    role: 'assistant',
+                    content: status.final_summary,
+                    type: 'completion',
+                    timestamp: Date.now()
+                  }
+                ]);
+              }
+              
+              toast.success('Task completed', { duration: 3000 });
+            } else if (status.status === 'failed' || status.status === 'error') {
+              setIsThinking(false);
+              setThinkingStatus('');
+              toast.error('Task failed', { duration: 4000 });
+            }
+          });
+          
+          return; // Don't fall through to old plan-based display
+        }
+        
+        // Display the AI-generated plan (old style - for backwards compatibility)
         if (runTracker.plan && runTracker.steps) {
           console.log('[FloatBar] Plan received:', {
             steps: runTracker.steps.length,

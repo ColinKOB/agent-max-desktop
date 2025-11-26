@@ -35,6 +35,15 @@ function registerExecutorHandlers(apiClient, config = {}) {
     // Start run
     ipcMain.handle('executor:start-run', async (event, runId) => {
         try {
+            // Guard: reject null/undefined runIds (direct responses don't create runs)
+            if (!runId) {
+                console.log(`[ExecutorIPC] Ignoring start-run with null runId (likely direct response)`);
+                return {
+                    success: false,
+                    error: 'No run ID provided - this may be a direct response that does not require execution'
+                };
+            }
+            
             console.log(`[ExecutorIPC] Starting run: ${runId}`);
             
             // Start in background
