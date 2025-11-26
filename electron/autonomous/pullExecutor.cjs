@@ -443,6 +443,8 @@ class PullExecutor {
             return await this.executeMonitorProcess(args);
         } else if (tool === 'stop_process') {
             return await this.executeStopProcess(args);
+        } else if (tool === 'screenshot') {
+            return await this.executeScreenshot(args);
         } else {
             return {
                 success: false,
@@ -833,6 +835,61 @@ class PullExecutor {
             };
         } catch (error) {
             console.error(`[PullExecutor] User input error:`, error);
+            return {
+                success: false,
+                stdout: '',
+                stderr: error.message,
+                exit_code: 1,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Execute screenshot tool - capture user's screen
+     */
+    async executeScreenshot(args) {
+        try {
+            console.log('[PullExecutor] Taking screenshot of user screen');
+            
+            const { desktopCapturer } = require('electron');
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs').promises;
+            
+            // Get all screen sources
+            const sources = await desktopCapturer.getSources({
+                types: ['screen'],
+                thumbnailSize: { width: 1920, height: 1080 }
+            });
+            
+            if (!sources || sources.length === 0) {
+                throw new Error('No screen sources available');
+            }
+            
+            // Get the primary screen (first one)
+            const primaryScreen = sources[0];
+            const thumbnail = primaryScreen.thumbnail;
+            
+            // Convert to base64 PNG
+            const screenshotB64 = thumbnail.toPNG().toString('base64');
+            
+            // Optionally save to temp file for debugging
+            const tempPath = path.join(os.tmpdir(), `agent-max-screenshot-${Date.now()}.png`);
+            await fs.writeFile(tempPath, thumbnail.toPNG());
+            console.log(`[PullExecutor] Screenshot saved to: ${tempPath}`);
+            
+            return {
+                success: true,
+                stdout: `Screenshot captured (${thumbnail.getSize().width}x${thumbnail.getSize().height})`,
+                stderr: '',
+                exit_code: 0,
+                screenshot_b64: screenshotB64,
+                screenshot_path: tempPath,
+                dimensions: thumbnail.getSize()
+            };
+        } catch (error) {
+            console.error('[PullExecutor] Screenshot error:', error);
             return {
                 success: false,
                 stdout: '',
