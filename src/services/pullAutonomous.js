@@ -152,11 +152,13 @@ class PullAutonomousService {
                     tracker.final_response = status.final_response;
                     tracker.final_summary = status.final_summary || status.final_response;
                     
+                    console.log('[PullAutonomous] Raw status from IPC:', JSON.stringify(status, null, 2));
                     console.log('[PullAutonomous] Updated tracker:', { 
                         status: tracker.status, 
                         currentStep: tracker.currentStep,
                         totalSteps: tracker.totalSteps,
-                        hasFinalResponse: !!tracker.final_response
+                        hasFinalResponse: !!tracker.final_response,
+                        finalResponsePreview: tracker.final_response?.substring(0, 100)
                     });
                     
                     // Notify UI

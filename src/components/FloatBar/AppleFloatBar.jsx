@@ -2282,22 +2282,30 @@ export default function AppleFloatBar({
           // Start polling for updates - iterative execution will provide status_summary
           pullService.pollRunStatus(runTracker.runId, (status) => {
             console.log('[FloatBar] Iterative status update:', status);
+            console.log('[FloatBar] Status keys:', Object.keys(status));
+            console.log('[FloatBar] Has final_summary:', !!status.final_summary);
+            console.log('[FloatBar] Has final_response:', !!status.final_response);
             
             if (status.status === 'complete' || status.status === 'done') {
               setIsThinking(false);
               setThinkingStatus('');
               
-              // Add final summary as message
-              if (status.final_summary) {
+              // Add final summary as message (check both final_summary and final_response)
+              const finalMessage = status.final_summary || status.final_response;
+              console.log('[FloatBar] Final message to display:', finalMessage?.substring(0, 100));
+              
+              if (finalMessage) {
                 setThoughts(prev => [
                   ...prev,
                   {
                     role: 'assistant',
-                    content: status.final_summary,
+                    content: finalMessage,
                     type: 'completion',
                     timestamp: Date.now()
                   }
                 ]);
+              } else {
+                console.warn('[FloatBar] No final message found in status!');
               }
               
               toast.success('Task completed', { duration: 3000 });
