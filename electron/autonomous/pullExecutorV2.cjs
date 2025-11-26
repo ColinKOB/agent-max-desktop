@@ -140,9 +140,11 @@ class PullExecutorV2 extends PullExecutor {
 
                 if (cloudStep.status === 'complete') {
                     console.log(`[PullExecutorV2] Run complete`);
+                    console.log(`[PullExecutorV2] Final response:`, cloudStep.final_response?.substring(0, 200));
                     this.stateStore.updateRun(runId, {
                         status: 'complete',
-                        completed_at: Date.now()
+                        completed_at: Date.now(),
+                        final_response: cloudStep.final_response || cloudStep.final_status
                     });
                     break;
                 }

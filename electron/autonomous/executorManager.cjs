@@ -132,7 +132,9 @@ class ExecutorManager {
                     runId: run.run_id,
                     status: run.status,
                     currentStepIndex: run.current_step_index,
-                    totalSteps: run.total_steps
+                    totalSteps: run.total_steps,
+                    final_response: run.final_response,  // Include final response for completed runs
+                    final_summary: run.final_response    // Alias for UI compatibility
                 };
             }
         }

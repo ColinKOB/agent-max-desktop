@@ -149,11 +149,14 @@ class PullAutonomousService {
                     tracker.status = status.status;
                     tracker.currentStep = status.currentStepIndex;
                     tracker.totalSteps = status.totalSteps;
+                    tracker.final_response = status.final_response;
+                    tracker.final_summary = status.final_summary || status.final_response;
                     
                     console.log('[PullAutonomous] Updated tracker:', { 
                         status: tracker.status, 
                         currentStep: tracker.currentStep,
-                        totalSteps: tracker.totalSteps
+                        totalSteps: tracker.totalSteps,
+                        hasFinalResponse: !!tracker.final_response
                     });
                     
                     // Notify UI
