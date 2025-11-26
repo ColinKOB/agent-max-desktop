@@ -852,11 +852,15 @@ export default function AppleFloatBar({
       } else if (event.type === 'exec_log' && event.data?.source === 'run_stream') {
         // Mirror run stream exec logs into the Thoughts area and progress UI
         const log = event.data;
+        // Prefer status_summary (user-friendly) over message (technical)
+        const statusSummary = log.status_summary || log.message || log.stdout || log.error || '';
         const msg = log.message || log.stdout || log.error || '';
         const status = log.status || 'info';
+        if (statusSummary) {
+          setThinkingStatus(statusSummary);
+        }
         if (msg) {
           appendThought(msg);
-          setThinkingStatus(msg);
         }
         if (status === 'replanning') {
           toast(`🔄 ${msg || 'Replanning...'}`, { duration: 3000 });
@@ -1011,6 +1015,8 @@ export default function AppleFloatBar({
         const log = event.data || event;
         const status = log.status || 'info';
         const msg = log.message || 'Processing...';
+        // Prefer status_summary for user-friendly display
+        const statusSummary = log.status_summary || msg;
         
         // Extract action name for user-friendly notifications
         const extractActionName = (message) => {
@@ -1033,6 +1039,11 @@ export default function AppleFloatBar({
         
         // Handle different exec_log statuses
         switch (status) {
+          case 'running':
+            // AI is actively working - show the status_summary
+            setThinkingStatus(statusSummary);
+            break;
+            
           case 'info':
             // Parse debug info - show action count if present
             if (msg.includes('action(s) found')) {
@@ -1047,7 +1058,7 @@ export default function AppleFloatBar({
                     backdropFilter: 'blur(10px)'
                   }
                 });
-                setThinkingStatus(`Executing ${count} action(s)...`);
+                setThinkingStatus(statusSummary);
               }
             }
             break;

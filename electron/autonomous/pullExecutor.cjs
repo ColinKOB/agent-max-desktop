@@ -574,7 +574,7 @@ class PullExecutor {
     }
 
     /**
-     * Execute file write
+     * Execute file write (supports single file or multi-file projects)
      */
     async executeFileWrite(args, step) {
         const fs = require('fs').promises;
@@ -582,7 +582,42 @@ class PullExecutor {
         const os = require('os');
 
         try {
-            // Extract args - trust AI to provide correct values
+            // Check if this is a multi-file project (has "files" array)
+            if (args.files && Array.isArray(args.files)) {
+                console.log(`[PullExecutor] 📁 Multi-file project: ${args.files.length} files`);
+                
+                const results = [];
+                for (const file of args.files) {
+                    const filePath = this.translatePath(file.filename || file.path);
+                    const content = file.content || '';
+                    
+                    if (!filePath) {
+                        console.warn(`[PullExecutor] Skipping file with no path`);
+                        continue;
+                    }
+                    
+                    console.log(`[PullExecutor] Writing: ${filePath}`);
+                    console.log(`[PullExecutor] Content preview: ${content.substring(0, 80)}...`);
+                    
+                    // Ensure directory exists
+                    const dir = path.dirname(filePath);
+                    await fs.mkdir(dir, { recursive: true });
+                    
+                    // Write file
+                    await fs.writeFile(filePath, content, 'utf8');
+                    results.push(filePath);
+                }
+                
+                return {
+                    success: true,
+                    stdout: `Created ${results.length} files:\n${results.join('\n')}`,
+                    stderr: '',
+                    exit_code: 0,
+                    files_created: results
+                };
+            }
+            
+            // Single file write (original behavior)
             const filePath = args.filename || args.path || args.file_path;
             const content = args.content || args.text || args.data || '';
             const shouldAppend = args.append === "true" || args.append === true;
