@@ -154,4 +154,6 @@ contextBridge.exposeInMainWorld('executor', {
   getStats: () => ipcRenderer.invoke('executor:get-stats'),
   setOnline: (isOnline) => ipcRenderer.invoke('executor:set-online', isOnline),
   cleanup: (olderThanDays) => ipcRenderer.invoke('executor:cleanup', olderThanDays),
+  // Capture screen for auto-mode context (Feature: Productivity Screenshot)
+  captureScreen: () => ipcRenderer.invoke('take-screenshot'),
 });

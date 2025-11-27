@@ -97,6 +97,25 @@ class PullAutonomousService {
         // Get system context from desktop (where files will actually be created)
         const systemContext = await window.executor.getSystemContext();
         
+        // PRODUCTIVITY FEATURE: Capture screenshot for context on every auto-mode request
+        // This gives Max visual context of what the user is looking at when they send a request
+        let initialScreenshot = null;
+        try {
+            const screenshotStart = Date.now();
+            const screenshotResult = await window.executor.captureScreen();
+            if (screenshotResult?.base64) {
+                initialScreenshot = screenshotResult.base64;
+                const captureTime = Date.now() - screenshotStart;
+                logger.info('[PullAutonomous] Screen captured for context', { 
+                    sizeKB: Math.round(initialScreenshot.length / 1024),
+                    captureTimeMs: captureTime
+                });
+            }
+        } catch (e) {
+            // Screenshot capture is optional - don't fail the request if it doesn't work
+            logger.warn('[PullAutonomous] Could not capture screen (non-fatal)', e?.message || e);
+        }
+        
         // Include user_id for billing (token accrual)
         // Try multiple sources: localStorage, then global store
         let userId = null;
@@ -112,10 +131,12 @@ class PullAutonomousService {
             logger.warn('[PullAutonomous] Could not get user_id', e);
         }
         
-        // Merge userId into context for billing
+        // Merge userId and screenshot into context
         const enrichedContext = {
             ...context,
-            userId: userId || context?.userId
+            userId: userId || context?.userId,
+            // Include initial screenshot for AI context (optional - may be null)
+            initial_screenshot_b64: initialScreenshot
         };
         
         // Use main process IPC for stable network calls with automatic retry

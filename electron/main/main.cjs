@@ -1156,11 +1156,16 @@ ipcMain.handle('hands-on-desktop:execute-request', async (_event, request) => {
 });
 
 // Take screenshot and return base64
+// OPTIMIZED: Resize to 1280x720 and use JPEG for smaller payload (~100KB vs ~500KB)
 ipcMain.handle('take-screenshot', async () => {
   try {
+    // Capture at reduced resolution for faster transmission
+    // 1280x720 is sufficient for AI vision analysis
+    const targetSize = { width: 1280, height: 720 };
+    
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
-      thumbnailSize: screen.getPrimaryDisplay().size,
+      thumbnailSize: targetSize,
     });
 
     if (sources.length === 0) {
@@ -1171,19 +1176,20 @@ ipcMain.handle('take-screenshot', async () => {
     const primarySource = sources[0];
     const screenshot = primarySource.thumbnail;
 
-    // Convert to PNG buffer
-    const buffer = screenshot.toPNG();
+    // Convert to JPEG for smaller file size (quality 80 is good balance)
+    // JPEG is ~5-10x smaller than PNG for screenshots
+    const buffer = screenshot.toJPEG(80);
 
     // Convert to base64 for API transmission
     const base64 = buffer.toString('base64');
 
     console.log(
-      `[Screenshot] Captured and converted to base64 (${Math.round(base64.length / 1024)}KB)`
+      `[Screenshot] Captured ${targetSize.width}x${targetSize.height} JPEG (${Math.round(base64.length / 1024)}KB)`
     );
 
     return {
       base64,
-      mimeType: 'image/png',
+      mimeType: 'image/jpeg',
       size: base64.length,
     };
   } catch (error) {
