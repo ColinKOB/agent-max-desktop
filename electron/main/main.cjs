@@ -1200,6 +1200,7 @@ ipcMain.handle('autonomous:create-run', async (event, { message, context, system
   let lastError;
 
   console.log('[Autonomous] Creating run via main process (stable network)');
+  console.log('[Autonomous] User ID from context:', context?.userId || 'NOT PROVIDED - using desktop_user');
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
