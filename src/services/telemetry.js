@@ -196,6 +196,13 @@ class TelemetryService {
    */
   logInteraction(data) {
     if (!this.enabled) return;
+    
+    // Check if usage analytics is enabled (pref_analytics setting)
+    // Default to true for beta testers
+    const analyticsEnabled = typeof localStorage !== 'undefined'
+      ? localStorage.getItem('pref_analytics') !== '0'
+      : true;
+    if (!analyticsEnabled) return;
 
     const event = {
       type: 'interaction',

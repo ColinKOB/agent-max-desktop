@@ -7,8 +7,8 @@ export default function SettingsSimple() {
   // Preferences
   const [theme, setTheme] = useState('light'); // 'light' | 'dark' | 'system'
   const [analytics, setAnalytics] = useState(true);
-  const [deepMemorySearch, setDeepMemorySearch] = useState(false);
-  const [telemetryEnabled, setTelemetryEnabled] = useState(false);
+  const [deepMemorySearch, setDeepMemorySearch] = useState(true);
+  const [telemetryEnabled, setTelemetryEnabled] = useState(true);
   const [disableLegacyFallbacks, setDisableLegacyFallbacks] = useState(false);
   const [probeStatus, setProbeStatus] = useState(null);
 
@@ -19,11 +19,37 @@ export default function SettingsSimple() {
       const storedDeepMemory = localStorage.getItem('pref_deep_memory_search');
       const storedTelemetry = localStorage.getItem('telemetry_enabled');
       const storedDisableFallbacks = localStorage.getItem('disable_legacy_fallbacks');
-      if (storedTheme) setTheme(storedTheme);
-      if (storedAnalytics) setAnalytics(storedAnalytics === '1');
-      if (storedDeepMemory) setDeepMemorySearch(storedDeepMemory === '1');
-      if (storedTelemetry === 'true') setTelemetryEnabled(true);
-      if (storedTelemetry === 'false') setTelemetryEnabled(false);
+      
+      // Load existing values or persist defaults for new users
+      if (storedTheme) {
+        setTheme(storedTheme);
+      }
+      
+      // Analytics: default ON for beta testers
+      if (storedAnalytics !== null) {
+        setAnalytics(storedAnalytics === '1');
+      } else {
+        // First load - persist the default (ON)
+        localStorage.setItem('pref_analytics', '1');
+      }
+      
+      // Deep memory search: default ON for beta testers
+      if (storedDeepMemory !== null) {
+        setDeepMemorySearch(storedDeepMemory === '1');
+      } else {
+        // First load - persist the default (ON)
+        localStorage.setItem('pref_deep_memory_search', '1');
+      }
+      
+      // Telemetry: default ON for beta testers
+      if (storedTelemetry !== null) {
+        setTelemetryEnabled(storedTelemetry === 'true');
+      } else {
+        // First load - persist the default (ON)
+        localStorage.setItem('telemetry_enabled', 'true');
+        telemetry.setEnabled(true);
+      }
+      
       if (storedDisableFallbacks === '1' || storedDisableFallbacks === 'true') setDisableLegacyFallbacks(true);
       try { setProbeStatus(apiConfigManager.getLastProbe?.() || null); } catch {}
     } catch {}
