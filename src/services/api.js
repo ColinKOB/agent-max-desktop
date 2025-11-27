@@ -464,14 +464,16 @@ export const chatAPI = {
     const baseURL = cfg.baseURL || API_BASE_URL || 'http://localhost:8000';
 
     // Derive mode from user context or localStorage
-    let requestedMode = 'helpful';
+    // NOTE: 'helpful' mode is deprecated - default to 'chatty'
+    let requestedMode = 'chatty';
     try {
-      requestedMode = (userContext && userContext.__mode) || localStorage.getItem('permission_level') || 'helpful';
+      requestedMode = (userContext && userContext.__mode) || localStorage.getItem('permission_level') || 'chatty';
       if (requestedMode === 'powerful') requestedMode = 'autonomous';
-      const allowed = new Set(['chatty', 'helpful', 'autonomous']);
-      requestedMode = allowed.has(requestedMode) ? requestedMode : 'helpful';
+      if (requestedMode === 'helpful') requestedMode = 'chatty'; // Migrate helpful → chatty
+      const allowed = new Set(['chatty', 'autonomous']);
+      requestedMode = allowed.has(requestedMode) ? requestedMode : 'chatty';
     } catch (_) {
-      requestedMode = 'helpful';
+      requestedMode = 'chatty';
     }
 
     // Runtime flag: allow disabling legacy fallbacks to surface drift

@@ -269,12 +269,11 @@ export default function AppleFloatBar({
     permissionModeRef.current = (permissionLevel || '').toLowerCase();
   }, [permissionLevel]);
   const permissionKey = (permissionLevel || '').toLowerCase();
-  const isHelpfulMode = permissionKey === 'helpful';
-  const planCardAllowed = isHelpfulMode && executionMode !== 'chat';
+  // NOTE: 'helpful' mode is deprecated - treat as 'chatty'
+  const effectiveMode = permissionKey === 'helpful' ? 'chatty' : permissionKey;
+  const planCardAllowed = false; // Plan cards deprecated with helpful mode
   const shouldDisplayPlanCard = useCallback(() => {
-    const key = permissionModeRef.current;
-    const execMode = executionModeRef.current;
-    return key === 'helpful' && execMode !== 'chat';
+    return false; // Plan cards deprecated with helpful mode
   }, []);
 
   const showTopExecutionCard = false;
@@ -413,11 +412,12 @@ export default function AppleFloatBar({
   }, [apiConnected]);
   
   // Helper to map UI level to backend mode
+  // NOTE: 'helpful' mode is deprecated - default to 'chatty'
   const resolveMode = useCallback(() => {
     const lvl = (permissionLevel || '').toLowerCase();
     if (lvl === 'powerful' || lvl === 'autonomous') return 'autonomous';
-    if (lvl === 'chatty') return 'chatty';
-    return 'helpful';
+    // 'helpful' is deprecated, treat as 'chatty'
+    return 'chatty';
   }, [permissionLevel]);
   
   // Hard route guard: the FloatBar window should never navigate to /settings
@@ -1497,79 +1497,11 @@ export default function AppleFloatBar({
           }
         }
         
-        // Deduct credits based on token usage (1 credit per 500 output tokens)
-        const userId = localStorage.getItem('user_id');
-        if (userId && totalOutputTokens > 0) {
-          try {
-            const creditsToDeduct = Math.ceil(totalOutputTokens / 500);
-            logger.info(`[Credits] Output tokens: ${totalOutputTokens}, deducting ${creditsToDeduct} credit(s)`);
-            
-            const { data: userData, error: fetchErr } = await supabase
-              .from('users')
-              .select('metadata')
-              .eq('id', userId)
-              .maybeSingle();
-
-            if (fetchErr) {
-              logger.warn('[Credits] Could not fetch user metadata (skipping deduction)', fetchErr);
-              throw fetchErr; // handled by catch below without blocking UX
-            }
-
-            const currentCredits = (userData?.metadata?.credits ?? 0);
-            const newCredits = Math.max(0, currentCredits - creditsToDeduct);
-
-            const baseMeta = (userData && userData.metadata && typeof userData.metadata === 'object')
-              ? userData.metadata
-              : {};
-
-            await supabase
-              .from('users')
-              .update({
-                metadata: {
-                  ...baseMeta,
-                  credits: newCredits
-                }
-              })
-              .eq('id', userId);
-            
-            logger.info(`[Credits] Deducted ${creditsToDeduct}: ${currentCredits} → ${newCredits}`);
-            
-            // Log telemetry
-            await supabase.from('telemetry_events').insert({
-              user_id: userId,
-              event_type: 'credit_usage',
-              action: 'tokens_consumed',
-              metadata: {
-                output_tokens: totalOutputTokens,
-                credits_deducted: creditsToDeduct,
-                credits_remaining: newCredits
-              }
-            });
-            
-            // Show toast notification
-            if (creditsToDeduct > 0) {
-              toast.success(`${creditsToDeduct} credit${creditsToDeduct > 1 ? 's' : ''} used (${totalOutputTokens} tokens)`, {
-                icon: '💰',
-                duration: 2000
-              });
-            }
-          } catch (error) {
-            logger.error('[Credits] Failed to deduct credits:', error);
-            // Don't block user experience on credit deduction errors
-            // Log the specific error for debugging
-            if (error.code === 'PGRST116') {
-              logger.error('[Credits] User record not found in database');
-              toast.error('User account not found. Please sign in again.');
-            } else if (error.message?.includes('metadata')) {
-              logger.error('[Credits] Invalid metadata structure');
-              toast.error('Credit data corrupted. Please contact support.');
-            } else if (error.code === '500' || error.status === 500) {
-              logger.error('[Credits] Database server error:', error.message);
-              toast.error('Server error updating credits. Your usage was tracked.');
-            } else {
-              toast.error('Failed to update credits. Please check your account.');
-            }
-          }
+        // Token accrual billing is now handled by the backend
+        // The backend accrues tokens and deducts credits when the 500-token threshold is crossed
+        // No client-side credit deduction needed - just log for visibility
+        if (totalOutputTokens > 0) {
+          logger.info(`[TokenAccrual] Output tokens: ${totalOutputTokens} (backend handles billing)`);
         }
         
         // Final check for any fs_command blocks that might have been missed
@@ -3127,7 +3059,7 @@ export default function AppleFloatBar({
                 cursor: 'pointer'
               }}
             >
-              {resolveMode()==='autonomous' ? 'auto' : resolveMode()==='chatty' ? 'chatty' : 'helpful'}
+              {resolveMode()==='autonomous' ? 'auto' : 'chatty'}
             </div>
             <div
               onClick={!backendConnected ? () => {
@@ -3259,8 +3191,9 @@ export default function AppleFloatBar({
                 transition: 'opacity 160ms ease-out, transform 220ms cubic-bezier(.22,.61,.36,1)'
               }}
             >
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', height: '100%' }}>
-                {[{ value: 'chatty', title: 'Chatty' }, { value: 'helpful', title: 'Helpful' }, { value: 'powerful', title: 'Autonomous' }].map((opt, idx) => (
+              {/* NOTE: 'helpful' mode is deprecated - only show chatty and autonomous */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', height: '100%' }}>
+                {[{ value: 'chatty', title: 'Chatty' }, { value: 'powerful', title: 'Autonomous' }].map((opt, idx) => (
                   <button
                     key={opt.value}
                     onClick={() => handleSelectLevel(opt.value)}
@@ -3270,7 +3203,7 @@ export default function AppleFloatBar({
                       background: ((permissionLevel === opt.value) || (opt.value === 'powerful' && permissionLevel === 'autonomous')) ? 'rgba(255,255,255,0.08)' : 'transparent',
                       color: 'rgba(255,255,255,0.55)',
                       cursor: 'pointer',
-                      borderRight: idx < 2 ? '1px solid rgba(255,255,255,0.08)' : 'none',
+                      borderRight: idx < 1 ? '1px solid rgba(255,255,255,0.08)' : 'none',
                       boxShadow: ((permissionLevel === opt.value) || (opt.value === 'powerful' && permissionLevel === 'autonomous')) ? 'inset 0 -2px 8px rgba(255,255,255,0.15)' : 'none',
                       transition: 'all 0.2s ease'
                     }}
