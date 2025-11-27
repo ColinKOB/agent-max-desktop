@@ -56,6 +56,23 @@ const UpdateNotification = ({ updateInfo, updateProgress, onDismiss }) => {
   };
 
   const renderContent = () => {
+    // Just updated state - shows briefly after an update was installed
+    if (updateInfo.justUpdated) {
+      return (
+        <div className="flex items-start gap-3">
+          <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-green-200">
+              Updated to v{updateInfo.version}
+            </p>
+            <p className="text-xs text-green-300 mt-1">
+              Agent Max has been updated successfully.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     // Error state
     if (updateInfo.error) {
       return (

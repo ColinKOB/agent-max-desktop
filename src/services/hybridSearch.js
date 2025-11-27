@@ -31,8 +31,23 @@ const CONFIG = {
   combineThreshold: 0.5,       // Minimum score to include result
   maxResults: 20,              // Maximum results to return
   semanticThreshold: 0.6,      // Minimum similarity for semantic results
-  enableSupabaseFallback: true // Whether to use Supabase when local insufficient
+  enableSupabaseFallback: true, // Whether to use Supabase when local insufficient
+  embeddingTimeout: 3000,      // Max time to wait for embedding generation
+  searchTimeout: 5000          // Max time to wait for entire search
 };
+
+/**
+ * Wrap a promise with a timeout
+ */
+function withTimeout(promise, ms, fallback = null) {
+  return Promise.race([
+    promise,
+    new Promise(resolve => setTimeout(() => {
+      logger.warn(`Operation timed out after ${ms}ms`);
+      resolve(fallback);
+    }, ms))
+  ]);
+}
 
 /**
  * Hybrid message search combining keyword and semantic
@@ -84,24 +99,33 @@ export async function searchMessages(query, options = {}) {
   if (needsSupabase && userId) {
     try {
       if ((mode === 'semantic' || mode === 'hybrid') && ENABLE_SUPABASE_SEMANTICS) {
-        const embedding = await generateEmbedding(query);
+        // Use timeout to prevent hanging on embedding generation
+        const embedding = await withTimeout(
+          generateEmbedding(query),
+          CONFIG.embeddingTimeout,
+          null
+        );
         
-        const { data, error } = await supabase.rpc('search_messages_semantic', {
-          query_embedding: embedding,
-          target_user_id: userId,
-          similarity_threshold: CONFIG.semanticThreshold,
-          max_results: limit
-        });
-        
-        if (error) {
-          logger.warn('Supabase semantic search failed:', error);
-        } else if (data) {
-          supabaseResults.push(...data.map(r => ({ 
-            ...r, 
-            score: r.similarity,
-            source: 'supabase-semantic' 
-          })));
-          logger.debug(`Supabase semantic search found ${data.length} results`);
+        if (embedding) {
+          const { data, error } = await supabase.rpc('search_messages_semantic', {
+            query_embedding: embedding,
+            target_user_id: userId,
+            similarity_threshold: CONFIG.semanticThreshold,
+            max_results: limit
+          });
+          
+          if (error) {
+            logger.warn('Supabase semantic search failed:', error);
+          } else if (data) {
+            supabaseResults.push(...data.map(r => ({ 
+              ...r, 
+              score: r.similarity,
+              source: 'supabase-semantic' 
+            })));
+            logger.debug(`Supabase semantic search found ${data.length} results`);
+          }
+        } else {
+          logger.warn('Embedding generation timed out, skipping semantic search');
         }
       } else if ((mode === 'semantic' || mode === 'hybrid') && !ENABLE_SUPABASE_SEMANTICS) {
         logger.debug('Supabase semantic search skipped (feature flag disabled)');
@@ -201,24 +225,33 @@ export async function searchFacts(query, options = {}) {
   if (needsSupabase && userId) {
     try {
       if ((mode === 'semantic' || mode === 'hybrid') && ENABLE_SUPABASE_SEMANTICS) {
-        const embedding = await generateEmbedding(query);
+        // Use timeout to prevent hanging on embedding generation
+        const embedding = await withTimeout(
+          generateEmbedding(query),
+          CONFIG.embeddingTimeout,
+          null
+        );
         
-        const { data, error } = await supabase.rpc('search_facts_semantic', {
-          query_embedding: embedding,
-          target_user_id: userId,
-          similarity_threshold: CONFIG.semanticThreshold,
-          max_results: limit
-        });
-        
-        if (error) {
-          logger.warn('Supabase semantic search failed:', error);
-        } else if (data) {
-          supabaseResults.push(...data.map(r => ({ 
-            ...r, 
-            score: r.similarity,
-            source: 'supabase-semantic' 
-          })));
-          logger.debug(`Supabase semantic search found ${data.length} results`);
+        if (embedding) {
+          const { data, error } = await supabase.rpc('search_facts_semantic', {
+            query_embedding: embedding,
+            target_user_id: userId,
+            similarity_threshold: CONFIG.semanticThreshold,
+            max_results: limit
+          });
+          
+          if (error) {
+            logger.warn('Supabase semantic search failed:', error);
+          } else if (data) {
+            supabaseResults.push(...data.map(r => ({ 
+              ...r, 
+              score: r.similarity,
+              source: 'supabase-semantic' 
+            })));
+            logger.debug(`Supabase semantic search found ${data.length} results`);
+          }
+        } else {
+          logger.warn('Embedding generation timed out, skipping semantic search');
         }
       } else if ((mode === 'semantic' || mode === 'hybrid') && !ENABLE_SUPABASE_SEMANTICS) {
         logger.debug('Supabase semantic search skipped (feature flag disabled)');

@@ -4,7 +4,7 @@
  */
 
 const { autoUpdater } = require('electron-updater');
-const { dialog, app } = require('electron');
+const { app } = require('electron');
 const log = require('electron-log');
 
 // Configure logging
@@ -92,27 +92,33 @@ function setupAutoUpdater(window) {
   autoUpdater.on('update-downloaded', (info) => {
     log.info('[Updater] Update downloaded:', info.version);
     
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-downloaded', {
-        version: info.version
-      });
+    // Store flag so the app shows "just updated" notification after restart
+    try {
+      const { session } = require('electron');
+      // Use executeJavaScript to set localStorage before quit
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.executeJavaScript(`
+          localStorage.setItem('app_just_updated', JSON.stringify({
+            version: '${info.version}',
+            timestamp: ${Date.now()}
+          }));
+        `).catch(() => {});
+      }
+    } catch (e) {
+      log.warn('[Updater] Failed to set just-updated flag:', e);
     }
     
-    // Non-optional: prompt with a single action to restart
-    dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: 'Update Ready',
-      message: `Version ${info.version} has been downloaded.`,
-      detail: 'The app needs to restart to apply this update.',
-      buttons: ['Restart Now'],
-      defaultId: 0,
-      cancelId: 0
-    }).then(() => {
+    // Auto-install silently after a brief delay (give time for flag to be set)
+    log.info('[Updater] Auto-installing update in 2 seconds...');
+    setTimeout(() => {
       setImmediate(() => {
         app.removeAllListeners('window-all-closed');
-        autoUpdater.quitAndInstall(false, true);
+        // quitAndInstall(isSilent, isForceRunAfter)
+        // isSilent=true: Don't show installer UI
+        // isForceRunAfter=true: Restart app after install
+        autoUpdater.quitAndInstall(true, true);
       });
-    });
+    }, 2000);
   });
   
   console.log('[Updater] Auto-updater initialized');

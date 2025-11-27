@@ -21,13 +21,12 @@ let isOnline = navigator.onLine;
 let syncInProgress = false;
 
 // User consent scopes
-// Default to TRUE for users who completed onboarding (have user_id)
-// This matches the expected behavior - onboarding implies consent
-const hasUserId = !!localStorage.getItem('user_id');
+// Default to TRUE - users who completed onboarding have implicitly consented
+// The conservative false default was causing messages to not be stored
 let consentScopes = {
-  prompts: hasUserId,  // Default true if user completed onboarding
-  outputs: hasUserId,  // Default true if user completed onboarding
-  tools: hasUserId,    // Default true if user completed onboarding
+  prompts: true,   // Default true - store user messages
+  outputs: true,   // Default true - store AI responses
+  tools: true,     // Default true - store tool usage
   screenshots: false,  // Screenshots still require explicit consent
 };
 
