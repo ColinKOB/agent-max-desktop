@@ -96,12 +96,26 @@ class PullAutonomousService {
         // Get system context from desktop (where files will actually be created)
         const systemContext = await window.executor.getSystemContext();
         
+        // Include user_id for billing (token accrual)
+        let userId = null;
+        try {
+            userId = localStorage.getItem('user_id');
+        } catch (e) {
+            logger.warn('[PullAutonomous] Could not get user_id from localStorage');
+        }
+        
+        // Merge userId into context for billing
+        const enrichedContext = {
+            ...context,
+            userId: userId || context?.userId
+        };
+        
         // Use main process IPC for stable network calls with automatic retry
         // This avoids ERR_NETWORK_CHANGED errors from renderer process
-        logger.info('[PullAutonomous] Creating run via main process (stable network)');
+        logger.info('[PullAutonomous] Creating run via main process (stable network)', { userId });
         
         try {
-            const result = await window.executor.createRun(message, context, systemContext);
+            const result = await window.executor.createRun(message, enrichedContext, systemContext);
             
             // Check if planning failed (backend returns success: false)
             if (result.success === false) {
