@@ -462,8 +462,14 @@ class LocalExecutor {
    */
   async fsRead(args) {
     // Support both 'path' and 'filename' for compatibility
-    const filePath = args.path || args.filename;
-    const encoding = args.encoding;
+    const filePath = args?.path || args?.filename || args?.file;
+    const encoding = args?.encoding;
+    
+    // Validate path is provided
+    if (!filePath || typeof filePath !== 'string') {
+      console.error('[LocalExecutor] fsRead called with invalid args:', JSON.stringify(args));
+      throw new Error(`Invalid file path: expected string, got ${typeof filePath}. Args received: ${JSON.stringify(args)}`);
+    }
     
     console.log('[LocalExecutor] Reading file:', filePath);
     

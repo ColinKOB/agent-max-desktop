@@ -561,12 +561,23 @@ class PullExecutor {
         const fs = require('fs').promises;
         
         try {
-            const filePath = args.filename || args.path || args.file_path;
-            const encoding = args.encoding || 'utf8';
-            const maxLines = args.max_lines || args.maxLines;
+            let filePath = args?.filename || args?.path || args?.file_path || args?.file;
+            const encoding = args?.encoding || 'utf8';
+            const maxLines = args?.max_lines || args?.maxLines;
+            
+            // If no path provided, try to infer from previous step results
+            if (!filePath && this.stepResults && this.stepResults.length > 0) {
+                // Look for a recently created file
+                const lastFileStep = this.stepResults.slice().reverse().find(r => r && r.filename);
+                if (lastFileStep && lastFileStep.filename) {
+                    filePath = lastFileStep.filename;
+                    console.log(`[PullExecutor] Inferred file path from previous step: ${filePath}`);
+                }
+            }
             
             if (!filePath) {
-                throw new Error('No file path specified in args. AI must provide full absolute path');
+                console.error('[PullExecutor] fs.read called with invalid args:', JSON.stringify(args));
+                throw new Error(`No file path specified in args. AI must provide filename, path, or file_path. Received: ${JSON.stringify(args)}`);
             }
             
             console.log(`[PullExecutor] Reading file: ${filePath}`);
