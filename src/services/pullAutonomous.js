@@ -9,6 +9,7 @@
 
 import { logger } from './logger';
 import apiConfigManager from '../config/apiConfig';
+import useStore from '../store/useStore';
 
 class PullAutonomousService {
     constructor() {
@@ -97,11 +98,18 @@ class PullAutonomousService {
         const systemContext = await window.executor.getSystemContext();
         
         // Include user_id for billing (token accrual)
+        // Try multiple sources: localStorage, then global store
         let userId = null;
         try {
             userId = localStorage.getItem('user_id');
+            
+            // Fallback to store if localStorage doesn't have it
+            if (!userId) {
+                const currentUser = useStore.getState().currentUser;
+                userId = currentUser?.id;
+            }
         } catch (e) {
-            logger.warn('[PullAutonomous] Could not get user_id from localStorage');
+            logger.warn('[PullAutonomous] Could not get user_id', e);
         }
         
         // Merge userId into context for billing
