@@ -461,7 +461,9 @@ class LocalExecutor {
    * Read file contents
    */
   async fsRead(args) {
-    const { path: filePath, encoding } = args;
+    // Support both 'path' and 'filename' for compatibility
+    const filePath = args.path || args.filename;
+    const encoding = args.encoding;
     
     console.log('[LocalExecutor] Reading file:', filePath);
     
