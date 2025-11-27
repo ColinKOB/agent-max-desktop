@@ -837,8 +837,16 @@ export default function AppleFloatBar({
         setTotalSteps(0);
         setExecutionMode(null);
         executionModeRef.current = null;
-        setDesktopActionsRequired(true);
-        desktopActionsRef.current = true;
+        // Only require desktop actions in autonomous mode (not chatty/helpful)
+        // Note: 'helpful' is deprecated and treated as 'chatty'
+        // 'powerful' is the old name for 'autonomous'
+        const currentMode = (permissionModeRef.current || '').toLowerCase();
+        const isAutoMode = currentMode === 'autonomous' || currentMode === 'powerful';
+        const isChattyMode = currentMode === 'chatty' || currentMode === 'helpful' || currentMode === '';
+        console.log(`[Chat] Mode check: currentMode='${currentMode}', isAutoMode=${isAutoMode}, isChattyMode=${isChattyMode}`);
+        // Default to NOT requiring desktop actions unless explicitly in auto mode
+        setDesktopActionsRequired(isAutoMode && !isChattyMode);
+        desktopActionsRef.current = isAutoMode && !isChattyMode;
         chatModeAnnouncementRef.current = false;
         setThinkingStatus('Thinking...');
       } else if (event.type === 'metadata') {

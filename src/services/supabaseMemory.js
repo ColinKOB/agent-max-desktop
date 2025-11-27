@@ -20,12 +20,15 @@ let syncQueue = [];
 let isOnline = navigator.onLine;
 let syncInProgress = false;
 
-// User consent scopes (default to conservative)
+// User consent scopes
+// Default to TRUE for users who completed onboarding (have user_id)
+// This matches the expected behavior - onboarding implies consent
+const hasUserId = !!localStorage.getItem('user_id');
 let consentScopes = {
-  prompts: false,
-  outputs: false,
-  tools: false,
-  screenshots: false,
+  prompts: hasUserId,  // Default true if user completed onboarding
+  outputs: hasUserId,  // Default true if user completed onboarding
+  tools: hasUserId,    // Default true if user completed onboarding
+  screenshots: false,  // Screenshots still require explicit consent
 };
 
 // Listen for online/offline events
