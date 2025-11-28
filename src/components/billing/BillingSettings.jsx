@@ -86,15 +86,8 @@ const TIERS = [
   }
 ];
 
-// Stripe Payment Links (fallback when API unavailable)
-const STRIPE_PAYMENT_LINKS = {
-  starter_monthly: 'https://buy.stripe.com/5kA28S2nw6FffKg3ce',
-  starter_annual: 'https://buy.stripe.com/5kA28S2nw6FffKg3cf',
-  premium_monthly: 'https://buy.stripe.com/8wM00KcY60h1fKg5km',
-  premium_annual: 'https://buy.stripe.com/aEU00KgakhfP0Vm28b',
-  pro_monthly: 'https://buy.stripe.com/dR69BkeQ30h10Vm3ch',
-  pro_annual: 'https://buy.stripe.com/fZe00K1js5Bb8bS7sx',
-};
+// Stripe checkout is currently only available via the backend API
+// When the API is unavailable, we show a contact message instead
 
 export function BillingSettings({ tenantId = 'test-tenant-001', userId }) {
   const [billingCycle, setBillingCycle] = useState('monthly');
@@ -207,33 +200,29 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId }) {
       const successUrl = `${window.location.origin}/#/settings?purchase=success`;
       const cancelUrl = `${window.location.origin}/#/settings?purchase=cancel`;
 
-      // Try the API first
-      try {
-        const response = await creditsAPI.createSubscription(planId, userId, successUrl, cancelUrl);
-        
-        if (response?.data?.url) {
-          window.location.href = response.data.url;
-          return;
-        }
-      } catch (apiError) {
-        console.warn('[BillingSettings] API checkout failed, using payment link:', apiError);
+      // Try the API checkout endpoint
+      const response = await creditsAPI.createSubscription(planId, userId, successUrl, cancelUrl);
+      
+      if (response?.data?.url) {
+        window.location.href = response.data.url;
+        return;
       }
       
-      // Fallback to direct Stripe payment links
-      const paymentLink = STRIPE_PAYMENT_LINKS[planId];
-      if (paymentLink) {
-        // Append client_reference_id if we have a userId
-        const url = userId 
-          ? `${paymentLink}?client_reference_id=${encodeURIComponent(userId)}`
-          : paymentLink;
-        window.open(url, '_blank');
-        toast.success('Opening Stripe checkout in a new tab...');
-      } else {
-        throw new Error('Payment link not available');
-      }
+      throw new Error('No checkout URL returned');
     } catch (error) {
       console.error('[BillingSettings] Subscription failed:', error);
-      toast.error('Failed to start checkout. Please try again.');
+      
+      // Check if it's a 404 (endpoint not deployed)
+      const is404 = error?.status === 404 || error?.response?.status === 404 || error?.message?.includes('not found');
+      
+      if (is404) {
+        toast.error(
+          'Subscriptions are being set up! Please contact support@agentmax.ai to subscribe.',
+          { duration: 5000, icon: '📧' }
+        );
+      } else {
+        toast.error('Failed to start checkout. Please try again.');
+      }
     } finally {
       setPurchasing(false);
     }
