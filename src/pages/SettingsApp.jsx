@@ -1,14 +1,57 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SettingsSimple from './SettingsSimple.jsx';
 import { BillingSettings } from '../components/billing/BillingSettings.jsx';
 import ConversationHistory from '../components/ConversationHistory.jsx';
+import DeepDiveTab from '../components/settings/DeepDiveTab.jsx';
 
 export default function SettingsApp() {
   const [activeTab, setActiveTab] = useState('settings');
+  const [selectedDeepDiveId, setSelectedDeepDiveId] = useState(null);
+
+  // Check URL for deep dive navigation (works with both hash and search params)
+  useEffect(() => {
+    const parseDeepDiveId = () => {
+      // Check hash first (HashRouter style: #/settings?deepdive=ID)
+      const hash = window.location.hash;
+      if (hash.includes('deepdive=')) {
+        const match = hash.match(/deepdive=([^&]+)/);
+        if (match) return match[1];
+      }
+      // Also check search params (direct URL style: /settings?deepdive=ID)
+      const search = window.location.search;
+      if (search.includes('deepdive=')) {
+        const match = search.match(/deepdive=([^&]+)/);
+        if (match) return match[1];
+      }
+      return null;
+    };
+
+    const handleNavigation = () => {
+      const deepDiveId = parseDeepDiveId();
+      if (deepDiveId) {
+        console.log('[Settings] Navigating to Deep Dive:', deepDiveId);
+        setSelectedDeepDiveId(deepDiveId);
+        setActiveTab('deepdive');
+      }
+    };
+
+    // Check on mount
+    handleNavigation();
+    
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleNavigation);
+    window.addEventListener('popstate', handleNavigation);
+    
+    return () => {
+      window.removeEventListener('hashchange', handleNavigation);
+      window.removeEventListener('popstate', handleNavigation);
+    };
+  }, []);
 
   const tabs = [
     { id: 'settings', label: 'Settings' },
     { id: 'billing', label: 'Billing' },
+    { id: 'deepdive', label: 'Deep Dive' },
     { id: 'history', label: 'History' },
   ];
 
@@ -28,6 +71,19 @@ export default function SettingsApp() {
               </div>
             </div>
           </div>
+        );
+      case 'deepdive':
+        return (
+          <DeepDiveTab 
+            selectedDeepDiveId={selectedDeepDiveId}
+            onClose={() => {
+              setSelectedDeepDiveId(null);
+              // Navigate back to main chat if opened from there
+              if (window.opener || window.electronAPI) {
+                window.close();
+              }
+            }}
+          />
         );
       default:
         return <SettingsSimple />;

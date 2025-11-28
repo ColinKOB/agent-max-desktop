@@ -433,15 +433,26 @@ export async function createSession(userId, title = null, mode = 'private') {
 
 /**
  * Get user sessions
+ * @param {string} userId - User ID
+ * @param {boolean} activeOnly - Only return active sessions
+ * @param {boolean} includeMessages - Include messages for each session
+ * @param {number} limit - Max number of sessions to return (default 100)
  */
-export async function getUserSessions(userId, activeOnly = true) {
+export async function getUserSessions(userId, activeOnly = true, includeMessages = false, limit = 100) {
   try {
     if (!SUPABASE_ENABLED || !supabase || String(userId).startsWith('local-')) return [];
+    
+    // Build select query - optionally include messages via join
+    const selectQuery = includeMessages 
+      ? '*, messages(id, role, content, created_at)' 
+      : '*';
+    
     let query = supabase
       .from('sessions')
-      .select('*')
+      .select(selectQuery)
       .eq('user_id', userId)
-      .order('updated_at', { ascending: false });
+      .order('updated_at', { ascending: false })
+      .limit(limit);
 
     if (activeOnly) {
       query = query.eq('is_active', true);
@@ -451,7 +462,8 @@ export async function getUserSessions(userId, activeOnly = true) {
 
     if (error) throw error;
 
-    logger.debug('Sessions retrieved', { userId, count: data.length });
+    logger.debug('Sessions retrieved', { userId, count: data.length, limit });
+    
     return data;
   } catch (error) {
     logger.error('Failed to get sessions', error);
@@ -470,7 +482,10 @@ export async function storeMessage(
   metadata = {}
 ) {
   try {
-    if (!SUPABASE_ENABLED || !supabase || String(sessionId).startsWith('local-session-')) return;
+    const isLocalSession = String(sessionId).startsWith('local-session-');
+    if (!SUPABASE_ENABLED || !supabase || isLocalSession) {
+      return;
+    }
     const { error } = await supabase.from('messages').insert({
       session_id: sessionId,
       role,

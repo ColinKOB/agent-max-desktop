@@ -7,7 +7,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Settings, Wrench, ArrowUp, Loader2, Minimize2, Check, ChevronDown, ChevronRight, Lightbulb, Pause, Play, X, Wifi, WifiOff, Edit3 } from 'lucide-react';
+import { Settings, Wrench, ArrowUp, Loader2, Minimize2, Check, ChevronDown, ChevronRight, Lightbulb, Pause, Play, X, Wifi, WifiOff, Edit3, Book } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { chatAPI, permissionAPI, googleAPI, ambiguityAPI, semanticAPI, factsAPI, addConnectionListener, healthAPI, runAPI } from '../../services/api';
 import { PullAutonomousService } from '../../services/pullAutonomous';
@@ -33,6 +33,7 @@ import './FloatBar.css';
 import memoryAPI from '../../services/memoryAPI';
 import ContextPreview from './ContextPreview';
 import MemoryToast from '../MemoryToast';
+import { qualifiesAsDeepDive, createDeepDive } from '../../services/deepDiveService';
 import { OnboardingFlow } from '../onboarding/OnboardingFlow';
 import ExecutionProgress from '../ExecutionProgress/ExecutionProgress';
 import TypewriterMessage from '../TypewriterMessage/TypewriterMessage';
@@ -1349,24 +1350,59 @@ export default function AppleFloatBar({
           }
         } catch {}
         
+        // Check if response qualifies as a Deep Dive (>150 words)
+        let deepDiveEntry = null;
+        if (responseText && qualifiesAsDeepDive(responseText)) {
+          try {
+            const userPrompt = lastUserPromptRef.current || '';
+            deepDiveEntry = createDeepDive(userPrompt, responseText);
+            logger.info(`[Chat] Created Deep Dive: ${deepDiveEntry.id} (${deepDiveEntry.wordCount} words)`);
+            // Dispatch event for settings tab to update
+            window.dispatchEvent(new Event('deep-dive-updated'));
+          } catch (err) {
+            logger.warn('[Chat] Failed to create Deep Dive:', err);
+          }
+        }
+
         setThoughts(prev => {
           // Check if last message is a streaming assistant message
           if (prev.length > 0 && prev[prev.length - 1].role === 'assistant' && prev[prev.length - 1].streaming) {
             // Mark the streaming message as complete
             const updated = [...prev];
-            updated[updated.length - 1] = {
-              ...updated[updated.length - 1],
-              content: responseText || updated[updated.length - 1].content,
-              streaming: false // Mark as complete
-            };
+            
+            // If this is a Deep Dive, show summary + link instead of full response
+            if (deepDiveEntry) {
+              updated[updated.length - 1] = {
+                ...updated[updated.length - 1],
+                content: deepDiveEntry.summary,
+                streaming: false,
+                isDeepDive: true,
+                deepDiveId: deepDiveEntry.id,
+                fullContent: responseText // Keep full content for reference
+              };
+            } else {
+              updated[updated.length - 1] = {
+                ...updated[updated.length - 1],
+                content: responseText || updated[updated.length - 1].content,
+                streaming: false
+              };
+            }
             return updated;
           } else if (responseText) {
             // No streaming message exists, create a final one
-            return [...prev, {
+            const messageData = {
               role: 'assistant',
-              content: responseText,
+              content: deepDiveEntry ? deepDiveEntry.summary : responseText,
               timestamp: Date.now()
-            }];
+            };
+            
+            if (deepDiveEntry) {
+              messageData.isDeepDive = true;
+              messageData.deepDiveId = deepDiveEntry.id;
+              messageData.fullContent = responseText;
+            }
+            
+            return [...prev, messageData];
           }
           return prev;
         });
@@ -2793,7 +2829,14 @@ export default function AppleFloatBar({
         if (b?.height) currentHeight = b.height;
       } catch {}
 
-      let targetHeight = Math.max(minHeight, Math.min(preferredMax, currentHeight + delta));
+      // Check if there are Deep Dive messages - they need minimum height for summary + button
+      const hasDeepDive = thoughts.some(t => t.isDeepDive);
+      const effectiveMinHeight = hasDeepDive ? Math.max(minHeight, 280) : minHeight;
+
+      // Limit shrinking to prevent jarring transitions (max 100px shrink per update)
+      const clampedDelta = delta < 0 ? Math.max(delta, -100) : delta;
+      
+      let targetHeight = Math.max(effectiveMinHeight, Math.min(preferredMax, currentHeight + clampedDelta));
 
       // Only resize if height changed meaningfully
       if (Math.abs(targetHeight - lastHeightRef.current) > 8) {
@@ -2843,6 +2886,12 @@ export default function AppleFloatBar({
   }, [execPanelOpen, executionDetails, updateWindowHeight]);
 
   // Auto-scroll behavior: keep greeting visible in empty state, otherwise stick to bottom
+  // Also triggers when a message gains a Deep Dive button (streaming: false + isDeepDive)
+  const lastThought = thoughts[thoughts.length - 1];
+  const lastThoughtKey = lastThought 
+    ? `${lastThought.streaming}-${lastThought.isDeepDive || false}-${(lastThought.content || '').length}`
+    : '';
+  
   useEffect(() => {
     const el = messagesRef.current;
     if (!el) return;
@@ -2854,8 +2903,11 @@ export default function AppleFloatBar({
     }
 
     // With messages or thinking indicator, stick to bottom
-    el.scrollTop = el.scrollHeight;
-  }, [thoughts.length, isThinking]);
+    // Small delay to ensure DOM has updated (especially for Deep Dive buttons)
+    setTimeout(() => {
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 50);
+  }, [thoughts.length, isThinking, lastThoughtKey]);
 
   // Re-measure height when window regains focus or visibility (e.g., after minimize)
   useEffect(() => {
@@ -3472,6 +3524,56 @@ export default function AppleFloatBar({
                       {thought.role === 'assistant' && thought.memoryLabel && (
                         <div style={{ marginTop: 6, fontSize: '0.75rem', color: '#065f46', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, padding: '6px 8px' }}>
                           {thought.memoryLabel}
+                        </div>
+                      )}
+                      {/* Deep Dive link for long responses */}
+                      {thought.role === 'assistant' && thought.isDeepDive && thought.deepDiveId && (
+                        <div style={{ 
+                          marginTop: 12, 
+                          paddingTop: 10,
+                          paddingBottom: 4, 
+                          borderTop: '1px solid rgba(255,255,255,0.1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8
+                        }}>
+                          <button
+                            onClick={() => {
+                              // Open settings with Deep Dive tab
+                              if (window.electronAPI?.openSettings) {
+                                window.electronAPI.openSettings({ route: `/settings?deepdive=${thought.deepDiveId}` });
+                              } else {
+                                // Fallback: navigate in same window
+                                window.location.hash = `/settings?deepdive=${thought.deepDiveId}`;
+                              }
+                            }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '6px 12px',
+                              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15))',
+                              border: '1px solid rgba(139, 92, 246, 0.3)',
+                              borderRadius: 8,
+                              color: '#c4b5fd',
+                              fontSize: 12,
+                              fontWeight: 500,
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.25))';
+                              e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.5)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15))';
+                              e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+                            }}
+                          >
+                            <span>📖</span>
+                            <span>See full response in Deep Dive</span>
+                            <ChevronRight size={14} />
+                          </button>
                         </div>
                       )}
                     </div>

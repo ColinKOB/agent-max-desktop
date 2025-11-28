@@ -491,7 +491,7 @@ export function GoogleConnect({ compact = false }) {
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .google-connect-container {
           padding: 2rem;
           max-width: 800px;

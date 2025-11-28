@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { History, Clock, MessageSquare, Loader2, Search, X } from 'lucide-react';
+import { History, Clock, MessageSquare, Loader2, Search, X, Upload } from 'lucide-react';
 import { conversationAPI } from '../services/api';
 import { getAllSessions } from '../services/supabaseMemory';
 import toast from 'react-hot-toast';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export default function ConversationHistory({ onLoadConversation }) {
   const [conversations, setConversations] = useState([]);
@@ -129,9 +131,20 @@ export default function ConversationHistory({ onLoadConversation }) {
   };
 
   const handleLoadConversation = () => {
-    if (selectedConv && onLoadConversation) {
-      onLoadConversation(selectedConv);
-      toast.success('Conversation loaded!');
+    if (selectedConv) {
+      // If parent provided a callback, use it
+      if (onLoadConversation) {
+        onLoadConversation(selectedConv);
+        toast.success('Conversation loaded!');
+      } else {
+        // Fallback: Store in localStorage and notify user to go to chat
+        try {
+          localStorage.setItem('loaded_conversation', JSON.stringify(selectedConv));
+          toast.success('Conversation saved! Return to chat to continue.');
+        } catch (e) {
+          toast.error('Failed to load conversation');
+        }
+      }
     }
   };
 
@@ -175,7 +188,26 @@ export default function ConversationHistory({ onLoadConversation }) {
               <div className="font-semibold text-[10px] text-black/50 mb-1 uppercase tracking-wide">
                 {msg.role}
               </div>
-              <div className="whitespace-pre-wrap">{msg.content}</div>
+              <div className="prose prose-sm max-w-none">
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    p: ({children}) => <p style={{ margin: '0 0 8px 0' }}>{children}</p>,
+                    strong: ({children}) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
+                    em: ({children}) => <em style={{ fontStyle: 'italic' }}>{children}</em>,
+                    ul: ({children}) => <ul style={{ margin: '8px 0', paddingLeft: 20 }}>{children}</ul>,
+                    ol: ({children}) => <ol style={{ margin: '8px 0', paddingLeft: 20 }}>{children}</ol>,
+                    li: ({children}) => <li style={{ margin: '4px 0' }}>{children}</li>,
+                    code: ({inline, children}) => inline 
+                      ? <code style={{ background: '#f3f4f6', padding: '2px 4px', borderRadius: 4, fontSize: 12 }}>{children}</code>
+                      : <code style={{ display: 'block', background: '#f3f4f6', padding: 8, borderRadius: 6, fontSize: 12, overflowX: 'auto' }}>{children}</code>,
+                    pre: ({children}) => <pre style={{ background: '#f3f4f6', padding: 12, borderRadius: 8, margin: '8px 0', overflowX: 'auto' }}>{children}</pre>,
+                    a: ({href, children}) => <a href={href} target="_blank" rel="noreferrer" style={{ color: '#6366f1', textDecoration: 'underline' }}>{children}</a>,
+                  }}
+                >
+                  {msg.content}
+                </ReactMarkdown>
+              </div>
             </div>
           ))}
         </div>
