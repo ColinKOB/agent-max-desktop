@@ -57,9 +57,27 @@
   margin-bottom: 24px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+  }
+  
+  .stat-card {
+    padding: 12px;
+  }
+  
+  .stat-icon {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .stat-value {
+    font-size: 18px;
+  }
+  
+  .stat-label {
+    font-size: 10px;
   }
 }
 
@@ -223,20 +241,35 @@
   margin-left: 4px;
 }
 
-/* Tier Grid */
+/* Tier Grid - ALWAYS side by side */
 .tier-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
   margin-bottom: 28px;
+  min-width: 0;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 800px) {
   .tier-grid {
-    grid-template-columns: 1fr;
-    max-width: 400px;
-    margin-left: auto;
-    margin-right: auto;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  
+  .tier-card {
+    padding: 20px 12px;
+  }
+  
+  .tier-name {
+    font-size: 16px;
+  }
+  
+  .price-amount {
+    font-size: 28px;
+  }
+  
+  .tier-features li {
+    font-size: 11px;
   }
 }
 

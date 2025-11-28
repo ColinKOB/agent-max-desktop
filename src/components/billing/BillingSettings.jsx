@@ -16,11 +16,12 @@ import {
   Code,
   TrendingUp,
   Calendar,
-  Shield
+  Shield,
+  ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { creditsAPI } from '../../services/api';
-import { supabase } from '../../services/supabase';
+import { creditsAPI, telemetryAPI } from '../../services/api';
+import { supabase, isSupabaseAvailable } from '../../services/supabase';
 import './BillingSettings.css';
 
 // Subscription tier definitions
@@ -85,6 +86,16 @@ const TIERS = [
   }
 ];
 
+// Stripe Payment Links (fallback when API unavailable)
+const STRIPE_PAYMENT_LINKS = {
+  starter_monthly: 'https://buy.stripe.com/5kA28S2nw6FffKg3ce',
+  starter_annual: 'https://buy.stripe.com/5kA28S2nw6FffKg3cf',
+  premium_monthly: 'https://buy.stripe.com/8wM00KcY60h1fKg5km',
+  premium_annual: 'https://buy.stripe.com/aEU00KgakhfP0Vm28b',
+  pro_monthly: 'https://buy.stripe.com/dR69BkeQ30h10Vm3ch',
+  pro_annual: 'https://buy.stripe.com/fZe00K1js5Bb8bS7sx',
+};
+
 export function BillingSettings({ tenantId = 'test-tenant-001', userId }) {
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [selectedTier, setSelectedTier] = useState('premium');
@@ -97,7 +108,8 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId }) {
     filesCreated: 0,
     codeGenerated: 0,
     currentCredits: 0,
-    currentTier: null
+    currentTier: null,
+    subscriptionStatus: null
   });
 
   useEffect(() => {
@@ -107,34 +119,77 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId }) {
   const loadUserStats = async () => {
     try {
       setLoading(true);
+      let credits = 0;
+      let tier = null;
+      let subscriptionStatus = null;
       
-      // Load user data from Supabase
-      if (userId) {
-        const { data: userData } = await supabase
-          .from('users')
-          .select('credits, subscription_tier, subscription_status')
-          .eq('id', userId)
-          .single();
-        
-        if (userData) {
-          setStats(prev => ({
-            ...prev,
-            currentCredits: userData.credits || 0,
-            currentTier: userData.subscription_tier || null
-          }));
+      // 1. Try to get credits from Supabase (primary source)
+      if (isSupabaseAvailable() && userId) {
+        try {
+          const { data: userData, error } = await supabase
+            .from('users')
+            .select('credits, subscription_tier, subscription_status')
+            .eq('id', userId)
+            .single();
+          
+          if (!error && userData) {
+            credits = userData.credits || 0;
+            tier = userData.subscription_tier || null;
+            subscriptionStatus = userData.subscription_status || null;
+            console.log('[BillingSettings] Loaded from Supabase:', { credits, tier, subscriptionStatus });
+          }
+        } catch (err) {
+          console.warn('[BillingSettings] Supabase query failed:', err);
+        }
+      }
+      
+      // 2. Fallback: try backend credits API
+      if (credits === 0 && userId) {
+        try {
+          const balanceRes = await creditsAPI.getBalance(userId);
+          if (balanceRes?.data) {
+            credits = balanceRes.data.credits || balanceRes.data.balance || 0;
+            tier = balanceRes.data.subscription_tier || tier;
+            console.log('[BillingSettings] Loaded from API:', { credits, tier });
+          }
+        } catch (err) {
+          console.warn('[BillingSettings] Credits API failed:', err);
         }
       }
 
-      // Simulated stats for demo (in production, fetch from telemetry)
-      // These would come from your telemetry/analytics backend
-      setStats(prev => ({
-        ...prev,
-        totalConversations: 47,
-        tasksCompleted: 23,
-        hoursTimeSaved: 12,
-        filesCreated: 156,
-        codeGenerated: 2340
-      }));
+      // 3. Load telemetry stats for usage metrics
+      let conversationCount = 0;
+      let tasksCount = 0;
+      try {
+        const telemetryRes = await telemetryAPI.getStats();
+        if (telemetryRes?.data) {
+          conversationCount = telemetryRes.data.conversations_this_month 
+            || telemetryRes.data.conversations 
+            || telemetryRes.data.total_conversations 
+            || 0;
+          tasksCount = telemetryRes.data.successful_count 
+            || telemetryRes.data.tasks_completed 
+            || Math.floor(conversationCount * 0.6); // estimate
+        }
+      } catch (err) {
+        console.warn('[BillingSettings] Telemetry stats unavailable');
+      }
+
+      // 4. Calculate estimated metrics
+      const estimatedTimeSaved = Math.round(conversationCount * 0.25); // ~15min per conversation
+      const estimatedFiles = Math.round(tasksCount * 2.5);
+      const estimatedCode = Math.round(tasksCount * 85);
+
+      setStats({
+        totalConversations: conversationCount,
+        tasksCompleted: tasksCount,
+        hoursTimeSaved: estimatedTimeSaved,
+        filesCreated: estimatedFiles,
+        codeGenerated: estimatedCode,
+        currentCredits: credits,
+        currentTier: tier,
+        subscriptionStatus
+      });
 
     } catch (error) {
       console.error('[BillingSettings] Failed to load stats:', error);
@@ -152,12 +207,29 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId }) {
       const successUrl = `${window.location.origin}/#/settings?purchase=success`;
       const cancelUrl = `${window.location.origin}/#/settings?purchase=cancel`;
 
-      const response = await creditsAPI.createSubscription(planId, userId, successUrl, cancelUrl);
+      // Try the API first
+      try {
+        const response = await creditsAPI.createSubscription(planId, userId, successUrl, cancelUrl);
+        
+        if (response?.data?.url) {
+          window.location.href = response.data.url;
+          return;
+        }
+      } catch (apiError) {
+        console.warn('[BillingSettings] API checkout failed, using payment link:', apiError);
+      }
       
-      if (response?.data?.url) {
-        window.location.href = response.data.url;
+      // Fallback to direct Stripe payment links
+      const paymentLink = STRIPE_PAYMENT_LINKS[planId];
+      if (paymentLink) {
+        // Append client_reference_id if we have a userId
+        const url = userId 
+          ? `${paymentLink}?client_reference_id=${encodeURIComponent(userId)}`
+          : paymentLink;
+        window.open(url, '_blank');
+        toast.success('Opening Stripe checkout in a new tab...');
       } else {
-        throw new Error('No checkout URL returned');
+        throw new Error('Payment link not available');
       }
     } catch (error) {
       console.error('[BillingSettings] Subscription failed:', error);
