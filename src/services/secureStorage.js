@@ -2,6 +2,15 @@
  * Secure Storage Service
  * Provides OS keychain integration for sensitive data (API keys, tokens)
  * Falls back to localStorage for web builds
+ * 
+ * SECURITY NOTE: localStorage fallback is NOT secure against XSS attacks.
+ * In web builds, API keys stored in localStorage can be accessed by any
+ * JavaScript running on the page. For production web deployments, consider:
+ * - Using httpOnly cookies instead
+ * - Server-side session management
+ * - OAuth tokens with short expiration
+ * 
+ * The Electron desktop app uses OS keychain (secure) when available.
  */
 
 const SERVICE_NAME = 'agent-max-desktop';

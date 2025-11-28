@@ -1221,8 +1221,9 @@ export const googleAPI = {
 // TELEMETRY API
 // ============================================
 export const telemetryAPI = {
+  // Note: telemetry endpoints are at /api/telemetry (not /api/v2/telemetry)
   sendBatch: (events) =>
-    api.post('/api/v2/telemetry/batch', {
+    api.post('/api/telemetry/batch', {
       events,
       userId: localStorage.getItem('user_id') || 'anonymous',
       sessionId: localStorage.getItem('session_id') || Date.now().toString(),
@@ -1230,7 +1231,7 @@ export const telemetryAPI = {
     }),
 
   trackInteraction: (action, metadata = {}) =>
-    api.post('/api/v2/telemetry/batch', {
+    api.post('/api/telemetry/batch', {
       events: [
         {
           type: 'interaction',
@@ -1244,7 +1245,7 @@ export const telemetryAPI = {
     }),
 
   trackError: (error, context = {}) =>
-    api.post('/api/v2/telemetry/batch', {
+    api.post('/api/telemetry/batch', {
       events: [
         {
           type: 'error',
@@ -1258,10 +1259,11 @@ export const telemetryAPI = {
       sessionId: localStorage.getItem('session_id') || Date.now().toString(),
     }),
 
-  getStats: () => api.get('/api/v2/telemetry/stats'),
+  // Note: telemetry endpoints are at /api/telemetry (not /api/v2/telemetry)
+  getStats: () => api.get('/api/telemetry/stats'),
 
   getInteractions: (limit = 100) =>
-    api.get('/api/v2/telemetry/interactions', { params: { limit } }),
+    api.get('/api/telemetry/interactions', { params: { limit } }),
 };
 
 // ============================================
