@@ -1,439 +1,372 @@
 /**
  * Billing Settings Component
  * 
- * Comprehensive billing management interface for the settings page
+ * Professional billing interface with achievement stats and subscription tiers
  */
 import { useState, useEffect } from 'react';
 import { 
-  CreditCard, 
-  Bell, 
-  Shield, 
-  AlertTriangle,
+  Sparkles,
+  Zap,
+  Crown,
   Check,
-  Info,
-  ExternalLink,
   Loader2,
-  Coins
+  MessageSquare,
+  Clock,
+  FileText,
+  Code,
+  TrendingUp,
+  Calendar,
+  Shield
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { CreditPurchase } from './CreditPurchase';
-import SubscriptionManager from './SubscriptionManager';
+import { creditsAPI } from '../../services/api';
+import { supabase } from '../../services/supabase';
+import './BillingSettings.css';
 
-export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialTab = 'overview' }) {
-  const [activeTab, setActiveTab] = useState(initialTab);
-  const [settings, setSettings] = useState({
-    paymentMethod: null,
-    subscription: null,
-    usageAlerts: {
-      enabled: true,
-      threshold: 100,
-      emailNotifications: true,
-      inAppNotifications: true
-    },
-    usageLimits: {
-      monthlyConversationLimit: 50,
-      hardStop: false,
-      warningThreshold: 80
-    }
-  });
-  
+// Subscription tier definitions
+const TIERS = [
+  {
+    id: 'starter',
+    name: 'Starter',
+    icon: Zap,
+    monthlyPrice: 10,
+    yearlyPrice: 100,
+    creditsPerWeek: 150,
+    color: 'from-blue-500 to-cyan-500',
+    bgColor: 'bg-gradient-to-br from-blue-50 to-cyan-50',
+    borderColor: 'border-blue-200',
+    features: [
+      '150 credits per week',
+      '~600 credits per month',
+      'Standard response speed',
+      'Email support',
+      'Basic integrations'
+    ]
+  },
+  {
+    id: 'premium',
+    name: 'Premium',
+    icon: Crown,
+    monthlyPrice: 18,
+    yearlyPrice: 180,
+    creditsPerWeek: 250,
+    popular: true,
+    color: 'from-violet-500 to-purple-600',
+    bgColor: 'bg-gradient-to-br from-violet-50 to-purple-50',
+    borderColor: 'border-violet-300',
+    features: [
+      '250 credits per week',
+      '~1,000 credits per month',
+      'Priority response speed',
+      'Priority support',
+      'Advanced integrations',
+      'Memory & context'
+    ]
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    icon: Sparkles,
+    monthlyPrice: 30,
+    yearlyPrice: 300,
+    creditsPerWeek: 600,
+    color: 'from-amber-500 to-orange-500',
+    bgColor: 'bg-gradient-to-br from-amber-50 to-orange-50',
+    borderColor: 'border-amber-200',
+    features: [
+      '600 credits per week',
+      '~2,400 credits per month',
+      'Fastest response speed',
+      'Dedicated support',
+      'All integrations',
+      'Unlimited memory',
+      'Custom workflows'
+    ]
+  }
+];
+
+export function BillingSettings({ tenantId = 'test-tenant-001', userId }) {
+  const [billingCycle, setBillingCycle] = useState('monthly');
+  const [selectedTier, setSelectedTier] = useState('premium');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [portalLoading, setPortalLoading] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
+  const [stats, setStats] = useState({
+    totalConversations: 0,
+    tasksCompleted: 0,
+    hoursTimeSaved: 0,
+    filesCreated: 0,
+    codeGenerated: 0,
+    currentCredits: 0,
+    currentTier: null
+  });
 
   useEffect(() => {
-    fetchBillingSettings();
-    
-    // Check URL for tab parameter
-    const urlParams = new URLSearchParams(window.location.search || window.location.hash.split('?')[1]);
-    const tabParam = urlParams.get('tab');
-    if (tabParam) {
-      setActiveTab(tabParam);
-    }
-  }, [tenantId]);
+    loadUserStats();
+  }, [userId]);
 
-  const fetchBillingSettings = async () => {
+  const loadUserStats = async () => {
     try {
       setLoading(true);
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/api/v2/billing/settings/${tenantId}`);
       
-      if (response.ok) {
-        const data = await response.json();
-        setSettings(data);
+      // Load user data from Supabase
+      if (userId) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('credits, subscription_tier, subscription_status')
+          .eq('id', userId)
+          .single();
+        
+        if (userData) {
+          setStats(prev => ({
+            ...prev,
+            currentCredits: userData.credits || 0,
+            currentTier: userData.subscription_tier || null
+          }));
+        }
       }
-      // If not ok, just use default settings
-    } catch (err) {
-      console.log('[BillingSettings] Using default settings (API not available)');
+
+      // Simulated stats for demo (in production, fetch from telemetry)
+      // These would come from your telemetry/analytics backend
+      setStats(prev => ({
+        ...prev,
+        totalConversations: 47,
+        tasksCompleted: 23,
+        hoursTimeSaved: 12,
+        filesCreated: 156,
+        codeGenerated: 2340
+      }));
+
+    } catch (error) {
+      console.error('[BillingSettings] Failed to load stats:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const saveSettings = async () => {
+  const handleSubscribe = async (tierId) => {
     try {
-      setSaving(true);
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/api/v2/billing/settings/${tenantId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
-      });
+      setPurchasing(true);
+      setSelectedTier(tierId);
       
-      if (!response.ok) throw new Error('Failed to save settings');
-      
-      toast.success('Settings saved successfully');
-    } catch (err) {
-      console.error('[BillingSettings] Save error:', err);
-      toast.error('Failed to save settings');
-    } finally {
-      setSaving(false);
-    }
-  };
+      const planId = `${tierId}_${billingCycle === 'yearly' ? 'annual' : 'monthly'}`;
+      const successUrl = `${window.location.origin}/#/settings?purchase=success`;
+      const cancelUrl = `${window.location.origin}/#/settings?purchase=cancel`;
 
-  const openStripePortal = async () => {
-    try {
-      setPortalLoading(true);
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/api/v2/billing/portal/${tenantId}`, {
-        method: 'POST'
-      });
+      const response = await creditsAPI.createSubscription(planId, userId, successUrl, cancelUrl);
       
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.detail || 'Failed to open portal');
+      if (response?.data?.url) {
+        window.location.href = response.data.url;
+      } else {
+        throw new Error('No checkout URL returned');
       }
-      
-      const data = await response.json();
-      if (data.url) {
-        window.open(data.url, '_blank');
-      }
-    } catch (err) {
-      console.error('[BillingSettings] Portal error:', err);
-      toast.error(err.message || 'Failed to open billing portal');
+    } catch (error) {
+      console.error('[BillingSettings] Subscription failed:', error);
+      toast.error('Failed to start checkout. Please try again.');
     } finally {
-      setPortalLoading(false);
+      setPurchasing(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="billing-settings p-6">
-        <div className="animate-pulse space-y-6">
-          <div className="h-20 bg-gray-200 rounded-xl"></div>
-          <div className="h-32 bg-gray-200 rounded-xl"></div>
-          <div className="h-40 bg-gray-200 rounded-xl"></div>
+      <div className="billing-page">
+        <div className="billing-loading">
+          <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+          <p>Loading your dashboard...</p>
         </div>
       </div>
     );
   }
 
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: Shield },
-    { id: 'credits', label: 'Purchase Credits', icon: Coins },
-  ];
-
   return (
-    <div className="billing-settings space-y-6">
-      {/* Tab Navigation */}
-      <div className="flex items-center gap-2 border-b border-gray-200 pb-4">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Credits Tab */}
-      {activeTab === 'credits' && (
-        <CreditPurchase 
-          userId={userId} 
-          onSuccess={() => {
-            toast.success('Credits added successfully!');
-            setActiveTab('overview');
-          }}
-        />
-      )}
-
-      {/* Overview Tab */}
-      {activeTab === 'overview' && (
-        <>
-          {/* Payment Method Section */}
-      <div className="section bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-blue-600" />
-            Payment Method
-          </h3>
+    <div className="billing-page">
+      {/* Hero Stats Section */}
+      <div className="billing-hero">
+        <div className="hero-content">
+          <h1 className="hero-title">Your Agent Max Journey</h1>
+          <p className="hero-subtitle">
+            Here's what you've accomplished with your AI assistant
+          </p>
         </div>
 
-        {settings.paymentMethod ? (
-          <div className="payment-card p-4 bg-gray-50 rounded-xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {/* Card Icon */}
-                <div className="w-12 h-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded flex items-center justify-center">
-                  <CreditCard className="w-6 h-6 text-white" />
-                </div>
-                
-                {/* Card Details */}
-                <div>
-                  <p className="font-medium text-gray-900">
-                    {settings.paymentMethod.brand} •••• {settings.paymentMethod.last4}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Expires {settings.paymentMethod.expMonth}/{settings.paymentMethod.expYear}
-                  </p>
-                </div>
-              </div>
-              
-              <button
-                onClick={openStripePortal}
-                disabled={portalLoading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                {portalLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <ExternalLink className="w-4 h-4" />
-                )}
-                Update
-              </button>
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon bg-gradient-to-br from-violet-500 to-purple-600">
+              <MessageSquare className="w-5 h-5 text-white" />
+            </div>
+            <div className="stat-info">
+              <span className="stat-value">{stats.totalConversations}</span>
+              <span className="stat-label">Conversations</span>
             </div>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {/* Warning message */}
-            <div className="no-payment p-4 bg-amber-50 rounded-xl border border-amber-200">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-amber-900">
-                    No payment method on file
-                  </p>
-                  <p className="text-sm text-amber-700 mt-1">
-                    Add a payment method to enable premium features and avoid service interruption.
-                  </p>
-                </div>
-              </div>
+
+          <div className="stat-card">
+            <div className="stat-icon bg-gradient-to-br from-emerald-500 to-teal-600">
+              <Check className="w-5 h-5 text-white" />
             </div>
-            {/* CTA button - outside the warning for better contrast */}
-            <button
-              onClick={openStripePortal}
-              className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
-            >
-              <CreditCard className="w-4 h-4" />
-              Add Payment Method
-            </button>
+            <div className="stat-info">
+              <span className="stat-value">{stats.tasksCompleted}</span>
+              <span className="stat-label">Tasks Completed</span>
+            </div>
           </div>
-        )}
+
+          <div className="stat-card">
+            <div className="stat-icon bg-gradient-to-br from-blue-500 to-cyan-600">
+              <Clock className="w-5 h-5 text-white" />
+            </div>
+            <div className="stat-info">
+              <span className="stat-value">{stats.hoursTimeSaved}h</span>
+              <span className="stat-label">Time Saved</span>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon bg-gradient-to-br from-amber-500 to-orange-600">
+              <FileText className="w-5 h-5 text-white" />
+            </div>
+            <div className="stat-info">
+              <span className="stat-value">{stats.filesCreated}</span>
+              <span className="stat-label">Files Created</span>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon bg-gradient-to-br from-pink-500 to-rose-600">
+              <Code className="w-5 h-5 text-white" />
+            </div>
+            <div className="stat-info">
+              <span className="stat-value">{stats.codeGenerated.toLocaleString()}</span>
+              <span className="stat-label">Lines of Code</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Current Credits Display */}
+        <div className="credits-banner">
+          <div className="credits-info">
+            <TrendingUp className="w-5 h-5 text-violet-600" />
+            <span>Current Balance:</span>
+            <strong>{stats.currentCredits} credits</strong>
+          </div>
+          {stats.currentTier && (
+            <div className="current-plan">
+              <Shield className="w-4 h-4" />
+              <span>{stats.currentTier.charAt(0).toUpperCase() + stats.currentTier.slice(1)} Plan</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Subscription Section */}
-      <div className="section bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Shield className="w-5 h-5 text-purple-600" />
-          Subscription
-        </h3>
-        <SubscriptionManager userId={userId} />
-      </div>
+      <div className="subscription-section">
+        <div className="section-header">
+          <h2>Choose Your Plan</h2>
+          <p>Unlock more potential with Agent Max</p>
+        </div>
 
-      {/* Usage Alerts Section */}
-      <div className="section bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Bell className="w-5 h-5 text-orange-600" />
-          Usage Alerts
-        </h3>
+        {/* Billing Toggle */}
+        <div className="billing-toggle">
+          <button
+            className={`toggle-option ${billingCycle === 'monthly' ? 'active' : ''}`}
+            onClick={() => setBillingCycle('monthly')}
+          >
+            <Calendar className="w-4 h-4" />
+            Monthly
+          </button>
+          <button
+            className={`toggle-option ${billingCycle === 'yearly' ? 'active' : ''}`}
+            onClick={() => setBillingCycle('yearly')}
+          >
+            <Sparkles className="w-4 h-4" />
+            Yearly
+            <span className="save-badge">Save 17%</span>
+          </button>
+        </div>
 
-        <div className="space-y-4">
-          {/* Enable Alerts */}
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={settings.usageAlerts.enabled}
-              onChange={(e) => setSettings(prev => ({
-                ...prev,
-                usageAlerts: { ...prev.usageAlerts, enabled: e.target.checked }
-              }))}
-              className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="font-medium text-gray-900">
-              Enable usage alerts
-            </span>
-          </label>
+        {/* Tier Cards */}
+        <div className="tier-grid">
+          {TIERS.map((tier) => {
+            const Icon = tier.icon;
+            const price = billingCycle === 'yearly' ? tier.yearlyPrice : tier.monthlyPrice;
+            const isSelected = selectedTier === tier.id;
+            const isCurrentPlan = stats.currentTier === tier.id;
 
-          {settings.usageAlerts.enabled && (
-            <>
-              {/* Threshold */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Alert me when monthly cost exceeds:
-                </label>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600">$</span>
-                  <input
-                    type="number"
-                    value={settings.usageAlerts.threshold}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      usageAlerts: { ...prev.usageAlerts, threshold: parseInt(e.target.value) || 0 }
-                    }))}
-                    className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    min="0"
-                    step="10"
-                  />
+            return (
+              <div
+                key={tier.id}
+                className={`tier-card ${tier.popular ? 'popular' : ''} ${isSelected ? 'selected' : ''} ${isCurrentPlan ? 'current' : ''}`}
+              >
+                {tier.popular && (
+                  <div className="popular-badge">Most Popular</div>
+                )}
+                {isCurrentPlan && (
+                  <div className="current-badge">Current Plan</div>
+                )}
+
+                <div className={`tier-icon bg-gradient-to-br ${tier.color}`}>
+                  <Icon className="w-6 h-6 text-white" />
                 </div>
+
+                <h3 className="tier-name">{tier.name}</h3>
+
+                <div className="tier-price">
+                  <span className="price-amount">${price}</span>
+                  <span className="price-period">/{billingCycle === 'yearly' ? 'year' : 'month'}</span>
+                </div>
+
+                <div className="tier-credits">
+                  <Zap className="w-4 h-4 text-amber-500" />
+                  <span>{tier.creditsPerWeek} credits/week</span>
+                </div>
+
+                <ul className="tier-features">
+                  {tier.features.map((feature, idx) => (
+                    <li key={idx}>
+                      <Check className="w-4 h-4 text-emerald-500" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  className={`tier-cta ${tier.popular ? 'primary' : 'secondary'}`}
+                  onClick={() => handleSubscribe(tier.id)}
+                  disabled={purchasing || isCurrentPlan}
+                >
+                  {purchasing && selectedTier === tier.id ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : isCurrentPlan ? (
+                    'Current Plan'
+                  ) : (
+                    <>
+                      Get {tier.name}
+                    </>
+                  )}
+                </button>
               </div>
-
-              {/* Notification Types */}
-              <div className="space-y-2">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings.usageAlerts.emailNotifications}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      usageAlerts: { ...prev.usageAlerts, emailNotifications: e.target.checked }
-                    }))}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-gray-700">Email notifications</span>
-                </label>
-
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings.usageAlerts.inAppNotifications}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      usageAlerts: { ...prev.usageAlerts, inAppNotifications: e.target.checked }
-                    }))}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-gray-700">In-app notifications</span>
-                </label>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Usage Limits Section */}
-      <div className="section bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-red-600" />
-          Usage Limits
-        </h3>
-
-        <div className="info-box p-3 bg-blue-50 rounded-lg mb-4">
-          <div className="flex gap-2">
-            <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-blue-800">
-              Set hard limits to prevent overspending. When reached, new conversations will be blocked until the next billing period.
-            </p>
-          </div>
+            );
+          })}
         </div>
 
-        <div className="space-y-4">
-          {/* Monthly Limit */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Monthly conversation limit
-            </label>
-            <input
-              type="number"
-              value={settings.usageLimits.monthlyConversationLimit}
-              onChange={(e) => setSettings(prev => ({
-                ...prev,
-                usageLimits: { ...prev.usageLimits, monthlyConversationLimit: parseInt(e.target.value) || 0 }
-              }))}
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              min="0"
-              placeholder="0 for unlimited"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Set to 0 for unlimited conversations
-            </p>
+        {/* Trust Indicators */}
+        <div className="trust-section">
+          <div className="trust-item">
+            <Shield className="w-5 h-5 text-emerald-600" />
+            <span>Secure payments via Stripe</span>
           </div>
-
-          {/* Hard Stop */}
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={settings.usageLimits.hardStop}
-              onChange={(e) => setSettings(prev => ({
-                ...prev,
-                usageLimits: { ...prev.usageLimits, hardStop: e.target.checked }
-              }))}
-              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <div>
-              <span className="font-medium text-gray-900">
-                Enable hard stop
-              </span>
-              <p className="text-xs text-gray-500">
-                Block all new conversations when limit is reached
-              </p>
-            </div>
-          </label>
-
-          {/* Warning Threshold */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Warning threshold (%)
-            </label>
-            <input
-              type="number"
-              value={settings.usageLimits.warningThreshold}
-              onChange={(e) => setSettings(prev => ({
-                ...prev,
-                usageLimits: { ...prev.usageLimits, warningThreshold: parseInt(e.target.value) || 0 }
-              }))}
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              min="0"
-              max="100"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Show warning when usage reaches this percentage
-            </p>
+          <div className="trust-item">
+            <Check className="w-5 h-5 text-emerald-600" />
+            <span>Cancel anytime</span>
+          </div>
+          <div className="trust-item">
+            <TrendingUp className="w-5 h-5 text-emerald-600" />
+            <span>Credits never expire</span>
           </div>
         </div>
       </div>
-
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <button
-          onClick={saveSettings}
-          disabled={saving}
-          className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-        >
-          {saving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Check className="w-4 h-4" />
-              Save Settings
-            </>
-          )}
-        </button>
-      </div>
-        </>
-      )}
     </div>
   );
 }

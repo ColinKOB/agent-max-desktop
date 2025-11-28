@@ -371,7 +371,7 @@ export function GoogleConnect({ compact = false }) {
           </svg>
         </div>
         <h2 className="text-2xl font-bold mb-2">Connect Google Account</h2>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
+        <p className="text-gray-900 dark:text-gray-400 mb-6">
           Enable AI-powered assistance with Gmail, Calendar, Docs, Sheets, and YouTube.
         </p>
       </div>
@@ -383,9 +383,9 @@ export function GoogleConnect({ compact = false }) {
             <div className="services-grid mb-6">
               {services.map((service) => (
                 <div key={service.name} className="service-card">
-                  <service.icon className="w-8 h-8 mb-2 text-blue-600" />
-                  <h3 className="font-semibold">{service.name}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{service.description}</p>
+                  <service.icon className="w-4 h-4 mb-2 text-blue-600" />
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{service.name}</h3>
+                  <p className="text-sm text-gray-900 dark:text-gray-300">{service.description}</p>
                 </div>
               ))}
             </div>
@@ -525,6 +525,11 @@ export function GoogleConnect({ compact = false }) {
           border-radius: 12px;
           text-align: center;
           transition: all 0.2s;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
         }
 
         .service-card:hover {

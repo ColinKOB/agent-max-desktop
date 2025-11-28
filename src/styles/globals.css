@@ -84,10 +84,9 @@
     height: 100%; /* Full window height */
     overflow: hidden;  /* Hide scrollbars */
     
-    /* 🔤 FONT: Use system fonts for native look */
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-      sans-serif;
+    /* 🔤 FONT: Use SF Pro (native system font stack for macOS/iOS) */
+    font-family: 'SF Pro Display', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+      'Roboto', 'Helvetica Neue', sans-serif;
     
     /* ✨ SMOOTHING: Makes text look crisp and clean */
     -webkit-font-smoothing: antialiased;  /* For Chrome/Safari */

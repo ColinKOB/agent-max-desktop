@@ -3,6 +3,18 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   darkMode: 'class',
   theme: {
+    fontFamily: {
+      sans: [
+        '"SF Pro Display"',
+        '"SF Pro Text"',
+        'system-ui',
+        '-apple-system',
+        'BlinkMacSystemFont',
+        'Segoe UI',
+        'Roboto',
+        'sans-serif',
+      ],
+    },
     extend: {
       colors: {
         // Brand colors from tokens - Light Theme
