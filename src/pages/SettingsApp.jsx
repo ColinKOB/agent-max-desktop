@@ -60,7 +60,13 @@ export default function SettingsApp() {
       case 'settings':
         return <SettingsSimple />;
       case 'billing':
-        return <BillingSettings />;
+        return (
+          <div style={{ background: '#f9fafb', minHeight: '100%', padding: '24px' }}>
+            <div style={{ maxWidth: 900, margin: '0 auto' }}>
+              <BillingSettings />
+            </div>
+          </div>
+        );
       case 'history':
         return (
           <div style={{ background: '#fff', minHeight: '100%', padding: '24px' }}>

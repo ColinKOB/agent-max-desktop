@@ -132,68 +132,73 @@ export default function SubscriptionManager({ userId }) {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Shield className="w-5 h-5 text-purple-600" />
-          <span className="font-medium text-gray-900 dark:text-gray-100">Subscription</span>
-        </div>
+      {/* Status Badge - no duplicate header since parent has it */}
+      <div className="flex items-center justify-end">
         {isActive ? (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-            Active
+          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
+            ● Active
           </span>
         ) : (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300">
-            Free
+          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-gray-200 text-gray-700 border border-gray-300">
+            Free Plan
           </span>
         )}
       </div>
 
-      {/* Credit Balance Card */}
-      <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
-        <div className="flex items-center justify-between mb-2">
+      {/* Credit Balance Card - stronger gradient and better contrast */}
+      <div className="p-5 bg-gradient-to-br from-blue-100 via-indigo-50 to-purple-100 rounded-xl border border-blue-200 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Coins className="w-5 h-5 text-blue-600" />
-            <span className="font-medium text-gray-900 dark:text-gray-100">Credits</span>
+            <div className="p-1.5 bg-blue-600 rounded-lg">
+              <Coins className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-semibold text-gray-800">Credits</span>
           </div>
-          <span className="text-2xl font-bold text-blue-600">{userCredits.credits}</span>
+          <span className="text-3xl font-bold text-blue-600">{userCredits.credits}</span>
         </div>
         
         {/* Progress bar */}
         {weeklyCredits > 0 && (
-          <div className="mb-2">
-            <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+          <div className="mb-3">
+            <div className="w-full h-2.5 bg-white/80 rounded-full overflow-hidden shadow-inner">
               <div 
-                className={`h-full transition-all ${creditPercent > 20 ? 'bg-blue-500' : 'bg-red-500'}`}
+                className={`h-full transition-all rounded-full ${creditPercent > 20 ? 'bg-gradient-to-r from-blue-500 to-indigo-500' : 'bg-gradient-to-r from-red-500 to-orange-500'}`}
                 style={{ width: `${creditPercent}%` }}
               />
             </div>
-            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
-              <span>{userCredits.credits} / {weeklyCredits} weekly</span>
-              <span>Resets {resetDate}</span>
+            <div className="flex justify-between text-xs font-medium mt-2">
+              <span className="text-gray-700">{userCredits.credits} / {weeklyCredits} weekly</span>
+              <span className="text-gray-600">Resets {resetDate}</span>
             </div>
           </div>
         )}
         
-        <p className="text-xs text-gray-600 dark:text-gray-400">
-          1 credit = 500 LLM tokens (~1 AI response)
+        <p className="text-sm text-gray-700 bg-white/70 rounded-lg px-3 py-2">
+          💡 1 credit = 500 LLM tokens (~1 AI response)
         </p>
       </div>
 
-      {/* Plan Details */}
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div className="text-gray-600 dark:text-gray-400">Plan</div>
-        <div className="text-gray-900 dark:text-gray-100 capitalize flex items-center gap-1">
-          {tier === 'pro' && <Zap className="w-4 h-4 text-yellow-500" />}
-          {tier}
+      {/* Plan Details - improved spacing and visual hierarchy */}
+      <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-600">Current Plan</span>
+          <span className="font-semibold text-gray-900 capitalize flex items-center gap-1.5">
+            {tier === 'pro' && <Zap className="w-4 h-4 text-yellow-500" />}
+            {tier === 'premium' && <Zap className="w-4 h-4 text-purple-500" />}
+            {tier}
+          </span>
         </div>
-        <div className="text-gray-600 dark:text-gray-400">Weekly Credits</div>
-        <div className="text-gray-900 dark:text-gray-100">{weeklyCredits > 0 ? `${weeklyCredits}/week` : 'None'}</div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-600">Weekly Allowance</span>
+          <span className="font-semibold text-gray-900">
+            {weeklyCredits > 0 ? `${weeklyCredits} credits` : 'None'}
+          </span>
+        </div>
         {isActive && (
-          <>
-            <div className="text-gray-600 dark:text-gray-400">Next Billing</div>
-            <div className="text-gray-900 dark:text-gray-100">{nextDate}</div>
-          </>
+          <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+            <span className="text-sm text-gray-600">Next Billing</span>
+            <span className="font-medium text-gray-900">{nextDate}</span>
+          </div>
         )}
       </div>
 
@@ -204,7 +209,7 @@ export default function SubscriptionManager({ userId }) {
             <button
               onClick={openPortal}
               disabled={portalLoading || !email}
-              className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-2 disabled:opacity-50"
+              className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 disabled:opacity-50 font-medium"
             >
               {portalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
               Manage Billing
@@ -212,15 +217,20 @@ export default function SubscriptionManager({ userId }) {
             <button
               onClick={cancel}
               disabled={cancelLoading}
-              className="px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center gap-2 disabled:opacity-50"
+              className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
             >
               {cancelLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-              Cancel
+              Cancel Plan
             </button>
           </>
         ) : (
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Subscribe to get weekly credits. Go to the <strong>Purchase Credits</strong> tab above.
+          <div className="w-full p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+            <p className="text-sm text-gray-700 mb-2">
+              🚀 <strong>Upgrade to get weekly credits</strong> and unlock the full potential of Agent Max.
+            </p>
+            <p className="text-xs text-gray-500">
+              Click the <strong className="text-blue-600">Purchase Credits</strong> tab above to view plans.
+            </p>
           </div>
         )}
       </div>

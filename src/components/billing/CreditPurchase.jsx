@@ -104,7 +104,7 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
     return (
       <div className="credit-purchase-loading">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-        <p className="text-gray-600 dark:text-gray-400 mt-2">Loading packages...</p>
+        <p className="text-gray-600 mt-2">Loading packages...</p>
       </div>
     );
   }
@@ -132,10 +132,10 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
             <Coins className="w-6 h-6 text-blue-600" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <h2 className="text-2xl font-bold text-gray-900">
               {mode === 'subscription' ? 'Subscribe Monthly' : 'Purchase Credits'}
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-gray-600">
               Current balance: <span className="font-semibold text-blue-600">{currentCredits} credits</span>
             </p>
           </div>
@@ -154,7 +154,7 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
       {/* Toggle One-Time vs Subscription */}
       <div className="flex items-center gap-2 mb-4">
         <button
-          className={`px-3 py-1.5 rounded-md text-sm font-medium ${mode === 'one_time' ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
+          className={`px-3 py-1.5 rounded-md text-sm font-medium ${mode === 'one_time' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
           onClick={() => {
             setMode('one_time');
             if (packages.length > 0) setSelectedPackage(packages[1]?.id || packages[0]?.id);
@@ -163,7 +163,7 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
           One-Time
         </button>
         <button
-          className={`px-3 py-1.5 rounded-md text-sm font-medium ${mode === 'subscription' ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
+          className={`px-3 py-1.5 rounded-md text-sm font-medium ${mode === 'subscription' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
           onClick={() => {
             setMode('subscription');
             if (subscriptionPlans.length > 0) setSelectedPackage(subscriptionPlans[1]?.id || subscriptionPlans[0]?.id);
@@ -175,12 +175,12 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
 
       {/* Billing Cycle Toggle (only for subscriptions) */}
       {mode === 'subscription' && (
-        <div className="flex items-center justify-center gap-2 mb-4 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
+        <div className="flex items-center justify-center gap-2 mb-4 p-1 bg-gray-100 rounded-lg">
           <button
             className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-all ${
               billingCycle === 'monthly' 
-                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' 
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                ? 'bg-white text-gray-900 shadow-sm' 
+                : 'text-gray-600 hover:text-gray-900'
             }`}
             onClick={() => {
               setBillingCycle('monthly');
@@ -195,8 +195,8 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
           <button
             className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-all ${
               billingCycle === 'annual' 
-                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' 
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                ? 'bg-white text-gray-900 shadow-sm' 
+                : 'text-gray-600 hover:text-gray-900'
             }`}
             onClick={() => {
               setBillingCycle('annual');
@@ -207,7 +207,7 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
           >
             <Sparkles className="w-4 h-4" />
             Annual
-            <span className="ml-1 px-1.5 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs rounded-full">
+            <span className="ml-1 px-1.5 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
               Save 17%
             </span>
           </button>
@@ -260,7 +260,7 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
                 )}
               </div>
               {mode === 'subscription' && pkg.description && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{pkg.description}</p>
+                <p className="text-xs text-gray-500 mt-1">{pkg.description}</p>
               )}
             </div>
 
@@ -330,7 +330,7 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
       {/* Security Notice */}
       <div className="security-notice">
         <AlertCircle className="w-4 h-4 text-blue-600" />
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-sm text-gray-600">
           Secure payment powered by Stripe. Your payment information is never stored on our servers.
         </p>
       </div>

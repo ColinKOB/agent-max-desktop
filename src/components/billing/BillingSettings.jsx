@@ -58,13 +58,13 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       const response = await fetch(`${apiUrl}/api/v2/billing/settings/${tenantId}`);
       
-      if (!response.ok) throw new Error('Failed to fetch settings');
-      
-      const data = await response.json();
-      setSettings(data);
+      if (response.ok) {
+        const data = await response.json();
+        setSettings(data);
+      }
+      // If not ok, just use default settings
     } catch (err) {
-      console.error('[BillingSettings] Error:', err);
-      toast.error('Failed to load billing settings');
+      console.log('[BillingSettings] Using default settings (API not available)');
     } finally {
       setLoading(false);
     }
@@ -99,7 +99,10 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
         method: 'POST'
       });
       
-      if (!response.ok) throw new Error('Failed to open portal');
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.detail || 'Failed to open portal');
+      }
       
       const data = await response.json();
       if (data.url) {
@@ -107,7 +110,7 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
       }
     } catch (err) {
       console.error('[BillingSettings] Portal error:', err);
-      toast.error('Failed to open billing portal');
+      toast.error(err.message || 'Failed to open billing portal');
     } finally {
       setPortalLoading(false);
     }
@@ -117,9 +120,9 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
     return (
       <div className="billing-settings p-6">
         <div className="animate-pulse space-y-6">
-          <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-          <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-          <div className="h-40 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+          <div className="h-20 bg-gray-200 rounded-xl"></div>
+          <div className="h-32 bg-gray-200 rounded-xl"></div>
+          <div className="h-40 bg-gray-200 rounded-xl"></div>
         </div>
       </div>
     );
@@ -133,17 +136,17 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
   return (
     <div className="billing-settings space-y-6">
       {/* Tab Navigation */}
-      <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-4">
+      <div className="flex items-center gap-2 border-b border-gray-200 pb-4">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
                 activeTab === tab.id
                   ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -168,16 +171,16 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
       {activeTab === 'overview' && (
         <>
           {/* Payment Method Section */}
-      <div className="section bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+      <div className="section bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-blue-600" />
             Payment Method
           </h3>
         </div>
 
         {settings.paymentMethod ? (
-          <div className="payment-card p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+          <div className="payment-card p-4 bg-gray-50 rounded-xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {/* Card Icon */}
@@ -187,10 +190,10 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
                 
                 {/* Card Details */}
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-gray-100">
+                  <p className="font-medium text-gray-900">
                     {settings.paymentMethod.brand} •••• {settings.paymentMethod.last4}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-600">
                     Expires {settings.paymentMethod.expMonth}/{settings.paymentMethod.expYear}
                   </p>
                 </div>
@@ -211,31 +214,36 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
             </div>
           </div>
         ) : (
-          <div className="no-payment p-6 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-yellow-900 dark:text-yellow-100 mb-1">
-                  No payment method on file
-                </p>
-                <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-3">
-                  Add a payment method to enable premium features and avoid service interruption.
-                </p>
-                <button
-                  onClick={openStripePortal}
-                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
-                >
-                  Add Payment Method
-                </button>
+          <div className="space-y-3">
+            {/* Warning message */}
+            <div className="no-payment p-4 bg-amber-50 rounded-xl border border-amber-200">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-amber-900">
+                    No payment method on file
+                  </p>
+                  <p className="text-sm text-amber-700 mt-1">
+                    Add a payment method to enable premium features and avoid service interruption.
+                  </p>
+                </div>
               </div>
             </div>
+            {/* CTA button - outside the warning for better contrast */}
+            <button
+              onClick={openStripePortal}
+              className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+            >
+              <CreditCard className="w-4 h-4" />
+              Add Payment Method
+            </button>
           </div>
         )}
       </div>
 
       {/* Subscription Section */}
-      <div className="section bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+      <div className="section bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Shield className="w-5 h-5 text-purple-600" />
           Subscription
         </h3>
@@ -243,8 +251,8 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
       </div>
 
       {/* Usage Alerts Section */}
-      <div className="section bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+      <div className="section bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Bell className="w-5 h-5 text-orange-600" />
           Usage Alerts
         </h3>
@@ -261,7 +269,7 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
               }))}
               className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
-            <span className="font-medium text-gray-900 dark:text-gray-100">
+            <span className="font-medium text-gray-900">
               Enable usage alerts
             </span>
           </label>
@@ -270,11 +278,11 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
             <>
               {/* Threshold */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Alert me when monthly cost exceeds:
                 </label>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">$</span>
+                  <span className="text-gray-600">$</span>
                   <input
                     type="number"
                     value={settings.usageAlerts.threshold}
@@ -282,7 +290,7 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
                       ...prev,
                       usageAlerts: { ...prev.usageAlerts, threshold: parseInt(e.target.value) || 0 }
                     }))}
-                    className="flex-1 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     min="0"
                     step="10"
                   />
@@ -301,7 +309,7 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
                     }))}
                     className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-gray-700 dark:text-gray-300">Email notifications</span>
+                  <span className="text-gray-700">Email notifications</span>
                 </label>
 
                 <label className="flex items-center gap-3 cursor-pointer">
@@ -314,7 +322,7 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
                     }))}
                     className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-gray-700 dark:text-gray-300">In-app notifications</span>
+                  <span className="text-gray-700">In-app notifications</span>
                 </label>
               </div>
             </>
@@ -323,16 +331,16 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
       </div>
 
       {/* Usage Limits Section */}
-      <div className="section bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+      <div className="section bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <AlertTriangle className="w-5 h-5 text-red-600" />
           Usage Limits
         </h3>
 
-        <div className="info-box p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg mb-4">
+        <div className="info-box p-3 bg-blue-50 rounded-lg mb-4">
           <div className="flex gap-2">
             <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-blue-800 dark:text-blue-300">
+            <p className="text-sm text-blue-800">
               Set hard limits to prevent overspending. When reached, new conversations will be blocked until the next billing period.
             </p>
           </div>
@@ -341,7 +349,7 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
         <div className="space-y-4">
           {/* Monthly Limit */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Monthly conversation limit
             </label>
             <input
@@ -351,11 +359,11 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
                 ...prev,
                 usageLimits: { ...prev.usageLimits, monthlyConversationLimit: parseInt(e.target.value) || 0 }
               }))}
-              className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               min="0"
               placeholder="0 for unlimited"
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-xs text-gray-500 mt-1">
               Set to 0 for unlimited conversations
             </p>
           </div>
@@ -372,10 +380,10 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
               className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
             <div>
-              <span className="font-medium text-gray-900 dark:text-gray-100">
+              <span className="font-medium text-gray-900">
                 Enable hard stop
               </span>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-gray-500">
                 Block all new conversations when limit is reached
               </p>
             </div>
@@ -383,7 +391,7 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
 
           {/* Warning Threshold */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Warning threshold (%)
             </label>
             <input
@@ -393,11 +401,11 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId, initialT
                 ...prev,
                 usageLimits: { ...prev.usageLimits, warningThreshold: parseInt(e.target.value) || 0 }
               }))}
-              className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               min="0"
               max="100"
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-xs text-gray-500 mt-1">
               Show warning when usage reaches this percentage
             </p>
           </div>
