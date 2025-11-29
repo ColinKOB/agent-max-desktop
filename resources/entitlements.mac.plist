@@ -18,11 +18,16 @@
     <key>com.apple.security.device.microphone</key>
     <true/>
     
-s
+    <!-- Disable library validation for native modules -->
+    <key>com.apple.security.cs.disable-library-validation</key>
     <true/>
     
-    <!-- NOTE: Removed dangerous permissions -->
-    <!-- Removed: com.apple.security.cs.allow-unsigned-executable-memory -->
-    <!-- Removed: com.apple.security.cs.allow-jit -->
+    <!-- REQUIRED for Electron/V8: Allow JIT compilation -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    
+    <!-- REQUIRED for Electron/V8: Allow unsigned executable memory -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
   </dict>
 </plist>

@@ -204,7 +204,15 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId }) {
       const response = await creditsAPI.createSubscription(planId, userId, successUrl, cancelUrl);
       
       if (response?.data?.url) {
-        window.location.href = response.data.url;
+        // Open Stripe Checkout in external browser (required for Electron)
+        if (window.electron?.openExternal) {
+          await window.electron.openExternal(response.data.url);
+          toast.success('Opening Stripe checkout in your browser...', { duration: 3000 });
+          setPurchasing(false);
+        } else {
+          // Fallback for web builds
+          window.location.href = response.data.url;
+        }
         return;
       }
       

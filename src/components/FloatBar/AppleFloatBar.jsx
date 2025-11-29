@@ -1562,12 +1562,42 @@ export default function AppleFloatBar({
         // Collapse the Thought bubble after completion
         collapseCurrentThought();
       } else if (event.type === 'error') {
-        const errorMsg = event.data?.error || event.error || 'Failed to get response';
-        const isTerminal = event.data?.terminal || false;
-        const errorCode = event.data?.code || 'UNKNOWN';
+        const errorData = event.data || {};
+        const errorMsg = errorData?.error || errorData?.message || event.error || 'Failed to get response';
+        const isTerminal = errorData?.terminal || false;
+        const errorCode = errorData?.code || errorData?.error || 'UNKNOWN';
+        const isInsufficientCredits = errorCode === 'insufficient_credits' || 
+                                       errorMsg.toLowerCase().includes('insufficient credit');
         
-        // v2.1: terminal errors stop execution permanently
-        if (isTerminal) {
+        // Handle insufficient credits specially - navigate to billing
+        if (isInsufficientCredits) {
+          console.log('[Chat] Insufficient credits error - prompting user to purchase');
+          const creditsRemaining = errorData?.credits_remaining ?? 0;
+          toast.error(
+            `💳 ${errorMsg}\n\nClick to purchase credits.`,
+            {
+              duration: 10000,
+              style: {
+                cursor: 'pointer',
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                backdropFilter: 'blur(10px)'
+              }
+            }
+          );
+          // Navigate to credits page
+          setTimeout(() => {
+            window.location.hash = '#/settings?section=credits';
+          }, 1500);
+          // Add message to thoughts
+          setThoughts(prev => [...prev, {
+            role: 'system',
+            content: `💳 **Credits Required**\n\nYou have ${creditsRemaining} credits remaining. Please purchase more credits to continue using Agent Max.`,
+            timestamp: Date.now(),
+            type: 'billing'
+          }]);
+        } else if (isTerminal) {
+          // v2.1: terminal errors stop execution permanently
           console.log('[Chat] Terminal error received, stopping execution:', errorCode);
           toast.error(`❌ ${errorMsg}`, {
             duration: 7000,

@@ -289,6 +289,41 @@ api.interceptors.response.use(
         showToast: true,
         fallbackMessage: 'You do not have permission to perform this action.',
       });
+    } else if (error.response?.status === 402) {
+      // Payment Required / Insufficient Credits
+      const detail = error.response?.data?.detail || {};
+      const isInsufficientCredits = detail?.error === 'insufficient_credits' || 
+                                     error.response?.data?.error === 'insufficient_credits';
+      const creditsRemaining = detail?.credits_remaining ?? 0;
+      const message = detail?.message || 'Insufficient credits. Please purchase more to continue.';
+      
+      logger.warn('Insufficient credits', { creditsRemaining, message });
+      
+      // Show prominent toast with action
+      toast.error(
+        (t) => (
+          `💳 ${message}\n\nClick to purchase credits.`
+        ),
+        {
+          duration: 8000,
+          onClick: () => {
+            // Navigate to billing/credits page
+            if (window.location.hash !== '#/settings') {
+              window.location.hash = '#/settings?section=credits';
+            }
+          },
+          style: {
+            cursor: 'pointer',
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+          }
+        }
+      );
+      
+      // Dispatch event for components to handle
+      window.dispatchEvent(new CustomEvent('credits:insufficient', { 
+        detail: { creditsRemaining, message } 
+      }));
     } else if (error.response?.status === 429) {
       // Rate limiting
       const retryAfter = error.response.headers['retry-after'];

@@ -87,9 +87,16 @@ export function CreditPurchase({ userId, onClose, onSuccess }) {
       const checkoutUrl = response?.data?.url;
       
       if (checkoutUrl) {
-        // Open Stripe Checkout in the same window
+        // Open Stripe Checkout in external browser (required for Electron)
         // The Stripe page will redirect back to settings after completion
-        window.location.href = checkoutUrl;
+        if (window.electron?.openExternal) {
+          await window.electron.openExternal(checkoutUrl);
+          toast.success('Opening Stripe checkout in your browser...', { duration: 3000 });
+          setPurchasing(false);
+        } else {
+          // Fallback for web builds
+          window.location.href = checkoutUrl;
+        }
       } else {
         throw new Error('No checkout URL returned');
       }
