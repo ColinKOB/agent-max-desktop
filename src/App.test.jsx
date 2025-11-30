@@ -87,7 +87,7 @@ function TestApp() {
             <NetworkError onRetry={() => setError(null)} />
           ) : error.type === 'quota' ? (
             <QuotaExceededError
-              onUpgrade={() => window.open('https://agentmax.dev/upgrade', '_blank')}
+              onUpgrade={() => window.location.hash = '#/settings?tab=billing'}
               onViewUsage={() => setCurrentView('billing')}
             />
           ) : null}
@@ -149,7 +149,7 @@ function TestApp() {
                 <QuotaWarning
                   remaining={5}
                   total={50}
-                  onUpgrade={() => window.open('https://agentmax.dev/upgrade', '_blank')}
+                  onUpgrade={() => window.location.hash = '#/settings?tab=billing'}
                 />
 
                 {/* Actions */}

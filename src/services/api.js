@@ -528,27 +528,21 @@ export const chatAPI = {
       return defaultValue;
     })();
 
-    // CRITICAL: Use different endpoint based on mode
-    // - autonomous mode → /api/v2/agent/execute/stream (NEW V2 with early ack/plan events)
-    // - chatty/helpful → /api/v2/chat/streaming/stream (text generation only)
+    // CRITICAL: Use chat streaming endpoint for all modes
+    // The chat streaming endpoint handles mode internally via the 'mode' field in payload
+    // The old /api/v2/agent/execute/stream and /api/v2/autonomous/execute/stream are deprecated
+    // and return 404/410 respectively.
     const isAutonomous = requestedMode === 'autonomous';
-    const endpoints = isAutonomous 
-      ? [
-          `${baseURL}/api/v2/agent/execute/stream`,
-          `${baseURL}/api/v2/autonomous/execute/stream`
-        ]
-      : (
-          disableLegacyFallbacks
-            ? [ `${baseURL}/api/v2/chat/streaming/stream` ]
-            : [
-                `${baseURL}/api/v2/chat/streaming/stream`,
-                `${baseURL}/api/chat/streaming/stream`,
-                `${baseURL}/api/v2/chat/stream`,
-                `${baseURL}/api/chat/stream`,
-                `${baseURL}/api/v2/chat/streaming`,
-                `${baseURL}/api/chat/streaming`
-              ]
-        );
+    const endpoints = disableLegacyFallbacks
+      ? [ `${baseURL}/api/v2/chat/streaming/stream` ]
+      : [
+          `${baseURL}/api/v2/chat/streaming/stream`,
+          `${baseURL}/api/chat/streaming/stream`,
+          `${baseURL}/api/v2/chat/stream`,
+          `${baseURL}/api/chat/stream`,
+          `${baseURL}/api/v2/chat/streaming`,
+          `${baseURL}/api/chat/streaming`
+        ];
 
     // Build payload based on endpoint
     // Temporary mitigation: pre-truncate very long chat messages to avoid backend 422 limit

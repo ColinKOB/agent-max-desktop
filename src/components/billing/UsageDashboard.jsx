@@ -393,7 +393,7 @@ export function UsageDashboard({ tenantId = 'test-tenant-001' }) {
         </button>
         {usagePercentage >= 75 && (
           <button 
-            onClick={() => window.open('https://agentmax.dev/upgrade', '_blank')}
+            onClick={() => window.location.hash = '#/settings?tab=billing'}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
           >
             Upgrade Plan

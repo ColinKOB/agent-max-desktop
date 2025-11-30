@@ -4,6 +4,7 @@ import { HashRouter, Routes, Route } from 'react-router-dom';
 import App from './App.jsx';
 import SettingsApp from './pages/SettingsApp.jsx';
 import UITestDashboard from './pages/UITestDashboard.jsx';
+import OnboardingPreview from './pages/OnboardingPreview.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import './styles/globals.css';
 import './styles/liquid-glass.css';
@@ -35,6 +36,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/card" element={<CardApp />} />
           <Route path="/settings" element={<SettingsApp />} />
           <Route path="/test" element={<UITestDashboard />} />
+          <Route path="/onboarding" element={<OnboardingPreview />} />
         </Routes>
       </HashRouter>
     </ErrorBoundary>

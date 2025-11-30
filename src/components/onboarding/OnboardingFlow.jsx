@@ -1,26 +1,34 @@
 /**
- * Onboarding Flow Component
+ * Premium Onboarding Flow Component
  * 
- * Progressive onboarding experience for new users
+ * A polished, premium onboarding experience for new users
+ * Features: Progress indicator, personalized copy, rich cards, confetti celebration
  */
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import useStore from '../../store/useStore';
 import { 
   ChevronRight, 
-  ChevronLeft,
   Check,
   Sparkles,
-  CreditCard,
-  MessageSquare,
-  Shield,
-  Zap,
-  Users,
   ArrowRight,
-  X
+  Star,
+  Crown,
+  Zap,
+  GraduationCap,
+  Code2,
+  Briefcase,
+  PenTool,
+  Calendar,
+  Mail,
+  FileText,
+  Search,
+  Shield,
+  Clock,
+  Cpu,
+  MessageSquare,
+  Bot
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { healthAPI, googleAPI } from '../../services/api';
 import { generateOAuthState, hashOAuthState, storeOAuthStateHash } from '../../services/oauth';
 import { GoogleConnect } from '../../components/GoogleConnect';
@@ -29,106 +37,1271 @@ import LogoPng from '../../assets/AgentMaxLogo.png';
 import { setName as setProfileName, setPreference as setUserPreference, updateProfile as updateUserProfile } from '../../services/supabaseMemory';
 import { emailPasswordSignInOrCreate, ensureUsersRow } from '../../services/supabase.js';
 
-const stripePublishableKey = (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '').trim();
-const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
+// Brand orange color from logo (no gradients)
+const BRAND_ORANGE = '#f59e0b';
+const BRAND_ORANGE_LIGHT = 'rgba(245, 158, 11, 0.15)';
+const BRAND_ORANGE_SHADOW = 'rgba(245, 158, 11, 0.35)';
+const BRAND_ORANGE_GLOW = 'rgba(245, 158, 11, 0.5)';
 
-if (!stripePublishableKey) {
-  console.warn(
-    '[Stripe] VITE_STRIPE_PUBLISHABLE_KEY is not set. Payment capture in onboarding will be disabled.'
+// ============================================================================
+// CONFETTI UTILITY
+// ============================================================================
+function createConfetti(container) {
+  const colors = [BRAND_ORANGE, '#22c55e', '#ef4444', '#ec4899', '#8b5cf6', '#ffffff'];
+  const confettiCount = 150;
+  
+  for (let i = 0; i < confettiCount; i++) {
+    const confetti = document.createElement('div');
+    confetti.style.cssText = `
+      position: absolute;
+      width: ${Math.random() * 10 + 5}px;
+      height: ${Math.random() * 10 + 5}px;
+      background: ${colors[Math.floor(Math.random() * colors.length)]};
+      left: ${Math.random() * 100}%;
+      top: -20px;
+      border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
+      pointer-events: none;
+      opacity: 0;
+    `;
+    container.appendChild(confetti);
+    
+    const duration = Math.random() * 2 + 2;
+    const delay = Math.random() * 0.5;
+    const rotation = Math.random() * 720 - 360;
+    const drift = Math.random() * 200 - 100;
+    
+    confetti.animate([
+      { 
+        transform: `translateY(0) translateX(0) rotate(0deg)`, 
+        opacity: 1 
+      },
+      { 
+        transform: `translateY(${container.offsetHeight + 50}px) translateX(${drift}px) rotate(${rotation}deg)`, 
+        opacity: 0 
+      }
+    ], {
+      duration: duration * 1000,
+      delay: delay * 1000,
+      easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+      fill: 'forwards'
+    }).onfinish = () => confetti.remove();
+  }
+}
+
+// ============================================================================
+// PROGRESS INDICATOR
+// ============================================================================
+function ProgressIndicator({ currentStep, totalSteps }) {
+  return (
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      gap: 8, 
+      paddingTop: 16,
+      paddingBottom: 8
+    }}>
+      {Array.from({ length: totalSteps }).map((_, index) => {
+        const isActive = index === currentStep;
+        const isCompleted = index < currentStep;
+        
+        return (
+          <motion.div
+            key={index}
+            initial={false}
+            animate={{
+              width: isActive ? 24 : 8,
+              backgroundColor: isCompleted 
+                ? BRAND_ORANGE 
+                : isActive 
+                  ? BRAND_ORANGE 
+                  : 'rgba(255, 255, 255, 0.2)',
+            }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            style={{
+              height: 8,
+              borderRadius: 4,
+              boxShadow: isActive ? `0 0 12px ${BRAND_ORANGE_GLOW}` : 'none',
+            }}
+          />
+        );
+      })}
+    </div>
   );
 }
 
-/**
- * Step: Email sign-in (mandatory)
- */
-function EmailSignInStep({ onNext, onBack, userData }) {
-  const [email, setEmail] = useState(userData?.email || '');
-  const [password, setPassword] = useState('');
+// ============================================================================
+// SHARED STYLES
+// ============================================================================
+const styles = {
+  heading: {
+    color: '#ffffff',
+    fontSize: 26,
+    fontWeight: 700,
+    letterSpacing: '-0.02em',
+    lineHeight: 1.2,
+    marginBottom: 8,
+  },
+  subheading: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 15,
+    lineHeight: 1.5,
+    marginBottom: 24,
+  },
+  primaryButton: {
+    width: '100%',
+    height: 48,
+    padding: '0 24px',
+    color: '#ffffff',
+    background: BRAND_ORANGE,
+    border: 'none',
+    borderRadius: 12,
+    fontSize: 15,
+    fontWeight: 600,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    transition: 'all 0.2s ease',
+    boxShadow: `0 4px 14px ${BRAND_ORANGE_SHADOW}`,
+  },
+  secondaryButton: {
+    height: 48,
+    padding: '0 20px',
+    color: 'rgba(255, 255, 255, 0.8)',
+    background: 'rgba(255, 255, 255, 0.08)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    borderRadius: 12,
+    fontSize: 15,
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  input: {
+    width: '100%',
+    height: 52,
+    padding: '0 16px',
+    color: '#ffffff',
+    background: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    borderRadius: 12,
+    fontSize: 15,
+    outline: 'none',
+    transition: 'all 0.2s ease',
+  },
+};
+
+// ============================================================================
+// STEP 0: WELCOME
+// ============================================================================
+function WelcomeStep({ onNext }) {
+  const [logoAnimated, setLogoAnimated] = useState(false);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => setLogoAnimated(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      justifyContent: 'center',
+      height: '100%',
+      padding: '20px',
+      textAlign: 'center',
+    }}>
+      <motion.div
+        initial={{ scale: 0.5, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ 
+          type: 'spring', 
+          stiffness: 200, 
+          damping: 15,
+          delay: 0.1 
+        }}
+        style={{ marginBottom: 24 }}
+      >
+        <div style={{
+          width: 80,
+          height: 80,
+          borderRadius: 20,
+          background: BRAND_ORANGE_LIGHT,
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: `0 8px 32px ${BRAND_ORANGE_SHADOW}`,
+        }}>
+          <img 
+            src={LogoPng} 
+            alt="Agent Max" 
+            style={{ width: 50, height: 50, objectFit: 'contain' }} 
+          />
+        </div>
+      </motion.div>
+
+      <motion.h1
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        style={{
+          ...styles.heading,
+          fontSize: 32,
+          marginBottom: 12,
+        }}
+      >
+        Welcome to Agent Max
+      </motion.h1>
+
+      <motion.p
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        style={{
+          ...styles.subheading,
+          maxWidth: 300,
+          marginBottom: 32,
+        }}
+      >
+        Your AI assistant that actually gets things done. Let's set you up in just a minute.
+      </motion.p>
+
+      <motion.button
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        onClick={() => onNext()}
+        style={{
+          ...styles.primaryButton,
+          maxWidth: 280,
+        }}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        Get Started
+        <ArrowRight style={{ width: 18, height: 18 }} />
+      </motion.button>
+    </div>
+  );
+}
+
+// ============================================================================
+// STEP 1: NAME
+// ============================================================================
+function NameStep({ userData, onNext }) {
+  const [name, setName] = useState(userData.name || '');
   const [saving, setSaving] = useState(false);
+  const [focused, setFocused] = useState(false);
 
-  const validEmail = (v) => /.+@.+\..+/.test(v);
-  const strongPw = (v) => v.length >= 8;
-
-  const handleSubmit = async () => {
-    if (!validEmail(email) || !strongPw(password)) return;
+  const handleContinue = async () => {
+    if (!name.trim()) return;
     setSaving(true);
     try {
-      const user = await emailPasswordSignInOrCreate(email.trim(), password);
-      await ensureUsersRow(email.trim());
-      try { await setUserPreference('email', email.trim()); } catch {}
-      try { await setUserPreference('has_password', 'true'); } catch {}
-      onNext?.({ amxAccount: !!user, email: email.trim() });
+      const trimmedName = name.trim();
+      // Save to localStorage immediately
+      try { localStorage.setItem('user_name', trimmedName); } catch {}
+      
+      // Save to Supabase
+      try { await setProfileName(trimmedName); } catch {}
+      try { await updateUserProfile({ name: trimmedName }); } catch {}
+      try { await setUserPreference('user_name', trimmedName); } catch {}
+      try {
+        const profile = {
+          name: trimmedName,
+          help_category: userData?.helpCategory || '',
+          google_oauth: 'unknown'
+        };
+        await setUserPreference('prompt_profile', JSON.stringify(profile));
+      } catch {}
+      
+      console.log('[Onboarding] Name saved:', trimmedName);
+      onNext({ name: trimmedName });
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-3 py-4" style={{ textAlign: 'center' }}>
-      <h2 style={{ color: 'rgba(255,255,255,0.94)', fontSize: 20, fontWeight: 800, marginBottom: 12 }}>
-        Create your Agent Max account
-      </h2>
-      <p style={{ color: 'rgba(255,255,255,0.68)', marginBottom: 12 }}>
-        Enter your email and create a password to continue.
-      </p>
-      <div style={{ marginTop: 8, display: 'grid', rowGap: 8, maxWidth: 320, marginLeft: 'auto', marginRight: 'auto' }}>
+    <div style={{ 
+      maxWidth: 340, 
+      margin: '0 auto', 
+      padding: '20px',
+      textAlign: 'center',
+    }}>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <h2 style={styles.heading}>What should I call you?</h2>
+        <p style={styles.subheading}>
+          I'll use this to personalize your experience.
+        </p>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+      >
         <input
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          inputMode="email"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onKeyDown={(e) => e.key === 'Enter' && name.trim() && handleContinue()}
+          placeholder="Enter your name"
+          autoFocus
           style={{
-            width: '100%', height: 40, padding: '0 12px',
-            color: 'rgba(255,255,255,0.92)',
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.28))',
-            border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, outline: 'none'
+            ...styles.input,
+            borderColor: focused ? BRAND_ORANGE_GLOW : 'rgba(255, 255, 255, 0.12)',
+            boxShadow: focused ? `0 0 0 3px ${BRAND_ORANGE_LIGHT}` : 'none',
           }}
         />
-        <input
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Create password (8+ chars)"
-          type="password"
+        
+        <button
+          onClick={handleContinue}
+          disabled={!name.trim() || saving}
           style={{
-            width: '100%', height: 40, padding: '0 12px',
-            color: 'rgba(255,255,255,0.92)',
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.28))',
-            border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, outline: 'none'
+            ...styles.primaryButton,
+            opacity: !name.trim() || saving ? 0.5 : 1,
+            cursor: !name.trim() || saving ? 'not-allowed' : 'pointer',
           }}
-        />
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 8 }}>
-          <button
-            type="button"
-            onClick={onBack}
-            style={{
-              width: '100%', maxWidth: 160, height: 40,
-              padding: '0 16px', color: 'rgba(255,255,255,0.9)',
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.14)', borderRadius: 12, fontWeight: 600
-            }}
-          >
-            Back
-          </button>
-          <button
-            type="button"
-            disabled={!validEmail(email) || !strongPw(password) || saving}
-            onClick={handleSubmit}
-            style={{
-              width: '100%', maxWidth: 160, height: 40,
-              padding: '0 16px', color: '#fff',
-              background: 'linear-gradient(180deg, #22c55e, #16a34a)',
-              border: '1px solid rgba(255,255,255,0.14)', borderRadius: 12, fontWeight: 700,
-              opacity: (!validEmail(email) || !strongPw(password) || saving) ? 0.6 : 1,
-              cursor: (!validEmail(email) || !strongPw(password) || saving) ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {saving ? 'Creating…' : 'Continue'}
-          </button>
+        >
+          {saving ? 'Saving...' : 'Continue'}
+          {!saving && <ArrowRight style={{ width: 18, height: 18 }} />}
+        </button>
+      </motion.div>
+    </div>
+  );
+}
+
+// ============================================================================
+// STEP 2: USE CASE (Rich Cards with Icons)
+// ============================================================================
+const USE_CASE_OPTIONS = [
+  {
+    id: 'school',
+    icon: GraduationCap,
+    title: 'School & Learning',
+    description: 'Essays, research, study guides, homework help',
+  },
+  {
+    id: 'coding',
+    icon: Code2,
+    title: 'Coding & Development',
+    description: 'Debug code, write scripts, explain concepts',
+  },
+  {
+    id: 'work',
+    icon: Briefcase,
+    title: 'Work & Business',
+    description: 'Emails, reports, presentations, analysis',
+  },
+  {
+    id: 'writing',
+    icon: PenTool,
+    title: 'Writing & Content',
+    description: 'Articles, blogs, creative writing, editing',
+  },
+  {
+    id: 'life',
+    icon: Calendar,
+    title: 'Daily Life',
+    description: 'Planning, organization, reminders, research',
+  },
+];
+
+function UseCaseStep({ userData, onNext, onBack }) {
+  const [selected, setSelected] = useState(userData.helpCategory || '');
+
+  const handleContinue = async () => {
+    const option = USE_CASE_OPTIONS.find(o => o.id === selected);
+    const helpCategory = option?.title || selected;
+    
+    // Save to localStorage immediately
+    try { localStorage.setItem('help_category', helpCategory); } catch {}
+    
+    // Save to Supabase
+    try {
+      await setUserPreference('help_category', helpCategory);
+      const profile = {
+        name: (userData?.name || '').trim(),
+        help_category: helpCategory,
+        google_oauth: 'unknown'
+      };
+      await setUserPreference('prompt_profile', JSON.stringify(profile));
+    } catch {}
+    
+    console.log('[Onboarding] Help category saved:', helpCategory);
+    onNext({ helpCategory });
+  };
+
+  return (
+    <div style={{ 
+      maxWidth: 380, 
+      margin: '0 auto', 
+      padding: '16px',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        style={{ textAlign: 'center', marginBottom: 16 }}
+      >
+        <h2 style={{ ...styles.heading, fontSize: 24 }}>
+          {userData.name ? `Hey ${userData.name}!` : 'Hey there!'} What brings you here?
+        </h2>
+        <p style={{ ...styles.subheading, marginBottom: 16 }}>
+          This helps me give you better suggestions.
+        </p>
+      </motion.div>
+
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {USE_CASE_OPTIONS.map((option, index) => {
+            const Icon = option.icon;
+            const isSelected = selected === option.id;
+            
+            return (
+              <motion.button
+                key={option.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
+                onClick={() => setSelected(option.id)}
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  borderRadius: 14,
+                  background: isSelected 
+                    ? BRAND_ORANGE_LIGHT
+                    : 'rgba(255, 255, 255, 0.04)',
+                  border: isSelected 
+                    ? `1.5px solid ${BRAND_ORANGE_GLOW}` 
+                    : '1px solid rgba(255, 255, 255, 0.08)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <div style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 10,
+                  background: isSelected 
+                    ? BRAND_ORANGE
+                    : 'rgba(255, 255, 255, 0.08)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  transition: 'all 0.2s ease',
+                }}>
+                  <Icon style={{ 
+                    width: 20, 
+                    height: 20, 
+                    color: isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.6)' 
+                  }} />
+                </div>
+                
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ 
+                    color: '#ffffff',
+                    fontSize: 15, 
+                    fontWeight: 600,
+                    marginBottom: 2,
+                  }}>
+                    {option.title}
+                  </div>
+                  <div style={{ 
+                    color: 'rgba(255, 255, 255, 0.5)', 
+                    fontSize: 13,
+                    lineHeight: 1.3,
+                  }}>
+                    {option.description}
+                  </div>
+                </div>
+
+                {isSelected && (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      background: BRAND_ORANGE,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Check style={{ width: 14, height: 14, color: '#ffffff' }} />
+                  </motion.div>
+                )}
+              </motion.button>
+            );
+          })}
         </div>
+      </div>
+
+      <div style={{ 
+        display: 'flex', 
+        gap: 10, 
+        paddingTop: 16,
+      }}>
+        <button onClick={onBack} style={styles.secondaryButton}>
+          Back
+        </button>
+        <button
+          onClick={handleContinue}
+          disabled={!selected}
+          style={{
+            ...styles.primaryButton,
+            flex: 1,
+            opacity: !selected ? 0.5 : 1,
+            cursor: !selected ? 'not-allowed' : 'pointer',
+          }}
+        >
+          Continue
+          <ArrowRight style={{ width: 18, height: 18 }} />
+        </button>
       </div>
     </div>
   );
 }
+
+// ============================================================================
+// STEP 3: EMAIL/ACCOUNT
+// ============================================================================
+function AccountStep({ onNext, onBack, userData }) {
+  const [email, setEmail] = useState(userData?.email || '');
+  const [password, setPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+
+  const validEmail = (v) => /.+@.+\..+/.test(v);
+  const strongPw = (v) => v.length >= 8;
+  const canSubmit = validEmail(email) && strongPw(password) && !saving;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setSaving(true);
+    try {
+      const trimmedEmail = email.trim();
+      
+      // Save to localStorage immediately
+      try { localStorage.setItem('user_email', trimmedEmail); } catch {}
+      
+      // Create account and save to Supabase
+      const user = await emailPasswordSignInOrCreate(trimmedEmail, password);
+      await ensureUsersRow(trimmedEmail);
+      try { await setUserPreference('email', trimmedEmail); } catch {}
+      try { await setUserPreference('has_password', 'true'); } catch {}
+      
+      console.log('[Onboarding] Account created for:', trimmedEmail);
+      onNext?.({ amxAccount: !!user, email: trimmedEmail });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ 
+      maxWidth: 340, 
+      margin: '0 auto', 
+      padding: '20px',
+      textAlign: 'center',
+    }}>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <h2 style={styles.heading}>
+          {userData?.name ? `Almost there, ${userData.name}!` : 'Create your account'}
+        </h2>
+        <p style={styles.subheading}>
+          This secures your data and syncs across devices.
+        </p>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+      >
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onFocus={() => setEmailFocused(true)}
+          onBlur={() => setEmailFocused(false)}
+          placeholder="Email address"
+          type="email"
+          style={{
+            ...styles.input,
+            borderColor: emailFocused ? BRAND_ORANGE_GLOW : 'rgba(255, 255, 255, 0.12)',
+            boxShadow: emailFocused ? `0 0 0 3px ${BRAND_ORANGE_LIGHT}` : 'none',
+          }}
+        />
+        
+        <input
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onFocus={() => setPasswordFocused(true)}
+          onBlur={() => setPasswordFocused(false)}
+          onKeyDown={(e) => e.key === 'Enter' && canSubmit && handleSubmit()}
+          placeholder="Create password (8+ characters)"
+          type="password"
+          style={{
+            ...styles.input,
+            borderColor: passwordFocused ? BRAND_ORANGE_GLOW : 'rgba(255, 255, 255, 0.12)',
+            boxShadow: passwordFocused ? `0 0 0 3px ${BRAND_ORANGE_LIGHT}` : 'none',
+          }}
+        />
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+          <button onClick={onBack} style={styles.secondaryButton}>
+            Back
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            style={{
+              ...styles.primaryButton,
+              flex: 1,
+              opacity: !canSubmit ? 0.5 : 1,
+              cursor: !canSubmit ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {saving ? 'Creating...' : 'Create Account'}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ============================================================================
+// STEP 4: GOOGLE CONNECT
+// ============================================================================
+function GoogleStep({ userData, onNext, onBack }) {
+  const handleSkip = () => onNext?.({ googleConnected: false });
+
+  return (
+    <div style={{ 
+      maxWidth: 340, 
+      margin: '0 auto', 
+      padding: '20px',
+      textAlign: 'center',
+    }}>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <div style={{
+          width: 64,
+          height: 64,
+          margin: '0 auto 20px',
+          borderRadius: 16,
+          background: 'rgba(255, 255, 255, 0.06)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <svg viewBox="0 0 48 48" style={{ width: 36, height: 36 }}>
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+          </svg>
+        </div>
+        
+        <h2 style={styles.heading}>Connect Google</h2>
+        <p style={{ ...styles.subheading, marginBottom: 20 }}>
+          Enable Gmail and Calendar integration for hands-free email management.
+        </p>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        style={{ marginBottom: 20 }}
+      >
+        <GoogleConnect compact />
+      </motion.div>
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button onClick={onBack} style={styles.secondaryButton}>
+          Back
+        </button>
+        <button
+          onClick={handleSkip}
+          style={{
+            ...styles.primaryButton,
+            flex: 1,
+            background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+            boxShadow: '0 4px 14px rgba(34, 197, 94, 0.35)',
+          }}
+        >
+          Continue
+          <ArrowRight style={{ width: 18, height: 18 }} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// STEP 5: SUBSCRIPTION (Enhanced with Feature Comparison)
+// ============================================================================
+const STRIPE_PAYMENT_LINKS = {
+  starter_monthly: 'https://buy.stripe.com/eVqbIU2nN1uue2o2Q11Nu06',
+  starter_annual: 'https://buy.stripe.com/00w5kwe6v8WW8I44Y91Nu05',
+  premium_monthly: 'https://buy.stripe.com/fZueV66E32yy3nKgGR1Nu03',
+  premium_annual: 'https://buy.stripe.com/00w00c0fF8WWbUg9ep1Nu04',
+  pro_monthly: 'https://buy.stripe.com/bJe14g8Mb4GG1fCcqB1Nu02',
+  pro_annual: 'https://buy.stripe.com/fZubIU8Mb8WW8I4fCN1Nu01',
+};
+
+const SUBSCRIPTION_TIERS = [
+  {
+    id: 'starter',
+    name: 'Starter',
+    icon: Zap,
+    monthlyPrice: 10,
+    yearlyPrice: 100,
+    creditsPerWeek: 150,
+    features: [
+      { text: '150 credits per week', included: true },
+      { text: 'Email support', included: true },
+      { text: 'Core AI features', included: true },
+      { text: 'Priority responses', included: false },
+      { text: 'Advanced integrations', included: false },
+    ]
+  },
+  {
+    id: 'premium',
+    name: 'Premium',
+    icon: Star,
+    monthlyPrice: 18,
+    yearlyPrice: 180,
+    creditsPerWeek: 400,
+    popular: true,
+    features: [
+      { text: '400 credits per week', included: true },
+      { text: 'Priority support', included: true },
+      { text: 'All AI features', included: true },
+      { text: 'Priority responses', included: true },
+      { text: 'Google integration', included: true },
+    ]
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    icon: Crown,
+    monthlyPrice: 30,
+    yearlyPrice: 300,
+    creditsPerWeek: 600,
+    features: [
+      { text: '600 credits per week', included: true },
+      { text: 'Dedicated support', included: true },
+      { text: 'All AI features', included: true },
+      { text: 'Fastest responses', included: true },
+      { text: 'Custom workflows', included: true },
+    ]
+  }
+];
+
+function SubscriptionStep({ userData, onNext, onBack }) {
+  const [billingCycle, setBillingCycle] = useState('monthly');
+  const [selectedTier, setSelectedTier] = useState('premium');
+  const [opening, setOpening] = useState(false);
+  const [showFeatures, setShowFeatures] = useState(false);
+
+  const handleSubscribe = async (tierId) => {
+    setOpening(true);
+    const planId = `${tierId}_${billingCycle === 'yearly' ? 'annual' : 'monthly'}`;
+    const paymentLink = STRIPE_PAYMENT_LINKS[planId];
+    
+    if (paymentLink) {
+      try {
+        if (window.electron?.openExternal) {
+          await window.electron.openExternal(paymentLink);
+        } else {
+          window.open(paymentLink, '_blank');
+        }
+        try { await setUserPreference('selected_plan', planId); } catch {}
+        try { localStorage.setItem('selected_plan', planId); } catch {}
+        console.log('[Onboarding] Subscription selected:', planId);
+      } catch (err) {
+        console.error('[Onboarding] Failed to open payment link:', err);
+      }
+    }
+    setOpening(false);
+    onNext({ selectedPlan: planId });
+  };
+
+  const handleFreeTrial = () => {
+    // Save to localStorage
+    try { localStorage.setItem('selected_plan', 'free_trial'); } catch {}
+    try { setUserPreference('selected_plan', 'free_trial'); } catch {}
+    console.log('[Onboarding] Free trial selected');
+    onNext({ selectedPlan: 'free_trial' });
+  };
+
+  const selectedTierData = SUBSCRIPTION_TIERS.find(t => t.id === selectedTier);
+  const yearlySavings = selectedTierData 
+    ? Math.round((1 - selectedTierData.yearlyPrice / (selectedTierData.monthlyPrice * 12)) * 100)
+    : 17;
+
+  return (
+    <div style={{ 
+      maxWidth: 400, 
+      margin: '0 auto', 
+      padding: '12px 16px',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        style={{ textAlign: 'center', marginBottom: 12 }}
+      >
+        <h2 style={{ ...styles.heading, fontSize: 22 }}>Choose Your Plan</h2>
+        <p style={{ ...styles.subheading, fontSize: 14, marginBottom: 12 }}>
+          Start with a plan that fits your needs. Cancel anytime.
+        </p>
+      </motion.div>
+
+      {/* Billing Toggle */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        marginBottom: 14,
+      }}>
+        <div style={{ 
+          display: 'inline-flex', 
+          background: 'rgba(255, 255, 255, 0.06)', 
+          borderRadius: 10, 
+          padding: 4,
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+        }}>
+          <button
+            onClick={() => setBillingCycle('monthly')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              color: billingCycle === 'monthly' ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
+              background: billingCycle === 'monthly' ? BRAND_ORANGE : 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setBillingCycle('yearly')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              color: billingCycle === 'yearly' ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
+              background: billingCycle === 'yearly' ? BRAND_ORANGE : 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            Yearly
+            <span style={{ 
+              fontSize: 11, 
+              color: '#86efac',
+              fontWeight: 700,
+              background: 'rgba(34, 197, 94, 0.2)',
+              padding: '2px 6px',
+              borderRadius: 4,
+            }}>
+              Save {yearlySavings}%
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Plan Cards */}
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {SUBSCRIPTION_TIERS.map((tier, index) => {
+            const Icon = tier.icon;
+            const price = billingCycle === 'yearly' ? tier.yearlyPrice : tier.monthlyPrice;
+            const isSelected = selectedTier === tier.id;
+            
+            return (
+              <motion.button
+                key={tier.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                onClick={() => setSelectedTier(tier.id)}
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  borderRadius: 14,
+                  background: isSelected 
+                    ? BRAND_ORANGE_LIGHT
+                    : 'rgba(255, 255, 255, 0.03)',
+                  border: isSelected 
+                    ? `2px solid ${BRAND_ORANGE_GLOW}` 
+                    : '1px solid rgba(255, 255, 255, 0.08)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  position: 'relative',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {tier.popular && (
+                  <motion.span 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    style={{
+                      position: 'absolute',
+                      top: -10,
+                      right: 14,
+                      background: BRAND_ORANGE,
+                      color: '#ffffff',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: '4px 10px',
+                      borderRadius: 20,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                    }}
+                  >
+                    Most Popular
+                  </motion.span>
+                )}
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: isSelected 
+                      ? BRAND_ORANGE
+                      : 'rgba(255, 255, 255, 0.08)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s',
+                  }}>
+                    <Icon style={{ width: 22, height: 22, color: '#ffffff' }} />
+                  </div>
+                  
+                  <div style={{ flex: 1 }}>
+                    <div style={{ 
+                      color: '#ffffff',
+                      fontSize: 16, 
+                      fontWeight: 700,
+                      marginBottom: 2,
+                    }}>
+                      {tier.name}
+                    </div>
+                    <div style={{ 
+                      color: 'rgba(255, 255, 255, 0.5)', 
+                      fontSize: 13,
+                    }}>
+                      {tier.creditsPerWeek} credits/week
+                    </div>
+                  </div>
+                  
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ 
+                      color: '#ffffff',
+                      fontSize: 24, 
+                      fontWeight: 800,
+                      lineHeight: 1,
+                    }}>
+                      ${price}
+                    </div>
+                    <div style={{ 
+                      color: 'rgba(255, 255, 255, 0.4)', 
+                      fontSize: 12,
+                    }}>
+                      /{billingCycle === 'yearly' ? 'year' : 'month'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Feature list for selected tier */}
+                <AnimatePresence>
+                  {isSelected && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      style={{ overflow: 'hidden' }}
+                    >
+                      <div style={{ 
+                        marginTop: 12, 
+                        paddingTop: 12, 
+                        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                        display: 'grid',
+                        gap: 6,
+                      }}>
+                        {tier.features.map((feature, i) => (
+                          <div 
+                            key={i}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              fontSize: 13,
+                              color: feature.included ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.3)',
+                            }}
+                          >
+                            <Check style={{ 
+                              width: 14, 
+                              height: 14, 
+                              color: feature.included ? '#22c55e' : 'rgba(255, 255, 255, 0.2)',
+                            }} />
+                            {feature.text}
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div style={{ paddingTop: 12 }}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={onBack} style={{ ...styles.secondaryButton, flex: 1 }}>
+            Back
+          </button>
+          <button
+            onClick={() => handleSubscribe(selectedTier)}
+            disabled={opening}
+            style={{
+              ...styles.primaryButton,
+              flex: 2,
+              opacity: opening ? 0.7 : 1,
+              cursor: opening ? 'wait' : 'pointer',
+            }}
+          >
+            {opening ? 'Opening...' : 'Subscribe Now'}
+            {!opening && <ArrowRight style={{ width: 18, height: 18 }} />}
+          </button>
+        </div>
+        
+        <button
+          onClick={handleFreeTrial}
+          style={{
+            width: '100%',
+            marginTop: 12,
+            padding: '12px',
+            color: 'rgba(255, 255, 255, 0.6)',
+            background: 'transparent',
+            border: '1px dashed rgba(255, 255, 255, 0.15)',
+            borderRadius: 10,
+            fontSize: 14,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            transition: 'all 0.2s',
+          }}
+        >
+          <Sparkles style={{ width: 16, height: 16 }} />
+          Start with 50 free credits instead
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// STEP 6: COMPLETE (with Confetti & Quick Start)
+// ============================================================================
+const QUICK_START_PROMPTS = [
+  {
+    icon: Mail,
+    text: '"Check my emails for anything important"',
+  },
+  {
+    icon: FileText,
+    text: '"Help me write a professional email"',
+  },
+  {
+    icon: Search,
+    text: '"Research the latest news on AI"',
+  },
+];
+
+function CompleteStep({ userData, onNext }) {
+  const confettiRef = useRef(null);
+  const [confettiTriggered, setConfettiTriggered] = useState(false);
+
+  useEffect(() => {
+    if (!confettiTriggered && confettiRef.current) {
+      setConfettiTriggered(true);
+      setTimeout(() => {
+        createConfetti(confettiRef.current);
+      }, 400);
+    }
+  }, [confettiTriggered]);
+
+  return (
+    <div 
+      ref={confettiRef}
+      style={{ 
+        maxWidth: 360, 
+        margin: '0 auto', 
+        padding: '20px',
+        textAlign: 'center',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      <motion.div
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
+        style={{ marginBottom: 20 }}
+      >
+        <div style={{
+          width: 80,
+          height: 80,
+          margin: '0 auto',
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 8px 32px rgba(34, 197, 94, 0.4)',
+        }}>
+          <Check style={{ width: 40, height: 40, color: '#ffffff' }} />
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+      >
+        <h2 style={{ ...styles.heading, marginBottom: 8 }}>
+          You're all set{userData?.name ? `, ${userData.name}` : ''}!
+        </h2>
+        <p style={{ ...styles.subheading, marginBottom: 20 }}>
+          Agent Max is ready to help you get things done.
+        </p>
+      </motion.div>
+
+      {/* Quick Start Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        style={{
+          background: 'rgba(255, 255, 255, 0.04)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: 14,
+          padding: 16,
+          marginBottom: 20,
+          textAlign: 'left',
+        }}
+      >
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 8, 
+          marginBottom: 12,
+          color: '#ffffff',
+          fontSize: 14,
+          fontWeight: 600,
+        }}>
+          <Bot style={{ width: 18, height: 18, color: BRAND_ORANGE }} />
+          Try saying:
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {QUICK_START_PROMPTS.map((prompt, index) => {
+            const Icon = prompt.icon;
+            return (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.6 + index * 0.1 }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '10px 12px',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  borderRadius: 10,
+                  fontSize: 13,
+                  color: 'rgba(255, 255, 255, 0.7)',
+                }}
+              >
+                <Icon style={{ width: 16, height: 16, color: 'rgba(255, 255, 255, 0.4)', flexShrink: 0 }} />
+                {prompt.text}
+              </motion.div>
+            );
+          })}
+        </div>
+      </motion.div>
+
+      <motion.button
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.9 }}
+        onClick={() => onNext()}
+        style={{
+          ...styles.primaryButton,
+          marginTop: 'auto',
+        }}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        Launch Agent Max
+        <Sparkles style={{ width: 18, height: 18 }} />
+      </motion.button>
+    </div>
+  );
+}
+
+// ============================================================================
+// MAIN ONBOARDING FLOW
+// ============================================================================
 export function OnboardingFlow({ onComplete, onSkip }) {
   const [currentStep, setCurrentStep] = useState(0);
   const { setApiConnected } = useStore();
@@ -136,24 +1309,20 @@ export function OnboardingFlow({ onComplete, onSkip }) {
     name: '',
     email: '',
     hasPaymentMethod: false,
-    firstGoal: ''
+    helpCategory: '',
   });
   const [serverConnected, setServerConnected] = useState(false);
   const [checkingServer, setCheckingServer] = useState(true);
 
   useEffect(() => {
-    // Ensure the float bar expands fully for onboarding in production builds
     try {
       window.localStorage?.removeItem?.('amx:floatbar:lastHeight');
-      window.electron?.resizeWindow?.(360, 520);
+      window.electron?.resizeWindow?.(380, 580);
     } catch (error) {
-      console.warn('[Onboarding] Failed to expand window for onboarding', error);
+      console.warn('[Onboarding] Failed to expand window', error);
     }
-
-    // Make sure API appears connected (the health check runs separately below)
     setApiConnected(true);
 
-    // If a lingering localhost override exists, reset to production Railway API
     try {
       const config = apiConfigManager.getConfig();
       const prodUrl = import.meta.env.VITE_API_URL || 'https://agentmax-production.up.railway.app';
@@ -182,19 +1351,14 @@ export function OnboardingFlow({ onComplete, onSkip }) {
     return () => { mounted = false; clearInterval(id); };
   }, []);
 
-  useEffect(() => {
-    const lastStep = localStorage.getItem('amx:onboarding:currentStep');
-    if (lastStep) {
-      setCurrentStep(Number(lastStep));
-    }
-  }, []);
-
   const steps = [
-    { id: 'name', title: 'Your Name', component: NameStep },
-    { id: 'usecase', title: 'How can I help?', component: HelpCategoryStep },
-    { id: 'account', title: 'Create your Agent Max account', component: EmailSignInStep },
-    { id: 'google', title: 'Connect Google (optional)', component: GoogleConnectStep },
-    { id: 'complete', title: 'Ready to Go!', component: CompleteStep }
+    { id: 'welcome', component: WelcomeStep },
+    { id: 'name', component: NameStep },
+    { id: 'usecase', component: UseCaseStep },
+    { id: 'account', component: AccountStep },
+    { id: 'google', component: GoogleStep },
+    { id: 'subscription', component: SubscriptionStep },
+    { id: 'complete', component: CompleteStep },
   ];
 
   const handleNext = (data = {}) => {
@@ -213,797 +1377,105 @@ export function OnboardingFlow({ onComplete, onSkip }) {
   };
 
   const handleComplete = async () => {
+    console.log('[Onboarding] Completing with data:', userData);
+    
+    // Save all collected data to localStorage as fallback
+    try {
+      localStorage.setItem('onboarding_completed', 'true');
+      localStorage.setItem('user_data', JSON.stringify(userData));
+      localStorage.setItem('user_name', userData.name || '');
+      localStorage.setItem('user_email', userData.email || '');
+      localStorage.setItem('help_category', userData.helpCategory || '');
+      localStorage.setItem('selected_plan', userData.selectedPlan || 'free_trial');
+    } catch (e) {
+      console.warn('[Onboarding] Failed to save to localStorage:', e);
+    }
+    
+    // Save to Supabase preferences (with fallback)
     try {
       await setUserPreference('onboarding_completed', 'true');
-    } catch {}
-    try { localStorage.setItem('onboarding_completed', 'true'); } catch {}
-    try { localStorage.setItem('user_data', JSON.stringify(userData)); } catch {}
-    try { localStorage.removeItem('amx:onboarding:currentStep'); } catch {}
+      if (userData.name) await setUserPreference('user_name', userData.name);
+      if (userData.helpCategory) await setUserPreference('help_category', userData.helpCategory);
+      if (userData.selectedPlan) await setUserPreference('selected_plan', userData.selectedPlan);
+      
+      // Save complete profile
+      const profile = {
+        name: userData.name || '',
+        help_category: userData.helpCategory || '',
+        google_oauth: userData.googleConnected ? 'connected' : 'skipped',
+        selected_plan: userData.selectedPlan || 'free_trial',
+        onboarding_completed_at: new Date().toISOString(),
+      };
+      await setUserPreference('prompt_profile', JSON.stringify(profile));
+    } catch (e) {
+      console.warn('[Onboarding] Failed to save to Supabase:', e);
+    }
+    
+    console.log('[Onboarding] Data saved successfully');
     onComplete(userData);
   };
 
   const CurrentStepComponent = steps[currentStep].component;
+  const showProgress = currentStep > 0 && currentStep < steps.length - 1;
 
   return (
     <div className="absolute inset-0 z-50">
-      <div className="h-full w-full flex flex-col px-4 py-4">
-        <div className="flex-1 w-full mx-auto" style={{maxWidth: 720}}>
+      <div className="h-full w-full flex flex-col px-3 py-3">
+        <div className="flex-1 w-full mx-auto" style={{ maxWidth: 480 }}>
           <div
-            className="w-full h-full rounded-2xl"
+            className="w-full h-full rounded-2xl overflow-hidden"
             style={{
               position: 'relative',
-              background: 'linear-gradient(135deg, rgba(18,20,24,0.82), rgba(24,26,30,0.76))',
-              border: '1px solid rgba(255,255,255,0.12)',
-              boxShadow: '0 12px 50px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
-              backdropFilter: 'saturate(120%) blur(18px)',
-              WebkitBackdropFilter: 'saturate(120%) blur(18px)'
+              background: 'linear-gradient(165deg, rgba(15, 17, 21, 0.95), rgba(10, 12, 16, 0.98))',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              display: 'flex',
+              flexDirection: 'column',
             }}
           >
-            <div className="flex items-center justify-center px-3 pt-4 pb-3 w-full">
-              <div className="flex items-center gap-3">
-                <img src={LogoPng} alt="Agent Max" className="h-6 w-auto object-contain" />
-                <h1 className="text-[15px] font-semibold" style={{color: 'rgba(255,255,255,0.9)'}}>
-                  Agent Max Setup
-                </h1>
-              </div>
-            </div>
-
-            <div className="px-3 pb-3 pt-1" style={{color: 'rgba(255,255,255,0.9)', display: 'flex', flexDirection: 'column', height: '100%'}}>
-              <div className="flex-1 overflow-auto" style={{minHeight: 0, paddingBottom: 8}}>
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={currentStep}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.22 }}
-                  >
-                    <CurrentStepComponent
-                      userData={userData}
-                      onNext={handleNext}
-                      onBack={handleBack}
-                      isFirst={currentStep === 0}
-                      isLast={currentStep === steps.length - 1}
-                      serverConnected={serverConnected}
-                      checkingServer={checkingServer}
-                    />
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Step 1: Your Name
- */
-function NameStep({ userData, onNext }) {
-  const [name, setName] = useState(userData.name || '');
-  const [saving, setSaving] = useState(false);
-
-  const handleContinue = async () => {
-    setSaving(true);
-    try {
-      if (name.trim()) {
-        try { await setProfileName(name.trim()); } catch {}
-        try { await updateUserProfile({ name: name.trim() }); } catch {}
-        try {
-          const profile = {
-            name: name.trim(),
-            help_category: userData?.helpCategory || '',
-            google_oauth: 'unknown'
-          };
-          await setUserPreference('prompt_profile', JSON.stringify(profile));
-          const ctx = `User name: ${profile.name}`;
-          try { await setUserPreference('prompt_context', ctx); } catch {}
-        } catch {}
-      }
-      onNext({ name: name.trim() });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="max-w-xl mx-auto px-4 py-8" style={{ maxWidth: 340, textAlign: 'center' }}>
-      <h2 style={{ color: 'rgba(255,255,255,0.94)', fontSize: 28, fontWeight: 800, letterSpacing: 0.2 }}>
-        What is your name?
-      </h2>
-      <p style={{ color: 'rgba(255,255,255,0.65)', marginTop: 6, marginBottom: 20 }}>
-        I’ll use this to personalize your experience.
-      </p>
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-          alignItems: 'stretch',
-          overflowX: 'hidden',
-          maxWidth: 340,
-          margin: '0 auto'
-        }}
-      >
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Your name"
-          style={{
-            width: '100%',
-            height: 56,
-            padding: '0 14px',
-            color: 'rgba(255,255,255,0.92)',
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.28))',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 12,
-            outline: 'none'
-          }}
-        />
-        <button
-          onClick={handleContinue}
-          disabled={!name.trim() || saving}
-          style={{
-            width: '100%',
-            height: 28,
-            padding: '0 16px',
-            color: '#fff',
-            background: 'linear-gradient(180deg, #3b82f6, #2563eb)',
-            border: '1px solid rgba(255,255,255,0.14)',
-            borderRadius: 12,
-            fontWeight: 600,
-            opacity: !name.trim() || saving ? 0.6 : 1,
-            cursor: !name.trim() || saving ? 'not-allowed' : 'pointer',
-            alignSelf: 'flex-end'
-          }}
-        >
-          Continue
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Step 2: How can I help?
- */
-function HelpCategoryStep({ userData, onNext, onBack }) {
-  const [selected, setSelected] = useState(userData.helpCategory || '');
-
-  const options = [
-    'Help with school',
-    'Help with coding',
-    'Help with work',
-    'Help with writing',
-    'Help with day to day life',
-  ];
-
-  const handleContinue = async () => {
-    try {
-      await setUserPreference('help_category', selected);
-      const profile = {
-        name: (userData?.name || '').trim(),
-        help_category: selected,
-        google_oauth: 'unknown'
-      };
-      try { await setUserPreference('prompt_profile', JSON.stringify(profile)); } catch {}
-      try {
-        const ctx = `User name: ${profile.name || 'Unknown'}\nPrimary focus: ${profile.help_category}.`;
-        await setUserPreference('prompt_context', ctx);
-      } catch {}
-    } catch {}
-    onNext({ helpCategory: selected });
-  };
-
-  return (
-    <div className="max-w-2xl mx-auto px-3 py-4" style={{ textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div>
-        <h2 style={{ color: 'rgba(255,255,255,0.94)', fontSize: 20, fontWeight: 800, marginBottom: 2 }}>How can I help best?</h2>
-        <p style={{ color: 'rgba(255,255,255,0.68)', marginBottom: 6 }}>
-          Choose one focus to get the most relevant tips and defaults. You can change this later.
-        </p>
-      </div>
-
-      <div style={{ flex: 1, overflowY: 'auto', paddingTop: 2 }}>
-        <div className="grid grid-cols-1 gap-2" style={{ justifyItems: 'center' }}>
-          {options.map(opt => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => setSelected(opt)}
-              style={{
-                textAlign: 'left',
-                width: '100%',
-                maxWidth: 240,
-                alignSelf: 'center',
-                padding: '8px 12px',
-                borderRadius: 10,
-                color: 'rgba(255,255,255,0.92)',
-                background: selected === opt ? 'rgba(59,130,246,0.16)' : 'rgba(255,255,255,0.06)',
-                border: selected === opt ? '1px solid rgba(59,130,246,0.45)' : '1px solid rgba(255,255,255,0.12)',
-                fontSize: 14,
-                lineHeight: '18px',
-                fontWeight: 600
-              }}
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex gap-3 justify-center" style={{ paddingTop: 8 }}>
-        <button
-          onClick={onBack}
-          style={{
-            padding: '10px 16px',
-            color: 'rgba(255,255,255,0.9)',
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.14)',
-            borderRadius: 12,
-            fontWeight: 600
-          }}
-        >
-          Back
-        </button>
-        <button
-          onClick={handleContinue}
-          disabled={!selected}
-          style={{
-            padding: '10px 16px',
-            color: '#fff',
-            background: 'linear-gradient(180deg, #3b82f6, #2563eb)',
-            border: '1px solid rgba(255,255,255,0.14)',
-            borderRadius: 12,
-            fontWeight: 600,
-            opacity: !selected ? 0.6 : 1,
-            cursor: !selected ? 'not-allowed' : 'pointer'
-          }}
-        >
-          Continue
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Step 3: Google OAuth
- */
-function GoogleConnectStep({ userData, onNext, onBack, serverConnected, checkingServer }) {
-  const [opening, setOpening] = useState(false);
-  const [connected, setConnected] = useState(false);
-
-  const connect = async () => {
-    setOpening(true);
-    try {
-      const cfg = apiConfigManager.getConfig();
-      const base = cfg.baseURL || 'http://localhost:8000';
-      const normalizedBase = base.includes('localhost') ? base.replace('localhost', '127.0.0.1') : base;
-      const envSetting = import.meta.env.VITE_ENVIRONMENT;
-      const isProdBuild = envSetting === 'production' || envSetting === 'beta' || (!import.meta.env.DEV && import.meta.env.MODE === 'production');
-      // Prepare identifiers
-      let userId = null;
-      try { userId = localStorage.getItem('user_id') || null; } catch {}
-      let deviceId = null;
-      try { deviceId = localStorage.getItem('device_id') || null; } catch {}
-      if (!deviceId) {
-        try {
-          const gen = () => (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function')
-            ? globalThis.crypto.randomUUID()
-            : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-                const r = (Math.random() * 16) | 0;
-                const v = c === 'x' ? r : (r & 0x3) | 0x8;
-                return v.toString(16);
-              });
-          deviceId = gen();
-          localStorage.setItem('device_id', deviceId);
-        } catch {}
-      }
-      // Generate secure state and store hash for validation
-      let state = null;
-      try {
-        state = generateOAuthState();
-        const stateHash = hashOAuthState(state);
-        storeOAuthStateHash(stateHash);
-      } catch {}
-      // Prefer server-provided auth url when available
-      const candidates = [
-        `${normalizedBase}/api/v2/google/oauth/start`,
-        `${normalizedBase}/api/google/oauth/start`,
-        `${normalizedBase}/api/v2/google/oauth`,
-        `${normalizedBase}/api/google/oauth`,
-        `${normalizedBase}/api/v2/google/connect`,
-        `${normalizedBase}/api/google/connect`,
-      ];
-      let url = null;
-      try {
-        const resp = await googleAPI.getAuthUrl(userId, deviceId, state);
-        const authUrl = resp?.data?.auth_url || resp?.data?.url || resp?.data?.authorize_url || null;
-        if (authUrl && typeof authUrl === 'string') url = authUrl;
-      } catch (_) {}
-      if (!url) {
-        if (!isProdBuild) {
-          // Dev-only fallbacks: try conventional endpoints (GET then POST)
-          for (const c of candidates) {
-            try {
-              const u = new URL(c);
-              if (userId) u.searchParams.set('user_id', userId);
-              if (deviceId) u.searchParams.set('device_id', deviceId);
-              if (state) u.searchParams.set('state', state);
-              const res = await fetch(u.toString(), { method: 'GET', redirect: 'manual' });
-              if (res.status >= 200 && res.status < 400) { url = u.toString(); break; }
-            } catch (_) {}
-          }
-          if (!url) {
-            for (const c of candidates) {
-              try {
-                const res = await fetch(c, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId, device_id: deviceId, state }), redirect: 'manual' });
-                if (res.ok) {
-                  try {
-                    const data = await res.clone().json();
-                    const authUrl = data.url || data.auth_url || data.authorize_url || null;
-                    if (authUrl && typeof authUrl === 'string') { url = authUrl; break; }
-                  } catch {}
-                }
-              } catch (_) {}
-            }
-          }
-        } else {
-          // Production: require server-provided URL
-          console.warn('[Onboarding] /api/v2/google/auth/url is unavailable in production');
-        }
-      }
-      try {
-        await setUserPreference('google_oauth_started', 'true');
-        await setUserPreference('google_oauth_status', 'started');
-        const profile = {
-          name: (userData?.name || '').trim(),
-          help_category: userData?.helpCategory || '',
-          google_oauth: 'pending'
-        };
-        try { await setUserPreference('prompt_profile', JSON.stringify(profile)); } catch {}
-      } catch {}
-      if (url) {
-        if (window.electron?.openExternal) await window.electron.openExternal(url);
-        else if (window.electronAPI?.openExternal) await window.electronAPI.openExternal(url);
-      } else {
-        console.warn('[Onboarding] No working Google OAuth endpoint found');
-        if (isProdBuild) {
-          try { alert('Authorization endpoint is unavailable. Please update the backend to expose /api/v2/google/auth/url.'); } catch {}
-        }
-      }
-    } catch (_) {
-      // Non-blocking
-    } finally {
-      setOpening(false);
-    }
-  };
-
-  useEffect(() => {
-    let mounted = true;
-    let id;
-    const tick = async () => {
-      try {
-        const res = await googleAPI.getStatus();
-        if (!mounted) return;
-        if (res?.data?.connected && res.data.email) {
-          setConnected(true);
-          onNext?.({ googleConnected: true, googleEmail: res.data.email });
-          return;
-        }
-      } catch {}
-      try {
-        const email = localStorage.getItem('google_user_email');
-        if (email) {
-          setConnected(true);
-          onNext?.({ googleConnected: true, googleEmail: email });
-          return;
-        }
-      } catch {}
-      id = setTimeout(tick, 1500);
-    };
-    tick();
-    return () => { mounted = false; if (id) clearTimeout(id); };
-  }, [onNext]);
-
-  const handleSkip = () => onNext?.({ googleConnected: false });
-
-  return (
-    <div className="max-w-3xl mx-auto px-3 py-4" style={{ textAlign: 'center' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-        <div style={{ width: 56, height: 56 }}>
-          <svg viewBox="0 0 48 48" style={{ width: '56px', height: '56px' }}>
-            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-          </svg>
-        </div>
-        <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, lineHeight: '16px', maxWidth: 280 }}>
-          Connect Google to enable Gmail and Calendar.
-        </p>
-      </div>
-
-      <div style={{ marginTop: 8, maxWidth: 320, marginLeft: 'auto', marginRight: 'auto' }}>
-        <GoogleConnect compact />
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 52, gap: 8 }}>
-        <button
-          type="button"
-          onClick={onBack}
-          style={{
-            width: '100%',
-            maxWidth: 320,
-            height: 40,
-            padding: '0 16px',
-            color: 'rgba(255,255,255,0.9)',
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.14)',
-            borderRadius: 12,
-            fontWeight: 600
-          }}
-        >
-          Back
-        </button>
-        <button
-          type="button"
-          onClick={handleSkip}
-          style={{
-            width: '100%',
-            maxWidth: 320,
-            height: 40,
-            padding: '0 16px',
-            color: '#fff',
-            background: 'linear-gradient(180deg, #22c55e, #16a34a)',
-            border: '1px solid rgba(255,255,255,0.14)',
-            borderRadius: 12,
-            fontWeight: 700
-          }}
-        >
-          Skip for now
-        </button>
-      </div>
-
-      </div>
-  );
-}
-
-/**
- * Legacy steps below (Payment, FirstGoal) are kept for reference but not used
- */
-function PaymentStepContent({ userData, onNext, onBack }) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState(null);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!stripe || !elements) return;
-
-    setProcessing(true);
-    setError(null);
-
-    // In a real app, you'd create a setup intent on your backend
-    // For now, we'll simulate the payment setup
-    setTimeout(() => {
-      setProcessing(false);
-      onNext({ hasPaymentMethod: true });
-    }, 2000);
-  };
-
-  const handleSkip = () => {
-    onNext({ hasPaymentMethod: false });
-  };
-
-  return (
-    <div className="max-w-2xl mx-auto px-6 py-12">
-      <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CreditCard className="w-8 h-8 text-blue-600" />
-        </div>
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
-          Add Payment Method
-        </h2>
-        <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-          You're only charged $3 when conversations are marked as successful. No subscription fees!
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Card Information
-            </label>
-            <div className="p-3 border border-gray-300 dark:border-gray-600 rounded-lg">
-              <CardElement 
-                options={{
-                  style: {
-                    base: {
-                      fontSize: '16px',
-                      color: '#424770',
-                      '::placeholder': {
-                        color: '#aab7c4',
-                      },
-                    },
-                  },
-                }}
+            {/* Progress Indicator */}
+            {showProgress && (
+              <ProgressIndicator 
+                currentStep={currentStep - 1} 
+                totalSteps={steps.length - 2} 
               />
+            )}
+
+            {/* Step Content */}
+            <div style={{ 
+              flex: 1, 
+              overflow: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+            }}>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentStep}
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -30 }}
+                  transition={{ duration: 0.25, ease: 'easeInOut' }}
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+                >
+                  <CurrentStepComponent
+                    userData={userData}
+                    onNext={handleNext}
+                    onBack={handleBack}
+                    isFirst={currentStep === 0}
+                    isLast={currentStep === steps.length - 1}
+                    serverConnected={serverConnected}
+                    checkingServer={checkingServer}
+                  />
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
-
-          {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-            </div>
-          )}
-
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-            <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
-              How billing works:
-            </h4>
-            <ul className="space-y-1 text-sm text-blue-700 dark:text-blue-300">
-              <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span>Pay only for successful conversations</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span>$3 per completed conversation</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span>Cancel anytime, no hidden fees</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="px-6 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
-          >
-            Back
-          </button>
-          
-          <button
-            type="submit"
-            disabled={!stripe || processing}
-            className="flex-1 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {processing ? 'Processing...' : 'Add Card'}
-          </button>
-          
-          <button
-            type="button"
-            onClick={handleSkip}
-            className="px-6 py-2.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            Skip for now
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-function PaymentStep(props) {
-  if (!stripePromise) {
-    return <MissingStripeConfigStep {...props} />;
-  }
-
-  return (
-    <Elements stripe={stripePromise}>
-      <PaymentStepContent {...props} />
-    </Elements>
-  );
-}
-
-function MissingStripeConfigStep({ onNext, onBack }) {
-  const handleSkip = () => {
-    onNext({ hasPaymentMethod: false });
-  };
-
-  return (
-    <div className="max-w-2xl mx-auto px-6 py-12">
-      <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CreditCard className="w-8 h-8 text-yellow-600" />
-        </div>
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
-          Stripe Configuration Needed
-        </h2>
-        <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-          Add your Stripe publishable key to enable in-app payment collection. You can continue
-          without adding a card and complete billing later.
-        </p>
-      </div>
-
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            Quick setup
-          </h3>
-          <ol className="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
-            <li>Create a publishable key in your Stripe dashboard.</li>
-            <li>
-              Add it to your environment file as{' '}
-              <code className="font-mono bg-gray-100 dark:bg-gray-900 px-1 py-0.5 rounded">
-                VITE_STRIPE_PUBLISHABLE_KEY=pk_test_yourKey
-              </code>
-            </li>
-            <li>Restart the desktop app to apply the new configuration.</li>
-          </ol>
-        </div>
-
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-sm text-blue-800 dark:text-blue-200">
-          <strong className="block font-medium mb-2">Need help?</strong>
-          See <span className="font-mono text-xs">MONETIZATION_SETUP.md</span> for a full Stripe
-          walkthrough.
-        </div>
-      </div>
-
-      <div className="mt-8 flex gap-3 justify-end">
-        <button
-          type="button"
-          onClick={onBack}
-          className="px-6 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
-        >
-          Back
-        </button>
-        <button
-          type="button"
-          onClick={handleSkip}
-          className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-        >
-          Continue Without Card
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Step 3: First Goal
- */
-function FirstGoalStep({ userData, onNext, onBack }) {
-  const [goal, setGoal] = useState('');
-  
-  const exampleGoals = [
-    "Check my email for important messages",
-    "Create a summary of today's news",
-    "Organize my desktop files",
-    "Research competitors for my business",
-    "Draft a professional email"
-  ];
-
-  const handleSelectExample = (example) => {
-    setGoal(example);
-  };
-
-  const handleSubmit = () => {
-    if (goal.trim()) {
-      onNext({ firstGoal: goal });
-    }
-  };
-
-  return (
-    <div className="max-w-2xl mx-auto px-6 py-12">
-      <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-          <MessageSquare className="w-8 h-8 text-green-600" />
-        </div>
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
-          Try Your First Goal
-        </h2>
-        <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-          Tell Agent Max what you want to accomplish. You can start with something simple!
-        </p>
-      </div>
-
-      <div className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            What would you like Agent Max to help you with?
-          </label>
-          <textarea
-            value={goal}
-            onChange={(e) => setGoal(e.target.value)}
-            placeholder="Describe your goal..."
-            className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-            rows={4}
-          />
-        </div>
-
-        <div>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-            Or try one of these examples:
-          </p>
-          <div className="space-y-2">
-            {exampleGoals.map((example, index) => (
-              <button
-                key={index}
-                onClick={() => handleSelectExample(example)}
-                className="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-900 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-sm"
-              >
-                <span className="text-gray-700 dark:text-gray-300">
-                  "{example}"
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            onClick={onBack}
-            className="px-6 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
-          >
-            Back
-          </button>
-          
-          <button
-            onClick={handleSubmit}
-            disabled={!goal.trim()}
-            className="flex-1 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            Start Conversation
-            <ArrowRight className="w-4 h-4" />
-          </button>
         </div>
       </div>
     </div>
   );
 }
 
-/**
- * Step 4: Complete
- */
-function CompleteStep({ userData, onNext }) {
-  return (
-    <div className="mx-auto text-center" style={{ maxWidth: 340, padding: '12px 10px', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', boxSizing: 'border-box' }}>
-      <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: 'spring', bounce: 0.5 }}
-        className="inline-block mb-4"
-      >
-        <div className="rounded-full flex items-center justify-center" style={{ width: 72, height: 72, background: 'linear-gradient(180deg,#22c55e,#16a34a)' }}>
-          <Check className="text-white" style={{ width: 36, height: 36 }} />
-        </div>
-      </motion.div>
-
-      <h2 className="font-bold text-gray-100 mb-2" style={{ fontSize: 20 }}>
-        You're All Set!
-      </h2>
-      <p className="mx-auto text-gray-300" style={{ fontSize: 14, lineHeight: '20px', marginBottom: 10 }}>
-        Agent Max is ready to help you automate your tasks and boost your productivity.
-      </p>
-
-      <div className="rounded-lg text-left mx-auto" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', padding: 10, marginBottom: 12, maxWidth: 320, boxSizing: 'border-box' }}>
-        <h3 className="font-semibold text-gray-100 mb-2" style={{ fontSize: 14 }}>Quick Tips:</h3>
-        <ul className="text-gray-300" style={{ fontSize: 13, display: 'grid', rowGap: 6 }}>
-          <li className="flex items-start gap-2"><span className="text-blue-500">•</span><span>Be specific about what you want to accomplish</span></li>
-          <li className="flex items-start gap-2"><span className="text-blue-500">•</span><span>Review actions before confirming them</span></li>
-          <li className="flex items-start gap-2"><span className="text-blue-500">•</span><span>You can pause or stop at any time</span></li>
-        </ul>
-      </div>
-
-      <button
-        onClick={() => onNext()}
-        className="text-white rounded-lg inline-flex items-center justify-center gap-2"
-        style={{ width: 300, height: 40, background: 'linear-gradient(180deg,#3b82f6,#2563eb)', border: '1px solid rgba(255,255,255,0.14)', fontWeight: 600, marginTop: 'auto' }}
-      >
-        Launch Agent Max
-        <Sparkles style={{ width: 18, height: 18 }} />
-      </button>
-    </div>
-  );
-}
+export default OnboardingFlow;

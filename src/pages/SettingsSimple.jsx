@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { GoogleConnect } from '../components/GoogleConnect';
 import telemetry from '../services/telemetry';
 import apiConfigManager from '../config/apiConfig';
+import packageJson from '../../package.json';
 
 export default function SettingsSimple() {
   // Preferences
@@ -159,12 +160,34 @@ export default function SettingsSimple() {
         </section>
 
         {/* Integrations */}
-        <section style={{ border: '1px solid #e5e7eb', background: '#ffffff', borderRadius: 12, padding: 20, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+        <section style={{ border: '1px solid #e5e7eb', background: '#ffffff', borderRadius: 12, padding: 20, marginBottom: 24, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Integrations</h2>
           <p style={{ fontSize: 14, color: '#4b5563', marginBottom: 16 }}>
             Connect your Google account to enable Gmail, Calendar, Docs, Sheets, and YouTube.
           </p>
           <GoogleConnect />
+        </section>
+
+        {/* About */}
+        <section style={{ border: '1px solid #e5e7eb', background: '#ffffff', borderRadius: 12, padding: 20, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>About</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 14, color: '#374151' }}>Version</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#111827', background: '#f3f4f6', padding: '4px 12px', borderRadius: 6 }}>
+                {packageJson.version}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 14, color: '#374151' }}>Build</span>
+              <span style={{ fontSize: 14, color: '#6b7280' }}>
+                {import.meta.env.MODE === 'production' ? 'Production' : 'Development'}
+              </span>
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12, color: '#9ca3af' }}>
+              © 2025 Agent Max. Made with ❤️ by Colin O'Brien.
+            </div>
+          </div>
         </section>
       </div>
     </div>

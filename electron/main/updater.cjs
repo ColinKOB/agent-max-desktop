@@ -145,5 +145,6 @@ function cleanup() {
 module.exports = {
   setupAutoUpdater,
   checkForUpdates,
-  cleanup
+  cleanup,
+  autoUpdater  // Export the autoUpdater instance for IPC handlers
 };

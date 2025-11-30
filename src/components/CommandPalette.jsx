@@ -126,7 +126,7 @@ const COMMANDS = [
     label: 'Upgrade Plan',
     icon: Sparkles,
     group: COMMAND_GROUPS.BILLING,
-    action: () => window.open('https://agentmax.dev/upgrade', '_blank'),
+    action: () => window.location.hash = '#/settings?tab=billing',
     keywords: ['pro', 'premium', 'subscribe']
   },
   {

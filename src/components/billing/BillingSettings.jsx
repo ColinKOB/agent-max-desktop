@@ -86,10 +86,20 @@ const TIERS = [
   }
 ];
 
-// Stripe checkout is currently only available via the backend API
-// When the API is unavailable, we show a contact message instead
+// Stripe Payment Links - Direct checkout URLs
+// These are used as primary checkout method and fallback if backend API fails
+export const STRIPE_PAYMENT_LINKS = {
+  starter_monthly: 'https://buy.stripe.com/eVqbIU2nN1uue2o2Q11Nu06',
+  starter_annual: 'https://buy.stripe.com/00w5kwe6v8WW8I44Y91Nu05',
+  premium_monthly: 'https://buy.stripe.com/fZueV66E32yy3nKgGR1Nu03',
+  premium_annual: 'https://buy.stripe.com/00w00c0fF8WWbUg9ep1Nu04',
+  pro_monthly: 'https://buy.stripe.com/bJe14g8Mb4GG1fCcqB1Nu02',
+  pro_annual: 'https://buy.stripe.com/fZubIU8Mb8WW8I4fCN1Nu01',
+};
 
-export function BillingSettings({ tenantId = 'test-tenant-001', userId }) {
+export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUserId }) {
+  // Get userId from props, localStorage, or generate one
+  const userId = propUserId || localStorage.getItem('user_id') || `user_${Date.now()}`;
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [selectedTier, setSelectedTier] = useState('premium');
   const [loading, setLoading] = useState(true);
@@ -192,45 +202,53 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId }) {
   };
 
   const handleSubscribe = async (tierId) => {
+    const planId = `${tierId}_${billingCycle === 'yearly' ? 'annual' : 'monthly'}`;
+    
+    // Helper to open URL in external browser
+    const openCheckout = async (url) => {
+      if (window.electron?.openExternal) {
+        await window.electron.openExternal(url);
+        toast.success('Opening Stripe checkout in your browser...', { duration: 3000 });
+      } else {
+        window.open(url, '_blank');
+      }
+    };
+    
     try {
       setPurchasing(true);
       setSelectedTier(tierId);
       
-      const planId = `${tierId}_${billingCycle === 'yearly' ? 'annual' : 'monthly'}`;
       const successUrl = `${window.location.origin}/#/settings?purchase=success`;
       const cancelUrl = `${window.location.origin}/#/settings?purchase=cancel`;
 
-      // Try the API checkout endpoint
-      const response = await creditsAPI.createSubscription(planId, userId, successUrl, cancelUrl);
-      
-      if (response?.data?.url) {
-        // Open Stripe Checkout in external browser (required for Electron)
-        if (window.electron?.openExternal) {
-          await window.electron.openExternal(response.data.url);
-          toast.success('Opening Stripe checkout in your browser...', { duration: 3000 });
-          setPurchasing(false);
-        } else {
-          // Fallback for web builds
-          window.location.href = response.data.url;
+      // Try the API checkout endpoint first (allows tracking user_id)
+      try {
+        const response = await creditsAPI.createSubscription(planId, userId, successUrl, cancelUrl);
+        
+        if (response?.data?.url) {
+          await openCheckout(response.data.url);
+          return;
         }
+      } catch (apiError) {
+        console.warn('[BillingSettings] API checkout failed, using direct Payment Link:', apiError);
+      }
+      
+      // Fallback to direct Stripe Payment Links
+      const paymentLink = STRIPE_PAYMENT_LINKS[planId];
+      if (paymentLink) {
+        console.log('[BillingSettings] Using direct Stripe Payment Link for:', planId);
+        await openCheckout(paymentLink);
         return;
       }
       
-      throw new Error('No checkout URL returned');
+      // No payment link available
+      throw new Error(`No payment link found for plan: ${planId}`);
     } catch (error) {
       console.error('[BillingSettings] Subscription failed:', error);
-      
-      // Check if it's a 404 (endpoint not deployed)
-      const is404 = error?.status === 404 || error?.response?.status === 404 || error?.message?.includes('not found');
-      
-      if (is404) {
-        toast.error(
-          'Subscriptions are being set up! Please contact support@agentmax.ai to subscribe.',
-          { duration: 5000, icon: '📧' }
-        );
-      } else {
-        toast.error('Failed to start checkout. Please try again.');
-      }
+      toast.error(
+        'Unable to open checkout. Please try again or contact support@agentmax.ai',
+        { duration: 5000, icon: '📧' }
+      );
     } finally {
       setPurchasing(false);
     }

@@ -23,36 +23,99 @@ const UpdateNotification = ({ updateInfo, updateProgress, onDismiss }) => {
 
   if (!updateInfo || !canShow) return null;
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
+    console.log('[UpdateNotification] Download button clicked');
+    
+    // Try AMX bridge first (for dev/testing)
     if (window.AMX?.showUpdate) {
+      console.log('[UpdateNotification] Using AMX bridge');
       window.AMX.showUpdate('downloading');
       return;
     }
+    
+    // Try electronAPI (production)
     if (window.electronAPI?.downloadUpdate) {
-      window.electronAPI.downloadUpdate();
+      console.log('[UpdateNotification] Using electronAPI.downloadUpdate');
+      try {
+        const result = await window.electronAPI.downloadUpdate();
+        console.log('[UpdateNotification] Download result:', result);
+        if (!result?.success) {
+          toast.error(`Update failed: ${result?.error || 'Unknown error'}`);
+        }
+      } catch (err) {
+        console.error('[UpdateNotification] Download error:', err);
+        toast.error(`Update failed: ${err.message}`);
+      }
+      return;
     }
+    
+    // Fallback: try electron bridge
+    if (window.electron?.checkForUpdates) {
+      console.log('[UpdateNotification] Using electron.checkForUpdates fallback');
+      try {
+        await window.electron.checkForUpdates();
+      } catch (err) {
+        console.error('[UpdateNotification] Fallback error:', err);
+      }
+      return;
+    }
+    
+    console.warn('[UpdateNotification] No update API available');
+    toast.error('Update not available in this environment');
   };
 
-  const handleInstall = () => {
+  const handleInstall = async () => {
+    console.log('[UpdateNotification] Install button clicked');
+    
     if (window.AMX?.showUpdate) {
       try { window.AMX.showUpdate('clear'); } catch {}
       try { window.location.reload(); } catch {}
       return;
     }
+    
     if (window.electronAPI?.installUpdate) {
-      window.electronAPI.installUpdate();
+      console.log('[UpdateNotification] Using electronAPI.installUpdate');
+      try {
+        const result = await window.electronAPI.installUpdate();
+        console.log('[UpdateNotification] Install result:', result);
+        if (!result?.success) {
+          toast.error(`Install failed: ${result?.error || 'Unknown error'}`);
+        }
+      } catch (err) {
+        console.error('[UpdateNotification] Install error:', err);
+        toast.error(`Install failed: ${err.message}`);
+      }
+      return;
     }
+    
+    console.warn('[UpdateNotification] No install API available');
   };
 
-  const handleRestart = () => {
+  const handleRestart = async () => {
+    console.log('[UpdateNotification] Restart button clicked');
+    
     if (window.AMX?.showUpdate) {
       try { window.AMX.showUpdate('clear'); } catch {}
       try { window.location.reload(); } catch {}
       return;
     }
+    
     if (window.electronAPI?.restartForUpdate) {
-      window.electronAPI.restartForUpdate();
+      console.log('[UpdateNotification] Using electronAPI.restartForUpdate');
+      try {
+        const result = await window.electronAPI.restartForUpdate();
+        console.log('[UpdateNotification] Restart result:', result);
+        if (!result?.success) {
+          toast.error(`Restart failed: ${result?.error || 'Unknown error'}`);
+        }
+      } catch (err) {
+        console.error('[UpdateNotification] Restart error:', err);
+        toast.error(`Restart failed: ${err.message}`);
+      }
+      return;
     }
+    
+    console.warn('[UpdateNotification] No restart API available');
   };
 
   const renderContent = () => {

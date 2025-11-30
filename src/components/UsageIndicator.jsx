@@ -169,7 +169,7 @@ export function UsageIndicator({ tenantId = 'test-tenant-001' }) {
       {/* Upgrade Button */}
       {showUpgrade && (
         <button
-          onClick={() => window.open('https://agentmax.dev/upgrade', '_blank')}
+          onClick={() => window.location.hash = '#/settings?tab=billing'}
           style={{
             width: '100%',
             padding: '10px',
@@ -204,7 +204,7 @@ export function UsageIndicator({ tenantId = 'test-tenant-001' }) {
           <span>⚠️</span>
           <span>Running low on conversations</span>
           <button
-            onClick={() => window.open('https://agentmax.dev/upgrade', '_blank')}
+            onClick={() => window.location.hash = '#/settings?tab=billing'}
             style={{
               marginLeft: 'auto',
               padding: '4px 12px',

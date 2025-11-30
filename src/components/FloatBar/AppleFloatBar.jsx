@@ -3192,8 +3192,8 @@ export default function AppleFloatBar({
           </div>
 
           {/* Onboarding overlay: only after expansion and when requested */}
-          {/* Onboarding overlay disabled in this build to keep pill/bar interaction unobstructed */}
-          {false && showWelcome === true && !isTransitioning && (
+          {/* Premium onboarding enabled */}
+          {showWelcome === true && !isTransitioning && (
             <div style={{ position: 'absolute', inset: 0, zIndex: 80 }}>
               <OnboardingFlow onComplete={onWelcomeComplete} />
             </div>
