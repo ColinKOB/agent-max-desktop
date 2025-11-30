@@ -36,6 +36,9 @@ contextBridge.exposeInMainWorld('electron', {
   
   // Open Test Window (for debugging)
   openTestWindow: () => ipcRenderer.invoke('open-test-window'),
+  
+  // Open native file dialog (opens as separate window, not attached to card)
+  openFileDialog: (options) => ipcRenderer.invoke('open-file-dialog', options || {}),
 
   // Memory management functions
   memory: {

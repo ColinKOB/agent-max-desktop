@@ -152,16 +152,18 @@
 
 .apple-input-area {
   display: flex;
-  align-items: flex-end;
+  align-items: center; /* Center vertically for single line */
   gap: 8px;
-  padding: 8px 6px 6px;
+  padding: 6px 8px; /* Reduced padding */
   width: 100%;
   background: transparent; /* let the card glass show through */
   border-radius: 0;
   border-top: 1px solid rgba(255,255,255,0.16); /* subtle footer divider */
   box-shadow: none;
   flex-shrink: 0;
-  margin-top: 4px;
+  margin-top: 0; /* Remove extra margin */
+  min-height: 48px; /* Fixed minimum height */
+  max-height: fit-content;
 }
 
 .apple-input-area:focus-within {
@@ -433,22 +435,49 @@
   max-height: 120px;
   line-height: 1.4;
   padding: 6px 12px !important;
-  overflow-y: auto;
+  overflow-y: hidden; /* Hide scrollbar until content exceeds one line */
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.2) transparent;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.apple-textarea:focus {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Only show scrollbar when textarea has multiple lines of content */
+.apple-textarea.has-overflow {
+  overflow-y: auto;
 }
 
 .apple-textarea::-webkit-scrollbar {
   width: 4px;
+  background: transparent !important;
 }
 
 .apple-textarea::-webkit-scrollbar-track {
-  background: transparent;
+  background: transparent !important;
+  -webkit-box-shadow: none !important;
 }
 
 .apple-textarea::-webkit-scrollbar-thumb {
   background: rgba(255,255,255,0.2);
   border-radius: 2px;
+}
+
+/* Ensure textarea and input have no background (but not buttons) */
+.apple-input-area > .apple-input,
+.apple-input-area > .apple-textarea,
+.apple-input-area > textarea,
+.apple-input-area > input {
+  background-color: transparent !important;
+  background: transparent !important;
 }
 
 /* Attach button (plus icon) */

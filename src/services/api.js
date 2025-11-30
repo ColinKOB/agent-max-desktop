@@ -307,8 +307,12 @@ api.interceptors.response.use(
         {
           duration: 8000,
           onClick: () => {
-            // Navigate to billing/credits page
-            if (window.location.hash !== '#/settings') {
+            // Open settings window (don't navigate current window)
+            const openSettings = window.electron?.openSettings || window.electronAPI?.openSettings;
+            if (openSettings) {
+              openSettings({ route: '#/settings?section=credits' });
+            } else {
+              // Web fallback only
               window.location.hash = '#/settings?section=credits';
             }
           },

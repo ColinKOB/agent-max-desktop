@@ -6,6 +6,7 @@
  */
 
 import { createLogger } from './logger.js';
+import apiConfigManager from '../config/apiConfig';
 
 const logger = createLogger('DeepDive');
 
@@ -22,13 +23,51 @@ function countWords(text) {
 }
 
 /**
- * Generate a summary of the text (first ~50 words)
+ * Generate a quick summary of the text (first ~50 words) - fallback
  */
-function generateSummary(text, maxWords = 50) {
+function generateQuickSummary(text, maxWords = 50) {
   if (!text || typeof text !== 'string') return '';
   const words = text.trim().split(/\s+/).filter(w => w.length > 0);
   if (words.length <= maxWords) return text;
   return words.slice(0, maxWords).join(' ') + '...';
+}
+
+/**
+ * Generate an AI summary using GPT-5-mini
+ * Falls back to quick summary if API fails
+ */
+async function generateAISummary(fullText, userPrompt = '') {
+  try {
+    const apiUrl = apiConfigManager.getApiUrl?.() || 'https://agentmax-production.up.railway.app';
+    const apiKey = apiConfigManager.getApiKey?.() || '';
+    
+    const response = await fetch(`${apiUrl}/api/v2/summarize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey && { 'X-API-Key': apiKey })
+      },
+      body: JSON.stringify({
+        text: fullText.substring(0, 4000), // Limit input size
+        user_prompt: userPrompt,
+        max_words: 30,
+        model: 'gpt-5-mini'
+      })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.summary) {
+        logger.info('[DeepDive] Generated AI summary');
+        return data.summary;
+      }
+    }
+  } catch (err) {
+    logger.warn('[DeepDive] AI summary failed, using fallback:', err?.message);
+  }
+  
+  // Fallback to quick summary
+  return generateQuickSummary(fullText, 40);
 }
 
 /**
@@ -88,10 +127,17 @@ export function qualifiesAsDeepDive(text) {
  * @param {string} fullResponse - The full AI response
  * @returns {object} - The deep dive entry with id, summary, etc.
  */
-export function createDeepDive(userPrompt, fullResponse) {
+export async function createDeepDive(userPrompt, fullResponse) {
   const id = generateId();
   const wordCount = countWords(fullResponse);
-  const summary = generateSummary(fullResponse, 50);
+  
+  // Generate AI summary (async) - will fallback to quick summary if API fails
+  let summary;
+  try {
+    summary = await generateAISummary(fullResponse, userPrompt);
+  } catch {
+    summary = generateQuickSummary(fullResponse, 40);
+  }
   
   const deepDive = {
     id,
@@ -100,7 +146,7 @@ export function createDeepDive(userPrompt, fullResponse) {
     summary,
     wordCount,
     createdAt: Date.now(),
-    title: userPrompt ? generateSummary(userPrompt, 10) : 'Deep Dive Response'
+    title: userPrompt ? generateQuickSummary(userPrompt, 10) : 'Deep Dive Response'
   };
   
   // Save to storage

@@ -565,6 +565,18 @@ export default function AppleFloatBar({
     } catch {}
   }, []);
 
+  // Reset textarea height and window size when message is cleared
+  useEffect(() => {
+    if (message === '' && inputRef.current) {
+      inputRef.current.style.height = '24px';
+      inputRef.current.classList.remove('has-overflow');
+      // Reset window to base height (only if not in mini mode)
+      if (!isMini && window.electron?.resizeWindow) {
+        window.electron.resizeWindow(360, 220).catch(() => {});
+      }
+    }
+  }, [message, isMini]);
+
   // Helper: retrieve context then proceed to send (optionally auto-send)
   const continueAfterPreview = useCallback(async (text) => {
     const pack = await doRetrieveContext(text);
@@ -3737,7 +3749,32 @@ export default function AppleFloatBar({
             {/* Attach button */}
             <button
               className="apple-attach-btn"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={async () => {
+                // Use native file dialog if available (opens as separate window)
+                const openFileDialog = window.electron?.openFileDialog || window.electronAPI?.openFileDialog;
+                if (openFileDialog) {
+                  try {
+                    const result = await openFileDialog();
+                    if (result?.success && result.files?.length) {
+                      result.files.forEach(file => {
+                        setAttachments(prev => [...prev, {
+                          file: { name: file.name, size: file.size, path: file.path },
+                          preview: file.data, // base64 data URL for images
+                          type: file.type,
+                          content: file.content // text content for documents
+                        }]);
+                      });
+                    }
+                  } catch (err) {
+                    console.error('[FileDialog] Error:', err);
+                    // Fallback to HTML input
+                    fileInputRef.current?.click();
+                  }
+                } else {
+                  // Fallback for web
+                  fileInputRef.current?.click();
+                }
+              }}
               title="Attach files or images"
             >
               <Plus size={18} />
@@ -3745,18 +3782,53 @@ export default function AppleFloatBar({
             
             <textarea
               ref={inputRef}
-              className="apple-input apple-textarea"
+              className={`apple-input apple-textarea${message.includes('\n') || (inputRef.current?.scrollHeight > 40) ? ' has-overflow' : ''}`}
               placeholder={
                 userInputRequest 
                   ? "Type your response..." 
                   : (apiConnected ? "Ask anything..." : "Connecting...")
               }
               value={message}
-              onChange={(e) => {
+              onChange={async (e) => {
                 setMessage(e.target.value);
-                // Auto-resize textarea
+                // Auto-resize textarea - only grow when content actually wraps
                 e.target.style.height = 'auto';
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                const scrollHeight = e.target.scrollHeight;
+                // Single line threshold - don't resize unless we have actual multiline
+                const singleLineMax = 36; // Accounts for padding
+                const isMultiLine = scrollHeight > singleLineMax;
+                
+                if (isMultiLine) {
+                  // Grow for multiline content
+                  const newHeight = Math.min(scrollHeight, 120);
+                  e.target.style.height = newHeight + 'px';
+                  e.target.classList.add('has-overflow');
+                  
+                  // Resize window for multiline
+                  if (window.electron?.resizeWindow) {
+                    const baseHeight = 220;
+                    const extraHeight = newHeight - singleLineMax;
+                    const targetWindowHeight = Math.min(baseHeight + extraHeight, 340);
+                    if (targetWindowHeight !== lastHeightRef.current) {
+                      try {
+                        await window.electron.resizeWindow(360, targetWindowHeight);
+                        lastHeightRef.current = targetWindowHeight;
+                      } catch {}
+                    }
+                  }
+                } else {
+                  // Single line - don't set explicit height, let CSS handle it
+                  e.target.style.height = '';
+                  e.target.classList.remove('has-overflow');
+                  
+                  // Reset window to base height
+                  if (window.electron?.resizeWindow && lastHeightRef.current !== 220) {
+                    try {
+                      await window.electron.resizeWindow(360, 220);
+                      lastHeightRef.current = 220;
+                    } catch {}
+                  }
+                }
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {

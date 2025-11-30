@@ -145,7 +145,7 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
             )}
 
             {/* Full Response */}
-            <div style={{ padding: '24px' }}>
+            <div style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
               <div style={{ 
                 color: '#374151', 
                 lineHeight: 1.7, 
@@ -173,6 +173,10 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
                 >
                   {selectedDeepDive.fullResponse}
                 </ReactMarkdown>
+              </div>
+              {/* Debug: Show character count */}
+              <div style={{ marginTop: 16, fontSize: 12, color: '#9ca3af', textAlign: 'right' }}>
+                {selectedDeepDive.fullResponse?.length || 0} characters
               </div>
             </div>
           </div>

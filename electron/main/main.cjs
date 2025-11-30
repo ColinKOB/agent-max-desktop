@@ -816,6 +816,55 @@ ipcMain.handle('open-test-window', () => {
   return { success: true };
 });
 
+// Open native file dialog (opens as its own window, not attached to card)
+ipcMain.handle('open-file-dialog', async (_event, options = {}) => {
+  const { dialog } = require('electron');
+  const fs = require('fs');
+  
+  try {
+    const result = await dialog.showOpenDialog({
+      title: options.title || 'Select Files',
+      properties: ['openFile', 'multiSelections'],
+      filters: options.filters || [
+        { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'] },
+        { name: 'Documents', extensions: ['pdf', 'txt', 'md', 'json', 'csv'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+    
+    if (result.canceled || !result.filePaths.length) {
+      return { success: true, files: [] };
+    }
+    
+    // Read file contents and return as base64 for images, text for documents
+    const files = await Promise.all(result.filePaths.map(async (filePath) => {
+      const fileName = require('path').basename(filePath);
+      const ext = require('path').extname(filePath).toLowerCase();
+      const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'].includes(ext);
+      
+      const buffer = fs.readFileSync(filePath);
+      const base64 = buffer.toString('base64');
+      const mimeType = isImage 
+        ? `image/${ext.slice(1) === 'jpg' ? 'jpeg' : ext.slice(1)}`
+        : 'application/octet-stream';
+      
+      return {
+        name: fileName,
+        path: filePath,
+        type: isImage ? 'image' : 'file',
+        size: buffer.length,
+        data: isImage ? `data:${mimeType};base64,${base64}` : null,
+        content: !isImage ? buffer.toString('utf-8') : null
+      };
+    }));
+    
+    return { success: true, files };
+  } catch (error) {
+    console.error('[FileDialog] Error:', error);
+    return { success: false, error: error.message, files: [] };
+  }
+});
+
 // Check for updates (manual trigger)
 ipcMain.handle('check-for-updates', async () => {
   try {

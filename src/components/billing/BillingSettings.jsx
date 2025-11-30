@@ -20,7 +20,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { creditsAPI, telemetryAPI } from '../../services/api';
+import { creditsAPI } from '../../services/api';
 import { supabase, isSupabaseAvailable } from '../../services/supabase';
 import './BillingSettings.css';
 
@@ -98,8 +98,18 @@ export const STRIPE_PAYMENT_LINKS = {
 };
 
 export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUserId }) {
-  // Get userId from props, localStorage, or generate one
-  const userId = propUserId || localStorage.getItem('user_id') || `user_${Date.now()}`;
+  // Get userId from props, localStorage, or generate and persist a stable one
+  const userId = (() => {
+    if (propUserId) return propUserId;
+    let stored = localStorage.getItem('user_id');
+    if (!stored) {
+      // Generate a stable user_id and persist it
+      stored = `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      try { localStorage.setItem('user_id', stored); } catch {}
+      console.log('[BillingSettings] Generated new persistent user_id:', stored);
+    }
+    return stored;
+  })();
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [selectedTier, setSelectedTier] = useState('premium');
   const [loading, setLoading] = useState(true);
@@ -115,6 +125,28 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
     subscriptionStatus: null
   });
 
+  // Check for purchase success/cancel in URL and handle accordingly
+  useEffect(() => {
+    const checkPurchaseStatus = () => {
+      const hash = window.location.hash;
+      if (hash.includes('purchase=success')) {
+        console.log('[BillingSettings] Purchase success detected, refreshing credits...');
+        toast.success('🎉 Purchase successful! Your credits have been added.', { duration: 5000 });
+        // Clean up URL
+        window.location.hash = '#/settings';
+        // Reload stats after a short delay to allow webhook to process
+        setTimeout(() => loadUserStats(), 2000);
+      } else if (hash.includes('purchase=cancel')) {
+        toast('Purchase cancelled', { icon: '❌', duration: 3000 });
+        window.location.hash = '#/settings';
+      }
+    };
+    
+    checkPurchaseStatus();
+    window.addEventListener('hashchange', checkPurchaseStatus);
+    return () => window.removeEventListener('hashchange', checkPurchaseStatus);
+  }, []);
+
   useEffect(() => {
     loadUserStats();
   }, [userId]);
@@ -126,56 +158,76 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
       let tier = null;
       let subscriptionStatus = null;
       
+      console.log('[BillingSettings] Loading stats for userId:', userId);
+      
       // 1. Try to get credits from Supabase (primary source)
       if (isSupabaseAvailable() && userId) {
         try {
+          console.log('[BillingSettings] Querying Supabase for user:', userId);
           const { data: userData, error } = await supabase
             .from('users')
             .select('credits, subscription_tier, subscription_status')
             .eq('id', userId)
             .single();
           
+          if (error) {
+            console.warn('[BillingSettings] Supabase query error:', error.message, error.code);
+          }
+          
           if (!error && userData) {
             credits = userData.credits || 0;
             tier = userData.subscription_tier || null;
             subscriptionStatus = userData.subscription_status || null;
             console.log('[BillingSettings] Loaded from Supabase:', { credits, tier, subscriptionStatus });
+          } else {
+            console.log('[BillingSettings] No user data found in Supabase for:', userId);
           }
         } catch (err) {
           console.warn('[BillingSettings] Supabase query failed:', err);
         }
+      } else {
+        console.log('[BillingSettings] Supabase not available or no userId');
       }
       
       // 2. Fallback: try backend credits API
       if (credits === 0 && userId) {
         try {
+          console.log('[BillingSettings] Trying backend API for credits...');
           const balanceRes = await creditsAPI.getBalance(userId);
+          console.log('[BillingSettings] Backend API response:', balanceRes?.data);
           if (balanceRes?.data) {
             credits = balanceRes.data.credits || balanceRes.data.balance || 0;
             tier = balanceRes.data.subscription_tier || tier;
             console.log('[BillingSettings] Loaded from API:', { credits, tier });
           }
         } catch (err) {
-          console.warn('[BillingSettings] Credits API failed:', err);
+          console.warn('[BillingSettings] Credits API failed:', err?.response?.status, err?.message);
         }
       }
 
-      // 3. Load telemetry stats for usage metrics
+      // 3. Load telemetry stats from Supabase (backend API doesn't have stats endpoint)
       let conversationCount = 0;
       let tasksCount = 0;
-      try {
-        const telemetryRes = await telemetryAPI.getStats();
-        if (telemetryRes?.data) {
-          conversationCount = telemetryRes.data.conversations_this_month 
-            || telemetryRes.data.conversations 
-            || telemetryRes.data.total_conversations 
-            || 0;
-          tasksCount = telemetryRes.data.successful_count 
-            || telemetryRes.data.tasks_completed 
-            || Math.floor(conversationCount * 0.6); // estimate
+      if (isSupabaseAvailable() && userId) {
+        try {
+          // Count sessions for this user
+          const { count: sessionCount } = await supabase
+            .from('sessions')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId);
+          
+          // Count telemetry events
+          const { count: eventCount } = await supabase
+            .from('telemetry_events')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId);
+          
+          conversationCount = sessionCount || 0;
+          tasksCount = eventCount || Math.floor(conversationCount * 0.6);
+          console.log('[BillingSettings] Loaded stats from Supabase:', { conversationCount, tasksCount });
+        } catch (err) {
+          console.warn('[BillingSettings] Could not load telemetry from Supabase:', err?.message);
         }
-      } catch (err) {
-        console.warn('[BillingSettings] Telemetry stats unavailable');
       }
 
       // 4. Calculate estimated metrics
@@ -233,11 +285,13 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
         console.warn('[BillingSettings] API checkout failed, using direct Payment Link:', apiError);
       }
       
-      // Fallback to direct Stripe Payment Links
+      // Fallback to direct Stripe Payment Links with client_reference_id
       const paymentLink = STRIPE_PAYMENT_LINKS[planId];
       if (paymentLink) {
         console.log('[BillingSettings] Using direct Stripe Payment Link for:', planId);
-        await openCheckout(paymentLink);
+        // Append client_reference_id so webhook can identify the user
+        const linkWithUser = `${paymentLink}?client_reference_id=${encodeURIComponent(userId)}`;
+        await openCheckout(linkWithUser);
         return;
       }
       
