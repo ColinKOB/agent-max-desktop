@@ -608,12 +608,28 @@ function AccountStep({ onNext, onBack, userData }) {
       
       // Create account and save to Supabase
       const user = await emailPasswordSignInOrCreate(trimmedEmail, password);
-      await ensureUsersRow(trimmedEmail);
-      try { await setUserPreference('email', trimmedEmail); } catch {}
-      try { await setUserPreference('has_password', 'true'); } catch {}
+      
+      // Ensure user row exists before writing preferences
+      const userRowCreated = await ensureUsersRow(trimmedEmail);
+      
+      // Only write preferences if user row exists
+      if (userRowCreated) {
+        try { await setUserPreference('email', trimmedEmail); } catch (e) {
+          console.warn('[Onboarding] Failed to save email preference:', e);
+        }
+        try { await setUserPreference('has_password', 'true'); } catch (e) {
+          console.warn('[Onboarding] Failed to save password preference:', e);
+        }
+      } else {
+        console.warn('[Onboarding] User row not created, skipping preference writes');
+      }
       
       console.log('[Onboarding] Account created for:', trimmedEmail);
       onNext?.({ amxAccount: !!user, email: trimmedEmail });
+    } catch (err) {
+      console.error('[Onboarding] Account creation failed:', err);
+      // Still proceed - user can retry later
+      onNext?.({ amxAccount: false, email: email.trim() });
     } finally {
       setSaving(false);
     }

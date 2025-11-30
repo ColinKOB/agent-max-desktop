@@ -22,33 +22,53 @@ if (!SUPABASE_ENABLED) {
  */
 export async function emailPasswordSignInOrCreate(email, password) {
   if (!SUPABASE_ENABLED || !supabase) return null;
-  try {
-    const signIn = await supabase.auth.signInWithPassword({ email, password });
-    if (signIn?.data?.user) {
-      try { localStorage.setItem('user_id', signIn.data.user.id); } catch {}
-      return signIn.data.user;
+  
+  // First try to sign in
+  const signIn = await supabase.auth.signInWithPassword({ email, password });
+  if (signIn?.data?.user) {
+    logger.info('Signed in existing user', { email });
+    try { localStorage.setItem('user_id', signIn.data.user.id); } catch {}
+    return signIn.data.user;
+  }
+  
+  // If sign in failed (user doesn't exist or wrong password), try to sign up
+  if (signIn?.error?.message?.includes('Invalid login credentials')) {
+    logger.info('User not found, creating new account', { email });
+    const signUp = await supabase.auth.signUp({ email, password });
+    if (signUp?.error) {
+      logger.error('Sign up failed', signUp.error);
+      throw signUp.error;
     }
-  } catch (err) {
-    // continue to sign up
+    const user = signUp?.data?.user || null;
+    if (user) {
+      try { localStorage.setItem('user_id', user.id); } catch {}
+      logger.info('Created new user', { id: user.id, email });
+    }
+    return user;
   }
-
-  const signUp = await supabase.auth.signUp({ email, password });
-  const user = signUp?.data?.user || null;
-  if (user) {
-    try { localStorage.setItem('user_id', user.id); } catch {}
+  
+  // Other error (e.g., wrong password for existing user)
+  if (signIn?.error) {
+    logger.error('Sign in failed', signIn.error);
+    throw signIn.error;
   }
-  return user;
+  
+  return null;
 }
 
 /**
  * Ensure a users row exists for the authenticated user. RLS requires auth.uid() = id.
- * This may fail if policies are not set; failure is non-fatal.
+ * Returns true if user row exists/was created, false otherwise.
  */
 export async function ensureUsersRow(email) {
-  if (!SUPABASE_ENABLED || !supabase) return;
+  if (!SUPABASE_ENABLED || !supabase) return false;
   const sess = await supabase.auth.getUser();
   const user = sess?.data?.user;
-  if (!user) return;
+  if (!user) {
+    logger.warn('ensureUsersRow: No authenticated user');
+    return false;
+  }
+  
   let deviceId = localStorage.getItem('device_id');
   if (!deviceId) {
     const gen = () => (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function')
@@ -62,13 +82,64 @@ export async function ensureUsersRow(email) {
     try { localStorage.setItem('device_id', deviceId); } catch {}
   }
 
-  try {
-    await supabase
+  // First check if user row already exists
+  const { data: existingUser } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', user.id)
+    .single();
+  
+  if (existingUser) {
+    // User exists, just update
+    const { error: updateError } = await supabase
       .from('users')
-      .upsert({ id: user.id, device_id: deviceId, email, updated_at: new Date().toISOString() }, { onConflict: 'id' });
-  } catch (e) {
-    logger.warn('ensureUsersRow upsert failed (likely RLS); proceeding anyway', e?.message || e);
+      .update({ 
+        email, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', user.id);
+    
+    if (updateError) {
+      logger.error('ensureUsersRow update failed', updateError);
+      return false;
+    }
+    logger.info('ensureUsersRow: User row updated', { id: user.id });
+    return true;
   }
+  
+  // User doesn't exist, insert new row
+  const { error: insertError } = await supabase
+    .from('users')
+    .insert({ 
+      id: user.id, 
+      device_id: deviceId, 
+      email, 
+      updated_at: new Date().toISOString() 
+    });
+  
+  if (insertError) {
+    // If device_id conflict, try without device_id
+    if (insertError.code === '23505' && insertError.message?.includes('device_id')) {
+      logger.warn('Device ID conflict, retrying without device_id');
+      const { error: retryError } = await supabase
+        .from('users')
+        .insert({ 
+          id: user.id, 
+          email, 
+          updated_at: new Date().toISOString() 
+        });
+      if (retryError) {
+        logger.error('ensureUsersRow insert retry failed', retryError);
+        return false;
+      }
+    } else {
+      logger.error('ensureUsersRow insert failed', insertError);
+      return false;
+    }
+  }
+  
+  logger.info('ensureUsersRow: User row created', { id: user.id });
+  return true;
 }
 
 export const supabase = SUPABASE_ENABLED
