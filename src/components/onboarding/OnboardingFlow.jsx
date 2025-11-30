@@ -444,26 +444,28 @@ function UseCaseStep({ userData, onNext, onBack }) {
     <div style={{ 
       maxWidth: 380, 
       margin: '0 auto', 
-      padding: '16px',
+      padding: '12px 16px',
       height: '100%',
+      maxHeight: 'calc(100vh - 60px)',
       display: 'flex',
       flexDirection: 'column',
+      overflow: 'hidden',
     }}>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        style={{ textAlign: 'center', marginBottom: 16 }}
+        style={{ textAlign: 'center', marginBottom: 8, flexShrink: 0 }}
       >
-        <h2 style={{ ...styles.heading, fontSize: 24 }}>
+        <h2 style={{ ...styles.heading, fontSize: 20, marginBottom: 4 }}>
           {userData.name ? `Hey ${userData.name}!` : 'Hey there!'} What brings you here?
         </h2>
-        <p style={{ ...styles.subheading, marginBottom: 16 }}>
+        <p style={{ ...styles.subheading, marginBottom: 4, fontSize: 12 }}>
           This helps me give you better suggestions.
         </p>
       </motion.div>
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingBottom: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {USE_CASE_OPTIONS.map((option, index) => {
             const Icon = option.icon;
             const isSelected = selected === option.id;
@@ -473,12 +475,12 @@ function UseCaseStep({ userData, onNext, onBack }) {
                 key={option.id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
+                transition={{ delay: index * 0.03 }}
                 onClick={() => setSelected(option.id)}
                 style={{
                   width: '100%',
-                  padding: '14px 16px',
-                  borderRadius: 14,
+                  padding: '10px 12px',
+                  borderRadius: 12,
                   background: isSelected 
                     ? BRAND_ORANGE_LIGHT
                     : 'rgba(255, 255, 255, 0.04)',
@@ -489,14 +491,14 @@ function UseCaseStep({ userData, onNext, onBack }) {
                   textAlign: 'left',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 14,
+                  gap: 10,
                   transition: 'all 0.2s ease',
                 }}
               >
                 <div style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 10,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
                   background: isSelected 
                     ? BRAND_ORANGE
                     : 'rgba(255, 255, 255, 0.08)',
@@ -507,8 +509,8 @@ function UseCaseStep({ userData, onNext, onBack }) {
                   transition: 'all 0.2s ease',
                 }}>
                   <Icon style={{ 
-                    width: 20, 
-                    height: 20, 
+                    width: 18, 
+                    height: 18, 
                     color: isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.6)' 
                   }} />
                 </div>
@@ -516,16 +518,15 @@ function UseCaseStep({ userData, onNext, onBack }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ 
                     color: '#ffffff',
-                    fontSize: 15, 
+                    fontSize: 14, 
                     fontWeight: 600,
-                    marginBottom: 2,
                   }}>
                     {option.title}
                   </div>
                   <div style={{ 
                     color: 'rgba(255, 255, 255, 0.5)', 
-                    fontSize: 13,
-                    lineHeight: 1.3,
+                    fontSize: 11,
+                    lineHeight: 1.2,
                   }}>
                     {option.description}
                   </div>
@@ -536,8 +537,8 @@ function UseCaseStep({ userData, onNext, onBack }) {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     style={{
-                      width: 22,
-                      height: 22,
+                      width: 20,
+                      height: 20,
                       borderRadius: '50%',
                       background: BRAND_ORANGE,
                       display: 'flex',
@@ -545,7 +546,7 @@ function UseCaseStep({ userData, onNext, onBack }) {
                       justifyContent: 'center',
                     }}
                   >
-                    <Check style={{ width: 14, height: 14, color: '#ffffff' }} />
+                    <Check style={{ width: 12, height: 12, color: '#ffffff' }} />
                   </motion.div>
                 )}
               </motion.button>
@@ -556,8 +557,10 @@ function UseCaseStep({ userData, onNext, onBack }) {
 
       <div style={{ 
         display: 'flex', 
-        gap: 10, 
-        paddingTop: 16,
+        gap: 8, 
+        paddingTop: 10,
+        flexShrink: 0,
+        marginTop: 'auto',
       }}>
         <button onClick={onBack} style={styles.secondaryButton}>
           Back
@@ -868,21 +871,23 @@ function SubscriptionStep({ userData, onNext, onBack }) {
 
   return (
     <div style={{ 
-      maxWidth: 400, 
+      maxWidth: 380, 
       margin: '0 auto', 
-      padding: '12px 16px',
+      padding: '8px 12px',
       height: '100%',
+      maxHeight: 'calc(100vh - 40px)',
       display: 'flex',
       flexDirection: 'column',
+      overflow: 'hidden',
     }}>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        style={{ textAlign: 'center', marginBottom: 12 }}
+        style={{ textAlign: 'center', marginBottom: 6, flexShrink: 0 }}
       >
-        <h2 style={{ ...styles.heading, fontSize: 22 }}>Choose Your Plan</h2>
-        <p style={{ ...styles.subheading, fontSize: 14, marginBottom: 12 }}>
-          Start with a plan that fits your needs. Cancel anytime.
+        <h2 style={{ ...styles.heading, fontSize: 18, marginBottom: 2 }}>Choose Your Plan</h2>
+        <p style={{ ...styles.subheading, fontSize: 12, marginBottom: 6 }}>
+          Cancel anytime. Start free or subscribe.
         </p>
       </motion.div>
 
@@ -890,21 +895,22 @@ function SubscriptionStep({ userData, onNext, onBack }) {
       <div style={{ 
         display: 'flex', 
         justifyContent: 'center', 
-        marginBottom: 14,
+        marginBottom: 8,
+        flexShrink: 0,
       }}>
         <div style={{ 
           display: 'inline-flex', 
           background: 'rgba(255, 255, 255, 0.06)', 
-          borderRadius: 10, 
-          padding: 4,
+          borderRadius: 8, 
+          padding: 3,
           border: '1px solid rgba(255, 255, 255, 0.08)',
         }}>
           <button
             onClick={() => setBillingCycle('monthly')}
             style={{
-              padding: '8px 16px',
-              borderRadius: 8,
-              fontSize: 13,
+              padding: '6px 12px',
+              borderRadius: 6,
+              fontSize: 12,
               fontWeight: 600,
               color: billingCycle === 'monthly' ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
               background: billingCycle === 'monthly' ? BRAND_ORANGE : 'transparent',
@@ -918,9 +924,9 @@ function SubscriptionStep({ userData, onNext, onBack }) {
           <button
             onClick={() => setBillingCycle('yearly')}
             style={{
-              padding: '8px 16px',
-              borderRadius: 8,
-              fontSize: 13,
+              padding: '6px 12px',
+              borderRadius: 6,
+              fontSize: 12,
               fontWeight: 600,
               color: billingCycle === 'yearly' ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
               background: billingCycle === 'yearly' ? BRAND_ORANGE : 'transparent',
@@ -929,27 +935,27 @@ function SubscriptionStep({ userData, onNext, onBack }) {
               transition: 'all 0.2s',
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
+              gap: 4,
             }}
           >
             Yearly
             <span style={{ 
-              fontSize: 11, 
+              fontSize: 10, 
               color: '#86efac',
               fontWeight: 700,
               background: 'rgba(34, 197, 94, 0.2)',
-              padding: '2px 6px',
-              borderRadius: 4,
+              padding: '1px 4px',
+              borderRadius: 3,
             }}>
-              Save {yearlySavings}%
+              -{yearlySavings}%
             </span>
           </button>
         </div>
       </div>
 
       {/* Plan Cards */}
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingBottom: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {SUBSCRIPTION_TIERS.map((tier, index) => {
             const Icon = tier.icon;
             const price = billingCycle === 'yearly' ? tier.yearlyPrice : tier.monthlyPrice;
@@ -960,12 +966,12 @@ function SubscriptionStep({ userData, onNext, onBack }) {
                 key={tier.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
+                transition={{ delay: index * 0.03 }}
                 onClick={() => setSelectedTier(tier.id)}
                 style={{
                   width: '100%',
-                  padding: '14px 16px',
-                  borderRadius: 14,
+                  padding: '10px 12px',
+                  borderRadius: 10,
                   background: isSelected 
                     ? BRAND_ORANGE_LIGHT
                     : 'rgba(255, 255, 255, 0.03)',
@@ -979,64 +985,59 @@ function SubscriptionStep({ userData, onNext, onBack }) {
                 }}
               >
                 {tier.popular && (
-                  <motion.span 
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    style={{
-                      position: 'absolute',
-                      top: -10,
-                      right: 14,
-                      background: BRAND_ORANGE,
-                      color: '#ffffff',
-                      fontSize: 10,
-                      fontWeight: 700,
-                      padding: '4px 10px',
-                      borderRadius: 20,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                    }}
-                  >
-                    Most Popular
-                  </motion.span>
+                  <span style={{
+                    position: 'absolute',
+                    top: -8,
+                    right: 10,
+                    background: BRAND_ORANGE,
+                    color: '#ffffff',
+                    fontSize: 9,
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: 10,
+                    textTransform: 'uppercase',
+                  }}>
+                    Popular
+                  </span>
                 )}
                 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 12,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
                     background: isSelected 
                       ? BRAND_ORANGE
                       : 'rgba(255, 255, 255, 0.08)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    flexShrink: 0,
                     transition: 'all 0.2s',
                   }}>
-                    <Icon style={{ width: 22, height: 22, color: '#ffffff' }} />
+                    <Icon style={{ width: 18, height: 18, color: '#ffffff' }} />
                   </div>
                   
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ 
                       color: '#ffffff',
-                      fontSize: 16, 
+                      fontSize: 14, 
                       fontWeight: 700,
-                      marginBottom: 2,
                     }}>
                       {tier.name}
                     </div>
                     <div style={{ 
                       color: 'rgba(255, 255, 255, 0.5)', 
-                      fontSize: 13,
+                      fontSize: 11,
                     }}>
                       {tier.creditsPerWeek} credits/week
                     </div>
                   </div>
                   
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={{ 
                       color: '#ffffff',
-                      fontSize: 24, 
+                      fontSize: 20, 
                       fontWeight: 800,
                       lineHeight: 1,
                     }}>
@@ -1044,53 +1045,47 @@ function SubscriptionStep({ userData, onNext, onBack }) {
                     </div>
                     <div style={{ 
                       color: 'rgba(255, 255, 255, 0.4)', 
-                      fontSize: 12,
+                      fontSize: 10,
                     }}>
-                      /{billingCycle === 'yearly' ? 'year' : 'month'}
+                      /{billingCycle === 'yearly' ? 'yr' : 'mo'}
                     </div>
                   </div>
                 </div>
 
-                {/* Feature list for selected tier */}
-                <AnimatePresence>
-                  {isSelected && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      style={{ overflow: 'hidden' }}
-                    >
-                      <div style={{ 
-                        marginTop: 12, 
-                        paddingTop: 12, 
-                        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                        display: 'grid',
-                        gap: 6,
-                      }}>
-                        {tier.features.map((feature, i) => (
-                          <div 
-                            key={i}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 8,
-                              fontSize: 13,
-                              color: feature.included ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.3)',
-                            }}
-                          >
-                            <Check style={{ 
-                              width: 14, 
-                              height: 14, 
-                              color: feature.included ? '#22c55e' : 'rgba(255, 255, 255, 0.2)',
-                            }} />
-                            {feature.text}
-                          </div>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {/* Show only 3 key features inline when selected */}
+                {isSelected && (
+                  <div style={{ 
+                    marginTop: 8, 
+                    paddingTop: 8, 
+                    borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 4,
+                  }}>
+                    {tier.features.slice(0, 3).map((feature, i) => (
+                      <span 
+                        key={i}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 3,
+                          fontSize: 10,
+                          color: feature.included ? 'rgba(255, 255, 255, 0.7)' : 'rgba(255, 255, 255, 0.3)',
+                          background: 'rgba(255,255,255,0.05)',
+                          padding: '2px 6px',
+                          borderRadius: 4,
+                        }}
+                      >
+                        <Check style={{ 
+                          width: 10, 
+                          height: 10, 
+                          color: feature.included ? '#22c55e' : 'rgba(255, 255, 255, 0.2)',
+                        }} />
+                        {feature.text.replace(' per week', '/wk')}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </motion.button>
             );
           })}
@@ -1098,9 +1093,9 @@ function SubscriptionStep({ userData, onNext, onBack }) {
       </div>
 
       {/* Action Buttons */}
-      <div style={{ paddingTop: 12 }}>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={onBack} style={{ ...styles.secondaryButton, flex: 1 }}>
+      <div style={{ paddingTop: 8, flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={onBack} style={{ ...styles.secondaryButton, padding: '10px 14px', fontSize: 13 }}>
             Back
           </button>
           <button
@@ -1108,13 +1103,15 @@ function SubscriptionStep({ userData, onNext, onBack }) {
             disabled={opening}
             style={{
               ...styles.primaryButton,
-              flex: 2,
+              flex: 1,
+              padding: '10px 14px',
+              fontSize: 13,
               opacity: opening ? 0.7 : 1,
               cursor: opening ? 'wait' : 'pointer',
             }}
           >
-            {opening ? 'Opening...' : 'Subscribe Now'}
-            {!opening && <ArrowRight style={{ width: 18, height: 18 }} />}
+            {opening ? 'Opening...' : 'Subscribe'}
+            {!opening && <ArrowRight style={{ width: 16, height: 16 }} />}
           </button>
         </div>
         
@@ -1122,23 +1119,23 @@ function SubscriptionStep({ userData, onNext, onBack }) {
           onClick={handleFreeTrial}
           style={{
             width: '100%',
-            marginTop: 12,
-            padding: '12px',
+            marginTop: 8,
+            padding: '8px',
             color: 'rgba(255, 255, 255, 0.6)',
             background: 'transparent',
             border: '1px dashed rgba(255, 255, 255, 0.15)',
-            borderRadius: 10,
-            fontSize: 14,
+            borderRadius: 8,
+            fontSize: 12,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 8,
+            gap: 6,
             transition: 'all 0.2s',
           }}
         >
-          <Sparkles style={{ width: 16, height: 16 }} />
-          Start with 50 free credits instead
+          <Sparkles style={{ width: 14, height: 14 }} />
+          Start free with 50 credits
         </button>
       </div>
     </div>
@@ -1182,9 +1179,10 @@ function CompleteStep({ userData, onNext }) {
       style={{ 
         maxWidth: 360, 
         margin: '0 auto', 
-        padding: '20px',
+        padding: '12px 16px',
         textAlign: 'center',
         height: '100%',
+        maxHeight: 'calc(100vh - 40px)',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
@@ -1195,20 +1193,20 @@ function CompleteStep({ userData, onNext }) {
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
-        style={{ marginBottom: 20 }}
+        style={{ marginBottom: 12, flexShrink: 0 }}
       >
         <div style={{
-          width: 80,
-          height: 80,
+          width: 60,
+          height: 60,
           margin: '0 auto',
           borderRadius: '50%',
           background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 8px 32px rgba(34, 197, 94, 0.4)',
+          boxShadow: '0 6px 24px rgba(34, 197, 94, 0.4)',
         }}>
-          <Check style={{ width: 40, height: 40, color: '#ffffff' }} />
+          <Check style={{ width: 30, height: 30, color: '#ffffff' }} />
         </div>
       </motion.div>
 
@@ -1216,11 +1214,12 @@ function CompleteStep({ userData, onNext }) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
+        style={{ flexShrink: 0 }}
       >
-        <h2 style={{ ...styles.heading, marginBottom: 8 }}>
+        <h2 style={{ ...styles.heading, fontSize: 20, marginBottom: 4 }}>
           You're all set{userData?.name ? `, ${userData.name}` : ''}!
         </h2>
-        <p style={{ ...styles.subheading, marginBottom: 20 }}>
+        <p style={{ ...styles.subheading, fontSize: 13, marginBottom: 12 }}>
           Agent Max is ready to help you get things done.
         </p>
       </motion.div>
@@ -1231,28 +1230,31 @@ function CompleteStep({ userData, onNext }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
         style={{
+          flex: 1,
+          minHeight: 0,
           background: 'rgba(255, 255, 255, 0.04)',
           border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: 14,
-          padding: 16,
-          marginBottom: 20,
+          borderRadius: 12,
+          padding: 12,
+          marginBottom: 12,
           textAlign: 'left',
+          overflowY: 'auto',
         }}
       >
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
-          gap: 8, 
-          marginBottom: 12,
+          gap: 6, 
+          marginBottom: 8,
           color: '#ffffff',
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: 600,
         }}>
-          <Bot style={{ width: 18, height: 18, color: BRAND_ORANGE }} />
+          <Bot style={{ width: 16, height: 16, color: BRAND_ORANGE }} />
           Try saying:
         </div>
         
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {QUICK_START_PROMPTS.map((prompt, index) => {
             const Icon = prompt.icon;
             return (
@@ -1264,15 +1266,15 @@ function CompleteStep({ userData, onNext }) {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 10,
-                  padding: '10px 12px',
+                  gap: 8,
+                  padding: '8px 10px',
                   background: 'rgba(255, 255, 255, 0.04)',
-                  borderRadius: 10,
-                  fontSize: 13,
+                  borderRadius: 8,
+                  fontSize: 12,
                   color: 'rgba(255, 255, 255, 0.7)',
                 }}
               >
-                <Icon style={{ width: 16, height: 16, color: 'rgba(255, 255, 255, 0.4)', flexShrink: 0 }} />
+                <Icon style={{ width: 14, height: 14, color: 'rgba(255, 255, 255, 0.4)', flexShrink: 0 }} />
                 {prompt.text}
               </motion.div>
             );
@@ -1287,13 +1289,15 @@ function CompleteStep({ userData, onNext }) {
         onClick={() => onNext()}
         style={{
           ...styles.primaryButton,
-          marginTop: 'auto',
+          flexShrink: 0,
+          padding: '12px 20px',
+          fontSize: 14,
         }}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
       >
         Launch Agent Max
-        <Sparkles style={{ width: 18, height: 18 }} />
+        <Sparkles style={{ width: 16, height: 16 }} />
       </motion.button>
     </div>
   );
@@ -1302,8 +1306,8 @@ function CompleteStep({ userData, onNext }) {
 // ============================================================================
 // MAIN ONBOARDING FLOW
 // ============================================================================
-export function OnboardingFlow({ onComplete, onSkip }) {
-  const [currentStep, setCurrentStep] = useState(0);
+export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
+  const [currentStep, setCurrentStep] = useState(startStep);
   const { setApiConnected } = useStore();
   const [userData, setUserData] = useState({
     name: '',

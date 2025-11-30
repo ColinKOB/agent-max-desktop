@@ -152,9 +152,9 @@
 
 .apple-input-area {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 6px 6px;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 6px 6px;
   width: 100%;
   background: transparent; /* let the card glass show through */
   border-radius: 0;
@@ -230,6 +230,23 @@
   opacity: 0.4;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* Stop button variant - red gradient */
+.apple-send-btn.apple-stop-btn {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  animation: stopPulse 1.5s ease-in-out infinite;
+}
+
+.apple-send-btn.apple-stop-btn:hover {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.5);
+}
+
+@keyframes stopPulse {
+  0%, 100% { box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.7); }
 }
 
 .apple-send-wrapper {
@@ -407,4 +424,125 @@
   font-size: 0.8rem;
   font-weight: 400;
   opacity: 0.65;
+}
+
+/* Textarea for multi-line input */
+.apple-textarea {
+  resize: none;
+  min-height: 24px;
+  max-height: 120px;
+  line-height: 1.4;
+  padding: 6px 12px !important;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+}
+
+.apple-textarea::-webkit-scrollbar {
+  width: 4px;
+}
+
+.apple-textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.apple-textarea::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius: 2px;
+}
+
+/* Attach button (plus icon) */
+.apple-attach-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.apple-attach-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.9);
+  transform: scale(1.05);
+}
+
+.apple-attach-btn:active {
+  transform: scale(0.95);
+}
+
+/* Attachment preview row */
+.attachment-preview-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.attachment-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 4px 8px;
+  max-width: 140px;
+}
+
+.attachment-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.attachment-file-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.attachment-name {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.attachment-remove-btn {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.2);
+  border: none;
+  color: #f87171;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.attachment-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
 }

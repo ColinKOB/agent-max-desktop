@@ -11,6 +11,16 @@ const log = require('electron-log');
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
 
+// For private GitHub repos, set the token from environment variable
+// This allows downloading updates without making the repo public
+// Set GH_TOKEN or GITHUB_TOKEN in your build environment
+const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+if (ghToken) {
+  autoUpdater.requestHeaders = {
+    'Authorization': `token ${ghToken}`
+  };
+}
+
 let mainWindow = null;
 let updateCheckInterval = null;
 

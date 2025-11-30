@@ -5,6 +5,7 @@ import App from './App.jsx';
 import SettingsApp from './pages/SettingsApp.jsx';
 import UITestDashboard from './pages/UITestDashboard.jsx';
 import OnboardingPreview from './pages/OnboardingPreview.jsx';
+import ExecutionProgressTest from './pages/ExecutionProgressTest.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import './styles/globals.css';
 import './styles/liquid-glass.css';
@@ -37,6 +38,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/settings" element={<SettingsApp />} />
           <Route path="/test" element={<UITestDashboard />} />
           <Route path="/onboarding" element={<OnboardingPreview />} />
+          <Route path="/execution-test" element={<ExecutionProgressTest />} />
         </Routes>
       </HashRouter>
     </ErrorBoundary>

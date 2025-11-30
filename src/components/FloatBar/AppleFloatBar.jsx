@@ -7,7 +7,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Settings, Wrench, ArrowUp, Loader2, Minimize2, Check, ChevronDown, ChevronRight, Lightbulb, Pause, Play, X, Wifi, WifiOff, Edit3, Book } from 'lucide-react';
+import { Settings, Wrench, ArrowUp, Loader2, Minimize2, Check, ChevronDown, ChevronRight, Lightbulb, Pause, Play, X, Wifi, WifiOff, Edit3, Book, Plus, Paperclip, Image, FileText, Square } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { chatAPI, permissionAPI, googleAPI, ambiguityAPI, semanticAPI, factsAPI, addConnectionListener, healthAPI, runAPI } from '../../services/api';
 import { PullAutonomousService } from '../../services/pullAutonomous';
@@ -124,6 +124,7 @@ export default function AppleFloatBar({
   // Pull execution progress tracking
   const [stepStatuses, setStepStatuses] = useState({}); // {stepIndex: 'pending'|'running'|'done'|'failed'}
   const [executionSummary, setExecutionSummary] = useState(null); // Final summary when complete
+  const [executionStartTime, setExecutionStartTime] = useState(null); // When execution began
   const [runStatus, setRunStatus] = useState(null); // "running" | "paused" | "cancelled" | "failed" | "completed"
   const [activeRunId, setActiveRunId] = useState(null); // Track active run ID for polling
   const [backgroundProcesses, setBackgroundProcesses] = useState([]); // Track active background processes
@@ -143,6 +144,11 @@ export default function AppleFloatBar({
   // Screenshot permission state
   const [screenshotPermissionOpen, setScreenshotPermissionOpen] = useState(false);
   const [pendingMessageForScreenshot, setPendingMessageForScreenshot] = useState(null);
+  
+  // File attachment state
+  const [attachments, setAttachments] = useState([]); // [{file, preview, type}]
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const fileInputRef = useRef(null);
   
   // Refs
   const barRef = useRef(null);
@@ -245,6 +251,37 @@ export default function AppleFloatBar({
       toast.error(`Resume failed: ${err?.message || err}`);
     }
   }, [executionPlan]);
+
+  // Stop all AI activity - cancels runs and resets thinking state
+  const handleStopAll = useCallback(async () => {
+    logger.info('[Stop] User requested full stop');
+    
+    // Cancel any active run
+    const planId = planIdRef.current || executionPlan?.plan_id || executionPlan?.planId;
+    if (planId) {
+      try {
+        await runAPI.cancel(planId);
+        logger.info('[Stop] Run cancelled:', planId);
+      } catch (err) {
+        logger.warn('[Stop] Run cancel failed:', err?.message || err);
+      }
+    }
+    
+    // Reset all thinking/execution states
+    setIsThinking(false);
+    setThinkingStatus('');
+    setRunStatus('cancelled');
+    setExecutionSummary({
+      status: 'cancelled',
+      message: 'Stopped by user',
+      successCount: Object.values(stepStatuses).filter(s => s === 'done').length,
+      failedCount: 0,
+      goalAchieved: false
+    });
+    
+    toast('AI stopped', { icon: '🛑', duration: 2000 });
+  }, [executionPlan, stepStatuses]);
+
   const copyToClipboard = useCallback(async (text, note = 'Copied') => {
     try {
       await navigator.clipboard.writeText(String(text || ''));
@@ -2385,6 +2422,7 @@ export default function AppleFloatBar({
             initialStatuses[i] = 'pending';
           });
           setStepStatuses(initialStatuses);
+          setExecutionStartTime(Date.now()); // Track when execution began
           
           // Do not render a separate "Execution Plan" message; rely on ExecutionProgress + final summary.
           setThinkingStatus('Executing locally...');
@@ -2710,6 +2748,7 @@ export default function AppleFloatBar({
     setExecutionPlan(null);
     setStepStatuses({});
     setExecutionSummary(null);
+    setExecutionStartTime(null);
     setCurrentStep(0);
     setTotalSteps(0);
     setRunStatus(null);
@@ -3615,6 +3654,8 @@ export default function AppleFloatBar({
                       stepStatuses={stepStatuses}
                       currentStep={currentStep}
                       summary={executionSummary}
+                      currentAction={thinkingStatus}
+                      startTime={executionStartTime}
                     />
                   )}
                 </React.Fragment>
@@ -3632,23 +3673,94 @@ export default function AppleFloatBar({
             )}
           </div>
           
+          {/* Attachment Preview */}
+          {attachments.length > 0 && (
+            <div className="attachment-preview-row">
+              {attachments.map((att, idx) => (
+                <div key={idx} className="attachment-preview-item">
+                  {att.type === 'image' ? (
+                    <img src={att.preview} alt="attachment" className="attachment-thumb" />
+                  ) : (
+                    <div className="attachment-file-icon">
+                      <FileText size={16} />
+                    </div>
+                  )}
+                  <span className="attachment-name">{att.file.name.slice(0, 12)}{att.file.name.length > 12 ? '...' : ''}</span>
+                  <button 
+                    className="attachment-remove-btn"
+                    onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          
           {/* Input Area */}
           <div 
             className="apple-input-area"
           >
+            {/* Hidden file input */}
             <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf,.txt,.md,.json,.csv"
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                files.forEach(file => {
+                  const isImage = file.type.startsWith('image/');
+                  if (isImage) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      setAttachments(prev => [...prev, {
+                        file,
+                        preview: ev.target.result,
+                        type: 'image'
+                      }]);
+                    };
+                    reader.readAsDataURL(file);
+                  } else {
+                    setAttachments(prev => [...prev, {
+                      file,
+                      preview: null,
+                      type: 'file'
+                    }]);
+                  }
+                });
+                e.target.value = ''; // Reset input
+              }}
+            />
+            
+            {/* Attach button */}
+            <button
+              className="apple-attach-btn"
+              onClick={() => fileInputRef.current?.click()}
+              title="Attach files or images"
+            >
+              <Plus size={18} />
+            </button>
+            
+            <textarea
               ref={inputRef}
-              type="text"
-              className="apple-input"
+              className="apple-input apple-textarea"
               placeholder={
                 userInputRequest 
                   ? "Type your response..." 
                   : (apiConnected ? "Ask anything..." : "Connecting...")
               }
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                // Auto-resize textarea
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
                   if (userInputRequest) {
                     handleUserInputSubmit();
                   } else {
@@ -3657,6 +3769,7 @@ export default function AppleFloatBar({
                 }
               }}
               disabled={!apiConnected || (isThinking && !userInputRequest)}
+              rows={1}
               style={userInputRequest ? {
                 borderColor: 'rgba(59, 130, 246, 0.5)',
                 background: 'rgba(59, 130, 246, 0.05)'
@@ -3733,16 +3846,27 @@ export default function AppleFloatBar({
                   )}
                 </div>
               )}
-              <button 
-                className="apple-send-btn"
-                onClick={userInputRequest ? handleUserInputSubmit : handleSubmit}
-                disabled={!message.trim() || (!userInputRequest && (!apiConnected || isThinking))}
-                style={userInputRequest ? {
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'
-                } : {}}
-              >
-                <ArrowUp size={16} />
-              </button>
+              {/* Show stop button when AI is working, otherwise show send button */}
+              {(isThinking || (executionPlan && !executionSummary) || runStatus === 'running') ? (
+                <button 
+                  className="apple-send-btn apple-stop-btn"
+                  onClick={handleStopAll}
+                  title="Stop AI"
+                >
+                  <Square size={14} fill="currentColor" />
+                </button>
+              ) : (
+                <button 
+                  className="apple-send-btn"
+                  onClick={userInputRequest ? handleUserInputSubmit : handleSubmit}
+                  disabled={(!message.trim() && attachments.length === 0) || (!userInputRequest && !apiConnected)}
+                  style={userInputRequest ? {
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'
+                  } : {}}
+                >
+                  <ArrowUp size={16} />
+                </button>
+              )}
             </div>
           </div>
         </div>
