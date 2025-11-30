@@ -2,12 +2,18 @@
   "appId": "com.agentmax.desktop",
   "productName": "Agent Max",
   "directories": {
-    "output": "dist-electron"
+    "output": "release"
   },
   "files": [
     "dist/**/*",
     "electron/**/*"
   ],
+  "publish": {
+    "provider": "github",
+    "owner": "ColinKOB",
+    "repo": "agent-max-desktop",
+    "releaseType": "release"
+  },
   "mac": {
     "category": "public.app-category.productivity",
     "target": ["dmg", "zip"],
