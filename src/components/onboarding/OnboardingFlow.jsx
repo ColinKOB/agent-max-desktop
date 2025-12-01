@@ -26,7 +26,8 @@ import {
   Clock,
   Cpu,
   MessageSquare,
-  Bot
+  Bot,
+  AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { healthAPI, googleAPI, creditsAPI, subscriptionAPI } from '../../services/api';
@@ -850,6 +851,8 @@ function SubscriptionStep({ userData, onNext, onBack }) {
   const [showFeatures, setShowFeatures] = useState(false);
   const [waitingForPayment, setWaitingForPayment] = useState(false);
   const [pendingPlan, setPendingPlan] = useState(null);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
+  const [verificationFailed, setVerificationFailed] = useState(false);
   const pollIntervalRef = useRef(null);
 
   // Cleanup polling on unmount
@@ -863,11 +866,25 @@ function SubscriptionStep({ userData, onNext, onBack }) {
 
   const checkSubscriptionStatus = async (email) => {
     try {
+      // Try subscription API first
       const response = await subscriptionAPI.getStatus(email);
       console.log('[Onboarding] Subscription status:', response?.data);
-      return response?.data?.status === 'active';
+      if (response?.data?.status === 'active') return true;
+      
+      // Also check if credits increased (webhook might have added credits)
+      const userId = localStorage.getItem('user_id');
+      if (userId) {
+        const creditsResponse = await creditsAPI.getBalance(userId);
+        const credits = creditsResponse?.data?.credits || creditsResponse?.data?.balance || 0;
+        console.log('[Onboarding] Credits balance:', credits);
+        // If user has more than free trial credits, they probably paid
+        if (credits > 50) return true;
+      }
+      
+      return false;
     } catch (err) {
       console.log('[Onboarding] Status check failed:', err.message);
+      // Don't fail silently - log but return false
       return false;
     }
   };
@@ -932,21 +949,42 @@ function SubscriptionStep({ userData, onNext, onBack }) {
 
   const handleConfirmPayment = async () => {
     // User manually confirms they completed payment
+    setVerifyingPayment(true);
+    setVerificationFailed(false);
+    
     const userEmail = userData?.email || localStorage.getItem('user_email');
-    if (userEmail) {
-      const isActive = await checkSubscriptionStatus(userEmail);
-      if (isActive) {
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
-        setWaitingForPayment(false);
-        onNext({ selectedPlan: pendingPlan, paymentConfirmed: true });
-        return;
+    
+    // Try to verify payment
+    const isActive = userEmail ? await checkSubscriptionStatus(userEmail) : false;
+    
+    if (isActive) {
+      // Payment verified!
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
       }
+      setVerifyingPayment(false);
+      setWaitingForPayment(false);
+      onNext({ selectedPlan: pendingPlan, paymentConfirmed: true });
+      return;
     }
-    // Payment not found - show message but allow skip
-    alert('Payment not detected yet. Please complete checkout in your browser, or click "Start Free Trial" to continue without a subscription.');
+    
+    // Payment not verified - show option to proceed anyway or retry
+    setVerifyingPayment(false);
+    setVerificationFailed(true);
+  };
+  
+  const handleProceedWithoutVerification = () => {
+    // User insists they paid - trust them and proceed
+    // The webhook will eventually update their credits
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    try { localStorage.setItem('payment_pending_verification', pendingPlan); } catch {}
+    setWaitingForPayment(false);
+    setVerificationFailed(false);
+    onNext({ selectedPlan: pendingPlan, paymentConfirmed: false, pendingVerification: true });
   };
 
   const handleCancelWaiting = () => {
@@ -1011,18 +1049,37 @@ function SubscriptionStep({ userData, onNext, onBack }) {
             height: 64,
             margin: '0 auto 20px',
             borderRadius: 16,
-            background: 'rgba(245, 158, 11, 0.15)',
+            background: verificationFailed ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}>
-            <Clock style={{ width: 32, height: 32, color: BRAND_ORANGE }} className="animate-pulse" />
+            {verifyingPayment ? (
+              <div style={{ 
+                width: 32, 
+                height: 32, 
+                border: '3px solid rgba(245, 158, 11, 0.3)',
+                borderTopColor: BRAND_ORANGE,
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+              }} />
+            ) : verificationFailed ? (
+              <AlertCircle style={{ width: 32, height: 32, color: '#ef4444' }} />
+            ) : (
+              <Clock style={{ width: 32, height: 32, color: BRAND_ORANGE }} className="animate-pulse" />
+            )}
           </div>
           
-          <h2 style={{ ...styles.heading, marginBottom: 12 }}>Waiting for Payment</h2>
+          <h2 style={{ ...styles.heading, marginBottom: 12 }}>
+            {verifyingPayment ? 'Verifying Payment...' : 
+             verificationFailed ? 'Payment Not Detected' : 
+             'Waiting for Payment'}
+          </h2>
           <p style={{ ...styles.subheading, marginBottom: 24 }}>
-            Complete your purchase in the browser window that just opened.
-            We'll automatically detect when you're done.
+            {verifyingPayment ? 'Please wait while we confirm your payment...' :
+             verificationFailed ? 
+               'We couldn\'t verify your payment yet. This can take a few minutes. You can wait, proceed anyway, or start a free trial.' :
+               'Complete your purchase in the browser window that just opened. We\'ll automatically detect when you\'re done.'}
           </p>
           
           <div style={{
@@ -1033,27 +1090,56 @@ function SubscriptionStep({ userData, onNext, onBack }) {
             border: '1px solid rgba(255, 255, 255, 0.1)',
           }}>
             <p style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.7)', margin: 0 }}>
-              Selected plan: <strong style={{ color: '#fff' }}>{pendingPlan?.replace('_', ' ')}</strong>
+              Selected plan: <strong style={{ color: '#fff' }}>{pendingPlan?.replace(/_/g, ' ')}</strong>
             </p>
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button
-              onClick={handleConfirmPayment}
-              style={{
-                ...styles.primaryButton,
-                background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-              }}
-            >
-              I've Completed Payment
-              <Check style={{ width: 18, height: 18 }} />
-            </button>
+            {verificationFailed ? (
+              <>
+                <button
+                  onClick={handleConfirmPayment}
+                  disabled={verifyingPayment}
+                  style={{
+                    ...styles.secondaryButton,
+                    width: '100%',
+                  }}
+                >
+                  Try Again
+                </button>
+                <button
+                  onClick={handleProceedWithoutVerification}
+                  style={{
+                    ...styles.primaryButton,
+                    background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                  }}
+                >
+                  I Paid - Proceed Anyway
+                  <ArrowRight style={{ width: 18, height: 18 }} />
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleConfirmPayment}
+                disabled={verifyingPayment}
+                style={{
+                  ...styles.primaryButton,
+                  background: verifyingPayment ? 'rgba(34, 197, 94, 0.5)' : 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                  cursor: verifyingPayment ? 'wait' : 'pointer',
+                }}
+              >
+                {verifyingPayment ? 'Verifying...' : 'I\'ve Completed Payment'}
+                {!verifyingPayment && <Check style={{ width: 18, height: 18 }} />}
+              </button>
+            )}
             
             <button
               onClick={handleFreeTrial}
+              disabled={verifyingPayment}
               style={{
                 ...styles.secondaryButton,
                 width: '100%',
+                opacity: verifyingPayment ? 0.5 : 1,
               }}
             >
               Start Free Trial Instead
@@ -1061,19 +1147,27 @@ function SubscriptionStep({ userData, onNext, onBack }) {
             
             <button
               onClick={handleCancelWaiting}
+              disabled={verifyingPayment}
               style={{
                 background: 'transparent',
                 border: 'none',
                 color: 'rgba(255, 255, 255, 0.5)',
                 fontSize: 13,
-                cursor: 'pointer',
+                cursor: verifyingPayment ? 'wait' : 'pointer',
                 padding: 8,
+                opacity: verifyingPayment ? 0.5 : 1,
               }}
             >
               Cancel & Choose Different Plan
             </button>
           </div>
         </motion.div>
+        
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }

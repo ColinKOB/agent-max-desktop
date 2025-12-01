@@ -73,20 +73,32 @@ const connectionState = {
 
 
 // ============================================
-// SUBSCRIPTION MANAGEMENT (Option B)
+// SUBSCRIPTION MANAGEMENT
 // ============================================
 export const subscriptionAPI = {
+  // Get subscription status - try v2 first, fallback to v1
   getStatus: (email) =>
-    api.get(`/api/v2/subscription/status`, { params: { email } })
-      .catch(() => api.get(`/api/subscription/status`, { params: { email } })),
+    api.get(`/api/subscription/status`, { params: { email } })
+      .catch(() => api.get(`/api/v2/subscription/status`, { params: { email } })),
 
+  // Create billing portal session
   createPortal: (email, returnUrl) =>
-    api.post(`/api/v2/subscription/billing-portal`, { email, return_url: returnUrl })
-      .catch(() => api.post(`/api/subscription/billing-portal`, { email, return_url: returnUrl })),
+    api.post(`/api/subscription/billing-portal`, { email, return_url: returnUrl })
+      .catch(() => api.post(`/api/v2/subscription/billing-portal`, { email, return_url: returnUrl })),
 
+  // Cancel subscription
   cancel: (email) =>
-    api.post(`/api/v2/subscription/cancel`, null, { params: { email } })
-      .catch(() => api.post(`/api/subscription/cancel`, null, { params: { email } })),
+    api.post(`/api/subscription/cancel`, null, { params: { email } })
+      .catch(() => api.post(`/api/v2/subscription/cancel`, null, { params: { email } })),
+  
+  // Create checkout session (for proper checkout flow)
+  createCheckout: (email, plan, successUrl, cancelUrl) =>
+    api.post(`/api/subscription/create-checkout`, { 
+      email, 
+      plan, 
+      success_url: successUrl, 
+      cancel_url: cancelUrl 
+    }),
 };
 
 export const addConnectionListener = (callback) => {
