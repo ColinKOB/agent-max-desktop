@@ -605,6 +605,11 @@ export function GoogleConnect({ compact = false }) {
           text-align: center;
           background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
         }
+        
+        .compact .status-card {
+          padding: 1rem 1.25rem;
+          border-radius: 12px;
+        }
 
         .connected-services {
           text-align: left;
