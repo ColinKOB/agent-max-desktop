@@ -723,6 +723,8 @@ function GoogleStep({ userData, onNext, onBack }) {
       margin: '0 auto', 
       padding: '20px',
       textAlign: 'center',
+      maxHeight: 'calc(100vh - 180px)',
+      overflowY: 'auto',
     }}>
       <motion.div
         initial={{ opacity: 0, y: 10 }}

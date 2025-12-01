@@ -443,49 +443,66 @@ export function GoogleConnect({ compact = false }) {
       ) : (
         <div className="connected-section">
           <div className="status-card">
-            <CheckCircle className="w-12 h-12 text-green-600 mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Connected Successfully</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <CheckCircle className={compact ? "w-8 h-8 text-green-600 mb-2" : "w-12 h-12 text-green-600 mb-4"} />
+            <h3 className={compact ? "text-lg font-semibold mb-1" : "text-xl font-semibold mb-2"}>Connected Successfully</h3>
+            <p className={compact ? "text-sm text-gray-600 dark:text-gray-400 mb-2" : "text-gray-600 dark:text-gray-400 mb-4"}>
               Signed in as: <span className="font-semibold">{userEmail}</span>
             </p>
 
-            <div className="connected-services mb-6">
-              <h4 className="font-semibold mb-3">Available Services:</h4>
-              <div className="services-list">
-                {services.map((service) => (
-                  <div key={service.name} className="service-item">
-                    <div className="service-info">
-                      <service.icon className="w-5 h-5 text-green-600" />
-                      <div className="flex-1">
-                        <span className="font-medium">{service.name}</span>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          {service.description}
-                        </p>
+            {/* Only show full services list in non-compact mode */}
+            {!compact && (
+              <div className="connected-services mb-6">
+                <h4 className="font-semibold mb-3">Available Services:</h4>
+                <div className="services-list">
+                  {services.map((service) => (
+                    <div key={service.name} className="service-item">
+                      <div className="service-info">
+                        <service.icon className="w-5 h-5 text-green-600" />
+                        <div className="flex-1">
+                          <span className="font-medium">{service.name}</span>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {service.description}
+                          </p>
+                        </div>
                       </div>
+                      <button
+                        onClick={() => testService(service.name)}
+                        disabled={testingService === service.name}
+                        className="test-button"
+                        title={`Test ${service.name} connection`}
+                      >
+                        {testingService === service.name ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : serviceStatus[service.name] === 'working' ? (
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        ) : serviceStatus[service.name] === 'error' ? (
+                          <AlertCircle className="w-4 h-4 text-red-600" />
+                        ) : (
+                          <TestTube className="w-4 h-4" />
+                        )}
+                      </button>
                     </div>
-                    <button
-                      onClick={() => testService(service.name)}
-                      disabled={testingService === service.name}
-                      className="test-button"
-                      title={`Test ${service.name} connection`}
-                    >
-                      {testingService === service.name ? (
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                      ) : serviceStatus[service.name] === 'working' ? (
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                      ) : serviceStatus[service.name] === 'error' ? (
-                        <AlertCircle className="w-4 h-4 text-red-600" />
-                      ) : (
-                        <TestTube className="w-4 h-4" />
-                      )}
-                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Compact mode: show simplified service icons */}
+            {compact && (
+              <div className="flex justify-center gap-2 mb-3">
+                {services.slice(0, 3).map((service) => (
+                  <div key={service.name} className="p-2 rounded-lg bg-green-50 dark:bg-green-900/20">
+                    <service.icon className="w-4 h-4 text-green-600" />
                   </div>
                 ))}
+                <div className="p-2 rounded-lg bg-green-50 dark:bg-green-900/20 text-xs text-green-600 font-medium flex items-center">
+                  +2
+                </div>
               </div>
-            </div>
+            )}
 
-            <button onClick={disconnectGoogle} className="disconnect-button">
-              Disconnect Google Account
+            <button onClick={disconnectGoogle} className={compact ? "disconnect-button text-sm py-2" : "disconnect-button"}>
+              Disconnect
             </button>
           </div>
         </div>
