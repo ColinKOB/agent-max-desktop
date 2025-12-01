@@ -45,13 +45,14 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('metadata')
+        .select('credits, subscription_tier')
         .eq('id', userId)
         .single();
 
       if (error) throw error;
 
-      const newCredits = data?.metadata?.credits || 0;
+      // Credits are stored directly in users.credits column (not metadata)
+      const newCredits = data?.credits || 0;
       const prevCredits = credits;
       
       setCredits(newCredits);
@@ -211,11 +212,12 @@ export function useOptimisticCredits(userId) {
     
     supabase
       .from('users')
-      .select('metadata')
+      .select('credits')
       .eq('id', userId)
       .single()
       .then(({ data }) => {
-        setOptimisticCredits(data?.metadata?.credits || 0);
+        // Credits are stored directly in users.credits column
+        setOptimisticCredits(data?.credits || 0);
       })
       .catch(console.error);
   }, [userId, supabaseReady]);
