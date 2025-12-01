@@ -29,7 +29,7 @@ import {
   Bot
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { healthAPI, googleAPI, creditsAPI } from '../../services/api';
+import { healthAPI, googleAPI, creditsAPI, subscriptionAPI } from '../../services/api';
 import { generateOAuthState, hashOAuthState, storeOAuthStateHash } from '../../services/oauth';
 import { GoogleConnect } from '../../components/GoogleConnect';
 import apiConfigManager from '../../config/apiConfig';
@@ -761,7 +761,7 @@ function GoogleStep({ userData, onNext, onBack }) {
         <GoogleConnect compact />
       </motion.div>
 
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', gap: 10, marginTop: 8, paddingBottom: 16 }}>
         <button onClick={onBack} style={styles.secondaryButton}>
           Back
         </button>
@@ -848,6 +848,29 @@ function SubscriptionStep({ userData, onNext, onBack }) {
   const [selectedTier, setSelectedTier] = useState('premium');
   const [opening, setOpening] = useState(false);
   const [showFeatures, setShowFeatures] = useState(false);
+  const [waitingForPayment, setWaitingForPayment] = useState(false);
+  const [pendingPlan, setPendingPlan] = useState(null);
+  const pollIntervalRef = useRef(null);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const checkSubscriptionStatus = async (email) => {
+    try {
+      const response = await subscriptionAPI.getStatus(email);
+      console.log('[Onboarding] Subscription status:', response?.data);
+      return response?.data?.status === 'active';
+    } catch (err) {
+      console.log('[Onboarding] Status check failed:', err.message);
+      return false;
+    }
+  };
 
   const handleSubscribe = async (tierId) => {
     setOpening(true);
@@ -856,23 +879,92 @@ function SubscriptionStep({ userData, onNext, onBack }) {
     
     if (paymentLink) {
       try {
+        // Open payment link in browser
         if (window.electron?.openExternal) {
           await window.electron.openExternal(paymentLink);
         } else {
           window.open(paymentLink, '_blank');
         }
+        
+        // Save pending plan
         try { await setUserPreference('selected_plan', planId); } catch {}
         try { localStorage.setItem('selected_plan', planId); } catch {}
-        console.log('[Onboarding] Subscription selected:', planId);
+        console.log('[Onboarding] Subscription checkout opened:', planId);
+        
+        // Show waiting state
+        setOpening(false);
+        setWaitingForPayment(true);
+        setPendingPlan(planId);
+        
+        // Start polling for payment confirmation
+        const userEmail = userData?.email || localStorage.getItem('user_email');
+        if (userEmail) {
+          let pollCount = 0;
+          const maxPolls = 60; // Poll for up to 2 minutes (2s intervals)
+          
+          pollIntervalRef.current = setInterval(async () => {
+            pollCount++;
+            console.log(`[Onboarding] Checking payment status (${pollCount}/${maxPolls})...`);
+            
+            const isActive = await checkSubscriptionStatus(userEmail);
+            if (isActive) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+              setWaitingForPayment(false);
+              console.log('[Onboarding] ✅ Payment confirmed!');
+              onNext({ selectedPlan: planId, paymentConfirmed: true });
+            }
+            
+            if (pollCount >= maxPolls) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+              // Don't auto-proceed - let user manually confirm or skip
+              console.log('[Onboarding] Payment polling timeout');
+            }
+          }, 2000);
+        }
       } catch (err) {
         console.error('[Onboarding] Failed to open payment link:', err);
+        setOpening(false);
       }
     }
-    setOpening(false);
-    onNext({ selectedPlan: planId });
+  };
+
+  const handleConfirmPayment = async () => {
+    // User manually confirms they completed payment
+    const userEmail = userData?.email || localStorage.getItem('user_email');
+    if (userEmail) {
+      const isActive = await checkSubscriptionStatus(userEmail);
+      if (isActive) {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        setWaitingForPayment(false);
+        onNext({ selectedPlan: pendingPlan, paymentConfirmed: true });
+        return;
+      }
+    }
+    // Payment not found - show message but allow skip
+    alert('Payment not detected yet. Please complete checkout in your browser, or click "Start Free Trial" to continue without a subscription.');
+  };
+
+  const handleCancelWaiting = () => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    setWaitingForPayment(false);
+    setPendingPlan(null);
   };
 
   const handleFreeTrial = async () => {
+    // Stop any polling
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    
     // Save to localStorage
     try { localStorage.setItem('selected_plan', 'free_trial'); } catch {}
     try { setUserPreference('selected_plan', 'free_trial'); } catch {}
@@ -892,6 +984,7 @@ function SubscriptionStep({ userData, onNext, onBack }) {
       // Continue anyway - user can still use the app
     }
     
+    setWaitingForPayment(false);
     onNext({ selectedPlan: 'free_trial' });
   };
 
@@ -899,6 +992,91 @@ function SubscriptionStep({ userData, onNext, onBack }) {
   const yearlySavings = selectedTierData 
     ? Math.round((1 - selectedTierData.yearlyPrice / (selectedTierData.monthlyPrice * 12)) * 100)
     : 17;
+
+  // Show waiting for payment UI
+  if (waitingForPayment) {
+    return (
+      <div style={{ 
+        maxWidth: 380, 
+        margin: '0 auto', 
+        padding: '24px 20px',
+        textAlign: 'center',
+      }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+        >
+          <div style={{
+            width: 64,
+            height: 64,
+            margin: '0 auto 20px',
+            borderRadius: 16,
+            background: 'rgba(245, 158, 11, 0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <Clock style={{ width: 32, height: 32, color: BRAND_ORANGE }} className="animate-pulse" />
+          </div>
+          
+          <h2 style={{ ...styles.heading, marginBottom: 12 }}>Waiting for Payment</h2>
+          <p style={{ ...styles.subheading, marginBottom: 24 }}>
+            Complete your purchase in the browser window that just opened.
+            We'll automatically detect when you're done.
+          </p>
+          
+          <div style={{
+            padding: 16,
+            background: 'rgba(255, 255, 255, 0.05)',
+            borderRadius: 12,
+            marginBottom: 20,
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+          }}>
+            <p style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.7)', margin: 0 }}>
+              Selected plan: <strong style={{ color: '#fff' }}>{pendingPlan?.replace('_', ' ')}</strong>
+            </p>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <button
+              onClick={handleConfirmPayment}
+              style={{
+                ...styles.primaryButton,
+                background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+              }}
+            >
+              I've Completed Payment
+              <Check style={{ width: 18, height: 18 }} />
+            </button>
+            
+            <button
+              onClick={handleFreeTrial}
+              style={{
+                ...styles.secondaryButton,
+                width: '100%',
+              }}
+            >
+              Start Free Trial Instead
+            </button>
+            
+            <button
+              onClick={handleCancelWaiting}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'rgba(255, 255, 255, 0.5)',
+                fontSize: 13,
+                cursor: 'pointer',
+                padding: 8,
+              }}
+            >
+              Cancel & Choose Different Plan
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ 
