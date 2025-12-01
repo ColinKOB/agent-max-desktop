@@ -2634,6 +2634,33 @@ export default function AppleFloatBar({
     const text = message.trim();
     if (!text || isThinking || !apiConnected) return;
 
+    // CREDIT GATE: Check if user has credits before allowing any message
+    const userId = localStorage.getItem('user_id');
+    if (userId) {
+      try {
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('credits, subscription_tier')
+          .eq('id', userId)
+          .single();
+        
+        if (!error && userData) {
+          const currentCredits = userData?.credits || 0;
+          if (currentCredits <= 0) {
+            toast.error('No credits remaining! Please purchase more to continue.');
+            const openSettings = window.electron?.openSettings || window.electronAPI?.openSettings;
+            if (openSettings) {
+              await openSettings({ route: '#/settings?section=credits' });
+            }
+            return; // Block the message
+          }
+        }
+      } catch (err) {
+        console.warn('[CreditGate] Failed to check credits:', err);
+        // Don't block on error - let backend handle it
+      }
+    }
+
     // If this is the first prompt and it looks like an email intent, open approval immediately
     try {
       const isFirstTurn = thoughts.length === 0;
