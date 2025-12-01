@@ -73,6 +73,7 @@
   padding-bottom: 4px;
   min-height: 28px; /* slim band for single-line greeting */
   flex: 0 0 auto;   /* don't stretch; just wrap greeting content */
+  justify-content: center; /* center the greeting vertically */
 }
 
 /* Top-left logo */

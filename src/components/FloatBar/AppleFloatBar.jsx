@@ -570,9 +570,10 @@ export default function AppleFloatBar({
     if (message === '' && inputRef.current) {
       inputRef.current.style.height = '24px';
       inputRef.current.classList.remove('has-overflow');
-      // Reset window to base height (only if not in mini mode)
+      // Reset window to compact height when empty (only if not in mini mode)
+      // 140px = toolbar(40) + greeting(30) + input(48) + padding(22)
       if (!isMini && window.electron?.resizeWindow) {
-        window.electron.resizeWindow(360, 220).catch(() => {});
+        window.electron.resizeWindow(360, 140).catch(() => {});
       }
     }
   }, [message, isMini]);
@@ -1742,10 +1743,11 @@ export default function AppleFloatBar({
     try {
       const { data: userData } = await supabase
         .from('users')
-        .select('metadata')
+        .select('credits, subscription_tier')
         .eq('id', userId)
         .single();
-      const currentCredits = userData?.metadata?.credits || 0;
+      // Credits are stored directly in users.credits column (not metadata)
+      const currentCredits = userData?.credits || 0;
       if (currentCredits <= 0) {
         toast.error('No credits remaining! Please purchase more.');
         const openSettings = window.electron?.openSettings || window.electronAPI?.openSettings;
@@ -3853,7 +3855,7 @@ export default function AppleFloatBar({
                   
                   // Resize window for multiline
                   if (window.electron?.resizeWindow) {
-                    const baseHeight = 220;
+                    const baseHeight = 140; // Compact base height
                     const extraHeight = newHeight - singleLineMax;
                     const targetWindowHeight = Math.min(baseHeight + extraHeight, 340);
                     if (targetWindowHeight !== lastHeightRef.current) {
@@ -3868,11 +3870,11 @@ export default function AppleFloatBar({
                   e.target.style.height = '';
                   e.target.classList.remove('has-overflow');
                   
-                  // Reset window to base height
-                  if (window.electron?.resizeWindow && lastHeightRef.current !== 220) {
+                  // Reset window to compact base height
+                  if (window.electron?.resizeWindow && lastHeightRef.current !== 140) {
                     try {
-                      await window.electron.resizeWindow(360, 220);
-                      lastHeightRef.current = 220;
+                      await window.electron.resizeWindow(360, 140);
+                      lastHeightRef.current = 140;
                     } catch {}
                   }
                 }
