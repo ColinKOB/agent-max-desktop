@@ -99,6 +99,10 @@ export const subscriptionAPI = {
       success_url: successUrl, 
       cancel_url: cancelUrl 
     }),
+  
+  // Change plan (upgrade or downgrade)
+  changePlan: (email, newPlan) =>
+    api.post(`/api/subscription/change-plan`, { email, new_plan: newPlan }),
 };
 
 export const addConnectionListener = (callback) => {
