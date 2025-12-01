@@ -583,9 +583,30 @@ export default function AppleFloatBar({
     if (autoSend) {
       // Call immediately for instant UI feedback (memory is automatic now)
       // Pass pack directly to avoid stale state
+      // IMPORTANT: Also pass any user-attached images/files
+      let imageData = null;
+      if (attachments.length > 0) {
+        // Convert first image attachment to base64 for the API
+        const imgAttachment = attachments.find(a => a.type === 'image');
+        if (imgAttachment && imgAttachment.preview) {
+          imageData = imgAttachment.preview; // Already base64 data URL
+          console.log('[Attachments] Sending image with message:', imgAttachment.file?.name);
+        }
+        // For text files, append content to the message
+        const textAttachments = attachments.filter(a => a.type === 'file' && a.content);
+        if (textAttachments.length > 0) {
+          const fileContents = textAttachments.map(a => 
+            `\n\n--- File: ${a.file.name} ---\n${a.content}`
+          ).join('');
+          text = text + fileContents;
+          console.log('[Attachments] Appending file contents to message');
+        }
+        // Clear attachments after sending
+        setAttachments([]);
+      }
       try { 
         if (continueSendMessageRef.current) {
-          continueSendMessageRef.current(text, null, pack);
+          continueSendMessageRef.current(text, imageData, pack);
         }
       } catch (e) { 
         console.warn('continueSendMessage not available', e); 
@@ -596,7 +617,7 @@ export default function AppleFloatBar({
         toast.success('Context prepared. Press send to continue.');
       }
     }
-  }, [autoSend, doRetrieveContext, memoryPreviewEnabled]);
+  }, [autoSend, doRetrieveContext, memoryPreviewEnabled, attachments]);
 
   // Handle expand/collapse
   const handleExpand = useCallback(() => {
@@ -898,7 +919,23 @@ export default function AppleFloatBar({
         setDesktopActionsRequired(isAutoMode && !isChattyMode);
         desktopActionsRef.current = isAutoMode && !isChattyMode;
         chatModeAnnouncementRef.current = false;
-        setThinkingStatus('Thinking...');
+        // Set initial thinking status based on query type for better UX
+        const lowerText = (text || '').toLowerCase();
+        if (lowerText.includes('check') && (lowerText.includes('app') || lowerText.includes('install'))) {
+          setThinkingStatus('Checking installed apps...');
+        } else if (lowerText.includes('email') || lowerText.includes('gmail')) {
+          setThinkingStatus('Preparing email...');
+        } else if (lowerText.includes('calendar') || lowerText.includes('event') || lowerText.includes('meeting')) {
+          setThinkingStatus('Checking calendar...');
+        } else if (lowerText.includes('file') || lowerText.includes('folder') || lowerText.includes('directory')) {
+          setThinkingStatus('Scanning files...');
+        } else if (lowerText.includes('search') || lowerText.includes('find')) {
+          setThinkingStatus('Searching...');
+        } else if (lowerText.includes('open') || lowerText.includes('launch')) {
+          setThinkingStatus('Opening...');
+        } else {
+          setThinkingStatus('Thinking...');
+        }
       } else if (event.type === 'metadata') {
         const meta = event.data || event;
         const key = meta.key || meta.metadata_key || meta.name;
@@ -3735,11 +3772,17 @@ export default function AppleFloatBar({
                     };
                     reader.readAsDataURL(file);
                   } else {
-                    setAttachments(prev => [...prev, {
-                      file,
-                      preview: null,
-                      type: 'file'
-                    }]);
+                    // For text files, read the content
+                    const textReader = new FileReader();
+                    textReader.onload = (ev) => {
+                      setAttachments(prev => [...prev, {
+                        file,
+                        preview: null,
+                        type: 'file',
+                        content: ev.target.result // text content
+                      }]);
+                    };
+                    textReader.readAsText(file);
                   }
                 });
                 e.target.value = ''; // Reset input
