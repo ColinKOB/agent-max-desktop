@@ -19,6 +19,9 @@ if (!SUPABASE_ENABLED) {
 /**
  * Email/password sign-in, or create an account if it does not exist.
  * Returns the authenticated user or null when Supabase is disabled.
+ * 
+ * IMPORTANT: This function also checks if the user has an existing subscription
+ * and links the current device to that account to prevent duplicate subscriptions.
  */
 export async function emailPasswordSignInOrCreate(email, password) {
   if (!SUPABASE_ENABLED || !supabase) return null;
@@ -27,7 +30,38 @@ export async function emailPasswordSignInOrCreate(email, password) {
   const signIn = await supabase.auth.signInWithPassword({ email, password });
   if (signIn?.data?.user) {
     logger.info('Signed in existing user', { email });
-    try { localStorage.setItem('user_id', signIn.data.user.id); } catch {}
+    const authUserId = signIn.data.user.id;
+    try { localStorage.setItem('user_id', authUserId); } catch {}
+    
+    // CRITICAL: Check if this email has an existing subscription in the users table
+    // If so, we should use THAT user_id to ensure subscription continuity
+    try {
+      const existingUser = await supabase
+        .from('users')
+        .select('id, email, subscription_status, subscription_tier, credits')
+        .eq('email', email)
+        .single();
+      
+      if (existingUser?.data && existingUser.data.subscription_status === 'active') {
+        // User has an existing subscription - use that user_id
+        const existingUserId = existingUser.data.id;
+        logger.info('Found existing subscription for email', { 
+          email, 
+          existingUserId, 
+          tier: existingUser.data.subscription_tier,
+          credits: existingUser.data.credits 
+        });
+        
+        // Update localStorage to use the existing user_id
+        try { localStorage.setItem('user_id', existingUserId); } catch {}
+        
+        // Return the auth user but with the existing subscription user_id
+        return { ...signIn.data.user, id: existingUserId, _authId: authUserId };
+      }
+    } catch (lookupErr) {
+      logger.warn('Failed to lookup existing subscription', lookupErr);
+    }
+    
     return signIn.data.user;
   }
   

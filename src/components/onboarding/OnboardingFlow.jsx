@@ -887,11 +887,29 @@ function SubscriptionStep({ userData, onNext, onBack }) {
     
     if (paymentLink) {
       try {
+        // CRITICAL FIX: Append client_reference_id so webhook can identify the user
+        // Without this, Stripe can't link the payment to the correct user account
+        const userId = localStorage.getItem('user_id');
+        const userEmail = userData?.email || localStorage.getItem('user_email');
+        
+        // Build payment link with user identification
+        let fullPaymentLink = paymentLink;
+        if (userId) {
+          fullPaymentLink += `?client_reference_id=${encodeURIComponent(userId)}`;
+          // Also prefill email if available for better UX
+          if (userEmail) {
+            fullPaymentLink += `&prefilled_email=${encodeURIComponent(userEmail)}`;
+          }
+          console.log('[Onboarding] Payment link with user ID:', fullPaymentLink);
+        } else {
+          console.warn('[Onboarding] No user_id found - payment may not link correctly!');
+        }
+        
         // Open payment link in browser
         if (window.electron?.openExternal) {
-          await window.electron.openExternal(paymentLink);
+          await window.electron.openExternal(fullPaymentLink);
         } else {
-          window.open(paymentLink, '_blank');
+          window.open(fullPaymentLink, '_blank');
         }
         
         // Save pending plan
@@ -904,8 +922,7 @@ function SubscriptionStep({ userData, onNext, onBack }) {
         setWaitingForPayment(true);
         setPendingPlan(planId);
         
-        // Start polling for payment confirmation
-        const userEmail = userData?.email || localStorage.getItem('user_email');
+        // Start polling for payment confirmation (reuse userEmail from above)
         if (userEmail) {
           let pollCount = 0;
           const maxPolls = 60; // Poll for up to 2 minutes (2s intervals)
