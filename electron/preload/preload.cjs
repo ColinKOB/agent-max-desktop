@@ -118,11 +118,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openExternal: (url) => ipcRenderer.invoke('open-external', { url }),
   openSettings: (opts) => ipcRenderer.invoke('open-settings', opts || {}),
   
-  // Update management
-  onUpdateAvailable: (callback) => ipcRenderer.on('update-available', callback),
-  onUpdateDownloadProgress: (callback) => ipcRenderer.on('update-download-progress', callback),
-  onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', callback),
-  onUpdateError: (callback) => ipcRenderer.on('update-error', callback),
+  // Update management - FIXED: properly extract data from IPC events
+  onUpdateAvailable: (callback) => {
+    ipcRenderer.on('update-available', (_event, data) => {
+      try { callback(data); } catch (e) { console.error('[Update] Available callback error:', e); }
+    });
+  },
+  onUpdateDownloadProgress: (callback) => {
+    ipcRenderer.on('update-download-progress', (_event, data) => {
+      try { callback(data); } catch (e) { console.error('[Update] Progress callback error:', e); }
+    });
+  },
+  onUpdateDownloaded: (callback) => {
+    ipcRenderer.on('update-downloaded', (_event, data) => {
+      try { callback(data); } catch (e) { console.error('[Update] Downloaded callback error:', e); }
+    });
+  },
+  onUpdateError: (callback) => {
+    ipcRenderer.on('update-error', (_event, data) => {
+      try { callback(data); } catch (e) { console.error('[Update] Error callback error:', e); }
+    });
+  },
   downloadUpdate: () => ipcRenderer.invoke('download-update'),
   installUpdate: () => ipcRenderer.invoke('install-update'),
   restartForUpdate: () => ipcRenderer.invoke('restart-for-update'),
