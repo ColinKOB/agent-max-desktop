@@ -3,10 +3,19 @@
  * 
  * Stores and retrieves long AI responses (>150 words) for detailed viewing
  * in the Deep Dive settings tab.
+ * 
+ * STORAGE STRATEGY:
+ * - Primary: Supabase messages table (with is_deep_dive metadata flag)
+ * - localStorage is used ONLY for caching/quick access, NOT as a fallback
+ * - Deep Dives are linked to the conversation session for context
+ * 
+ * IMPORTANT: This is NOT an offline AI feature. The AI requires internet.
+ * Deep Dives are stored responses from the cloud AI, not local processing.
  */
 
 import { createLogger } from './logger.js';
 import apiConfigManager from '../config/apiConfig';
+import { supabase, SUPABASE_ENABLED } from './supabase';
 
 const logger = createLogger('DeepDive');
 
@@ -125,9 +134,10 @@ export function qualifiesAsDeepDive(text) {
  * Create a new deep dive entry
  * @param {string} userPrompt - The user's question
  * @param {string} fullResponse - The full AI response
+ * @param {string} sessionId - Optional session ID to link the deep dive to the conversation
  * @returns {object} - The deep dive entry with id, summary, etc.
  */
-export async function createDeepDive(userPrompt, fullResponse) {
+export async function createDeepDive(userPrompt, fullResponse, sessionId = null) {
   const id = generateId();
   const wordCount = countWords(fullResponse);
   
@@ -146,17 +156,129 @@ export async function createDeepDive(userPrompt, fullResponse) {
     summary,
     wordCount,
     createdAt: Date.now(),
-    title: userPrompt ? generateQuickSummary(userPrompt, 10) : 'Deep Dive Response'
+    title: userPrompt ? generateQuickSummary(userPrompt, 10) : 'Deep Dive Response',
+    sessionId: sessionId || localStorage.getItem('session_id') || null
   };
   
-  // Save to storage
+  // Save to localStorage (fallback/offline support)
   const deepDives = getDeepDives();
   deepDives.push(deepDive);
   saveDeepDives(deepDives);
   
+  // Also save to Supabase for cross-device sync and conversation history
+  await saveDeepDiveToSupabase(deepDive);
+  
   logger.info(`Created deep dive: ${id} (${wordCount} words)`);
   
   return deepDive;
+}
+
+/**
+ * Save deep dive to Supabase as a message with metadata
+ * This links the deep dive to the conversation session
+ */
+async function saveDeepDiveToSupabase(deepDive) {
+  try {
+    const userId = localStorage.getItem('user_id');
+    const sessionId = deepDive.sessionId;
+    
+    // Skip if no user or session, or if Supabase not available
+    if (!userId || !sessionId || !SUPABASE_ENABLED || !supabase) {
+      logger.debug('[DeepDive] Skipping Supabase save - no user/session or Supabase unavailable');
+      return;
+    }
+    
+    // Skip pending/local sessions
+    if (sessionId.startsWith('pending-') || sessionId.startsWith('local-')) {
+      logger.debug('[DeepDive] Skipping Supabase save - pending/local session');
+      return;
+    }
+    
+    // Store as a message with deep_dive metadata
+    const { error } = await supabase.from('messages').insert({
+      session_id: sessionId,
+      role: 'assistant',
+      content: deepDive.fullResponse,
+      redacted_content: deepDive.summary, // Summary as redacted version
+      metadata: {
+        is_deep_dive: true,
+        deep_dive_id: deepDive.id,
+        word_count: deepDive.wordCount,
+        user_prompt: deepDive.userPrompt,
+        title: deepDive.title
+      }
+    });
+    
+    if (error) {
+      logger.warn('[DeepDive] Failed to save to Supabase:', error.message);
+    } else {
+      logger.info('[DeepDive] Saved to Supabase session:', sessionId);
+    }
+  } catch (err) {
+    logger.warn('[DeepDive] Supabase save error:', err?.message);
+  }
+}
+
+/**
+ * Get deep dives from Supabase (primary storage for cross-device sync)
+ * Also includes any locally cached deep dives for quick access
+ * 
+ * NOTE: This fetches STORED AI responses, not local AI processing.
+ * If Supabase is unavailable, only locally cached responses are shown.
+ */
+export async function getDeepDivesFromSupabase(limit = 50) {
+  // Get locally cached deep dives first (for quick display)
+  const localDeepDives = getDeepDives();
+  
+  // If Supabase not configured, just return local cache
+  // This is NOT a "fallback AI" - these are previously stored cloud AI responses
+  const userId = localStorage.getItem('user_id');
+  if (!userId || !SUPABASE_ENABLED || !supabase) {
+    logger.debug('[DeepDive] Supabase not available, showing cached responses only');
+    return localDeepDives.map(dd => ({ ...dd, cached: true }));
+  }
+  
+  try {
+    // Query messages with is_deep_dive metadata from Supabase
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('role', 'assistant')
+      .not('metadata->is_deep_dive', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    
+    if (error) {
+      logger.warn('[DeepDive] Failed to fetch from Supabase:', error.message);
+      // Return local cache with indicator that sync failed
+      return localDeepDives.map(dd => ({ ...dd, cached: true, syncFailed: true }));
+    }
+    
+    // Convert Supabase messages to deep dive format
+    const supabaseDeepDives = (data || []).map(msg => ({
+      id: msg.metadata?.deep_dive_id || `dd_${msg.id}`,
+      userPrompt: msg.metadata?.user_prompt || '',
+      fullResponse: msg.content,
+      summary: msg.redacted_content || generateQuickSummary(msg.content, 40),
+      wordCount: msg.metadata?.word_count || countWords(msg.content),
+      createdAt: new Date(msg.created_at).getTime(),
+      title: msg.metadata?.title || 'Deep Dive Response',
+      sessionId: msg.session_id,
+      synced: true // Indicates this is synced to cloud
+    }));
+    
+    // Merge: Supabase is source of truth, local cache fills gaps
+    const supabaseIds = new Set(supabaseDeepDives.map(d => d.id));
+    const merged = [
+      ...supabaseDeepDives,
+      ...localDeepDives.filter(d => !supabaseIds.has(d.id)).map(dd => ({ ...dd, cached: true }))
+    ];
+    
+    return merged.sort((a, b) => b.createdAt - a.createdAt).slice(0, limit);
+  } catch (err) {
+    logger.warn('[DeepDive] Supabase fetch error:', err?.message);
+    return localDeepDives.map(dd => ({ ...dd, cached: true, syncFailed: true }));
+  }
 }
 
 /**
@@ -193,6 +315,7 @@ export function getWordThreshold() {
 export default {
   getDeepDives,
   getDeepDive,
+  getDeepDivesFromSupabase,
   createDeepDive,
   deleteDeepDive,
   clearAllDeepDives,

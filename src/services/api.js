@@ -1447,6 +1447,16 @@ export const creditsAPI = {
     api.post(`/api/v2/credits/add/${userId}`, null, {
       params: { amount, source },
     }),
+
+  // Get detailed subscription status
+  getSubscriptionStatus: (userId) =>
+    api.get(`/api/v2/credits/subscription-status/${userId}`),
+
+  // Cancel subscription at end of billing period
+  cancelSubscription: (userId) =>
+    api.post('/api/v2/credits/cancel-subscription', {
+      user_id: userId,
+    }),
 };
 
 // ============================================

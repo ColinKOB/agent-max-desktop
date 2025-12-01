@@ -35,7 +35,7 @@ import { generateOAuthState, hashOAuthState, storeOAuthStateHash } from '../../s
 import { GoogleConnect } from '../../components/GoogleConnect';
 import apiConfigManager from '../../config/apiConfig';
 import LogoPng from '../../assets/AgentMaxLogo.png';
-import { setName as setProfileName, setPreference as setUserPreference, updateProfile as updateUserProfile } from '../../services/supabaseMemory';
+import { setName as setProfileName, setPreference as setUserPreference, updateProfile as updateUserProfile, flushPreAuthQueue } from '../../services/supabaseMemory';
 import { emailPasswordSignInOrCreate, ensureUsersRow } from '../../services/supabase.js';
 
 // Brand orange color from logo (no gradients)
@@ -301,23 +301,18 @@ function NameStep({ userData, onNext }) {
     setSaving(true);
     try {
       const trimmedName = name.trim();
-      // Save to localStorage immediately
-      try { localStorage.setItem('user_name', trimmedName); } catch {}
       
-      // Save to Supabase
-      try { await setProfileName(trimmedName); } catch {}
-      try { await updateUserProfile({ name: trimmedName }); } catch {}
-      try { await setUserPreference('user_name', trimmedName); } catch {}
-      try {
-        const profile = {
-          name: trimmedName,
-          help_category: userData?.helpCategory || '',
-          google_oauth: 'unknown'
-        };
-        await setUserPreference('prompt_profile', JSON.stringify(profile));
-      } catch {}
+      // CONSOLIDATED: Only save to localStorage here
+      // All Supabase saves happen in handleComplete() after account creation
+      // This eliminates duplicate/redundant API calls (Issue 7)
+      try { 
+        localStorage.setItem('user_name', trimmedName); 
+        console.log('[Onboarding] Name saved to localStorage:', trimmedName);
+      } catch (e) {
+        console.warn('[Onboarding] Failed to save name to localStorage:', e);
+      }
       
-      console.log('[Onboarding] Name saved:', trimmedName);
+      console.log('[Onboarding] Name step complete:', trimmedName);
       onNext({ name: trimmedName });
     } finally {
       setSaving(false);
@@ -423,21 +418,17 @@ function UseCaseStep({ userData, onNext, onBack }) {
     const option = USE_CASE_OPTIONS.find(o => o.id === selected);
     const helpCategory = option?.title || selected;
     
-    // Save to localStorage immediately
-    try { localStorage.setItem('help_category', helpCategory); } catch {}
+    // CONSOLIDATED: Only save to localStorage here
+    // All Supabase saves happen in handleComplete() after account creation
+    // This eliminates duplicate/redundant API calls (Issue 7)
+    try { 
+      localStorage.setItem('help_category', helpCategory); 
+      console.log('[Onboarding] Help category saved to localStorage:', helpCategory);
+    } catch (e) {
+      console.warn('[Onboarding] Failed to save help_category to localStorage:', e);
+    }
     
-    // Save to Supabase
-    try {
-      await setUserPreference('help_category', helpCategory);
-      const profile = {
-        name: (userData?.name || '').trim(),
-        help_category: helpCategory,
-        google_oauth: 'unknown'
-      };
-      await setUserPreference('prompt_profile', JSON.stringify(profile));
-    } catch {}
-    
-    console.log('[Onboarding] Help category saved:', helpCategory);
+    console.log('[Onboarding] UseCase step complete:', helpCategory);
     onNext({ helpCategory });
   };
 
@@ -1706,7 +1697,7 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
       if (userData.helpCategory) await setUserPreference('help_category', userData.helpCategory);
       if (userData.selectedPlan) await setUserPreference('selected_plan', userData.selectedPlan);
       
-      // Save complete profile
+      // Save complete profile object
       const profile = {
         name: userData.name || '',
         help_category: userData.helpCategory || '',
@@ -1715,8 +1706,25 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
         onboarding_completed_at: new Date().toISOString(),
       };
       await setUserPreference('prompt_profile', JSON.stringify(profile));
+      
+      // CRITICAL FIX: Also save to users.metadata.profile so getProfile() finds it
+      // This is the source that chat context reads from
+      try {
+        await updateUserProfile(profile);
+        console.log('[Onboarding] Profile saved to users.metadata:', profile);
+      } catch (profileErr) {
+        console.warn('[Onboarding] Failed to update profile metadata:', profileErr);
+      }
     } catch (e) {
       console.warn('[Onboarding] Failed to save to Supabase:', e);
+    }
+    
+    // Flush any pre-auth queued operations now that user_id exists
+    try {
+      const flushResult = await flushPreAuthQueue();
+      console.log('[Onboarding] Pre-auth queue flush result:', flushResult);
+    } catch (flushErr) {
+      console.warn('[Onboarding] Failed to flush pre-auth queue:', flushErr);
     }
     
     console.log('[Onboarding] Data saved successfully');

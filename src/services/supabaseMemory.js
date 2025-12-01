@@ -20,6 +20,82 @@ let syncQueue = [];
 let isOnline = navigator.onLine;
 let syncInProgress = false;
 
+// Pre-auth queue for onboarding data saved before user_id exists
+// This queue is flushed when flushPreAuthQueue() is called after account creation
+let preAuthQueue = [];
+
+/**
+ * Queue an operation to be executed after user authentication
+ * Used during onboarding when user_id doesn't exist yet
+ */
+export function queuePreAuthOperation(operation) {
+  preAuthQueue.push({
+    ...operation,
+    queuedAt: Date.now()
+  });
+  logger.debug('[PreAuthQueue] Queued operation:', operation.type, '- Queue size:', preAuthQueue.length);
+}
+
+/**
+ * Flush the pre-auth queue after user account is created
+ * Should be called from handleComplete() in OnboardingFlow
+ */
+export async function flushPreAuthQueue() {
+  const userId = localStorage.getItem('user_id');
+  if (!userId) {
+    logger.warn('[PreAuthQueue] Cannot flush - no user_id yet');
+    return { success: false, reason: 'no_user_id' };
+  }
+  
+  if (preAuthQueue.length === 0) {
+    logger.debug('[PreAuthQueue] Nothing to flush');
+    return { success: true, flushed: 0 };
+  }
+  
+  logger.info(`[PreAuthQueue] Flushing ${preAuthQueue.length} queued operations for user ${userId}`);
+  
+  const results = [];
+  const queueCopy = [...preAuthQueue];
+  preAuthQueue = []; // Clear queue before processing
+  
+  for (const op of queueCopy) {
+    try {
+      switch (op.type) {
+        case 'setPreference':
+          await setPreference(op.key, op.value, op.category);
+          results.push({ type: op.type, key: op.key, success: true });
+          break;
+        case 'updateProfile':
+          await updateProfile(op.updates);
+          results.push({ type: op.type, success: true });
+          break;
+        case 'setFact':
+          await setFact(op.category, op.predicate, op.object, op.confidence);
+          results.push({ type: op.type, success: true });
+          break;
+        default:
+          logger.warn('[PreAuthQueue] Unknown operation type:', op.type);
+          results.push({ type: op.type, success: false, reason: 'unknown_type' });
+      }
+    } catch (err) {
+      logger.error('[PreAuthQueue] Failed to execute operation:', op.type, err);
+      results.push({ type: op.type, success: false, error: err.message });
+    }
+  }
+  
+  const successCount = results.filter(r => r.success).length;
+  logger.info(`[PreAuthQueue] Flushed ${successCount}/${results.length} operations successfully`);
+  
+  return { success: true, flushed: successCount, total: results.length, results };
+}
+
+/**
+ * Get the current pre-auth queue size (for debugging)
+ */
+export function getPreAuthQueueSize() {
+  return preAuthQueue.length;
+}
+
 // User consent scopes
 // Default to TRUE - users who completed onboarding have implicitly consented
 // The conservative false default was causing messages to not be stored
@@ -188,6 +264,16 @@ export async function getProfile() {
     throw new Error('User not initialized');
   }
 
+  // Default profile structure - use null for name to indicate "not set"
+  // This prevents masking missing data with a fake "User" name
+  const defaultProfile = {
+    name: null,  // null indicates not set, allows fallback chain to work
+    interaction_count: 0,
+    temporal_info: {},
+    top_preferences: [],
+    _source: 'default'  // Track where profile came from for debugging
+  };
+
   try {
     // Try Supabase first
     if (isOnline && supabase) {
@@ -199,13 +285,19 @@ export async function getProfile() {
 
       if (error) throw error;
       
-      // Extract profile from metadata
-      return data?.metadata?.profile || {
-        name: 'User',
-        interaction_count: 0,
-        temporal_info: {},
-        top_preferences: []
-      };
+      // Extract profile from metadata, merge with defaults
+      const supabaseProfile = data?.metadata?.profile;
+      if (supabaseProfile) {
+        return {
+          ...defaultProfile,
+          ...supabaseProfile,
+          _source: 'supabase'
+        };
+      }
+      
+      // No profile in Supabase, return default with indicator
+      logger.debug('[getProfile] No profile in Supabase metadata, using defaults');
+      return { ...defaultProfile, _source: 'supabase_empty' };
     }
   } catch (error) {
     logger.warn('Failed to get profile from Supabase, falling back to Electron:', error);
@@ -213,10 +305,21 @@ export async function getProfile() {
 
   // Fallback to Electron
   if (window.electron?.memory) {
-    return await window.electron.memory.getProfile();
+    try {
+      const electronProfile = await window.electron.memory.getProfile();
+      return {
+        ...defaultProfile,
+        ...electronProfile,
+        _source: 'electron'
+      };
+    } catch (e) {
+      logger.warn('[getProfile] Electron memory fallback failed:', e);
+    }
   }
 
-  throw new Error('No memory service available');
+  // Last resort: return default profile (allows chat to still work)
+  logger.warn('[getProfile] All sources failed, returning default profile');
+  return { ...defaultProfile, _source: 'fallback' };
 }
 
 /**

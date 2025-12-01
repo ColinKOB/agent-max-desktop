@@ -10,7 +10,7 @@ const logger = createLogger('Supabase');
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const SUPABASE_ENABLED = Boolean(supabaseUrl && supabaseAnonKey);
+export const SUPABASE_ENABLED = Boolean(supabaseUrl && supabaseAnonKey);
 
 if (!SUPABASE_ENABLED) {
   logger.warn('Supabase disabled: missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY');

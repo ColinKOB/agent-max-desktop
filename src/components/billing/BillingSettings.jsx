@@ -1,10 +1,10 @@
 /**
  * Billing Settings Component
- * 
+ *
  * Professional billing interface with achievement stats and subscription tiers
  */
 import { useState, useEffect } from 'react';
-import { 
+import {
   Sparkles,
   Zap,
   Crown,
@@ -17,7 +17,9 @@ import {
   TrendingUp,
   Calendar,
   Shield,
-  ExternalLink
+  ExternalLink,
+  XCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { creditsAPI } from '../../services/api';
@@ -41,8 +43,8 @@ const TIERS = [
       '~600 credits per month',
       'Standard response speed',
       'Email support',
-      'Basic integrations'
-    ]
+      'Basic integrations',
+    ],
   },
   {
     id: 'premium',
@@ -61,8 +63,8 @@ const TIERS = [
       'Priority response speed',
       'Priority support',
       'Advanced integrations',
-      'Memory & context'
-    ]
+      'Memory & context',
+    ],
   },
   {
     id: 'pro',
@@ -81,9 +83,9 @@ const TIERS = [
       'Dedicated support',
       'All integrations',
       'Unlimited memory',
-      'Custom workflows'
-    ]
-  }
+      'Custom workflows',
+    ],
+  },
 ];
 
 // Stripe Payment Links - Direct checkout URLs
@@ -105,7 +107,9 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
     if (!stored) {
       // Generate a stable user_id and persist it
       stored = `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      try { localStorage.setItem('user_id', stored); } catch {}
+      try {
+        localStorage.setItem('user_id', stored);
+      } catch {}
       console.log('[BillingSettings] Generated new persistent user_id:', stored);
     }
     return stored;
@@ -122,8 +126,12 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
     codeGenerated: 0,
     currentCredits: 0,
     currentTier: null,
-    subscriptionStatus: null
+    subscriptionStatus: null,
+    cancelAtPeriodEnd: false,
+    currentPeriodEnd: null,
   });
+  const [canceling, setCanceling] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   // Check for purchase success/cancel in URL and handle accordingly
   useEffect(() => {
@@ -141,7 +149,7 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
         window.location.hash = '#/settings';
       }
     };
-    
+
     checkPurchaseStatus();
     window.addEventListener('hashchange', checkPurchaseStatus);
     return () => window.removeEventListener('hashchange', checkPurchaseStatus);
@@ -157,9 +165,9 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
       let credits = 0;
       let tier = null;
       let subscriptionStatus = null;
-      
+
       console.log('[BillingSettings] Loading stats for userId:', userId);
-      
+
       // 1. Try to get credits from Supabase (primary source)
       if (isSupabaseAvailable() && userId) {
         try {
@@ -169,16 +177,20 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
             .select('credits, subscription_tier, subscription_status')
             .eq('id', userId)
             .single();
-          
+
           if (error) {
             console.warn('[BillingSettings] Supabase query error:', error.message, error.code);
           }
-          
+
           if (!error && userData) {
             credits = userData.credits || 0;
             tier = userData.subscription_tier || null;
             subscriptionStatus = userData.subscription_status || null;
-            console.log('[BillingSettings] Loaded from Supabase:', { credits, tier, subscriptionStatus });
+            console.log('[BillingSettings] Loaded from Supabase:', {
+              credits,
+              tier,
+              subscriptionStatus,
+            });
           } else {
             console.log('[BillingSettings] No user data found in Supabase for:', userId);
           }
@@ -188,7 +200,7 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
       } else {
         console.log('[BillingSettings] Supabase not available or no userId');
       }
-      
+
       // 2. Fallback: try backend credits API
       if (credits === 0 && userId) {
         try {
@@ -201,7 +213,34 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
             console.log('[BillingSettings] Loaded from API:', { credits, tier });
           }
         } catch (err) {
-          console.warn('[BillingSettings] Credits API failed:', err?.response?.status, err?.message);
+          console.warn(
+            '[BillingSettings] Credits API failed:',
+            err?.response?.status,
+            err?.message
+          );
+        }
+      }
+
+      // 2.5. Get detailed subscription status (for cancel_at_period_end)
+      let cancelAtPeriodEnd = false;
+      let currentPeriodEnd = null;
+      if (userId && tier && tier !== 'free') {
+        try {
+          const statusRes = await creditsAPI.getSubscriptionStatus(userId);
+          if (statusRes?.data) {
+            cancelAtPeriodEnd = statusRes.data.cancel_at_period_end || false;
+            currentPeriodEnd = statusRes.data.current_period_end || null;
+            // Also update status if we got it
+            if (statusRes.data.subscription_status) {
+              subscriptionStatus = statusRes.data.subscription_status;
+            }
+            console.log('[BillingSettings] Subscription status:', {
+              cancelAtPeriodEnd,
+              currentPeriodEnd,
+            });
+          }
+        } catch (err) {
+          console.warn('[BillingSettings] Subscription status API failed:', err?.message);
         }
       }
 
@@ -215,16 +254,19 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
             .from('sessions')
             .select('*', { count: 'exact', head: true })
             .eq('user_id', userId);
-          
+
           // Count telemetry events
           const { count: eventCount } = await supabase
             .from('telemetry_events')
             .select('*', { count: 'exact', head: true })
             .eq('user_id', userId);
-          
+
           conversationCount = sessionCount || 0;
           tasksCount = eventCount || Math.floor(conversationCount * 0.6);
-          console.log('[BillingSettings] Loaded stats from Supabase:', { conversationCount, tasksCount });
+          console.log('[BillingSettings] Loaded stats from Supabase:', {
+            conversationCount,
+            tasksCount,
+          });
         } catch (err) {
           console.warn('[BillingSettings] Could not load telemetry from Supabase:', err?.message);
         }
@@ -243,9 +285,10 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
         codeGenerated: estimatedCode,
         currentCredits: credits,
         currentTier: tier,
-        subscriptionStatus
+        subscriptionStatus,
+        cancelAtPeriodEnd,
+        currentPeriodEnd,
       });
-
     } catch (error) {
       console.error('[BillingSettings] Failed to load stats:', error);
     } finally {
@@ -253,9 +296,36 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
     }
   };
 
+  const handleCancelSubscription = async () => {
+    try {
+      setCanceling(true);
+      setShowCancelConfirm(false);
+
+      const response = await creditsAPI.cancelSubscription(userId);
+
+      if (response?.data?.success) {
+        toast.success(
+          "Subscription will cancel at the end of your billing period. You'll keep your credits until then.",
+          { duration: 5000 }
+        );
+        // Refresh stats to show updated status
+        await loadUserStats();
+      } else {
+        throw new Error(response?.data?.message || 'Failed to cancel subscription');
+      }
+    } catch (error) {
+      console.error('[BillingSettings] Cancel subscription failed:', error);
+      const message =
+        error?.response?.data?.detail || error?.message || 'Failed to cancel subscription';
+      toast.error(message, { duration: 5000 });
+    } finally {
+      setCanceling(false);
+    }
+  };
+
   const handleSubscribe = async (tierId) => {
     const planId = `${tierId}_${billingCycle === 'yearly' ? 'annual' : 'monthly'}`;
-    
+
     // Helper to open URL in external browser
     const openCheckout = async (url) => {
       if (window.electron?.openExternal) {
@@ -265,18 +335,18 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
         window.open(url, '_blank');
       }
     };
-    
+
     try {
       setPurchasing(true);
       setSelectedTier(tierId);
-      
+
       const successUrl = `${window.location.origin}/#/settings?purchase=success`;
       const cancelUrl = `${window.location.origin}/#/settings?purchase=cancel`;
 
       // Try the API checkout endpoint first (allows tracking user_id)
       try {
         const response = await creditsAPI.createSubscription(planId, userId, successUrl, cancelUrl);
-        
+
         if (response?.data?.url) {
           await openCheckout(response.data.url);
           return;
@@ -284,7 +354,7 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
       } catch (apiError) {
         console.warn('[BillingSettings] API checkout failed, using direct Payment Link:', apiError);
       }
-      
+
       // Fallback to direct Stripe Payment Links with client_reference_id
       const paymentLink = STRIPE_PAYMENT_LINKS[planId];
       if (paymentLink) {
@@ -294,15 +364,15 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
         await openCheckout(linkWithUser);
         return;
       }
-      
+
       // No payment link available
       throw new Error(`No payment link found for plan: ${planId}`);
     } catch (error) {
       console.error('[BillingSettings] Subscription failed:', error);
-      toast.error(
-        'Unable to open checkout. Please try again or contact support@agentmax.ai',
-        { duration: 5000, icon: '📧' }
-      );
+      toast.error('Unable to open checkout. Please try again or contact support@agentmax.ai', {
+        duration: 5000,
+        icon: '📧',
+      });
     } finally {
       setPurchasing(false);
     }
@@ -325,9 +395,7 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
       <div className="billing-hero">
         <div className="hero-content">
           <h1 className="hero-title">Your Agent Max Journey</h1>
-          <p className="hero-subtitle">
-            Here's what you've accomplished with your AI assistant
-          </p>
+          <p className="hero-subtitle">Here's what you've accomplished with your AI assistant</p>
         </div>
 
         <div className="stats-grid">
@@ -392,10 +460,118 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
           {stats.currentTier && (
             <div className="current-plan">
               <Shield className="w-4 h-4" />
-              <span>{stats.currentTier.charAt(0).toUpperCase() + stats.currentTier.slice(1)} Plan</span>
+              <span>
+                {stats.currentTier.charAt(0).toUpperCase() + stats.currentTier.slice(1)} Plan
+              </span>
             </div>
           )}
         </div>
+
+        {/* Subscription Management - Show if user has an active subscription */}
+        {stats.currentTier && stats.currentTier !== 'free' && (
+          <div className="subscription-management">
+            <div className="subscription-status-card">
+              <div className="subscription-header">
+                <h3>
+                  <Shield className="w-5 h-5" />
+                  Your Subscription
+                </h3>
+                {stats.cancelAtPeriodEnd && (
+                  <span className="canceling-badge">
+                    <AlertTriangle className="w-4 h-4" />
+                    Canceling
+                  </span>
+                )}
+              </div>
+
+              <div className="subscription-details">
+                <div className="detail-row">
+                  <span className="detail-label">Plan:</span>
+                  <span className="detail-value">
+                    {stats.currentTier.charAt(0).toUpperCase() + stats.currentTier.slice(1)}
+                  </span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Status:</span>
+                  <span className={`detail-value status-${stats.subscriptionStatus}`}>
+                    {stats.cancelAtPeriodEnd
+                      ? 'Canceling at period end'
+                      : stats.subscriptionStatus || 'Active'}
+                  </span>
+                </div>
+                {stats.currentPeriodEnd && (
+                  <div className="detail-row">
+                    <span className="detail-label">
+                      {stats.cancelAtPeriodEnd ? 'Access until:' : 'Next billing:'}
+                    </span>
+                    <span className="detail-value">
+                      {new Date(stats.currentPeriodEnd * 1000).toLocaleDateString('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Cancel Subscription Button */}
+              {!stats.cancelAtPeriodEnd && (
+                <div className="subscription-actions">
+                  {!showCancelConfirm ? (
+                    <button
+                      className="cancel-subscription-btn"
+                      onClick={() => setShowCancelConfirm(true)}
+                      disabled={canceling}
+                    >
+                      <XCircle className="w-4 h-4" />
+                      Cancel Subscription
+                    </button>
+                  ) : (
+                    <div className="cancel-confirm">
+                      <p className="cancel-warning">
+                        <AlertTriangle className="w-4 h-4" />
+                        Are you sure? You'll keep access until your current period ends.
+                      </p>
+                      <div className="cancel-confirm-buttons">
+                        <button
+                          className="confirm-cancel-btn"
+                          onClick={handleCancelSubscription}
+                          disabled={canceling}
+                        >
+                          {canceling ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Canceling...
+                            </>
+                          ) : (
+                            'Yes, Cancel'
+                          )}
+                        </button>
+                        <button
+                          className="keep-subscription-btn"
+                          onClick={() => setShowCancelConfirm(false)}
+                          disabled={canceling}
+                        >
+                          Keep Subscription
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {stats.cancelAtPeriodEnd && (
+                <div className="cancellation-notice">
+                  <p>
+                    Your subscription will end on the date shown above. You'll keep your remaining
+                    credits.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Subscription Section */}
@@ -437,12 +613,8 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
                 key={tier.id}
                 className={`tier-card ${tier.popular ? 'popular' : ''} ${isSelected ? 'selected' : ''} ${isCurrentPlan ? 'current' : ''}`}
               >
-                {tier.popular && (
-                  <div className="popular-badge">Most Popular</div>
-                )}
-                {isCurrentPlan && (
-                  <div className="current-badge">Current Plan</div>
-                )}
+                {tier.popular && <div className="popular-badge">Most Popular</div>}
+                {isCurrentPlan && <div className="current-badge">Current Plan</div>}
 
                 <div className={`tier-icon bg-gradient-to-br ${tier.color}`}>
                   <Icon className="w-6 h-6 text-white" />
@@ -452,7 +624,9 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
 
                 <div className="tier-price">
                   <span className="price-amount">${price}</span>
-                  <span className="price-period">/{billingCycle === 'yearly' ? 'year' : 'month'}</span>
+                  <span className="price-period">
+                    /{billingCycle === 'yearly' ? 'year' : 'month'}
+                  </span>
                 </div>
 
                 <div className="tier-credits">
@@ -482,9 +656,7 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
                   ) : isCurrentPlan ? (
                     'Current Plan'
                   ) : (
-                    <>
-                      Get {tier.name}
-                    </>
+                    <>Get {tier.name}</>
                   )}
                 </button>
               </div>

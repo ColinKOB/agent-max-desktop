@@ -25,15 +25,64 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
     fetchCredits();
   }, [userId, supabaseReady]);
 
-  // Poll for updates every 3 seconds (live updates)
+  // FIX #11: Use Supabase realtime subscription instead of aggressive polling
+  // Falls back to 30-second polling if realtime unavailable
   useEffect(() => {
     if (!userId || !supabaseReady) return;
     
-    const interval = setInterval(() => {
-      fetchCredits();
-    }, 3000);
+    let subscription = null;
+    let fallbackInterval = null;
     
-    return () => clearInterval(interval);
+    // Try to set up realtime subscription
+    try {
+      subscription = supabase
+        .channel(`credits:${userId}`)
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'users',
+          filter: `id=eq.${userId}`
+        }, (payload) => {
+          const newCredits = payload.new?.credits;
+          if (newCredits !== undefined) {
+            console.log('[CreditDisplay] Realtime update:', newCredits);
+            const prevCredits = credits;
+            setCredits(newCredits);
+            setLastUpdate(Date.now());
+            
+            // Show notifications for credit changes
+            if (prevCredits !== null && newCredits < prevCredits) {
+              const diff = prevCredits - newCredits;
+              toast.success(`Used ${diff} credit${diff > 1 ? 's' : ''}. ${newCredits} remaining.`, {
+                icon: '💳',
+                duration: 2000
+              });
+            }
+          }
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('[CreditDisplay] Realtime subscription active');
+          } else if (status === 'CHANNEL_ERROR') {
+            console.warn('[CreditDisplay] Realtime failed, using fallback polling');
+            // Fallback to 30-second polling if realtime fails
+            fallbackInterval = setInterval(fetchCredits, 30000);
+          }
+        });
+    } catch (err) {
+      console.warn('[CreditDisplay] Realtime not available:', err);
+      // Fallback to 30-second polling
+      fallbackInterval = setInterval(fetchCredits, 30000);
+    }
+    
+    return () => {
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
+      if (fallbackInterval) {
+        clearInterval(fallbackInterval);
+      }
+    };
   }, [userId, supabaseReady]);
 
   const fetchCredits = async () => {

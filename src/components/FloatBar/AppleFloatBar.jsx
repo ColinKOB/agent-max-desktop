@@ -1441,16 +1441,24 @@ export default function AppleFloatBar({
         
         // Check if response qualifies as a Deep Dive (>150 words)
         let deepDiveEntry = null;
+        const wordCount = responseText ? responseText.trim().split(/\s+/).filter(w => w.length > 0).length : 0;
+        console.log(`[Chat] Response word count: ${wordCount} (threshold: 150)`);
+        
         if (responseText && qualifiesAsDeepDive(responseText)) {
           try {
             const userPrompt = lastUserPromptRef.current || '';
-            deepDiveEntry = createDeepDive(userPrompt, responseText);
+            // IMPORTANT: createDeepDive is async - must await to get the actual entry
+            deepDiveEntry = await createDeepDive(userPrompt, responseText);
+            console.log(`[Chat] Created Deep Dive:`, deepDiveEntry);
             logger.info(`[Chat] Created Deep Dive: ${deepDiveEntry.id} (${deepDiveEntry.wordCount} words)`);
             // Dispatch event for settings tab to update
             window.dispatchEvent(new Event('deep-dive-updated'));
           } catch (err) {
+            console.error('[Chat] Failed to create Deep Dive:', err);
             logger.warn('[Chat] Failed to create Deep Dive:', err);
           }
+        } else {
+          console.log(`[Chat] Response does not qualify for Deep Dive (${wordCount} < 150 words)`);
         }
 
         setThoughts(prev => {
@@ -1857,18 +1865,62 @@ export default function AppleFloatBar({
         userContext.profile = profile;
         userContext.facts = facts;
         userContext.preferences = preferences;
+        
+        // Parse prompt_profile if it exists (it's stored as JSON string)
+        let parsedPromptProfile = null;
+        try {
+          const promptProfileStr = preferences?.prompt_profile;
+          if (promptProfileStr && typeof promptProfileStr === 'string') {
+            parsedPromptProfile = JSON.parse(promptProfileStr);
+          }
+        } catch (e) {
+          console.warn('[Chat] Failed to parse prompt_profile:', e);
+        }
+        
+        // CRITICAL FIX: Extract user name from ALL sources (priority order)
+        // Issue: Onboarding saves to preferences, but getProfile reads from users.metadata.profile
+        // This bridges the gap by checking all possible sources
+        const userName = 
+          preferences?.user_name ||                                // Saved in onboarding completion
+          parsedPromptProfile?.name ||                             // From prompt_profile JSON
+          profile?.name ||                                         // users.metadata.profile (if set)
+          facts?.personal?.name?.value ||                          // facts table
+          facts?.personal?.name ||                                 // facts table (alt format)
+          (() => { try { return localStorage.getItem('user_name'); } catch { return null; } })() ||
+          null;
+        
+        // If we found a user name that's not the default, inject it everywhere
+        if (userName && userName !== 'User' && userName.trim()) {
+          // Update profile in context
+          userContext.profile = { ...(profile || {}), name: userName };
+          console.log('[Chat] User name resolved from sources:', userName);
+        }
+        
+        // Also extract help_category if available
+        const helpCategory = 
+          preferences?.help_category ||
+          parsedPromptProfile?.help_category ||                    // From prompt_profile JSON
+          (() => { try { return localStorage.getItem('help_category'); } catch { return null; } })() ||
+          null;
+        
+        if (helpCategory) {
+          userContext.profile = { ...(userContext.profile || {}), help_category: helpCategory };
+        }
+        
         // Inject Known Facts directly into semantic_context so the model can use them without extra retrieval
         try {
           const f = facts || {};
           const school = f?.education?.school?.value ?? f?.education?.school ?? null;
           const city = f?.location?.city?.value ?? f?.location?.city ?? null;
-          const name = f?.personal?.name?.value ?? f?.personal?.name ?? null;
+          // Use the resolved userName instead of just facts
+          const name = userName || (f?.personal?.name?.value ?? f?.personal?.name ?? null);
           const favoriteFood = f?.preferences?.favorite_food?.value ?? f?.preferences?.favorite_food ?? null;
           const likes = f?.preferences?.likes?.value ?? f?.preferences?.likes ?? null;
           let known = '';
+          if (name && name !== 'User') known += `- Name: ${name}\n`;
           if (school) known += `- School: ${school}\n`;
           if (city) known += `- Location: ${city}\n`;
-          if (name) known += `- Name: ${name}\n`;
+          if (helpCategory) known += `- Interested in: ${helpCategory}\n`;
           if (favoriteFood) known += `- Favorite food: ${favoriteFood}\n`;
           if (likes) known += `- Likes: ${likes}\n`;
           if (known) {
@@ -1948,6 +2000,46 @@ export default function AppleFloatBar({
         userContext.profile = profile;
         userContext.facts = facts;
         userContext.preferences = preferences;
+        
+        // Parse prompt_profile if it exists (it's stored as JSON string)
+        let parsedPromptProfile = null;
+        try {
+          const promptProfileStr = preferences?.prompt_profile;
+          if (promptProfileStr && typeof promptProfileStr === 'string') {
+            parsedPromptProfile = JSON.parse(promptProfileStr);
+          }
+        } catch (e) {
+          console.warn('[Chat] Failed to parse prompt_profile:', e);
+        }
+        
+        // CRITICAL FIX: Extract user name from ALL sources (priority order)
+        // Issue: Onboarding saves to preferences, but getProfile reads from users.metadata.profile
+        // This bridges the gap by checking all possible sources
+        const userName = 
+          preferences?.user_name ||                                // Saved in onboarding completion
+          parsedPromptProfile?.name ||                             // From prompt_profile JSON
+          profile?.name ||                                         // users.metadata.profile (if set)
+          facts?.personal?.name?.value ||                          // facts table
+          facts?.personal?.name ||                                 // facts table (alt format)
+          (() => { try { return localStorage.getItem('user_name'); } catch { return null; } })() ||
+          null;
+        
+        // If we found a user name that's not the default, inject it everywhere
+        if (userName && userName !== 'User' && userName.trim()) {
+          userContext.profile = { ...(profile || {}), name: userName };
+          console.log('[Chat] User name resolved from sources:', userName);
+        }
+        
+        // Also extract help_category if available
+        const helpCategory = 
+          preferences?.help_category ||
+          parsedPromptProfile?.help_category ||                    // From prompt_profile JSON
+          (() => { try { return localStorage.getItem('help_category'); } catch { return null; } })() ||
+          null;
+        
+        if (helpCategory) {
+          userContext.profile = { ...(userContext.profile || {}), help_category: helpCategory };
+        }
 
         // Semantic retrieval: build a minimal, relevant context for the current goal
         try {

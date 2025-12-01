@@ -592,4 +592,236 @@
   .trust-item {
     color: #94a3b8;
   }
+
+  .subscription-status-card {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  .subscription-header h3 {
+    color: #f1f5f9;
+  }
+
+  .detail-label {
+    color: #94a3b8;
+  }
+
+  .detail-value {
+    color: #f1f5f9;
+  }
+
+  .cancel-subscription-btn {
+    background: #1e293b;
+    border-color: #475569;
+    color: #f87171;
+  }
+
+  .cancel-warning {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  .cancellation-notice {
+    background: rgba(234, 179, 8, 0.1);
+    border-color: rgba(234, 179, 8, 0.3);
+  }
+}
+
+/* ================================
+   Subscription Management Section
+   ================================ */
+.subscription-management {
+  margin-top: 24px;
+}
+
+.subscription-status-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.subscription-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.subscription-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+
+.canceling-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #f59e0b;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.subscription-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.detail-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.detail-value.status-active {
+  color: #10b981;
+}
+
+.detail-value.status-canceling {
+  color: #f59e0b;
+}
+
+.detail-value.status-canceled {
+  color: #ef4444;
+}
+
+.subscription-actions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.cancel-subscription-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-subscription-btn:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.cancel-subscription-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancel-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cancel-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #991b1b;
+}
+
+.cancel-confirm-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.confirm-cancel-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #dc2626;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.confirm-cancel-btn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.confirm-cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.keep-subscription-btn {
+  padding: 10px 20px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.keep-subscription-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+.keep-subscription-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancellation-notice {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+}
+
+.cancellation-notice p {
+  margin: 0;
+  font-size: 14px;
+  color: #92400e;
 }

@@ -8,13 +8,14 @@
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Book, Trash2, ChevronDown, ChevronUp, Clock, MessageSquare, ArrowLeft } from 'lucide-react';
-import { getDeepDives, getDeepDive, deleteDeepDive, clearAllDeepDives } from '../../services/deepDiveService';
+import { Book, Trash2, ChevronDown, ChevronUp, Clock, MessageSquare, ArrowLeft, RefreshCw, Cloud, HardDrive } from 'lucide-react';
+import { getDeepDives, getDeepDive, getDeepDivesFromSupabase, deleteDeepDive, clearAllDeepDives } from '../../services/deepDiveService';
 
 export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null }) {
   const [deepDives, setDeepDives] = useState([]);
   const [expandedId, setExpandedId] = useState(selectedDeepDiveId);
   const [selectedDeepDive, setSelectedDeepDive] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Load deep dives on mount
   useEffect(() => {
@@ -39,10 +40,20 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
     }
   }, [selectedDeepDiveId]);
 
-  const loadDeepDives = () => {
-    const dds = getDeepDives();
-    // Sort by most recent first
-    setDeepDives(dds.sort((a, b) => b.createdAt - a.createdAt));
+  const loadDeepDives = async () => {
+    setIsLoading(true);
+    try {
+      // Try Supabase first (includes cross-device sync), falls back to localStorage
+      const dds = await getDeepDivesFromSupabase();
+      // Sort by most recent first
+      setDeepDives(dds.sort((a, b) => b.createdAt - a.createdAt));
+    } catch (err) {
+      console.warn('[DeepDive] Failed to load from Supabase, using localStorage:', err);
+      const dds = getDeepDives();
+      setDeepDives(dds.sort((a, b) => b.createdAt - a.createdAt));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDelete = (id, e) => {
@@ -193,27 +204,51 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
             <Book size={24} />
             Deep Dives
           </h1>
-          {deepDives.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
-              onClick={handleClearAll}
+              onClick={loadDeepDives}
+              disabled={isLoading}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
                 padding: '8px 12px',
-                background: '#fee2e2',
-                color: '#dc2626',
+                background: '#f3f4f6',
+                color: '#374151',
                 border: 'none',
                 borderRadius: 8,
-                cursor: 'pointer',
+                cursor: isLoading ? 'wait' : 'pointer',
                 fontSize: 13,
-                fontWeight: 500
+                fontWeight: 500,
+                opacity: isLoading ? 0.6 : 1
               }}
+              title="Sync from cloud"
             >
-              <Trash2 size={14} />
-              Clear All
+              <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} style={{ animation: isLoading ? 'spin 1s linear infinite' : 'none' }} />
+              Sync
             </button>
-          )}
+            {deepDives.length > 0 && (
+              <button
+                onClick={handleClearAll}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 12px',
+                  background: '#fee2e2',
+                  color: '#dc2626',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 500
+                }}
+              >
+                <Trash2 size={14} />
+                Clear All
+              </button>
+            )}
+          </div>
         </div>
 
         <p style={{ color: '#6b7280', marginBottom: 24, fontSize: 14 }}>
@@ -277,9 +312,22 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
                     <div style={{ fontWeight: 600, color: '#111827', marginBottom: 4 }}>
                       {dd.title}
                     </div>
-                    <div style={{ fontSize: 13, color: '#6b7280', display: 'flex', gap: 12 }}>
+                    <div style={{ fontSize: 13, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 12 }}>
                       <span>{formatDate(dd.createdAt)}</span>
                       <span>{dd.wordCount} words</span>
+                      {dd.synced ? (
+                        <span title="Synced to cloud" style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#10b981' }}>
+                          <Cloud size={12} />
+                        </span>
+                      ) : dd.syncFailed ? (
+                        <span title="Sync failed - cached locally" style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#f59e0b' }}>
+                          <HardDrive size={12} />
+                        </span>
+                      ) : dd.cached ? (
+                        <span title="Cached locally (pending sync)" style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#9ca3af' }}>
+                          <HardDrive size={12} />
+                        </span>
+                      ) : null}
                     </div>
                     {expandedId !== dd.id && (
                       <p style={{
