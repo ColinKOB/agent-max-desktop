@@ -994,6 +994,7 @@ function SubscriptionStep({ userData, onNext, onBack }) {
     }
     setWaitingForPayment(false);
     setPendingPlan(null);
+    setVerificationFailed(false); // Reset verification state
   };
 
   const handleFreeTrial = async () => {
