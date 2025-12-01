@@ -264,6 +264,14 @@ function App({ windowMode = 'single' }) {
       top_preferences: [],
     });
     setGreeting(`Hi, ${userData.name}!`);
+    
+    // Resize window back to normal size after onboarding
+    try {
+      await window.electron?.resizeWindow?.(360, 220);
+      console.log('[App] Resized window after onboarding');
+    } catch (err) {
+      console.warn('[App] Failed to resize window after onboarding:', err);
+    }
   };
 
   return (

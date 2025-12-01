@@ -1425,6 +1425,12 @@ export const creditsAPI = {
       success_url: successUrl,
       cancel_url: cancelUrl,
     }),
+
+  // Add credits to user account (for free trials, bonuses, etc.)
+  addCredits: (userId, amount, source = 'free_trial') =>
+    api.post(`/api/v2/credits/add/${userId}`, null, {
+      params: { amount, source },
+    }),
 };
 
 // ============================================

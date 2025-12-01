@@ -29,7 +29,7 @@ import {
   Bot
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { healthAPI, googleAPI } from '../../services/api';
+import { healthAPI, googleAPI, creditsAPI } from '../../services/api';
 import { generateOAuthState, hashOAuthState, storeOAuthStateHash } from '../../services/oauth';
 import { GoogleConnect } from '../../components/GoogleConnect';
 import apiConfigManager from '../../config/apiConfig';
@@ -872,11 +872,26 @@ function SubscriptionStep({ userData, onNext, onBack }) {
     onNext({ selectedPlan: planId });
   };
 
-  const handleFreeTrial = () => {
+  const handleFreeTrial = async () => {
     // Save to localStorage
     try { localStorage.setItem('selected_plan', 'free_trial'); } catch {}
     try { setUserPreference('selected_plan', 'free_trial'); } catch {}
     console.log('[Onboarding] Free trial selected');
+    
+    // Add 50 free credits to user account
+    try {
+      const userId = localStorage.getItem('user_id');
+      if (userId) {
+        const response = await creditsAPI.addCredits(userId, 50, 'free_trial');
+        console.log('[Onboarding] Added 50 free credits:', response?.data);
+      } else {
+        console.warn('[Onboarding] No user_id found, skipping credit addition');
+      }
+    } catch (err) {
+      console.error('[Onboarding] Failed to add free credits:', err);
+      // Continue anyway - user can still use the app
+    }
+    
     onNext({ selectedPlan: 'free_trial' });
   };
 
