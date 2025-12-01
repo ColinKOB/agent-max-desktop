@@ -143,16 +143,17 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
   const isEmpty = credits === 0;
 
   // Compact tool-button variant to match top-right tools (32x32 buttons)
+  // Display-only: no click functionality, just shows credit count
   if (variant === 'tool') {
     return (
       <div className="flex items-center gap-2">
-        <button
+        <div
           className="apple-tool-btn"
-          title={`${credits} ${credits === 1 ? 'credit' : 'credits'} — click to add more`}
-          onClick={handlePurchase}
+          title={`${credits} ${credits === 1 ? 'credit' : 'credits'} remaining`}
+          style={{ cursor: 'default' }}
         >
           <span className="text-[12px] font-semibold">{credits}</span>
-        </button>
+        </div>
       </div>
     );
   }

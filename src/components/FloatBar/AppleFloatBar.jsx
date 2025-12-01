@@ -637,16 +637,18 @@ export default function AppleFloatBar({
         let limit = Infinity;
         try {
           const size = await window.electron?.getScreenSize?.();
-          if (size?.height) limit = Math.max(MIN_EXPANDED_HEIGHT, size.height - 120);
+          if (size?.height) {
+            // Allow expansion to 85% of screen height
+            limit = Math.max(MIN_EXPANDED_HEIGHT, Math.floor(size.height * 0.85));
+          }
         } catch {}
-        const hardMax = 520;
 
         // Only restore saved height if there are messages; otherwise start compact
         if (hasMessages) {
           const key = 'amx:floatbar:lastHeight';
           let saved = Number(localStorage.getItem(key));
           if (!Number.isFinite(saved) || saved < base) saved = base;
-          const target = Math.min(limit, hardMax, Math.max(base, saved));
+          const target = Math.min(limit, Math.max(base, saved));
           if (window.electron?.resizeWindow) {
             await window.electron.resizeWindow(360, target);
             lastHeightRef.current = target;
@@ -2914,16 +2916,18 @@ export default function AppleFloatBar({
       const naturalHeight = padTop + th + fh + mh + ih + padBottom + gaps;
       const minHeight = MIN_EXPANDED_HEIGHT;
 
-      // Limit by available screen height (minus margin), not a hardcoded app cap
+      // Limit by available screen height (minus margin for dock/menubar)
       let screenLimit = Infinity;
       try {
         const screenSize = await window.electron?.getScreenSize?.();
         if (screenSize?.height) {
-          screenLimit = Math.max(MIN_EXPANDED_HEIGHT, screenSize.height - 120); // 120px safe margin
+          // Use 85% of screen height or screen minus 150px, whichever is larger
+          // This allows the window to expand to nearly full screen for long AI responses
+          screenLimit = Math.max(MIN_EXPANDED_HEIGHT, Math.floor(screenSize.height * 0.85), screenSize.height - 150);
         }
       } catch {}
 
-      const preferredMax = Math.min(screenLimit, 520); // cap for internal scroll behavior
+      const preferredMax = screenLimit; // Allow window to grow to near-full screen
 
       // Compute delta vs previous natural height to grow/shrink incrementally
       let prevNatural = naturalHeightRef.current || 0;
