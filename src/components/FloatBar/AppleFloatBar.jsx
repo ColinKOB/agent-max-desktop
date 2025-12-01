@@ -571,9 +571,9 @@ export default function AppleFloatBar({
       inputRef.current.style.height = '24px';
       inputRef.current.classList.remove('has-overflow');
       // Reset window to compact height when empty (only if not in mini mode)
-      // 140px = toolbar(40) + greeting(30) + input(48) + padding(22)
+      // 180px = toolbar(48) + greeting(36) + input(56) + padding(40)
       if (!isMini && window.electron?.resizeWindow) {
-        window.electron.resizeWindow(360, 140).catch(() => {});
+        window.electron.resizeWindow(360, 180).catch(() => {});
       }
     }
   }, [message, isMini]);
@@ -3882,7 +3882,7 @@ export default function AppleFloatBar({
                   
                   // Resize window for multiline
                   if (window.electron?.resizeWindow) {
-                    const baseHeight = 140; // Compact base height
+                    const baseHeight = 180; // Compact base height
                     const extraHeight = newHeight - singleLineMax;
                     const targetWindowHeight = Math.min(baseHeight + extraHeight, 340);
                     if (targetWindowHeight !== lastHeightRef.current) {
@@ -3898,10 +3898,10 @@ export default function AppleFloatBar({
                   e.target.classList.remove('has-overflow');
                   
                   // Reset window to compact base height
-                  if (window.electron?.resizeWindow && lastHeightRef.current !== 140) {
+                  if (window.electron?.resizeWindow && lastHeightRef.current !== 180) {
                     try {
-                      await window.electron.resizeWindow(360, 140);
-                      lastHeightRef.current = 140;
+                      await window.electron.resizeWindow(360, 180);
+                      lastHeightRef.current = 180;
                     } catch {}
                   }
                 }
