@@ -512,6 +512,7 @@
 .apple-input-area.has-attachments {
   flex-wrap: wrap;
   padding-top: 6px;
+  align-items: flex-end; /* Keep controls at bottom when content wraps */
 }
 
 .attachment-chips {

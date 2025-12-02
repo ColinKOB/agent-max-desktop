@@ -715,6 +715,47 @@ export default function AppleFloatBar({
     }
   }, [message, isMini]);
 
+  // Dynamic window resizing based on input content + attachments
+  useEffect(() => {
+    if (!inputRef.current || isMini || message === '') return; // Skip if empty (handled above) or mini
+
+    // Reset height to auto to get correct scrollHeight
+    inputRef.current.style.height = 'auto';
+    const scrollHeight = inputRef.current.scrollHeight;
+    
+    // Base calculations
+    const singleLineMax = 36;
+    const baseHeight = 180;
+    
+    // Calculate attachment height if present
+    const attachmentHeight = attachments.length > 0 ? 34 : 0; // Approximate height of chip row
+    
+    // Calculate total extra height needed
+    const textHeight = Math.min(scrollHeight, 120);
+    const extraTextHeight = Math.max(0, textHeight - singleLineMax);
+    
+    const totalExtraHeight = extraTextHeight + attachmentHeight;
+    
+    // Apply height to textarea if needed
+    if (scrollHeight > singleLineMax) {
+      inputRef.current.style.height = textHeight + 'px';
+      inputRef.current.classList.add('has-overflow');
+    } else {
+      inputRef.current.style.height = '';
+      inputRef.current.classList.remove('has-overflow');
+    }
+
+    // Resize window
+    if (window.electron?.resizeWindow) {
+      const targetWindowHeight = Math.min(baseHeight + totalExtraHeight, 400);
+      
+      if (Math.abs(targetWindowHeight - lastHeightRef.current) > 4) {
+        window.electron.resizeWindow(360, targetWindowHeight).catch(() => {});
+        lastHeightRef.current = targetWindowHeight;
+      }
+    }
+  }, [message, attachments, isMini]);
+
   // Helper: retrieve context then proceed to send (optionally auto-send)
   // messageAlreadyAdded: true if optimistic UI already added the message to chat
   const continueAfterPreview = useCallback(async (text, messageAlreadyAdded = false) => {
@@ -4253,44 +4294,7 @@ export default function AppleFloatBar({
               value={message}
               onChange={async (e) => {
                 setMessage(e.target.value);
-                // Auto-resize textarea - only grow when content actually wraps
-                e.target.style.height = 'auto';
-                const scrollHeight = e.target.scrollHeight;
-                // Single line threshold - don't resize unless we have actual multiline
-                const singleLineMax = 36; // Accounts for padding
-                const isMultiLine = scrollHeight > singleLineMax;
-                
-                if (isMultiLine) {
-                  // Grow for multiline content
-                  const newHeight = Math.min(scrollHeight, 120);
-                  e.target.style.height = newHeight + 'px';
-                  e.target.classList.add('has-overflow');
-                  
-                  // Resize window for multiline
-                  if (window.electron?.resizeWindow) {
-                    const baseHeight = 180; // Compact base height
-                    const extraHeight = newHeight - singleLineMax;
-                    const targetWindowHeight = Math.min(baseHeight + extraHeight, 340);
-                    if (targetWindowHeight !== lastHeightRef.current) {
-                      try {
-                        await window.electron.resizeWindow(360, targetWindowHeight);
-                        lastHeightRef.current = targetWindowHeight;
-                      } catch {}
-                    }
-                  }
-                } else {
-                  // Single line - don't set explicit height, let CSS handle it
-                  e.target.style.height = '';
-                  e.target.classList.remove('has-overflow');
-                  
-                  // Reset window to compact base height
-                  if (window.electron?.resizeWindow && lastHeightRef.current !== 180) {
-                    try {
-                      await window.electron.resizeWindow(360, 180);
-                      lastHeightRef.current = 180;
-                    } catch {}
-                  }
-                }
+                // Resize logic is now handled by the useEffect hook watching 'message'
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
