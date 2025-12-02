@@ -66,6 +66,12 @@ class ExecutorManager {
 
         console.log(`[ExecutorManager] Starting run: ${runId}`);
         
+        // Apply stored user context (e.g., google_user_email)
+        if (global.executorUserContext && this.executor.setUserContext) {
+            this.executor.setUserContext(global.executorUserContext);
+            console.log(`[ExecutorManager] Applied user context:`, Object.keys(global.executorUserContext));
+        }
+        
         // Mark as active
         this.activeRuns.set(runId, {
             runId,

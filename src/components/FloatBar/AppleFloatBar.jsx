@@ -37,6 +37,7 @@ import { qualifiesAsDeepDive, createDeepDive } from '../../services/deepDiveServ
 import { OnboardingFlow } from '../onboarding/OnboardingFlow';
 import ExecutionProgress from '../ExecutionProgress/ExecutionProgress';
 import TypewriterMessage from '../TypewriterMessage/TypewriterMessage';
+import ActivityFeed from '../ActivityFeed/ActivityFeed';
 
 const logger = createLogger('FloatBar');
 
@@ -128,6 +129,10 @@ export default function AppleFloatBar({
   const [runStatus, setRunStatus] = useState(null); // "running" | "paused" | "cancelled" | "failed" | "completed"
   const [activeRunId, setActiveRunId] = useState(null); // Track active run ID for polling
   const [backgroundProcesses, setBackgroundProcesses] = useState([]); // Track active background processes
+  // Activity feed state for live progress display
+  const [activityLog, setActivityLog] = useState([]); // [{id, text, status: 'done'|'running', timestamp, duration}]
+  const [activityStartTime, setActivityStartTime] = useState(null); // When current activity started
+  const activityIdCounter = useRef(0);
   // Track which message timestamps should animate (only new messages)
   const animatedMessagesRef = useRef(new Set());
   const lastUserPromptRef = useRef('');
@@ -167,6 +172,7 @@ export default function AppleFloatBar({
   const offlineDesktopToastRef = useRef(false);
   const continueSendMessageRef = useRef(null); // dispatcher to avoid TDZ
   const hoverTimeoutRef = useRef(null);
+  const pendingOptimisticMsgRef = useRef(null); // Track optimistic message for rollback
   const [showReconnected, setShowReconnected] = useState(false);
   const thoughtIdRef = useRef(null); // current inline thought entry id
   const [execPanelOpen, setExecPanelOpen] = useState(true);
@@ -270,6 +276,7 @@ export default function AppleFloatBar({
     // Reset all thinking/execution states
     setIsThinking(false);
     setThinkingStatus('');
+    clearActivityLog(); // Clear activity feed
     setRunStatus('cancelled');
     setExecutionSummary({
       status: 'cancelled',
@@ -502,6 +509,12 @@ export default function AppleFloatBar({
         .then(() => console.log('[Session] New session started on mount'))
         .catch(err => console.warn('[Session] Failed to start session:', err));
     }
+    // Sync Google email to executor for autonomous Gmail access
+    const googleEmail = localStorage.getItem('google_user_email');
+    if (googleEmail && window.executor?.setUserContext) {
+      window.executor.setUserContext({ google_user_email: googleEmail });
+      console.log('[FloatBar] Synced google_user_email to executor');
+    }
   }, []);
 
   // Preference: show memory preview UI (default off)
@@ -565,6 +578,90 @@ export default function AppleFloatBar({
     } catch {}
   }, []);
 
+  // ==========================================
+  // OPTIMISTIC UI HELPERS
+  // Add message immediately for instant feedback, rollback if checks fail
+  // ==========================================
+  
+  // Add user message optimistically (before checks complete)
+  const addOptimisticMessage = useCallback((text) => {
+    const timestamp = Date.now();
+    pendingOptimisticMsgRef.current = { text, timestamp };
+    setThoughts(prev => [...prev, { role: 'user', content: text, timestamp }]);
+    setMessage('');
+    setIsThinking(true);
+    setThinkingStatus('Checking...');
+    logger.info('[OptimisticUI] Added user message immediately');
+    return timestamp;
+  }, []);
+
+  // Rollback an optimistic message if a check fails
+  const rollbackOptimisticMessage = useCallback((originalText) => {
+    const pending = pendingOptimisticMsgRef.current;
+    if (pending && pending.text === originalText) {
+      // Remove the message we optimistically added
+      setThoughts(prev => prev.filter(t => 
+        !(t.role === 'user' && t.content === pending.text && t.timestamp === pending.timestamp)
+      ));
+      // Restore the input text so user doesn't lose their work
+      setMessage(originalText);
+      setIsThinking(false);
+      setThinkingStatus('');
+      pendingOptimisticMsgRef.current = null;
+      logger.info('[OptimisticUI] Rolled back message after check failure');
+    }
+  }, []);
+
+  // Clear the pending optimistic message tracking (message is now committed)
+  const commitOptimisticMessage = useCallback(() => {
+    pendingOptimisticMsgRef.current = null;
+    logger.info('[OptimisticUI] Message committed (checks passed)');
+  }, []);
+
+  // ==========================================
+  // Activity Feed Helpers - For live progress display
+  // ==========================================
+  
+  // Add a new activity to the log (starts as 'running')
+  const addActivity = useCallback((text) => {
+    const id = `activity-${++activityIdCounter.current}`;
+    const timestamp = Date.now();
+    setActivityLog(prev => [...prev, { id, text, status: 'running', timestamp }]);
+    setActivityStartTime(timestamp);
+    return id;
+  }, []);
+
+  // Mark an activity as done and optionally add duration
+  const completeActivity = useCallback((id, duration = null) => {
+    setActivityLog(prev => prev.map(a => 
+      a.id === id ? { ...a, status: 'done', duration: duration || Math.floor((Date.now() - a.timestamp) / 1000) } : a
+    ));
+    setActivityStartTime(null);
+  }, []);
+
+  // Mark the most recent running activity as done
+  const completeCurrentActivity = useCallback(() => {
+    setActivityLog(prev => {
+      const lastRunning = [...prev].reverse().find(a => a.status === 'running');
+      if (lastRunning) {
+        return prev.map(a => 
+          a.id === lastRunning.id 
+            ? { ...a, status: 'done', duration: Math.floor((Date.now() - a.timestamp) / 1000) } 
+            : a
+        );
+      }
+      return prev;
+    });
+    setActivityStartTime(null);
+  }, []);
+
+  // Clear all activities (for new conversation)
+  const clearActivityLog = useCallback(() => {
+    setActivityLog([]);
+    setActivityStartTime(null);
+    activityIdCounter.current = 0;
+  }, []);
+
   // Reset textarea height and window size when message is cleared
   useEffect(() => {
     if (message === '' && inputRef.current) {
@@ -579,7 +676,13 @@ export default function AppleFloatBar({
   }, [message, isMini]);
 
   // Helper: retrieve context then proceed to send (optionally auto-send)
-  const continueAfterPreview = useCallback(async (text) => {
+  // messageAlreadyAdded: true if optimistic UI already added the message to chat
+  const continueAfterPreview = useCallback(async (text, messageAlreadyAdded = false) => {
+    // Update status to show we're retrieving context
+    if (messageAlreadyAdded) {
+      setThinkingStatus('Searching memory...');
+    }
+    
     const pack = await doRetrieveContext(text);
     if (autoSend) {
       // Call immediately for instant UI feedback (memory is automatic now)
@@ -607,7 +710,8 @@ export default function AppleFloatBar({
       }
       try { 
         if (continueSendMessageRef.current) {
-          continueSendMessageRef.current(text, imageData, pack);
+          // Pass the messageAlreadyAdded flag to avoid duplicate UI updates
+          continueSendMessageRef.current(text, imageData, pack, messageAlreadyAdded);
         }
       } catch (e) { 
         console.warn('continueSendMessage not available', e); 
@@ -900,6 +1004,7 @@ export default function AppleFloatBar({
         accumulatedResponseRef.current = '';  // Clear fs_command accumulator
         executedCommandsRef.current.clear();  // Clear executed commands tracking
         enrichTileIdRef.current = null;
+        clearActivityLog(); // Start fresh activity feed for new task
         // Reset thought ref (bubble will be created lazily on first thinking event)
         thoughtIdRef.current = null;
         setActionPlanMetadata(null);
@@ -1169,6 +1274,9 @@ export default function AppleFloatBar({
           case 'running':
             // AI is actively working - show the status_summary
             setThinkingStatus(statusSummary);
+            // Add to activity feed - complete any previous running activity first
+            completeCurrentActivity();
+            addActivity(statusSummary || msg || 'Processing...');
             break;
             
           case 'info':
@@ -1191,7 +1299,8 @@ export default function AppleFloatBar({
             break;
             
           case 'completed':
-            // Action succeeded - show success notification
+            // Action succeeded - complete current activity in feed
+            completeCurrentActivity();
             const actionName = extractActionName(msg);
             toast.success(`✅ ${actionName}`, {
               duration: 3000,
@@ -1965,12 +2074,19 @@ export default function AppleFloatBar({
   }, [pendingMessageForScreenshot]);
 
   // Continue sending message after screenshot decision
-  const continueSendMessage = useCallback(async (text, screenshotData, memoryPack = null) => {
-    // Add user message to chat immediately
-    setThoughts(prev => [...prev, { role: 'user', content: text, timestamp: Date.now() }]);
-    setMessage('');
-    setIsThinking(true);
-    setThinkingStatus('Thinking...');
+  // messageAlreadyAdded: true if optimistic UI already added the message (skip duplicate add)
+  const continueSendMessage = useCallback(async (text, screenshotData, memoryPack = null, messageAlreadyAdded = false) => {
+    // Only update UI if message wasn't already added optimistically
+    if (!messageAlreadyAdded) {
+      // Add user message to chat immediately
+      setThoughts(prev => [...prev, { role: 'user', content: text, timestamp: Date.now() }]);
+      setMessage('');
+      setIsThinking(true);
+      setThinkingStatus('Thinking...');
+    } else {
+      // Message already in UI, just update status
+      setThinkingStatus('Building context...');
+    }
     // Reset autonomous progress state
     try { setExecutionPlan(null); setPlanCardDismissed(!shouldDisplayPlanCard()); setCurrentStep(0); setTotalSteps(0); } catch {}
     // Remember the last user prompt for memory extraction
@@ -1990,13 +2106,38 @@ export default function AppleFloatBar({
       preferences: null,
       google_user_email: localStorage.getItem('google_user_email') || null  // Add Google connection status
     };
-    if (localStorage.getItem('user_id')) {
+    
+    const userId = localStorage.getItem('user_id');
+    const sessionId = localStorage.getItem('session_id');
+    
+    if (userId) {
       try {
-        const [profile, facts, preferences] = await Promise.all([
+        // ==========================================
+        // OPTIMIZED: Fetch ALL context in parallel for maximum speed
+        // Previously these were sequential, adding ~400-800ms latency
+        // ==========================================
+        setThinkingStatus('Fetching context...');
+        
+        const deepMemory = localStorage.getItem('pref_deep_memory_search') === '1';
+        const useHybridSearch = localStorage.getItem('use_hybrid_search') !== '0';
+        
+        // Start ALL async operations in parallel
+        const [profile, facts, preferences, recentMsgs, hybridResults] = await Promise.all([
           getProfile().catch(() => null),
           getFacts().catch(() => null),
-          getPreferences().catch(() => null)
+          getPreferences().catch(() => null),
+          sessionId ? getRecentMessages(20, sessionId).catch(() => []) : Promise.resolve([]),
+          // Pre-fetch hybrid search in parallel (this is the slow one - embedding generation)
+          useHybridSearch ? hybridSearchContext(text, userId, {
+            includeMessages: true,
+            includeFacts: true,
+            messageLimit: deepMemory ? 10 : 6,
+            factLimit: deepMemory ? 5 : 3
+          }).catch(() => ({ messages: [], facts: [], stats: {} })) : Promise.resolve(null)
         ]);
+        
+        logger.info('[Parallel] All context fetched in parallel');
+        
         userContext.profile = profile;
         userContext.facts = facts;
         userContext.preferences = preferences;
@@ -2042,13 +2183,8 @@ export default function AppleFloatBar({
         }
 
         // Semantic retrieval: build a minimal, relevant context for the current goal
+        // NOTE: recentMsgs already fetched in parallel Promise.all above
         try {
-          let recentMsgs = [];
-          const sessionId = localStorage.getItem('session_id');
-          if (sessionId) {
-            recentMsgs = await getRecentMessages(20, sessionId).catch(() => []);
-          }
-
           const normalizeFacts = (arr) => {
             if (!Array.isArray(arr)) return [];
             return arr.map((f, i) => ({
@@ -2130,8 +2266,9 @@ export default function AppleFloatBar({
             if (window.electron?.memory?.getAllSessions) {
               try {
                 // 1) Direct facts recall with high confidence
+                // NOTE: Using `facts` already fetched in parallel Promise.all above
+                // This eliminates duplicate Electron IPC call that was adding ~50-100ms latency
                 let factsBlock = '';
-                const facts = await window.electron.memory.getFacts().catch(() => null);
                 if (facts) {
                   const school = facts?.education?.school?.value ?? facts?.education?.school ?? null;
                   if (school && queryTerms.some(t => ['school','college','university'].includes(t))) {
@@ -2167,68 +2304,44 @@ export default function AppleFloatBar({
                 }
 
                 // 2) Search conversation history using hybrid search (semantic + keyword)
-                // Check if hybrid search is enabled (default: true for better results)
-                const useHybridSearch = localStorage.getItem('use_hybrid_search') !== '0';
-                
-                if (useHybridSearch) {
-                  try {
-                    const userId = localStorage.getItem('user_id');
-                    if (userId) {
-                      console.log('[Semantic] Using hybrid search (embeddings + keywords)...');
-                      const startTime = Date.now();
-                      
-                      // Use hybrid search for semantic + keyword matching
-                      const searchResults = await hybridSearchContext(text, userId, {
-                        includeMessages: true,
-                        includeFacts: true,
-                        messageLimit: limit,
-                        factLimit: Math.floor(limit / 2)
-                      });
-                      
-                      const searchDuration = Date.now() - startTime;
-                      console.log(`[Semantic] Hybrid search completed in ${searchDuration}ms:`, {
-                        messages: searchResults.messages.length,
-                        facts: searchResults.facts.length,
-                        source: searchResults.stats?.source || 'unknown'
-                      });
-                      
-                      // Convert hybrid search results to items format
-                      const messageItems = searchResults.messages.map(m => ({
-                        text: m.content?.slice(0, 200) || '',
-                        score: m.score || 0,
-                        timestamp: m.created_at,
-                        session: m.session_id,
-                        source: m.source || 'hybrid'
-                      }));
-                      
-                      const factItems = searchResults.facts.map(f => ({
-                        text: `${f.key}: ${f.value}`,
-                        score: f.score || 0,
-                        category: f.category,
-                        source: 'fact-hybrid'
-                      }));
-                      
-                      // Merge and sort all items
-                      items = [...items, ...messageItems, ...factItems]
-                        .filter(Boolean)
-                        .sort((a, b) => (b.score || 0) - (a.score || 0))
-                        .slice(0, limit);
-                      
-                      if (memoryDebugEnabled) {
-                        logger.info('[Semantic][Hybrid] results', {
-                          total: items.length,
-                          duration: searchDuration,
-                          sources: items.reduce((acc, it) => {
-                            acc[it.source] = (acc[it.source] || 0) + 1;
-                            return acc;
-                          }, {})
-                        });
-                      }
-                    } else {
-                      console.warn('[Semantic] User ID not found, falling back to keyword search');
-                    }
-                  } catch (hybridErr) {
-                    console.warn('[Semantic] Hybrid search failed, falling back to keyword:', hybridErr);
+                // NOTE: hybridResults already fetched in parallel Promise.all above
+                if (hybridResults && (hybridResults.messages?.length > 0 || hybridResults.facts?.length > 0)) {
+                  console.log('[Semantic] Using pre-fetched hybrid search results:', {
+                    messages: hybridResults.messages?.length || 0,
+                    facts: hybridResults.facts?.length || 0,
+                    source: hybridResults.stats?.source || 'parallel-prefetch'
+                  });
+                  
+                  // Convert hybrid search results to items format
+                  const messageItems = (hybridResults.messages || []).map(m => ({
+                    text: m.content?.slice(0, 200) || '',
+                    score: m.score || 0,
+                    timestamp: m.created_at,
+                    session: m.session_id,
+                    source: m.source || 'hybrid'
+                  }));
+                  
+                  const factItems = (hybridResults.facts || []).map(f => ({
+                    text: `${f.key}: ${f.value}`,
+                    score: f.score || 0,
+                    category: f.category,
+                    source: 'fact-hybrid'
+                  }));
+                  
+                  // Merge and sort all items
+                  items = [...items, ...messageItems, ...factItems]
+                    .filter(Boolean)
+                    .sort((a, b) => (b.score || 0) - (a.score || 0))
+                    .slice(0, limit);
+                  
+                  if (memoryDebugEnabled) {
+                    logger.info('[Semantic][Hybrid] pre-fetched results', {
+                      total: items.length,
+                      sources: items.reduce((acc, it) => {
+                        acc[it.source] = (acc[it.source] || 0) + 1;
+                        return acc;
+                      }, {})
+                    });
                   }
                 }
                 
@@ -2498,6 +2611,10 @@ export default function AppleFloatBar({
           
           setThinkingStatus('Working...');
           
+          // Initialize activity feed with the intent
+          clearActivityLog();
+          addActivity(runTracker.intent || 'Starting task...');
+          
           // Start polling for updates - iterative execution will provide status_summary
           pullService.pollRunStatus(runTracker.runId, (status) => {
             console.log('[FloatBar] Iterative status update:', status);
@@ -2505,7 +2622,20 @@ export default function AppleFloatBar({
             console.log('[FloatBar] Has final_summary:', !!status.final_summary);
             console.log('[FloatBar] Has final_response:', !!status.final_response);
             
+            // Update activity feed with current status
+            if (status.current_status_summary && status.status === 'running') {
+              const currentSummary = status.current_status_summary;
+              // Check if this is a new activity (different from current thinkingStatus)
+              if (currentSummary !== thinkingStatus) {
+                completeCurrentActivity();
+                addActivity(currentSummary);
+                setThinkingStatus(currentSummary);
+              }
+            }
+            
             if (status.status === 'complete' || status.status === 'done') {
+              completeCurrentActivity(); // Mark last activity as done
+              clearActivityLog(); // Clear for next task
               setIsThinking(false);
               setThinkingStatus('');
               
@@ -2576,6 +2706,14 @@ export default function AppleFloatBar({
           // Start polling for progress
           pullService.pollRunStatus(runTracker.runId, (status) => {
             console.log('[FloatBar] Status update:', status);
+            
+            // Update activity feed with current status
+            if (status.current_status_summary && status.status === 'running') {
+              const currentSummary = status.current_status_summary;
+              completeCurrentActivity();
+              addActivity(currentSummary);
+              setThinkingStatus(currentSummary);
+            }
             
             // Update current step
             if (status.currentStep !== undefined) {
@@ -2726,10 +2864,17 @@ export default function AppleFloatBar({
     const text = message.trim();
     if (!text || isThinking || !apiConnected) return;
 
-    // CREDIT GATE: Check if user has credits before allowing any message
+    // ==========================================
+    // OPTIMISTIC UI: Add message IMMEDIATELY for instant feedback
+    // Rollback if any blocking check fails
+    // ==========================================
+    addOptimisticMessage(text);
     const userId = localStorage.getItem('user_id');
+
+    // CREDIT GATE: Check if user has credits before allowing any message
     if (userId) {
       try {
+        setThinkingStatus('Checking credits...');
         const { data: userData, error } = await supabase
           .from('users')
           .select('credits, subscription_tier')
@@ -2739,6 +2884,8 @@ export default function AppleFloatBar({
         if (!error && userData) {
           const currentCredits = userData?.credits || 0;
           if (currentCredits <= 0) {
+            // Rollback optimistic message and show error
+            rollbackOptimisticMessage(text);
             toast.error('No credits remaining! Please purchase more to continue.');
             const openSettings = window.electron?.openSettings || window.electronAPI?.openSettings;
             if (openSettings) {
@@ -2754,8 +2901,9 @@ export default function AppleFloatBar({
     }
 
     // If this is the first prompt and it looks like an email intent, open approval immediately
+    // Note: Message stays visible during approval dialog
     try {
-      const isFirstTurn = thoughts.length === 0;
+      const isFirstTurn = thoughts.length <= 1; // <= 1 because we just added the optimistic message
       // Simple email intent patterns: "email X", "send email", "send an email", "compose email"
       const emailRegex = /^(\s*(email|send( an)? email|compose( an)? email)\b|\bemail\b.*\b(to|about)\b)/i;
       if (isFirstTurn && emailRegex.test(text)) {
@@ -2774,11 +2922,13 @@ export default function AppleFloatBar({
               is_high_risk: false
             });
           } catch {}
-          await continueAfterPreview(text);
+          commitOptimisticMessage();
+          await continueAfterPreview(text, true); // messageAlreadyAdded = true
           return;
         }
         
         // Show approval dialog with "Don't ask again" option
+        // Message stays visible - user sees what they typed
         setApprovalDetails({
           action: text,
           markers: ['communication', 'email'],
@@ -2797,24 +2947,32 @@ export default function AppleFloatBar({
                 is_high_risk: false
               });
             } catch {}
-            await continueAfterPreview(text);
+            commitOptimisticMessage();
+            await continueAfterPreview(text, true); // messageAlreadyAdded = true
+          },
+          onReject: () => {
+            // User closed dialog without approving - rollback the message
+            rollbackOptimisticMessage(text);
           }
         });
         setApprovalOpen(true);
         return;
       }
     } catch {}
-    // Cache check first (cheap)
+
+    // Cache check (cheap local operation)
+    setThinkingStatus('Checking cache...');
     try {
       const cached = await checkResponseCache(text);
       if (cached) {
-        const userId = localStorage.getItem('user_id');
+        // Cache hit! Add the cached response (user message already visible)
         setThoughts(prev => [
           ...prev,
-          { role: 'user', content: text, timestamp: Date.now() },
           { role: 'assistant', content: cached.response, timestamp: Date.now(), cached: true }
         ]);
-        setMessage('');
+        setIsThinking(false);
+        setThinkingStatus('');
+        pendingOptimisticMsgRef.current = null; // Clear tracking
         toast.success('Answer from cache (no credit used)', { icon: '💰' });
         logger.info('Used cached response, no credit deducted');
         if (userId) {
@@ -2829,15 +2987,40 @@ export default function AppleFloatBar({
     } catch (err) {
       logger.warn('Cache check failed', err);
     }
+
     // Safety check based on permission level
+    setThinkingStatus('Checking permissions...');
     try {
       const res = await permissionAPI.check(text, {});
       const data = res.data || res;
       if (!data.allowed) {
+        // Not allowed - rollback and show error
+        rollbackOptimisticMessage(text);
         toast.error(data.reason || 'Operation not allowed at current permission level');
         return;
       }
       if (data.requires_approval) {
+        // In autonomous mode, auto-approve ALL actions (user explicitly chose this mode)
+        const currentMode = (permissionModeRef.current || '').toLowerCase();
+        const isAutoMode = currentMode === 'autonomous' || currentMode === 'powerful' || currentMode === 'auto';
+        
+        if (isAutoMode) {
+          // Auto-approve in autonomous mode - user trusts the AI
+          logger.info('[Safety] Auto-approving in autonomous mode', { markers: data.markers });
+          try {
+            await permissionAPI.logActivity({
+              action: text,
+              required_approval: false, // Auto-approved due to autonomous mode
+              approved: true,
+              markers: [...(data.markers || []), 'auto_approved_autonomous_mode'],
+              is_high_risk: !!data.is_high_risk
+            });
+          } catch {}
+          commitOptimisticMessage();
+          await continueAfterPreview(text, true); // messageAlreadyAdded = true
+          return;
+        }
+        
         // Auto-approve PII-only self queries if enabled
         try {
           const markersSet = new Set(data.markers || []);
@@ -2855,10 +3038,12 @@ export default function AppleFloatBar({
                 is_high_risk: false
               });
             } catch {}
-            await continueAfterPreview(text);
+            commitOptimisticMessage();
+            await continueAfterPreview(text, true); // messageAlreadyAdded = true
             return;
           }
         } catch {}
+
         // Check if this is an email operation and user opted out
         const isEmail = data.markers?.includes('email') || data.markers?.includes('communication');
         const skipEmailApproval = isEmail && localStorage.getItem('approval_skip_email_send') === 'true';
@@ -2874,10 +3059,12 @@ export default function AppleFloatBar({
               is_high_risk: !!data.is_high_risk
             });
           } catch {}
-          await continueAfterPreview(text);
+          commitOptimisticMessage();
+          await continueAfterPreview(text, true); // messageAlreadyAdded = true
           return;
         }
         
+        // Show approval dialog - message stays visible
         setApprovalDetails({
           action: text,
           markers: data.markers || [],
@@ -2895,7 +3082,12 @@ export default function AppleFloatBar({
                 is_high_risk: !!data.is_high_risk
               });
             } catch {}
-            await continueAfterPreview(text);
+            commitOptimisticMessage();
+            await continueAfterPreview(text, true); // messageAlreadyAdded = true
+          },
+          onReject: () => {
+            // User closed dialog without approving - rollback the message
+            rollbackOptimisticMessage(text);
           }
         });
         setApprovalOpen(true);
@@ -2904,9 +3096,11 @@ export default function AppleFloatBar({
     } catch (err) {
       logger.warn('Safety check failed; proceeding cautiously', err);
     }
-    // No approval needed → continue
-    await continueAfterPreview(text);
-  }, [message, isThinking, apiConnected, continueSend, safetyDisablePII]);
+
+    // All checks passed → commit and continue
+    commitOptimisticMessage();
+    await continueAfterPreview(text, true); // messageAlreadyAdded = true
+  }, [message, isThinking, apiConnected, addOptimisticMessage, rollbackOptimisticMessage, commitOptimisticMessage, continueAfterPreview, safetyDisablePII]);
   
   // Handle clear conversation
   const handleClear = useCallback(() => {
@@ -3837,12 +4031,24 @@ export default function AppleFloatBar({
             })}
             {isThinking && (
               <div className="apple-message apple-message-thinking">
-                <div className="typing-indicator">
-                  <span className="typing-dot"></span>
-                  <span className="typing-dot"></span>
-                  <span className="typing-dot"></span>
-                </div>
-                <span className="typing-text">{thinkingStatus || 'Thinking...'}</span>
+                {/* Show ActivityFeed when in autonomous mode, otherwise simple indicator */}
+                {(executionPlan || activityLog.length > 0 || runStatus === 'running') ? (
+                  <ActivityFeed
+                    activities={activityLog}
+                    currentAction={thinkingStatus}
+                    startTime={activityStartTime}
+                    compact={true}
+                  />
+                ) : (
+                  <>
+                    <div className="typing-indicator">
+                      <span className="typing-dot"></span>
+                      <span className="typing-dot"></span>
+                      <span className="typing-dot"></span>
+                    </div>
+                    <span className="typing-text">{thinkingStatus || 'Thinking...'}</span>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -4114,7 +4320,14 @@ export default function AppleFloatBar({
       {/* Approval Dialog */}
       <ApprovalDialog
         open={approvalOpen}
-        onClose={() => setApprovalOpen(false)}
+        onClose={() => {
+          // Call onReject to rollback optimistic message if user closes without approving
+          const rejectFn = approvalDetails.onReject;
+          setApprovalOpen(false);
+          if (typeof rejectFn === 'function') {
+            try { rejectFn(); } catch {}
+          }
+        }}
         action={approvalDetails.action}
         markers={approvalDetails.markers}
         reason={approvalDetails.reason}

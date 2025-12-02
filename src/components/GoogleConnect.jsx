@@ -89,6 +89,10 @@ export function GoogleConnect({ compact = false }) {
 
         // Store in localStorage for this window
         localStorage.setItem('google_user_email', data.email);
+        // Also sync to executor for autonomous mode Gmail access
+        if (window.executor?.setUserContext) {
+          window.executor.setUserContext({ google_user_email: data.email });
+        }
       } else {
         // Check localStorage as fallback
         const storedEmail = localStorage.getItem('google_user_email');
@@ -232,6 +236,10 @@ export function GoogleConnect({ compact = false }) {
 
             // Store email locally for future checks
             localStorage.setItem('google_user_email', statusResponse.data.email);
+            // Also sync to executor for autonomous mode Gmail access
+            if (window.executor?.setUserContext) {
+              window.executor.setUserContext({ google_user_email: statusResponse.data.email });
+            }
 
             toast.success(`Connected to ${statusResponse.data.email}!`);
             setLoading(false);

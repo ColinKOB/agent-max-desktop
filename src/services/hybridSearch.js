@@ -22,8 +22,74 @@ import { createLogger } from './logger.js';
 const logger = createLogger('HybridSearch');
 
 // Feature flag: Enable/disable Supabase semantic RPC calls
-// Set to false to prevent 404 errors when RPCs are not available
-const ENABLE_SUPABASE_SEMANTICS = import.meta.env.VITE_ENABLE_SUPABASE_SEMANTICS === 'true' || false;
+// 'auto' = auto-detect on first use, 'true' = always try, 'false' = never try
+const SUPABASE_SEMANTICS_SETTING = import.meta.env.VITE_ENABLE_SUPABASE_SEMANTICS || 'auto';
+
+// Auto-detection cache: null = not checked, true/false = result
+let supabaseSemanticAvailable = null;
+let supabaseSemanticCheckPromise = null;
+
+/**
+ * Check if Supabase semantic RPCs are available (with caching)
+ */
+async function checkSupabaseSemanticAvailable() {
+  // If already checked, return cached result
+  if (supabaseSemanticAvailable !== null) {
+    return supabaseSemanticAvailable;
+  }
+  
+  // If check in progress, wait for it
+  if (supabaseSemanticCheckPromise) {
+    return supabaseSemanticCheckPromise;
+  }
+  
+  // Check based on setting
+  if (SUPABASE_SEMANTICS_SETTING === 'false') {
+    supabaseSemanticAvailable = false;
+    return false;
+  }
+  
+  if (SUPABASE_SEMANTICS_SETTING === 'true') {
+    supabaseSemanticAvailable = true;
+    return true;
+  }
+  
+  // Auto-detect: try a lightweight probe
+  supabaseSemanticCheckPromise = (async () => {
+    try {
+      // Test with a dummy embedding (all zeros won't match anything but tests RPC exists)
+      const dummyEmbedding = new Array(384).fill(0);
+      const { error } = await supabase.rpc('search_messages_semantic', {
+        query_embedding: dummyEmbedding,
+        target_user_id: '00000000-0000-0000-0000-000000000000', // Non-existent user
+        similarity_threshold: 0.99,
+        max_results: 1
+      });
+      
+      if (error?.code === '42883' || error?.message?.includes('does not exist')) {
+        // Function doesn't exist
+        logger.info('[Supabase] Semantic search RPC not available (function missing)');
+        supabaseSemanticAvailable = false;
+      } else if (error?.code === 'PGRST202' || error?.code === '42501') {
+        // Permission denied but function exists
+        logger.info('[Supabase] Semantic search RPC exists but no permission');
+        supabaseSemanticAvailable = false;
+      } else {
+        // Function exists (even if error due to dummy data)
+        logger.info('[Supabase] Semantic search RPC available ✓');
+        supabaseSemanticAvailable = true;
+      }
+    } catch (err) {
+      logger.warn('[Supabase] Failed to detect semantic RPC availability:', err);
+      supabaseSemanticAvailable = false;
+    }
+    
+    supabaseSemanticCheckPromise = null;
+    return supabaseSemanticAvailable;
+  })();
+  
+  return supabaseSemanticCheckPromise;
+}
 
 // Search configuration
 const CONFIG = {
@@ -98,7 +164,10 @@ export async function searchMessages(query, options = {}) {
   
   if (needsSupabase && userId) {
     try {
-      if ((mode === 'semantic' || mode === 'hybrid') && ENABLE_SUPABASE_SEMANTICS) {
+      // Check if Supabase semantic search is available (auto-detect on first use)
+      const semanticAvailable = await checkSupabaseSemanticAvailable();
+      
+      if ((mode === 'semantic' || mode === 'hybrid') && semanticAvailable) {
         // Use timeout to prevent hanging on embedding generation
         const embedding = await withTimeout(
           generateEmbedding(query),
@@ -116,6 +185,10 @@ export async function searchMessages(query, options = {}) {
           
           if (error) {
             logger.warn('Supabase semantic search failed:', error);
+            // If RPC doesn't exist, disable for future calls
+            if (error.code === '42883' || error.message?.includes('does not exist')) {
+              supabaseSemanticAvailable = false;
+            }
           } else if (data) {
             supabaseResults.push(...data.map(r => ({ 
               ...r, 
@@ -127,8 +200,8 @@ export async function searchMessages(query, options = {}) {
         } else {
           logger.warn('Embedding generation timed out, skipping semantic search');
         }
-      } else if ((mode === 'semantic' || mode === 'hybrid') && !ENABLE_SUPABASE_SEMANTICS) {
-        logger.debug('Supabase semantic search skipped (feature flag disabled)');
+      } else if ((mode === 'semantic' || mode === 'hybrid') && !semanticAvailable) {
+        logger.debug('Supabase semantic search skipped (not available)');
       }
       
       if (mode === 'keyword' || mode === 'hybrid') {
@@ -224,7 +297,10 @@ export async function searchFacts(query, options = {}) {
   
   if (needsSupabase && userId) {
     try {
-      if ((mode === 'semantic' || mode === 'hybrid') && ENABLE_SUPABASE_SEMANTICS) {
+      // Check if Supabase semantic search is available (auto-detect on first use)
+      const semanticAvailable = await checkSupabaseSemanticAvailable();
+      
+      if ((mode === 'semantic' || mode === 'hybrid') && semanticAvailable) {
         // Use timeout to prevent hanging on embedding generation
         const embedding = await withTimeout(
           generateEmbedding(query),
@@ -242,6 +318,10 @@ export async function searchFacts(query, options = {}) {
           
           if (error) {
             logger.warn('Supabase semantic search failed:', error);
+            // If RPC doesn't exist, disable for future calls
+            if (error.code === '42883' || error.message?.includes('does not exist')) {
+              supabaseSemanticAvailable = false;
+            }
           } else if (data) {
             supabaseResults.push(...data.map(r => ({ 
               ...r, 
@@ -253,8 +333,8 @@ export async function searchFacts(query, options = {}) {
         } else {
           logger.warn('Embedding generation timed out, skipping semantic search');
         }
-      } else if ((mode === 'semantic' || mode === 'hybrid') && !ENABLE_SUPABASE_SEMANTICS) {
-        logger.debug('Supabase semantic search skipped (feature flag disabled)');
+      } else if ((mode === 'semantic' || mode === 'hybrid') && !semanticAvailable) {
+        logger.debug('Supabase semantic search skipped (not available)');
       }
       
       if (mode === 'keyword' || mode === 'hybrid') {

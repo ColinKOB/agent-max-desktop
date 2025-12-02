@@ -175,4 +175,6 @@ contextBridge.exposeInMainWorld('executor', {
   cleanup: (olderThanDays) => ipcRenderer.invoke('executor:cleanup', olderThanDays),
   // Capture screen for auto-mode context (Feature: Productivity Screenshot)
   captureScreen: () => ipcRenderer.invoke('take-screenshot'),
+  // Set user context (e.g., google_user_email for Gmail integration)
+  setUserContext: (context) => ipcRenderer.invoke('pull-executor:set-context', context),
 });

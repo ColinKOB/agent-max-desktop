@@ -21,6 +21,15 @@ class PullExecutor {
         this.currentRunId = null;
         this.stepResults = []; // Track completed steps for context
         this.systemContext = this.getSystemContext(); // Cache system context
+        this.userContext = {}; // User-specific context (e.g., google_user_email)
+    }
+    
+    /**
+     * Set user context (called from renderer with user-specific data)
+     */
+    setUserContext(context) {
+        this.userContext = { ...this.userContext, ...context };
+        console.log('[PullExecutor] User context updated:', Object.keys(this.userContext));
     }
     
     /**
@@ -475,6 +484,8 @@ class PullExecutor {
             return await this.executeStopProcess(args);
         } else if (tool === 'screenshot') {
             return await this.executeScreenshot(args);
+        } else if (tool.startsWith('google.')) {
+            return await this.executeGoogleAction(tool, args);
         } else {
             return {
                 success: false,
@@ -560,10 +571,24 @@ class PullExecutor {
     async executeFileRead(args) {
         const fs = require('fs').promises;
         
+        console.log(`[PullExecutor] fs.read called with args:`, JSON.stringify(args, null, 2));
+        
         try {
-            let filePath = args?.filename || args?.path || args?.file_path || args?.file;
-            const encoding = args?.encoding || 'utf8';
-            const maxLines = args?.max_lines || args?.maxLines;
+            // Handle case where args might be stringified JSON
+            let parsedArgs = args;
+            if (typeof args === 'string') {
+                try {
+                    parsedArgs = JSON.parse(args);
+                    console.log(`[PullExecutor] Parsed string args to:`, JSON.stringify(parsedArgs, null, 2));
+                } catch (e) {
+                    // Not JSON, treat as filename directly
+                    parsedArgs = { filename: args };
+                }
+            }
+            
+            let filePath = parsedArgs?.filename || parsedArgs?.path || parsedArgs?.file_path || parsedArgs?.file;
+            const encoding = parsedArgs?.encoding || 'utf8';
+            const maxLines = parsedArgs?.max_lines || parsedArgs?.maxLines;
             
             // If no path provided, try to infer from previous step results
             if (!filePath && this.stepResults && this.stepResults.length > 0) {
@@ -576,8 +601,9 @@ class PullExecutor {
             }
             
             if (!filePath) {
-                console.error('[PullExecutor] fs.read called with invalid args:', JSON.stringify(args));
-                throw new Error(`No file path specified in args. AI must provide filename, path, or file_path. Received: ${JSON.stringify(args)}`);
+                console.error('[PullExecutor] fs.read called with invalid args:', JSON.stringify(parsedArgs));
+                console.error('[PullExecutor] Original args type:', typeof args);
+                throw new Error(`No file path specified in args. AI must provide filename, path, or file_path. Received: ${JSON.stringify(parsedArgs)}`);
             }
             
             console.log(`[PullExecutor] Reading file: ${filePath}`);
@@ -604,7 +630,9 @@ class PullExecutor {
         } catch (error) {
             console.error('[PullExecutor] fs.read failed', {
                 message: error.message,
-                args
+                originalArgs: args,
+                parsedArgs: typeof args === 'string' ? 'was string' : args,
+                argsType: typeof args
             });
             return {
                 success: false,
@@ -735,6 +763,159 @@ class PullExecutor {
                 stderr: error.message,
                 exit_code: 1,
                 error: error.message
+            };
+        }
+    }
+
+    /**
+     * Execute Google service action (Gmail, Calendar, YouTube)
+     * Routes to backend API which handles OAuth
+     */
+    async executeGoogleAction(tool, args) {
+        try {
+            console.log(`[PullExecutor] Executing Google action: ${tool}`, args);
+            
+            // Get API URL from environment or default
+            const apiUrl = process.env.AGENT_MAX_API_URL || 'https://agentmax-production.up.railway.app';
+            
+            // Map tool names to API endpoints (v2 routes)
+            const endpointMap = {
+                'google.gmail.list_messages': '/api/v2/google/messages',
+                'google.gmail.search': '/api/v2/google/messages',
+                'google.gmail.get_message': '/api/v2/google/message/{id}',
+                'google.gmail.send': '/api/v2/google/send',
+                'google.calendar.list_events': '/api/v2/google/calendar/events',
+                'google.calendar.create_event': '/api/v2/google/calendar/events',
+                'google.youtube.search': '/api/v2/google/youtube/search'
+            };
+            
+            let endpoint = endpointMap[tool];
+            if (!endpoint) {
+                throw new Error(`Unknown Google tool: ${tool}`);
+            }
+            
+            // Get user email from args, userContext, or environment
+            const userEmail = args.user_email || args.email || this.userContext?.google_user_email || process.env.GOOGLE_USER_EMAIL;
+            if (!userEmail) {
+                return {
+                    success: false,
+                    error: 'Google account not connected. Please connect your Google account in Settings > Google Services first.',
+                    stdout: '',
+                    stderr: 'Google account not connected',
+                    exit_code: 1
+                };
+            }
+            
+            // Build request based on tool type
+            let method = 'GET';
+            let url = `${apiUrl}${endpoint}`;
+            let body = null;
+            
+            if (tool === 'google.gmail.get_message') {
+                url = url.replace('{id}', args.message_id || args.id);
+                url += `?user_email=${encodeURIComponent(userEmail)}`;
+            } else if (tool === 'google.gmail.send') {
+                method = 'POST';
+                body = JSON.stringify({
+                    user_email: userEmail,
+                    to: args.to,
+                    subject: args.subject,
+                    body: args.body || args.message || args.content
+                });
+            } else if (tool === 'google.calendar.create_event') {
+                method = 'POST';
+                body = JSON.stringify({
+                    user_email: userEmail,
+                    summary: args.summary || args.title,
+                    start_time: args.start_time || args.start,
+                    end_time: args.end_time || args.end,
+                    description: args.description
+                });
+            } else {
+                // GET requests with query params
+                const params = new URLSearchParams({ user_email: userEmail });
+                if (args.query) params.append('query', args.query);
+                if (args.q) params.append('query', args.q);
+                if (args.max_results) params.append('max_results', args.max_results);
+                if (args.time_min) params.append('time_min', args.time_min);
+                if (args.time_max) params.append('time_max', args.time_max);
+                url += `?${params.toString()}`;
+            }
+            
+            console.log(`[PullExecutor] Google API request: ${method} ${url}`);
+            
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': process.env.AGENT_MAX_API_KEY || ''
+                },
+                body
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Google API error (${response.status}): ${errorText}`);
+            }
+            
+            const data = await response.json();
+            
+            // Format output based on tool type
+            let output = '';
+            if (tool === 'google.gmail.list_messages' || tool === 'google.gmail.search') {
+                output = `Found ${data.messages?.length || 0} emails:\n\n`;
+                (data.messages || []).forEach((msg, i) => {
+                    output += `${i + 1}. From: ${msg.from || 'Unknown'}\n`;
+                    output += `   Subject: ${msg.subject || '(no subject)'}\n`;
+                    output += `   Date: ${msg.date || 'Unknown'}\n`;
+                    output += `   ID: ${msg.id}\n\n`;
+                });
+            } else if (tool === 'google.gmail.get_message') {
+                output = `Email Details:\n`;
+                output += `From: ${data.from || 'Unknown'}\n`;
+                output += `To: ${data.to || 'Unknown'}\n`;
+                output += `Subject: ${data.subject || '(no subject)'}\n`;
+                output += `Date: ${data.date || 'Unknown'}\n\n`;
+                output += `Body:\n${data.body || data.snippet || '(no content)'}\n`;
+            } else if (tool === 'google.gmail.send') {
+                output = `Email sent successfully!\nMessage ID: ${data.id || 'unknown'}`;
+            } else if (tool === 'google.calendar.list_events') {
+                output = `Found ${data.events?.length || 0} calendar events:\n\n`;
+                (data.events || []).forEach((event, i) => {
+                    output += `${i + 1}. ${event.summary || '(no title)'}\n`;
+                    output += `   Start: ${event.start || 'Unknown'}\n`;
+                    output += `   End: ${event.end || 'Unknown'}\n\n`;
+                });
+            } else if (tool === 'google.calendar.create_event') {
+                output = `Calendar event created!\nEvent ID: ${data.id || 'unknown'}`;
+            } else if (tool === 'google.youtube.search') {
+                output = `Found ${data.videos?.length || 0} videos:\n\n`;
+                (data.videos || []).forEach((video, i) => {
+                    output += `${i + 1}. ${video.title || '(no title)'}\n`;
+                    output += `   Channel: ${video.channel || 'Unknown'}\n`;
+                    output += `   URL: https://youtube.com/watch?v=${video.id}\n\n`;
+                });
+            } else {
+                output = JSON.stringify(data, null, 2);
+            }
+            
+            console.log(`[PullExecutor] Google action completed successfully`);
+            
+            return {
+                success: true,
+                stdout: output,
+                stderr: '',
+                exit_code: 0
+            };
+            
+        } catch (error) {
+            console.error(`[PullExecutor] Google action failed:`, error);
+            return {
+                success: false,
+                error: error.message,
+                stdout: '',
+                stderr: error.message,
+                exit_code: 1
             };
         }
     }

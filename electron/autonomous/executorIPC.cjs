@@ -205,6 +205,22 @@ function registerExecutorHandlers(apiClient, config = {}) {
         }
     });
 
+    // Set user context (e.g., google_user_email for Gmail integration)
+    ipcMain.handle('pull-executor:set-context', async (event, context) => {
+        try {
+            if (executorManager && executorManager.executor) {
+                executorManager.executor.setUserContext(context);
+            }
+            // Store globally for future executor instances
+            global.executorUserContext = { ...(global.executorUserContext || {}), ...context };
+            console.log('[ExecutorIPC] User context set:', Object.keys(context));
+            return { success: true };
+        } catch (error) {
+            console.error('[ExecutorIPC] Set context error:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
     console.log('[ExecutorIPC] Handlers registered');
 }
 

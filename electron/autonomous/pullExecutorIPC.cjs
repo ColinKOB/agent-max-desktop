@@ -24,6 +24,11 @@ function registerPullExecutorHandlers(apiClient) {
 
             pullExecutor = new PullExecutor(apiClient);
             
+            // Apply stored user context (e.g., google_user_email)
+            if (global.pullExecutorUserContext) {
+                pullExecutor.setUserContext(global.pullExecutorUserContext);
+            }
+            
             // Execute in background
             pullExecutor.executeRun(runId).catch(error => {
                 console.error('[PullExecutorIPC] Execution error:', error);
@@ -68,6 +73,22 @@ function registerPullExecutorHandlers(apiClient) {
             isRunning: pullExecutor ? pullExecutor.isRunning : false,
             currentRunId: pullExecutor ? pullExecutor.currentRunId : null
         };
+    });
+
+    // Set user context (e.g., google_user_email)
+    ipcMain.handle('pull-executor:set-context', async (event, context) => {
+        try {
+            if (pullExecutor) {
+                pullExecutor.setUserContext(context);
+            }
+            // Store for future executor instances
+            global.pullExecutorUserContext = { ...(global.pullExecutorUserContext || {}), ...context };
+            console.log('[PullExecutorIPC] User context set:', Object.keys(context));
+            return { success: true };
+        } catch (error) {
+            console.error('[PullExecutorIPC] Set context error:', error);
+            return { success: false, error: error.message };
+        }
     });
 
     console.log('[PullExecutorIPC] Handlers registered');
