@@ -491,6 +491,10 @@ class PullExecutor {
             return await this.executeStopProcess(args);
         } else if (tool === 'screenshot') {
             return await this.executeScreenshot(args);
+        } else if (tool === 'google_command') {
+            // google_command is a wrapper - extract the action from args
+            const action = args.action || 'google.gmail.list_messages';
+            return await this.executeGoogleAction(action, args);
         } else if (tool.startsWith('google.')) {
             return await this.executeGoogleAction(tool, args);
         } else {
