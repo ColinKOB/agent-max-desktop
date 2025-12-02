@@ -880,22 +880,40 @@ class PullExecutor {
             const data = await response.json();
             
             // Format output based on tool type
+            // Note: Backend returns headers as msg.headers.From, msg.headers.Subject, etc.
             let output = '';
             if (tool === 'google.gmail.list_messages' || tool === 'google.gmail.search') {
                 output = `Found ${data.messages?.length || 0} emails:\n\n`;
                 (data.messages || []).forEach((msg, i) => {
-                    output += `${i + 1}. From: ${msg.from || 'Unknown'}\n`;
-                    output += `   Subject: ${msg.subject || '(no subject)'}\n`;
-                    output += `   Date: ${msg.date || 'Unknown'}\n`;
-                    output += `   ID: ${msg.id}\n\n`;
+                    // Headers can be in msg.headers.X or flattened to msg.X
+                    const headers = msg.headers || {};
+                    const from = headers.From || msg.from || 'Unknown';
+                    const subject = headers.Subject || msg.subject || '(no subject)';
+                    const date = headers.Date || msg.date || 'Unknown';
+                    const snippet = msg.snippet || '';
+                    
+                    output += `${i + 1}. **From:** ${from}\n`;
+                    output += `   **Subject:** ${subject}\n`;
+                    output += `   **Date:** ${date}\n`;
+                    if (snippet) {
+                        output += `   **Preview:** ${snippet.substring(0, 100)}...\n`;
+                    }
+                    output += `   **ID:** ${msg.id}\n\n`;
                 });
             } else if (tool === 'google.gmail.get_message') {
+                // Headers can be in data.headers.X or flattened
+                const headers = data.headers || {};
+                const from = headers.From || data.from || 'Unknown';
+                const to = headers.To || data.to || 'Unknown';
+                const subject = headers.Subject || data.subject || '(no subject)';
+                const date = headers.Date || data.date || 'Unknown';
+                
                 output = `Email Details:\n`;
-                output += `From: ${data.from || 'Unknown'}\n`;
-                output += `To: ${data.to || 'Unknown'}\n`;
-                output += `Subject: ${data.subject || '(no subject)'}\n`;
-                output += `Date: ${data.date || 'Unknown'}\n\n`;
-                output += `Body:\n${data.body || data.snippet || '(no content)'}\n`;
+                output += `**From:** ${from}\n`;
+                output += `**To:** ${to}\n`;
+                output += `**Subject:** ${subject}\n`;
+                output += `**Date:** ${date}\n\n`;
+                output += `**Body:**\n${data.body || data.snippet || '(no content)'}\n`;
             } else if (tool === 'google.gmail.send') {
                 output = `Email sent successfully!\nMessage ID: ${data.id || 'unknown'}`;
             } else if (tool === 'google.calendar.list_events') {
