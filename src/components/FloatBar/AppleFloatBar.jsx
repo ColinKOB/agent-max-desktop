@@ -66,6 +66,46 @@ const warmConnections = async () => {
 
 const MIN_EXPANDED_HEIGHT = 180;
 
+/**
+ * Pre-flight check for Google service queries.
+ * Detects if the user is asking about Gmail, Calendar, etc. and checks if Google is connected.
+ * Returns { needsGoogle: boolean, isConnected: boolean, service: string }
+ */
+const checkGoogleServiceQuery = (message) => {
+  if (!message || typeof message !== 'string') {
+    return { needsGoogle: false, isConnected: false, service: null };
+  }
+  
+  const lowerMessage = message.toLowerCase();
+  
+  // Gmail-related keywords
+  const gmailKeywords = ['email', 'emails', 'inbox', 'gmail', 'mail', 'message from', 'send email', 'read email', 'check email', 'my emails', 'latest email', 'recent email', 'unread'];
+  
+  // Calendar-related keywords
+  const calendarKeywords = ['calendar', 'event', 'events', 'meeting', 'meetings', 'schedule', 'appointment', 'appointments', 'what\'s on my calendar', 'my schedule'];
+  
+  // Check for Gmail
+  const needsGmail = gmailKeywords.some(kw => lowerMessage.includes(kw));
+  
+  // Check for Calendar
+  const needsCalendar = calendarKeywords.some(kw => lowerMessage.includes(kw));
+  
+  if (!needsGmail && !needsCalendar) {
+    return { needsGoogle: false, isConnected: false, service: null };
+  }
+  
+  // Check if Google is connected
+  const googleEmail = localStorage.getItem('google_user_email');
+  const isConnected = !!googleEmail && googleEmail.length > 0;
+  
+  return {
+    needsGoogle: true,
+    isConnected,
+    service: needsGmail ? 'Gmail' : 'Calendar',
+    googleEmail: isConnected ? googleEmail : null
+  };
+};
+
 const truncateText = (value, limit = 160) => {
   if (!value || typeof value !== 'string') return '';
   const trimmed = value.trim();
@@ -2898,6 +2938,55 @@ export default function AppleFloatBar({
         console.warn('[CreditGate] Failed to check credits:', err);
         // Don't block on error - let backend handle it
       }
+    }
+
+    // GOOGLE PRE-FLIGHT CHECK: Warn user if asking about Gmail/Calendar without Google connected
+    // This provides immediate feedback instead of waiting for AI to respond with an error
+    const googleCheck = checkGoogleServiceQuery(text);
+    if (googleCheck.needsGoogle && !googleCheck.isConnected) {
+      logger.info(`[GoogleCheck] User asking about ${googleCheck.service} but Google not connected`);
+      // Don't block - just show a helpful toast and let the AI handle it gracefully
+      toast((t) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <span><strong>Google not connected</strong></span>
+          <span style={{ fontSize: '13px', opacity: 0.9 }}>
+            To access your {googleCheck.service}, connect your Google account in Settings.
+          </span>
+          <button
+            onClick={() => {
+              toast.dismiss(t.id);
+              const openSettings = window.electron?.openSettings || window.electronAPI?.openSettings;
+              if (openSettings) {
+                openSettings({ route: '#/settings?section=google' });
+              }
+            }}
+            style={{
+              background: 'linear-gradient(135deg, #4285f4 0%, #34a853 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '8px 16px',
+              cursor: 'pointer',
+              fontWeight: '500',
+              marginTop: '4px'
+            }}
+          >
+            Connect Google
+          </button>
+        </div>
+      ), {
+        duration: 8000,
+        icon: '📧',
+        style: {
+          background: 'rgba(30, 30, 30, 0.95)',
+          color: 'white',
+          borderRadius: '12px',
+          padding: '16px'
+        }
+      });
+      // Continue anyway - let AI respond with guidance
+    } else if (googleCheck.needsGoogle && googleCheck.isConnected) {
+      logger.info(`[GoogleCheck] User asking about ${googleCheck.service}, Google connected as ${googleCheck.googleEmail}`);
     }
 
     // If this is the first prompt and it looks like an email intent, open approval immediately
