@@ -4142,34 +4142,33 @@ export default function AppleFloatBar({
             )}
           </div>
           
-          {/* Attachment Preview */}
-          {attachments.length > 0 && (
-            <div className="attachment-preview-row">
-              {attachments.map((att, idx) => (
-                <div key={idx} className="attachment-preview-item">
-                  {att.type === 'image' ? (
-                    <img src={att.preview} alt="attachment" className="attachment-thumb" />
-                  ) : (
-                    <div className="attachment-file-icon">
-                      <FileText size={16} />
-                    </div>
-                  )}
-                  <span className="attachment-name">{att.file.name.slice(0, 12)}{att.file.name.length > 12 ? '...' : ''}</span>
-                  <button 
-                    className="attachment-remove-btn"
-                    onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          
           {/* Input Area */}
           <div 
-            className="apple-input-area"
+            className={`apple-input-area ${attachments.length > 0 ? 'has-attachments' : ''}`}
           >
+            {/* Inline Attachment Chips - shown inside input area */}
+            {attachments.length > 0 && (
+              <div className="attachment-chips">
+                {attachments.map((att, idx) => (
+                  <div key={idx} className="attachment-chip">
+                    {att.type === 'image' ? (
+                      <img src={att.preview} alt="attachment" className="attachment-chip-thumb" />
+                    ) : (
+                      <FileText size={14} className="attachment-chip-icon" />
+                    )}
+                    <span className="attachment-chip-name">
+                      {att.file.name.length > 10 ? att.file.name.slice(0, 8) + '...' : att.file.name}
+                    </span>
+                    <button 
+                      className="attachment-chip-remove"
+                      onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             {/* Hidden file input */}
             <input
               ref={fileInputRef}
