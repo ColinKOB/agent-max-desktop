@@ -774,6 +774,8 @@ class PullExecutor {
     async executeGoogleAction(tool, args) {
         try {
             console.log(`[PullExecutor] Executing Google action: ${tool}`, args);
+            console.log(`[PullExecutor] userContext:`, JSON.stringify(this.userContext || {}));
+            console.log(`[PullExecutor] args.email:`, args.email, 'args.user_email:', args.user_email);
             
             // Get API URL from environment or default
             const apiUrl = process.env.AGENT_MAX_API_URL || 'https://agentmax-production.up.railway.app';
@@ -794,9 +796,17 @@ class PullExecutor {
                 throw new Error(`Unknown Google tool: ${tool}`);
             }
             
-            // Get user email from args, userContext, or environment
-            const userEmail = args.user_email || args.email || this.userContext?.google_user_email || process.env.GOOGLE_USER_EMAIL;
+            // Get user email from args, userContext, global context, or environment
+            // Priority: args > userContext > global.executorUserContext > env
+            const userEmail = args.user_email || args.email || 
+                              this.userContext?.google_user_email || 
+                              global.executorUserContext?.google_user_email ||
+                              process.env.GOOGLE_USER_EMAIL;
+            
+            console.log(`[PullExecutor] Resolved userEmail: ${userEmail || 'NOT FOUND'}`);
+            
             if (!userEmail) {
+                console.error('[PullExecutor] Google email not found in any source');
                 return {
                     success: false,
                     error: 'Google account not connected. Please connect your Google account in Settings > Google Services first.',

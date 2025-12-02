@@ -131,12 +131,22 @@ class PullAutonomousService {
             logger.warn('[PullAutonomous] Could not get user_id', e);
         }
         
-        // Merge userId and screenshot into context
+        // Get google_user_email for Gmail integration
+        let googleUserEmail = null;
+        try {
+            googleUserEmail = localStorage.getItem('google_user_email');
+        } catch (e) {
+            logger.warn('[PullAutonomous] Could not get google_user_email', e);
+        }
+        
+        // Merge userId, screenshot, and google_user_email into context
         const enrichedContext = {
             ...context,
             userId: userId || context?.userId,
             // Include initial screenshot for AI context (optional - may be null)
-            initial_screenshot_b64: initialScreenshot
+            initial_screenshot_b64: initialScreenshot,
+            // Include google_user_email for Gmail/Calendar integration
+            google_user_email: googleUserEmail || context?.google_user_email
         };
         
         // Use main process IPC for stable network calls with automatic retry
