@@ -210,7 +210,14 @@ class PullExecutor {
         
         console.log(`[PullExecutor] 🤔 Generating args for step ${step.step_id}`);
         
-        // Build request body with full context
+        // Build request body with full context (system + user context)
+        const fullContext = {
+            ...this.systemContext,
+            // Include google_user_email for Gmail/Calendar integration
+            google_user_email: this.userContext?.google_user_email || global.executorUserContext?.google_user_email
+        };
+        console.log(`[PullExecutor] Context for arg gen - google_user_email: ${fullContext.google_user_email || 'NOT SET'}`);
+        
         const requestBody = {
             step: {
                 step_id: step.step_id,
@@ -219,7 +226,7 @@ class PullExecutor {
                 description: step.description,
                 goal: step.goal
             },
-            context: this.systemContext,
+            context: fullContext,
             previous_steps: this.stepResults.map(r => ({
                 step_id: r.step_id,
                 description: r.description,
