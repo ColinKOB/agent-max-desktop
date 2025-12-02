@@ -830,7 +830,8 @@ class PullExecutor {
             
             if (tool === 'google.gmail.get_message') {
                 url = url.replace('{id}', args.message_id || args.id);
-                url += `?user_email=${encodeURIComponent(userEmail)}`;
+                // Backend expects 'email' not 'user_email'
+                url += `?email=${encodeURIComponent(userEmail)}`;
             } else if (tool === 'google.gmail.send') {
                 method = 'POST';
                 body = JSON.stringify({
@@ -850,9 +851,10 @@ class PullExecutor {
                 });
             } else {
                 // GET requests with query params
-                const params = new URLSearchParams({ user_email: userEmail });
-                if (args.query) params.append('query', args.query);
-                if (args.q) params.append('query', args.q);
+                // Note: Backend expects 'email' not 'user_email' for the query param
+                const params = new URLSearchParams({ email: userEmail });
+                if (args.query) params.append('q', args.query);
+                if (args.q) params.append('q', args.q);
                 if (args.max_results) params.append('max_results', args.max_results);
                 if (args.time_min) params.append('time_min', args.time_min);
                 if (args.time_max) params.append('time_max', args.time_max);
