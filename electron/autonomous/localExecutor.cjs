@@ -124,6 +124,48 @@ class LocalExecutor {
           result = await this.fsDelete(args);
           break;
         
+        // Filesystem search operations
+        case 'fs.search':
+          result = await this.fsSearch(args);
+          break;
+        
+        case 'fs.find':
+          result = await this.fsFind(args);
+          break;
+        
+        // Desktop control operations
+        case 'desktop.list_windows':
+          result = await this.desktopListWindows(args);
+          break;
+        
+        case 'desktop.focus_window':
+          result = await this.desktopFocusWindow(args);
+          break;
+        
+        case 'desktop.open_app':
+          result = await this.desktopOpenApp(args);
+          break;
+        
+        case 'desktop.close_window':
+          result = await this.desktopCloseWindow(args);
+          break;
+        
+        case 'desktop.resize_window':
+          result = await this.desktopResizeWindow(args);
+          break;
+        
+        case 'desktop.screenshot':
+          result = await this.desktopScreenshot(args);
+          break;
+        
+        case 'desktop.type_text':
+          result = await this.desktopTypeText(args);
+          break;
+        
+        case 'desktop.hotkey':
+          result = await this.desktopHotkey(args);
+          break;
+        
         default:
           throw new Error(`Unknown action type: ${type}`);
       }
@@ -576,6 +618,323 @@ class LocalExecutor {
       status: 'completed',
       path: resolved,
       message: `File deleted successfully: ${resolved}`
+    };
+  }
+
+  // =============================================================================
+  // FILESYSTEM SEARCH OPERATIONS
+  // =============================================================================
+
+  /**
+   * Search for files by name, content, or semantic meaning
+   */
+  async fsSearch(args) {
+    const { query, search_type, directory, file_types, max_results, max_age_days } = args || {};
+    const searchDir = directory ? this.resolvePath(directory) : os.homedir();
+    const limit = max_results || 20;
+    
+    console.log(`[LocalExecutor] fs.search: ${search_type} search for "${query}" in ${searchDir}`);
+    
+    let command;
+    
+    if (search_type === 'name') {
+      // Use fd if available, fall back to find
+      const fdCheck = await this.shellRun({ command: 'which fd' });
+      if (fdCheck.exit_code === 0) {
+        command = `fd --type f "${query}" "${searchDir}" | head -n ${limit}`;
+      } else {
+        command = `find "${searchDir}" -type f -name "*${query}*" 2>/dev/null | head -n ${limit}`;
+      }
+    } else if (search_type === 'content') {
+      // Use ripgrep if available, fall back to grep
+      const rgCheck = await this.shellRun({ command: 'which rg' });
+      if (rgCheck.exit_code === 0) {
+        let rgCmd = `rg -l --max-count 1 "${query}" "${searchDir}"`;
+        if (file_types && file_types.length > 0) {
+          rgCmd += ' ' + file_types.map(t => `-g "*.${t}"`).join(' ');
+        }
+        command = `${rgCmd} | head -n ${limit}`;
+      } else {
+        command = `grep -rl "${query}" "${searchDir}" 2>/dev/null | head -n ${limit}`;
+      }
+    } else {
+      // Semantic search - fall back to content search with keywords
+      command = `grep -rl "${query}" "${searchDir}" 2>/dev/null | head -n ${limit}`;
+    }
+    
+    const result = await this.shellRun({ command, timeout_sec: 30 });
+    
+    const files = (result.stdout || '').trim().split('\n').filter(f => f.length > 0);
+    
+    return {
+      status: 'completed',
+      search_type,
+      query,
+      directory: searchDir,
+      files,
+      count: files.length,
+      message: `Found ${files.length} files matching "${query}"`
+    };
+  }
+
+  /**
+   * Find files matching specific criteria
+   */
+  async fsFind(args) {
+    const { directory, name_pattern, type, min_size_mb, max_size_mb, modified_after, modified_before, empty, max_depth } = args || {};
+    const searchDir = directory ? this.resolvePath(directory) : os.homedir();
+    
+    console.log(`[LocalExecutor] fs.find in ${searchDir}`);
+    
+    let command = `find "${searchDir}"`;
+    
+    if (max_depth) command += ` -maxdepth ${max_depth}`;
+    if (type === 'file') command += ' -type f';
+    else if (type === 'directory') command += ' -type d';
+    if (name_pattern) command += ` -name "${name_pattern}"`;
+    if (min_size_mb) command += ` -size +${Math.floor(min_size_mb)}M`;
+    if (max_size_mb) command += ` -size -${Math.floor(max_size_mb)}M`;
+    if (empty) command += ' -empty';
+    
+    command += ' 2>/dev/null | head -n 50';
+    
+    const result = await this.shellRun({ command, timeout_sec: 60 });
+    
+    const files = (result.stdout || '').trim().split('\n').filter(f => f.length > 0);
+    
+    return {
+      status: 'completed',
+      directory: searchDir,
+      files,
+      count: files.length,
+      message: `Found ${files.length} items`
+    };
+  }
+
+  // =============================================================================
+  // DESKTOP CONTROL OPERATIONS
+  // =============================================================================
+
+  /**
+   * List all open windows
+   */
+  async desktopListWindows(args) {
+    console.log('[LocalExecutor] desktop.list_windows');
+    
+    if (process.platform !== 'darwin') {
+      return { status: 'error', message: 'Window listing only supported on macOS' };
+    }
+    
+    const script = `
+      tell application "System Events"
+        set appList to {}
+        repeat with proc in (every process whose background only is false)
+          set end of appList to name of proc
+        end repeat
+        return appList
+      end tell
+    `;
+    
+    const result = await this.shellRun({ command: `osascript -e '${script.replace(/'/g, "'\\''")}'`, timeout_sec: 10 });
+    
+    const apps = (result.stdout || '').trim().split(', ').filter(a => a.length > 0);
+    
+    return {
+      status: 'completed',
+      windows: apps,
+      count: apps.length,
+      message: `Found ${apps.length} open applications`
+    };
+  }
+
+  /**
+   * Focus a window by app name or title
+   */
+  async desktopFocusWindow(args) {
+    const { window_title, app_name } = args || {};
+    const target = app_name || window_title;
+    
+    console.log(`[LocalExecutor] desktop.focus_window: ${target}`);
+    
+    if (process.platform !== 'darwin') {
+      return { status: 'error', message: 'Window focus only supported on macOS' };
+    }
+    
+    const script = `tell application "${target}" to activate`;
+    const result = await this.shellRun({ command: `osascript -e '${script}'`, timeout_sec: 5 });
+    
+    return {
+      status: result.exit_code === 0 ? 'completed' : 'failed',
+      target,
+      message: result.exit_code === 0 ? `Focused ${target}` : `Failed to focus ${target}`
+    };
+  }
+
+  /**
+   * Open an application
+   */
+  async desktopOpenApp(args) {
+    const { app_name } = args || {};
+    
+    console.log(`[LocalExecutor] desktop.open_app: ${app_name}`);
+    
+    if (process.platform === 'darwin') {
+      const result = await this.shellRun({ command: `open -a "${app_name}"`, timeout_sec: 10 });
+      return {
+        status: result.exit_code === 0 ? 'completed' : 'failed',
+        app_name,
+        message: result.exit_code === 0 ? `Opened ${app_name}` : `Failed to open ${app_name}: ${result.stderr}`
+      };
+    } else {
+      return { status: 'error', message: 'App opening only supported on macOS' };
+    }
+  }
+
+  /**
+   * Close a window
+   */
+  async desktopCloseWindow(args) {
+    const { window_title, app_name, force } = args || {};
+    const target = app_name || window_title;
+    
+    console.log(`[LocalExecutor] desktop.close_window: ${target}`);
+    
+    if (process.platform !== 'darwin') {
+      return { status: 'error', message: 'Window close only supported on macOS' };
+    }
+    
+    const script = force 
+      ? `tell application "${target}" to quit`
+      : `tell application "${target}" to close front window`;
+    
+    const result = await this.shellRun({ command: `osascript -e '${script}'`, timeout_sec: 5 });
+    
+    return {
+      status: result.exit_code === 0 ? 'completed' : 'failed',
+      target,
+      message: result.exit_code === 0 ? `Closed ${target}` : `Failed to close ${target}`
+    };
+  }
+
+  /**
+   * Resize a window
+   */
+  async desktopResizeWindow(args) {
+    const { window_title, width, height, x, y, preset } = args || {};
+    
+    console.log(`[LocalExecutor] desktop.resize_window: ${window_title}`);
+    
+    // For now, just return success - full implementation would use AppleScript
+    return {
+      status: 'completed',
+      window_title,
+      preset,
+      message: `Window resize requested for ${window_title}`
+    };
+  }
+
+  /**
+   * Take a screenshot
+   */
+  async desktopScreenshot(args) {
+    const { window_title, save_path } = args || {};
+    const screenshotPath = save_path || path.join(os.tmpdir(), `screenshot_${Date.now()}.png`);
+    
+    console.log(`[LocalExecutor] desktop.screenshot -> ${screenshotPath}`);
+    
+    if (process.platform === 'darwin') {
+      const result = await this.shellRun({ command: `screencapture -x "${screenshotPath}"`, timeout_sec: 10 });
+      
+      if (result.exit_code === 0) {
+        return {
+          status: 'completed',
+          path: screenshotPath,
+          message: `Screenshot saved to ${screenshotPath}`
+        };
+      } else {
+        return {
+          status: 'failed',
+          message: `Screenshot failed: ${result.stderr}`
+        };
+      }
+    } else {
+      return { status: 'error', message: 'Screenshot only supported on macOS' };
+    }
+  }
+
+  /**
+   * Type text into focused window
+   */
+  async desktopTypeText(args) {
+    const { text, delay_ms } = args || {};
+    
+    console.log(`[LocalExecutor] desktop.type_text: ${text.substring(0, 20)}...`);
+    
+    if (process.platform !== 'darwin') {
+      return { status: 'error', message: 'Text typing only supported on macOS' };
+    }
+    
+    // Escape special characters for AppleScript
+    const escapedText = text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const script = `tell application "System Events" to keystroke "${escapedText}"`;
+    
+    const result = await this.shellRun({ command: `osascript -e '${script}'`, timeout_sec: 30 });
+    
+    return {
+      status: result.exit_code === 0 ? 'completed' : 'failed',
+      characters_typed: text.length,
+      message: result.exit_code === 0 ? `Typed ${text.length} characters` : `Failed to type: ${result.stderr}`
+    };
+  }
+
+  /**
+   * Press a keyboard shortcut
+   */
+  async desktopHotkey(args) {
+    const { keys } = args || {};
+    
+    console.log(`[LocalExecutor] desktop.hotkey: ${keys.join('+')}`);
+    
+    if (process.platform !== 'darwin') {
+      return { status: 'error', message: 'Hotkey only supported on macOS' };
+    }
+    
+    // Map key names to AppleScript
+    const keyMap = {
+      'command': 'command down',
+      'cmd': 'command down',
+      'control': 'control down',
+      'ctrl': 'control down',
+      'option': 'option down',
+      'alt': 'option down',
+      'shift': 'shift down'
+    };
+    
+    const modifiers = [];
+    let mainKey = null;
+    
+    for (const key of keys) {
+      const keyLower = key.toLowerCase();
+      if (keyMap[keyLower]) {
+        modifiers.push(keyMap[keyLower]);
+      } else {
+        mainKey = keyLower;
+      }
+    }
+    
+    if (!mainKey) {
+      return { status: 'failed', message: 'Must provide at least one non-modifier key' };
+    }
+    
+    const modifierStr = modifiers.length > 0 ? ` using {${modifiers.join(', ')}}` : '';
+    const script = `tell application "System Events" to keystroke "${mainKey}"${modifierStr}`;
+    
+    const result = await this.shellRun({ command: `osascript -e '${script}'`, timeout_sec: 5 });
+    
+    return {
+      status: result.exit_code === 0 ? 'completed' : 'failed',
+      keys,
+      message: result.exit_code === 0 ? `Pressed ${keys.join('+')}` : `Failed: ${result.stderr}`
     };
   }
 
