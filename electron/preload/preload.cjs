@@ -118,7 +118,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openExternal: (url) => ipcRenderer.invoke('open-external', { url }),
   openSettings: (opts) => ipcRenderer.invoke('open-settings', opts || {}),
   
-  // Update management - FIXED: properly extract data from IPC events
+  // ===========================================
+  // ENTERPRISE UPDATE MANAGEMENT
+  // ===========================================
+  
+  // Event listeners for update notifications
   onUpdateAvailable: (callback) => {
     ipcRenderer.on('update-available', (_event, data) => {
       try { callback(data); } catch (e) { console.error('[Update] Available callback error:', e); }
@@ -139,10 +143,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
       try { callback(data); } catch (e) { console.error('[Update] Error callback error:', e); }
     });
   },
-  downloadUpdate: () => ipcRenderer.invoke('download-update'),
-  installUpdate: () => ipcRenderer.invoke('install-update'),
-  restartForUpdate: () => ipcRenderer.invoke('restart-for-update'),
+  // Audit event stream for telemetry
+  onUpdateAuditEvent: (callback) => {
+    ipcRenderer.on('update-audit-event', (_event, data) => {
+      try { callback(data); } catch (e) { console.error('[Update] Audit callback error:', e); }
+    });
+  },
+  
+  // User-initiated actions (Enterprise: requires user consent)
+  downloadUpdate: () => ipcRenderer.invoke('update:download'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  deferUpdate: () => ipcRenderer.invoke('update:defer'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  
+  // Update status and configuration
+  getUpdateStatus: () => ipcRenderer.invoke('update:status'),
+  setUpdateChannel: (channel) => ipcRenderer.invoke('update:set-channel', channel),
+  getUpdateChannels: () => ipcRenderer.invoke('update:get-channels'),
+  
+  // Legacy compatibility aliases
+  restartForUpdate: () => ipcRenderer.invoke('update:install'),
 });
 
 contextBridge.exposeInMainWorld('telemetry', {

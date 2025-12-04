@@ -96,6 +96,7 @@ export default function ConversationHistory({ onLoadConversation }) {
           const convId = `${baseId}-${createdTs || idx}`;
           convs.push({
             id: convId,
+            sessionId: baseId, // Preserve original session ID for continuity
             summary: firstUserMsg
               ? firstUserMsg.content.substring(0, 60) + (firstUserMsg.content.length > 60 ? '...' : '')
               : `Conversation (${group.length} messages)`,

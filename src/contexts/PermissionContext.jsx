@@ -42,7 +42,8 @@ export function PermissionProvider({ children }) {
       try {
         let saved = localStorage.getItem('permission_level');
         if (saved) {
-          if (saved === 'powerful') saved = 'autonomous';
+          // Migrate legacy values to valid ones
+          if (saved === 'powerful' || saved === 'helpful') saved = 'autonomous';
           setLevel(saved);
         }
       } catch {}
@@ -52,18 +53,26 @@ export function PermissionProvider({ children }) {
     }
   };
   
+  /**
+   * Update permission level
+   * 
+   * Valid levels: 'chatty' (default) or 'autonomous' (full capabilities)
+   * 
+   * ⚠️ ARCHIVED/DEPRECATED - DO NOT USE:
+   * // 'helpful' and 'powerful' are NO LONGER VALID
+   * // They will be rejected by the backend with a 400 error
+   */
   const updateLevel = async (newLevel) => {
     try {
-      const normalized = (newLevel === 'powerful') ? 'autonomous' : newLevel;
-      try { localStorage.setItem('permission_level', normalized); } catch {}
-      setLevel(normalized);
-      await permissionAPI.updateLevel(normalized);
+      // Only 'chatty' and 'autonomous' are valid
+      try { localStorage.setItem('permission_level', newLevel); } catch {}
+      setLevel(newLevel);
+      await permissionAPI.updateLevel(newLevel);
       await loadPermissionLevel(); // Reload to get new capabilities
     } catch (err) {
       console.error('Failed to update permission level:', err);
-      const normalized = (newLevel === 'powerful') ? 'autonomous' : newLevel;
-      try { localStorage.setItem('permission_level', normalized); } catch {}
-      setLevel(normalized);
+      try { localStorage.setItem('permission_level', newLevel); } catch {}
+      setLevel(newLevel);
       throw err; // Let the component handle the error
     }
   };

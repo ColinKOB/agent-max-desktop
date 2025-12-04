@@ -22,6 +22,8 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
   border-radius: 16px;
   border: 1px solid rgba(255,255,255,0.18);
   overflow: hidden;
@@ -32,6 +34,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
   height: 100%;
   overflow: hidden; /* prevent parent scrolling; only messages scroll */
   border-radius: inherit;
@@ -39,7 +43,7 @@
   backdrop-filter: blur(40px) saturate(1.6);
   -webkit-backdrop-filter: blur(40px) saturate(1.6);
   box-shadow: 0 20px 70px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.15), inset 0 -1px 0 rgba(0,0,0,0.3);
-  padding: 8px 8px 4px 8px; /* Reduced bottom padding */
+  padding: 8px 8px 2px 8px; /* Slightly tighter bottom padding */
   gap: 6px; /* Reduced gap */
   position: relative;
   min-height: 0; /* allow children to shrink for inner scrolling */
@@ -61,9 +65,42 @@
   box-shadow: none !important;
 }
 
-.apple-messages { flex: 1 1 auto; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 12px; position: relative; z-index: 1; }
-.apple-messages { min-height: 0; }
-.apple-messages { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.apple-messages {
+  flex: 0 0 auto; /* Don't grow or shrink - be exactly content height */
+  min-height: 0;
+  max-height: 360px; /* Cap at this height, scroll for overflow */
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  padding: 6px 8px 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  -webkit-app-region: no-drag !important;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.35) transparent;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.apple-messages:not(.apple-messages-empty) {
+  /* Messages flow top-to-bottom; scrolling handles overflow */
+  justify-content: flex-start;
+}
+
+.apple-messages::-webkit-scrollbar {
+  width: 6px;
+}
+.apple-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+.apple-messages::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.35);
+  border-radius: 999px;
+}
 
 /* In the empty-state greeting, avoid showing a scrollable region but
    let the messages section keep its normal flex sizing */
@@ -72,6 +109,7 @@
   padding-top: 6px;
   padding-bottom: 4px;
   min-height: 28px; /* slim band for single-line greeting */
+  height: auto;     /* override height: 0 for empty state */
   flex: 0 0 auto;   /* don't stretch; just wrap greeting content */
   justify-content: center; /* center the greeting vertically */
 }
@@ -117,6 +155,7 @@
 }
 
 .apple-message { max-width: 85%; animation: messageIn 0.2s ease; }
+.apple-message, .apple-message * { -webkit-app-region: no-drag; pointer-events: auto; }
 .apple-message-user { align-self: flex-end; animation: userMessageFloatIn 0.22s cubic-bezier(0.22, 0.61, 0.36, 1); }
 .apple-message-assistant { align-self: flex-start; }
 .apple-message-content { padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.4; position: relative; }
@@ -136,6 +175,53 @@
 .apple-message-assistant .apple-message-content > :last-child { margin-bottom: 0 !important; }
 /* Remove extra top gap from first element in assistant bubble */
 .apple-message-assistant .apple-message-content > :first-child { margin-top: 0 !important; }
+
+.apple-message-attachments {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.apple-message-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  min-width: 0;
+}
+
+.apple-message-attachment img {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.apple-message-attachment-file {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.8);
+  flex-shrink: 0;
+}
+
+.apple-message-attachment-name {
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(255,255,255,0.85);
+  font-size: 12px;
+}
 
 /* Markdown styles inside fact tile enrichment */
 .fact-tile-enrichment p { margin: 0 0 6px; }
@@ -508,48 +594,47 @@
   transform: scale(0.95);
 }
 
-/* Inline Attachment Chips - compact chips inside input area */
-.apple-input-area.has-attachments {
-  flex-wrap: wrap;
-  padding-top: 6px;
-  align-items: flex-end; /* Keep controls at bottom when content wraps */
-}
-
-.attachment-chips {
+/* Attachment preview row above the composer */
+.attachment-preview-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  width: 100%;
-  margin-bottom: 4px;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
 }
 
-.attachment-chip {
-  display: inline-flex;
+.attachment-preview-item {
+  display: flex;
   align-items: center;
-  gap: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
-  padding: 3px 6px;
-  max-width: 120px;
-  height: 26px;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 4px 8px;
+  max-width: 160px;
 }
 
-.attachment-chip-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 3px;
+.attachment-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
   object-fit: cover;
-  flex-shrink: 0;
 }
 
-.attachment-chip-icon {
+.attachment-file-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: rgba(255, 255, 255, 0.6);
-  flex-shrink: 0;
 }
 
-.attachment-chip-name {
-  font-size: 10px;
+.attachment-name {
+  font-size: 11px;
   color: rgba(255, 255, 255, 0.7);
   white-space: nowrap;
   overflow: hidden;
@@ -558,11 +643,11 @@
   min-width: 0;
 }
 
-.attachment-chip-remove {
-  width: 14px;
-  height: 14px;
+.attachment-remove-btn {
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  background: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.2);
   border: none;
   color: #f87171;
   display: flex;
@@ -571,10 +656,9 @@
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
-  padding: 0;
 }
 
-.attachment-chip-remove:hover {
-  background: rgba(239, 68, 68, 0.5);
+.attachment-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.4);
   color: #fca5a5;
 }

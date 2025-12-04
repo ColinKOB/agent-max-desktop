@@ -15,45 +15,55 @@ import { useState, useEffect } from 'react';
 import { permissionAPI } from '../../services/api';
 
 export default function PermissionLevelSelector({ currentLevel, onChange, loading }) {
-  const [selected, setSelected] = useState(currentLevel || 'helpful');
+  // Default to 'chatty' - the only valid levels are 'chatty' and 'autonomous'
+  const [selected, setSelected] = useState(currentLevel || 'chatty');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   
+  /**
+   * Permission Levels - Only TWO levels are supported:
+   * - chatty: Default conversational mode
+   * - autonomous: Full autonomous capabilities
+   * 
+   * ⚠️ ARCHIVED/DEPRECATED - DO NOT USE:
+   * // { value: 'helpful', ... }  // REMOVED - use 'autonomous' instead
+   * // { value: 'powerful', ... } // REMOVED - use 'autonomous' instead
+   * // These were removed because the backend only supports chatty/auto.
+   */
   const levels = [
     {
       value: 'chatty',
-      icon: '👁️',
-      name: 'Chatty (Read-Only)',
-      description: 'Safe exploration mode',
+      icon: '💬',
+      name: 'Chatty (Default)',
+      description: 'Conversational assistant with read access',
       capabilities: [
-        'Read files and docs',
-        'Answer questions',
-        'Search information'
+        'Chat and answer questions',
+        'Read files and documentation',
+        'Read emails, calendar, contacts (Google)',
+        'Search and research'
       ],
-      approvals: []
+      approvals: ['Financial operations']
     },
     {
-      value: 'helpful',
-      icon: '🛠️',
-      name: 'Helpful (Standard)',
-      description: 'Balanced productivity',
+      value: 'autonomous',
+      icon: '🤖',
+      name: 'Autonomous (Full Access)',
+      description: 'Full autonomous capabilities with multi-step execution',
       capabilities: [
-        'Write & modify code',
-        'Run scripts',
-        'Create files'
+        'Everything in Chatty mode',
+        'Write and modify files',
+        'Run scripts and execute code',
+        'Control desktop (windows, apps)',
+        'Download files',
+        'Multi-step autonomous execution'
       ],
-      approvals: ['Emails & posts', 'Deletes', 'Downloads']
-    },
-    {
-      value: 'powerful',
-      icon: '⚡',
-      name: 'Powerful (Full Access)',
-      description: 'Maximum autonomy',
-      capabilities: [
-        'Full system access',
-        'Install packages'
-      ],
-      approvals: ['Critical operations only', 'Production deploys']
+      approvals: [
+        'Send emails & messages',
+        'Install packages',
+        'Delete operations',
+        'Deploy to production',
+        'Financial operations'
+      ]
     }
   ];
   

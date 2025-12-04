@@ -876,8 +876,17 @@ ipcMain.handle('check-for-updates', async () => {
   }
 });
 
-// Update management handlers
+// ===========================================
+// UPDATE MANAGEMENT IPC HANDLERS
+// Note: Enterprise update handlers (update:download, update:install, 
+// update:defer, update:status, update:set-channel, update:get-channels)
+// are registered by updater.cjs in setupAutoUpdater().
+// Legacy handlers below are kept for backwards compatibility.
+// ===========================================
+
+// Legacy: download-update (use update:download instead)
 ipcMain.handle('download-update', async () => {
+  console.warn('[Updater] Legacy download-update called - use update:download for enterprise features');
   try {
     const { autoUpdater } = require('./updater.cjs');
     await autoUpdater.downloadUpdate();
@@ -888,7 +897,9 @@ ipcMain.handle('download-update', async () => {
   }
 });
 
+// Legacy: install-update (use update:install instead)
 ipcMain.handle('install-update', async () => {
+  console.warn('[Updater] Legacy install-update called - use update:install for enterprise features');
   try {
     const { autoUpdater } = require('./updater.cjs');
     autoUpdater.quitAndInstall(false, true);
@@ -899,7 +910,9 @@ ipcMain.handle('install-update', async () => {
   }
 });
 
+// Legacy: restart-for-update (use update:install instead)
 ipcMain.handle('restart-for-update', async () => {
+  console.warn('[Updater] Legacy restart-for-update called - use update:install for enterprise features');
   try {
     const { app } = require('electron');
     app.removeAllListeners('window-all-closed');
