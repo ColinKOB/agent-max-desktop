@@ -37,7 +37,7 @@ jobs:
       - name: Rebuild native modules
         run: npm rebuild better-sqlite3 keytar --build-from-source
 
-      - name: Build and sign macOS app
+      - name: Build, sign, and publish macOS app
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -45,7 +45,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-        run: npm run electron:build:mac
+        run: npm run build && electron-builder --mac --publish always
         timeout-minutes: 30
 
       - name: Upload macOS artifacts
@@ -78,10 +78,10 @@ jobs:
         env:
           PUPPETEER_SKIP_DOWNLOAD: 'true'
 
-      - name: Build Windows app
+      - name: Build and publish Windows app
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: npm run electron:build:win
+        run: npm run build && electron-builder --win --publish always
         timeout-minutes: 30
 
       - name: Upload Windows artifacts
@@ -91,22 +91,3 @@ jobs:
           path: |
             release/*.exe
             release/latest.yml
-
-  release:
-    needs: [build-mac, build-windows]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            mac-release/*
-            win-release/*
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
