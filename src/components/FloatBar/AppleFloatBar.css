@@ -185,6 +185,67 @@
 /* Remove extra top gap from first element in assistant bubble */
 .apple-message-assistant .apple-message-content > :first-child { margin-top: 0 !important; }
 
+/* Email Card Styling - Clean email app look */
+.email-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-left: 3px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 8px 0;
+}
+
+/* Email header row - From and Date on same line */
+.email-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.email-sender {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.email-from-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.email-date {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Subject line - prominent */
+.email-subject {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.9);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+/* Email body/preview - full text */
+.email-body {
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+  line-height: 1.5;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
 .apple-message-attachments {
   display: flex;
   gap: 8px;
