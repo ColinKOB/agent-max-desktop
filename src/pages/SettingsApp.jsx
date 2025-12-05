@@ -61,7 +61,7 @@ export default function SettingsApp() {
         return <SettingsSimple />;
       case 'billing':
         return (
-          <div style={{ background: '#f9fafb', minHeight: '100%', padding: '24px' }}>
+          <div style={{ minHeight: '100%', padding: '24px' }}>
             <div style={{ maxWidth: 900, margin: '0 auto' }}>
               <BillingSettings />
             </div>
@@ -69,10 +69,18 @@ export default function SettingsApp() {
         );
       case 'history':
         return (
-          <div style={{ background: '#fff', minHeight: '100%', padding: '24px' }}>
+          <div style={{ minHeight: '100%', padding: '24px' }}>
             <div style={{ maxWidth: 900, margin: '0 auto' }}>
-              <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16 }}>History</h1>
-              <div style={{ border: '1px solid #e5e7eb', background: '#ffffff', borderRadius: 12, padding: 20, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+              <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16, color: 'rgba(255,255,255,0.95)' }}>History</h1>
+              <div style={{
+                border: '1px solid rgba(255,255,255,0.15)',
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.05) 100%)',
+                borderRadius: 12,
+                padding: 20,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.08)',
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)'
+              }}>
                 <ConversationHistory onLoadConversation={() => {}} />
               </div>
             </div>
@@ -97,11 +105,27 @@ export default function SettingsApp() {
   };
 
   return (
-    <div style={{ background: '#fff', color: '#111827', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{
+      background: 'linear-gradient(135deg, rgba(26,26,31,0.95) 0%, rgba(18,18,22,0.95) 100%)',
+      color: 'rgba(255,255,255,0.95)',
+      height: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
       {/* Header */}
-      <header style={{ position: 'sticky', top: 0, zIndex: 10, borderBottom: '1px solid #e5e7eb', background: '#fff' }}>
+      <header style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        borderBottom: '1px solid rgba(255,255,255,0.16)',
+        background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)'
+      }}>
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Agent Max</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: 'rgba(255,255,255,0.95)' }}>Agent Max</h1>
 
           {/* Tabs */}
           <nav aria-label="Settings navigation">
@@ -112,15 +136,32 @@ export default function SettingsApp() {
                     onClick={() => setActiveTab(t.id)}
                     aria-current={activeTab === t.id ? 'page' : undefined}
                     style={{
-                      padding: '8px 12px',
+                      padding: '8px 14px',
                       borderRadius: 8,
-                      border: activeTab === t.id ? '1px solid #111827' : '1px solid #e5e7eb',
-                      background: activeTab === t.id ? '#111827' : '#fff',
-                      color: activeTab === t.id ? '#fff' : '#111827',
+                      border: activeTab === t.id ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.12)',
+                      background: activeTab === t.id
+                        ? 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.10) 100%)'
+                        : 'rgba(255,255,255,0.05)',
+                      color: activeTab === t.id ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.7)',
                       cursor: 'pointer',
                       fontWeight: 600,
-                      boxShadow: activeTab === t.id ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
-                      transition: 'background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease',
+                      fontSize: 14,
+                      boxShadow: activeTab === t.id
+                        ? '0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)'
+                        : 'none',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (activeTab !== t.id) {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (activeTab !== t.id) {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
+                      }
                     }}
                   >
                     {t.label}
@@ -133,7 +174,14 @@ export default function SettingsApp() {
       </header>
 
       {/* Content */}
-      <main style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '24px' }}>{renderContent()}</main>
+      <main style={{
+        flex: 1,
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        paddingBottom: '24px',
+        scrollbarWidth: 'thin',
+        scrollbarColor: 'rgba(255,255,255,0.15) transparent'
+      }}>{renderContent()}</main>
     </div>
   );
 }

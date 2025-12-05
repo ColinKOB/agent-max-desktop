@@ -88,7 +88,7 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
   // If viewing a specific deep dive (from chat link)
   if (selectedDeepDive) {
     return (
-      <div style={{ background: '#fff', minHeight: '100%', padding: '24px' }}>
+      <div style={{ minHeight: '100%', padding: '24px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           {onClose && (
             <button
@@ -98,32 +98,46 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
                 alignItems: 'center',
                 gap: 8,
                 marginBottom: 16,
-                padding: '8px 12px',
-                background: '#f3f4f6',
-                border: 'none',
+                padding: '8px 14px',
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.15)',
                 borderRadius: 8,
                 cursor: 'pointer',
-                color: '#374151',
-                fontWeight: 500
+                color: 'rgba(255,255,255,0.85)',
+                fontWeight: 500,
+                backdropFilter: 'blur(5px)',
+                WebkitBackdropFilter: 'blur(5px)',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
               }}
             >
               <ArrowLeft size={16} />
               Back to Chat
             </button>
           )}
-          
+
           <div style={{
-            border: '1px solid #e5e7eb',
+            border: '1px solid rgba(255,255,255,0.15)',
             borderRadius: 12,
             overflow: 'hidden',
-            background: '#fff',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.05) 100%)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)'
           }}>
             {/* Header */}
             <div style={{
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.08) 100%)',
               padding: '20px 24px',
-              color: '#fff'
+              color: 'rgba(255,255,255,0.95)',
+              borderBottom: '1px solid rgba(255,255,255,0.12)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <Book size={20} />
@@ -132,8 +146,11 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
               <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>
                 {selectedDeepDive.title}
               </h2>
-              <div style={{ fontSize: 13, opacity: 0.9, marginTop: 8, display: 'flex', gap: 16 }}>
-                <span><Clock size={14} style={{ display: 'inline', marginRight: 4 }} />{formatDate(selectedDeepDive.createdAt)}</span>
+              <div style={{ fontSize: 13, opacity: 0.7, marginTop: 8, display: 'flex', gap: 16 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Clock size={14} />
+                  {formatDate(selectedDeepDive.createdAt)}
+                </span>
                 <span>{selectedDeepDive.wordCount} words</span>
               </div>
             </div>
@@ -142,52 +159,54 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
             {selectedDeepDive.userPrompt && (
               <div style={{
                 padding: '16px 24px',
-                background: '#f9fafb',
-                borderBottom: '1px solid #e5e7eb'
+                background: 'rgba(0,0,0,0.15)',
+                borderBottom: '1px solid rgba(255,255,255,0.08)'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, color: '#6b7280', fontSize: 13 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>
                   <MessageSquare size={14} />
                   Your Question
                 </div>
-                <p style={{ margin: 0, color: '#374151', fontWeight: 500 }}>
+                <p style={{ margin: 0, color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>
                   {selectedDeepDive.userPrompt}
                 </p>
               </div>
             )}
 
             {/* Full Response */}
-            <div style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
-              <div style={{ 
-                color: '#374151', 
-                lineHeight: 1.7, 
+            <div style={{
+              padding: '24px',
+              maxHeight: '70vh',
+              overflowY: 'auto',
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgba(255,255,255,0.15) transparent'
+            }}>
+              <div style={{
+                color: 'rgba(255,255,255,0.85)',
+                lineHeight: 1.7,
                 fontSize: 15,
                 fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
               }}>
-                <ReactMarkdown 
+                <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
                     p: ({children}) => <p style={{ margin: '0 0 16px 0' }}>{children}</p>,
-                    h1: ({children}) => <h1 style={{ fontSize: 22, fontWeight: 700, margin: '24px 0 12px 0', color: '#111827' }}>{children}</h1>,
-                    h2: ({children}) => <h2 style={{ fontSize: 18, fontWeight: 600, margin: '20px 0 10px 0', color: '#111827' }}>{children}</h2>,
-                    h3: ({children}) => <h3 style={{ fontSize: 16, fontWeight: 600, margin: '16px 0 8px 0', color: '#111827' }}>{children}</h3>,
+                    h1: ({children}) => <h1 style={{ fontSize: 22, fontWeight: 700, margin: '24px 0 12px 0', color: 'rgba(255,255,255,0.95)' }}>{children}</h1>,
+                    h2: ({children}) => <h2 style={{ fontSize: 18, fontWeight: 600, margin: '20px 0 10px 0', color: 'rgba(255,255,255,0.95)' }}>{children}</h2>,
+                    h3: ({children}) => <h3 style={{ fontSize: 16, fontWeight: 600, margin: '16px 0 8px 0', color: 'rgba(255,255,255,0.9)' }}>{children}</h3>,
                     ul: ({children}) => <ul style={{ margin: '12px 0', paddingLeft: 24 }}>{children}</ul>,
                     ol: ({children}) => <ol style={{ margin: '12px 0', paddingLeft: 24 }}>{children}</ol>,
                     li: ({children}) => <li style={{ margin: '6px 0', lineHeight: 1.6 }}>{children}</li>,
-                    code: ({inline, children}) => inline 
-                      ? <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4, fontSize: 13, fontFamily: 'ui-monospace, monospace' }}>{children}</code>
-                      : <code style={{ display: 'block', background: '#f3f4f6', padding: 12, borderRadius: 8, fontSize: 13, fontFamily: 'ui-monospace, monospace', overflowX: 'auto', margin: '12px 0' }}>{children}</code>,
-                    pre: ({children}) => <pre style={{ background: '#f3f4f6', padding: 16, borderRadius: 8, margin: '12px 0', overflowX: 'auto' }}>{children}</pre>,
-                    blockquote: ({children}) => <blockquote style={{ borderLeft: '4px solid #6366f1', paddingLeft: 16, margin: '16px 0', color: '#4b5563', fontStyle: 'italic' }}>{children}</blockquote>,
-                    a: ({href, children}) => <a href={href} target="_blank" rel="noreferrer" style={{ color: '#6366f1', textDecoration: 'underline' }}>{children}</a>,
-                    strong: ({children}) => <strong style={{ fontWeight: 600, color: '#111827' }}>{children}</strong>,
+                    code: ({inline, children}) => inline
+                      ? <code style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.95)', padding: '2px 6px', borderRadius: 4, fontSize: 13, fontFamily: 'ui-monospace, monospace' }}>{children}</code>
+                      : <code style={{ display: 'block', background: 'rgba(0,0,0,0.25)', color: 'rgba(255,255,255,0.9)', padding: 12, borderRadius: 8, fontSize: 13, fontFamily: 'ui-monospace, monospace', overflowX: 'auto', margin: '12px 0', border: '1px solid rgba(255,255,255,0.1)' }}>{children}</code>,
+                    pre: ({children}) => <pre style={{ background: 'rgba(0,0,0,0.25)', padding: 16, borderRadius: 8, margin: '12px 0', overflowX: 'auto', border: '1px solid rgba(255,255,255,0.1)' }}>{children}</pre>,
+                    blockquote: ({children}) => <blockquote style={{ borderLeft: '3px solid rgba(255,255,255,0.3)', paddingLeft: 16, margin: '16px 0', color: 'rgba(255,255,255,0.7)', fontStyle: 'italic' }}>{children}</blockquote>,
+                    a: ({href, children}) => <a href={href} target="_blank" rel="noreferrer" style={{ color: 'rgba(255,255,255,0.85)', textDecoration: 'underline', textUnderlineOffset: 2 }}>{children}</a>,
+                    strong: ({children}) => <strong style={{ fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}>{children}</strong>,
                   }}
                 >
                   {selectedDeepDive.fullResponse}
                 </ReactMarkdown>
-              </div>
-              {/* Debug: Show character count */}
-              <div style={{ marginTop: 16, fontSize: 12, color: '#9ca3af', textAlign: 'right' }}>
-                {selectedDeepDive.fullResponse?.length || 0} characters
               </div>
             </div>
           </div>
@@ -197,10 +216,10 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
   }
 
   return (
-    <div style={{ background: '#fff', minHeight: '100%', padding: '24px' }}>
+    <div style={{ minHeight: '100%', padding: '24px' }}>
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.95)' }}>
             <Book size={24} />
             Deep Dives
           </h1>
@@ -212,17 +231,32 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '8px 12px',
-                background: '#f3f4f6',
-                color: '#374151',
-                border: 'none',
+                padding: '8px 14px',
+                background: 'rgba(255,255,255,0.08)',
+                color: 'rgba(255,255,255,0.85)',
+                border: '1px solid rgba(255,255,255,0.15)',
                 borderRadius: 8,
                 cursor: isLoading ? 'wait' : 'pointer',
                 fontSize: 13,
                 fontWeight: 500,
-                opacity: isLoading ? 0.6 : 1
+                opacity: isLoading ? 0.6 : 1,
+                backdropFilter: 'blur(5px)',
+                WebkitBackdropFilter: 'blur(5px)',
+                transition: 'all 0.15s ease'
               }}
               title="Sync from cloud"
+              onMouseEnter={(e) => {
+                if (!isLoading) {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isLoading) {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
+                }
+              }}
             >
               <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} style={{ animation: isLoading ? 'spin 1s linear infinite' : 'none' }} />
               Sync
@@ -234,14 +268,25 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
                   display: 'flex',
                   alignItems: 'center',
                   gap: 6,
-                  padding: '8px 12px',
-                  background: '#fee2e2',
-                  color: '#dc2626',
-                  border: 'none',
+                  padding: '8px 14px',
+                  background: 'rgba(239,68,68,0.15)',
+                  color: 'rgba(239,68,68,0.9)',
+                  border: '1px solid rgba(239,68,68,0.25)',
                   borderRadius: 8,
                   cursor: 'pointer',
                   fontSize: 13,
-                  fontWeight: 500
+                  fontWeight: 500,
+                  backdropFilter: 'blur(5px)',
+                  WebkitBackdropFilter: 'blur(5px)',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(239,68,68,0.25)';
+                  e.currentTarget.style.borderColor = 'rgba(239,68,68,0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(239,68,68,0.15)';
+                  e.currentTarget.style.borderColor = 'rgba(239,68,68,0.25)';
                 }}
               >
                 <Trash2 size={14} />
@@ -251,7 +296,7 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
           </div>
         </div>
 
-        <p style={{ color: '#6b7280', marginBottom: 24, fontSize: 14 }}>
+        <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: 24, fontSize: 14 }}>
           Responses over 150 words are saved here for detailed reading. Click to expand.
         </p>
 
@@ -259,13 +304,15 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
           <div style={{
             textAlign: 'center',
             padding: '48px 24px',
-            background: '#f9fafb',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%)',
             borderRadius: 12,
-            border: '1px solid #e5e7eb'
+            border: '1px solid rgba(255,255,255,0.12)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)'
           }}>
-            <Book size={48} style={{ color: '#d1d5db', marginBottom: 16 }} />
-            <h3 style={{ color: '#374151', fontWeight: 600, marginBottom: 8 }}>No Deep Dives Yet</h3>
-            <p style={{ color: '#6b7280', fontSize: 14, margin: 0 }}>
+            <Book size={48} style={{ color: 'rgba(255,255,255,0.3)', marginBottom: 16 }} />
+            <h3 style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 600, marginBottom: 8 }}>No Deep Dives Yet</h3>
+            <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, margin: 0 }}>
               When the AI gives you a detailed response (over 150 words), it will appear here.
             </p>
           </div>
@@ -275,12 +322,16 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
               <div
                 key={dd.id}
                 style={{
-                  border: '1px solid #e5e7eb',
+                  border: '1px solid rgba(255,255,255,0.15)',
                   borderRadius: 12,
                   overflow: 'hidden',
-                  background: '#fff',
-                  transition: 'box-shadow 0.2s',
-                  boxShadow: expandedId === dd.id ? '0 4px 12px rgba(0,0,0,0.1)' : 'none'
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.05) 100%)',
+                  transition: 'all 0.2s ease',
+                  boxShadow: expandedId === dd.id
+                    ? '0 8px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)'
+                    : '0 2px 8px rgba(0,0,0,0.15)',
+                  backdropFilter: 'blur(10px)',
+                  WebkitBackdropFilter: 'blur(10px)'
                 }}
               >
                 {/* Collapsed Header */}
@@ -292,39 +343,42 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
                     display: 'flex',
                     alignItems: 'flex-start',
                     gap: 12,
-                    background: expandedId === dd.id ? '#f9fafb' : '#fff'
+                    background: expandedId === dd.id
+                      ? 'rgba(255,255,255,0.08)'
+                      : 'transparent'
                   }}
                 >
                   <div style={{
                     width: 36,
                     height: 36,
                     borderRadius: 8,
-                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.10) 100%)',
+                    border: '1px solid rgba(255,255,255,0.2)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0
                   }}>
-                    <Book size={18} style={{ color: '#fff' }} />
+                    <Book size={18} style={{ color: 'rgba(255,255,255,0.9)' }} />
                   </div>
-                  
+
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, color: '#111827', marginBottom: 4 }}>
+                    <div style={{ fontWeight: 600, color: 'rgba(255,255,255,0.95)', marginBottom: 4 }}>
                       {dd.title}
                     </div>
-                    <div style={{ fontSize: 13, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: 12 }}>
                       <span>{formatDate(dd.createdAt)}</span>
                       <span>{dd.wordCount} words</span>
                       {dd.synced ? (
-                        <span title="Synced to cloud" style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#10b981' }}>
+                        <span title="Synced to cloud" style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'rgba(34,197,94,0.8)' }}>
                           <Cloud size={12} />
                         </span>
                       ) : dd.syncFailed ? (
-                        <span title="Sync failed - cached locally" style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#f59e0b' }}>
+                        <span title="Sync failed - cached locally" style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'rgba(245,158,11,0.8)' }}>
                           <HardDrive size={12} />
                         </span>
                       ) : dd.cached ? (
-                        <span title="Cached locally (pending sync)" style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#9ca3af' }}>
+                        <span title="Cached locally (pending sync)" style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'rgba(255,255,255,0.4)' }}>
                           <HardDrive size={12} />
                         </span>
                       ) : null}
@@ -333,7 +387,7 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
                       <p style={{
                         margin: '8px 0 0 0',
                         fontSize: 14,
-                        color: '#4b5563',
+                        color: 'rgba(255,255,255,0.65)',
                         lineHeight: 1.5,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -345,7 +399,7 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
                       </p>
                     )}
                   </div>
-                  
+
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <button
                       onClick={(e) => handleDelete(dd.id, e)}
@@ -354,65 +408,68 @@ export default function DeepDiveTab({ selectedDeepDiveId = null, onClose = null 
                         background: 'transparent',
                         border: 'none',
                         cursor: 'pointer',
-                        color: '#9ca3af',
-                        borderRadius: 6
+                        color: 'rgba(255,255,255,0.4)',
+                        borderRadius: 6,
+                        transition: 'color 0.15s ease'
                       }}
                       title="Delete"
+                      onMouseEnter={(e) => e.currentTarget.style.color = 'rgba(239,68,68,0.8)'}
+                      onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}
                     >
                       <Trash2 size={16} />
                     </button>
                     {expandedId === dd.id ? (
-                      <ChevronUp size={20} style={{ color: '#6b7280' }} />
+                      <ChevronUp size={20} style={{ color: 'rgba(255,255,255,0.6)' }} />
                     ) : (
-                      <ChevronDown size={20} style={{ color: '#6b7280' }} />
+                      <ChevronDown size={20} style={{ color: 'rgba(255,255,255,0.6)' }} />
                     )}
                   </div>
                 </div>
 
                 {/* Expanded Content */}
                 {expandedId === dd.id && (
-                  <div style={{ borderTop: '1px solid #e5e7eb' }}>
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.12)' }}>
                     {/* User Question */}
                     {dd.userPrompt && (
                       <div style={{
                         padding: '12px 20px',
-                        background: '#f3f4f6',
-                        borderBottom: '1px solid #e5e7eb'
+                        background: 'rgba(0,0,0,0.2)',
+                        borderBottom: '1px solid rgba(255,255,255,0.08)'
                       }}>
-                        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>
+                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>
                           Your Question
                         </div>
-                        <p style={{ margin: 0, color: '#374151', fontWeight: 500 }}>
+                        <p style={{ margin: 0, color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>
                           {dd.userPrompt}
                         </p>
                       </div>
                     )}
-                    
+
                     {/* Full Response */}
                     <div style={{ padding: '20px' }}>
-                      <div style={{ 
-                        color: '#374151', 
-                        lineHeight: 1.7, 
+                      <div style={{
+                        color: 'rgba(255,255,255,0.85)',
+                        lineHeight: 1.7,
                         fontSize: 15,
                         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                       }}>
-                        <ReactMarkdown 
+                        <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
                           components={{
                             p: ({children}) => <p style={{ margin: '0 0 16px 0' }}>{children}</p>,
-                            h1: ({children}) => <h1 style={{ fontSize: 22, fontWeight: 700, margin: '24px 0 12px 0', color: '#111827' }}>{children}</h1>,
-                            h2: ({children}) => <h2 style={{ fontSize: 18, fontWeight: 600, margin: '20px 0 10px 0', color: '#111827' }}>{children}</h2>,
-                            h3: ({children}) => <h3 style={{ fontSize: 16, fontWeight: 600, margin: '16px 0 8px 0', color: '#111827' }}>{children}</h3>,
+                            h1: ({children}) => <h1 style={{ fontSize: 22, fontWeight: 700, margin: '24px 0 12px 0', color: 'rgba(255,255,255,0.95)' }}>{children}</h1>,
+                            h2: ({children}) => <h2 style={{ fontSize: 18, fontWeight: 600, margin: '20px 0 10px 0', color: 'rgba(255,255,255,0.95)' }}>{children}</h2>,
+                            h3: ({children}) => <h3 style={{ fontSize: 16, fontWeight: 600, margin: '16px 0 8px 0', color: 'rgba(255,255,255,0.9)' }}>{children}</h3>,
                             ul: ({children}) => <ul style={{ margin: '12px 0', paddingLeft: 24 }}>{children}</ul>,
                             ol: ({children}) => <ol style={{ margin: '12px 0', paddingLeft: 24 }}>{children}</ol>,
                             li: ({children}) => <li style={{ margin: '6px 0', lineHeight: 1.6 }}>{children}</li>,
-                            code: ({inline, children}) => inline 
-                              ? <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4, fontSize: 13, fontFamily: 'ui-monospace, monospace' }}>{children}</code>
-                              : <code style={{ display: 'block', background: '#f3f4f6', padding: 12, borderRadius: 8, fontSize: 13, fontFamily: 'ui-monospace, monospace', overflowX: 'auto', margin: '12px 0' }}>{children}</code>,
-                            pre: ({children}) => <pre style={{ background: '#f3f4f6', padding: 16, borderRadius: 8, margin: '12px 0', overflowX: 'auto' }}>{children}</pre>,
-                            blockquote: ({children}) => <blockquote style={{ borderLeft: '4px solid #6366f1', paddingLeft: 16, margin: '16px 0', color: '#4b5563', fontStyle: 'italic' }}>{children}</blockquote>,
-                            a: ({href, children}) => <a href={href} target="_blank" rel="noreferrer" style={{ color: '#6366f1', textDecoration: 'underline' }}>{children}</a>,
-                            strong: ({children}) => <strong style={{ fontWeight: 600, color: '#111827' }}>{children}</strong>,
+                            code: ({inline, children}) => inline
+                              ? <code style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.95)', padding: '2px 6px', borderRadius: 4, fontSize: 13, fontFamily: 'ui-monospace, monospace' }}>{children}</code>
+                              : <code style={{ display: 'block', background: 'rgba(0,0,0,0.25)', color: 'rgba(255,255,255,0.9)', padding: 12, borderRadius: 8, fontSize: 13, fontFamily: 'ui-monospace, monospace', overflowX: 'auto', margin: '12px 0', border: '1px solid rgba(255,255,255,0.1)' }}>{children}</code>,
+                            pre: ({children}) => <pre style={{ background: 'rgba(0,0,0,0.25)', padding: 16, borderRadius: 8, margin: '12px 0', overflowX: 'auto', border: '1px solid rgba(255,255,255,0.1)' }}>{children}</pre>,
+                            blockquote: ({children}) => <blockquote style={{ borderLeft: '3px solid rgba(255,255,255,0.3)', paddingLeft: 16, margin: '16px 0', color: 'rgba(255,255,255,0.7)', fontStyle: 'italic' }}>{children}</blockquote>,
+                            a: ({href, children}) => <a href={href} target="_blank" rel="noreferrer" style={{ color: 'rgba(255,255,255,0.85)', textDecoration: 'underline', textUnderlineOffset: 2 }}>{children}</a>,
+                            strong: ({children}) => <strong style={{ fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}>{children}</strong>,
                           }}
                         >
                           {dd.fullResponse}

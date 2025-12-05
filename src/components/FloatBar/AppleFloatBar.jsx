@@ -835,7 +835,7 @@ export default function AppleFloatBar({
       ...prev,
       { role: 'user', content: text, timestamp, attachments: normalizedAttachments },
     ]);
-    setMessage('');
+    // Message and attachments cleared by caller for smooth animation
     setIsThinking(true);
     setThinkingStatus('Checking...');
     logger.info('[OptimisticUI] Added user message immediately');
@@ -959,8 +959,7 @@ export default function AppleFloatBar({
             text = text + fileContents;
             console.log('[Attachments] Appending file contents to message');
           }
-          // Clear attachments after sending
-          setAttachments([]);
+          // Attachments already cleared immediately after optimistic message
         }
         try {
           if (continueSendMessageRef.current) {
@@ -3530,6 +3529,11 @@ export default function AppleFloatBar({
       // Rollback if any blocking check fails
       // ==========================================
       addOptimisticMessage(text, attachments);
+
+      // Clear attachments and input immediately for smooth UX
+      setAttachments([]);
+      setMessage('');
+
       const userId = localStorage.getItem('user_id');
 
       // CREDIT GATE: Check if user has credits before allowing any message
