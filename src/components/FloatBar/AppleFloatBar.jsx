@@ -112,7 +112,7 @@ const warmConnections = async () => {
 const MIN_EXPANDED_HEIGHT = 180;
 const MAX_EXPANDED_HEIGHT = 600;
 const LINE_GROWTH = 18; // grow window roughly one line per new chunk
-const HEIGHT_DEBOUNCE_MS = 150; // debounce for height updates
+const HEIGHT_DEBOUNCE_MS = 50; // debounce for height updates (reduced to minimize layout shift)
 const HEIGHT_SHRINK_DELAY_MS = 400; // extra delay before shrinking (prevents jumping)
 const HEIGHT_CHANGE_THRESHOLD = 20; // minimum px change to trigger resize
 
@@ -4208,8 +4208,8 @@ export default function AppleFloatBar({
       const borderTop = parseInt(containerStyle.borderTopWidth || '0', 10);
       const borderBottom = parseInt(containerStyle.borderBottomWidth || '0', 10);
 
-      // Gap between elements (from CSS gap: 6px on .apple-bar-glass)
-      const glassGap = parseInt(style.gap || '6', 10);
+      // Gap between elements (from CSS gap: 4px on .apple-bar-glass)
+      const glassGap = parseInt(style.gap || '4', 10);
       // Count the gaps: dragStrip, toolbar, messages, [attachment], input = 4-5 gaps
       const numGaps = ah > 0 ? 5 : 4;
       const totalGaps = glassGap * numGaps;
