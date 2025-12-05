@@ -60,6 +60,34 @@ class PullAutonomousService {
             }
             logger.info('[PullAutonomous] Run created', { runId: result.run_id });
 
+            // NEW: Check if intent confirmation is required
+            if (result.requires_confirmation && result.intent_confirmation) {
+                logger.info('[PullAutonomous] Intent confirmation required', {
+                    runId: result.run_id,
+                    intent: result.intent_confirmation.detected_intent?.substring(0, 100)
+                });
+
+                // Return tracker with pending confirmation state
+                const runTracker = {
+                    runId: result.run_id,
+                    startTime: Date.now(),
+                    status: 'awaiting_confirmation',
+                    requiresConfirmation: true,
+                    intentConfirmation: result.intent_confirmation,
+                    plan: result.plan || null,
+                    steps: result.plan?.steps || [],
+                    totalSteps: result.total_steps || 0,
+                    currentStep: null,
+                    events: [],
+                    goalSummary: result.plan?.goal_summary,
+                    definitionOfDone: result.definition_of_done,
+                    intent: result.intent
+                };
+
+                this.activeRuns.set(result.run_id, runTracker);
+                return runTracker;
+            }
+
             // Step 2: Request desktop executor to start (via IPC)
             await window.executor.startRun(result.run_id);
             logger.info('[PullAutonomous] Executor started', { runId: result.run_id });
@@ -69,6 +97,7 @@ class PullAutonomousService {
                 runId: result.run_id,
                 startTime: Date.now(),
                 status: result.status || 'running',
+                requiresConfirmation: false,
                 plan: result.plan || null,
                 steps: result.plan?.steps || [],
                 totalSteps: result.total_steps || 0,
@@ -374,10 +403,163 @@ class PullAutonomousService {
             const result = await window.executor.getStats();
             return result.stats || {};
         } catch (error) {
-            logger.error('[PullAutonomous] Failed to get stats', { 
-                error: error.message 
+            logger.error('[PullAutonomous] Failed to get stats', {
+                error: error.message
             });
             return {};
+        }
+    }
+
+    /**
+     * Confirm intent and start execution
+     */
+    async confirmIntent(runId) {
+        logger.info('[PullAutonomous] Confirming intent', { runId });
+
+        try {
+            const config = apiConfigManager.getConfig();
+            const response = await fetch(
+                `${config.baseURL}/api/v2/runs/${runId}/confirm-intent`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': config.apiKey
+                    },
+                    body: JSON.stringify({ approved: true })
+                }
+            );
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to confirm intent');
+            }
+
+            const result = await response.json();
+            logger.info('[PullAutonomous] Intent confirmed', { runId, result });
+
+            // Now start the executor
+            const tracker = this.activeRuns.get(runId);
+            if (tracker) {
+                tracker.status = 'running';
+                tracker.requiresConfirmation = false;
+            }
+
+            await window.executor.startRun(runId);
+            logger.info('[PullAutonomous] Executor started after confirmation', { runId });
+
+            return { success: true, runId };
+
+        } catch (error) {
+            logger.error('[PullAutonomous] Failed to confirm intent', {
+                runId,
+                error: error.message
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Reject intent - user wants to refine their request
+     */
+    async rejectIntent(runId, reason = 'user') {
+        logger.info('[PullAutonomous] Rejecting intent', { runId, reason });
+
+        try {
+            const config = apiConfigManager.getConfig();
+            const response = await fetch(
+                `${config.baseURL}/api/v2/runs/${runId}/confirm-intent`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': config.apiKey
+                    },
+                    body: JSON.stringify({ approved: false })
+                }
+            );
+
+            // Clean up tracker
+            this.activeRuns.delete(runId);
+
+            logger.info('[PullAutonomous] Intent rejected', { runId, reason });
+            return { success: true, runId, reason };
+
+        } catch (error) {
+            logger.error('[PullAutonomous] Failed to reject intent', {
+                runId,
+                error: error.message
+            });
+            // Still clean up locally even if API call fails
+            this.activeRuns.delete(runId);
+            return { success: true, runId, reason };
+        }
+    }
+
+    /**
+     * Cancel an active retry session
+     */
+    async cancelRetry(runId, stepIndex) {
+        logger.info('[PullAutonomous] Cancelling retry', { runId, stepIndex });
+
+        try {
+            const config = apiConfigManager.getConfig();
+            const response = await fetch(
+                `${config.baseURL}/api/v2/runs/${runId}/steps/${stepIndex}/cancel-retry`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'X-API-Key': config.apiKey
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to cancel retry');
+            }
+
+            const result = await response.json();
+            logger.info('[PullAutonomous] Retry cancelled', { runId, stepIndex, result });
+            return result;
+
+        } catch (error) {
+            logger.error('[PullAutonomous] Failed to cancel retry', {
+                runId,
+                stepIndex,
+                error: error.message
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Get active retry sessions for a run
+     */
+    async getActiveRetries(runId) {
+        try {
+            const config = apiConfigManager.getConfig();
+            const response = await fetch(
+                `${config.baseURL}/api/v2/runs/${runId}/retries`,
+                {
+                    headers: {
+                        'X-API-Key': config.apiKey
+                    }
+                }
+            );
+
+            if (response.ok) {
+                return await response.json();
+            }
+
+            return { active_retries: 0, sessions: [] };
+
+        } catch (error) {
+            logger.error('[PullAutonomous] Failed to get retries', {
+                runId,
+                error: error.message
+            });
+            return { active_retries: 0, sessions: [] };
         }
     }
 }

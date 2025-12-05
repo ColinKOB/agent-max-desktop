@@ -68,6 +68,7 @@ import { FactTileList } from '../FactTileList.jsx';
 import PlanCard from '../PlanCard';
 import { usePermission } from '../../contexts/PermissionContext';
 import ApprovalDialog from '../ApprovalDialog';
+import IntentConfirmationModal from '../IntentConfirmationModal';
 import './AppleFloatBar.css';
 import './FloatBar.css';
 
@@ -447,6 +448,12 @@ export default function AppleFloatBar({
     onApprove: null,
   });
 
+  // Intent confirmation state (UX improvement - show AI understanding before execution)
+  const [intentConfirmationOpen, setIntentConfirmationOpen] = useState(false);
+  const [pendingIntentData, setPendingIntentData] = useState(null);
+  const [pendingRunTracker, setPendingRunTracker] = useState(null);
+  const pullServiceRef = useRef(null);
+
   // Screenshot permission state
   const [screenshotPermissionOpen, setScreenshotPermissionOpen] = useState(false);
   const [pendingMessageForScreenshot, setPendingMessageForScreenshot] = useState(null);
@@ -558,6 +565,124 @@ export default function AppleFloatBar({
       toast.error(`Resume failed: ${err?.message || err}`);
     }
   }, [executionPlan]);
+
+  // Intent confirmation handlers
+  const handleIntentConfirm = useCallback(async () => {
+    const tracker = pendingRunTracker;
+    const pullService = pullServiceRef.current;
+
+    if (!tracker || !pullService) {
+      console.error('[FloatBar] No pending tracker for intent confirmation');
+      return;
+    }
+
+    console.log('[FloatBar] Intent confirmed, starting execution:', tracker.runId);
+
+    // Close modal
+    setIntentConfirmationOpen(false);
+    setPendingIntentData(null);
+    setPendingRunTracker(null);
+
+    try {
+      // Confirm intent via API and start execution
+      await pullService.confirmIntent(tracker.runId);
+
+      // Show intent as the AI's initial response
+      setThoughts((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: tracker.intent || tracker.intentConfirmation?.detected_intent || 'Starting task...',
+          type: 'intent',
+          timestamp: Date.now(),
+        },
+      ]);
+
+      setThinkingStatus('Working...');
+
+      // Initialize activity feed
+      clearActivityLog();
+      addActivity(tracker.intent || 'Starting task...');
+
+      // Start polling for updates
+      pullService.pollRunStatus(tracker.runId, (status) => {
+        console.log('[FloatBar] Status update after confirmation:', status);
+
+        if (status.current_status_summary && status.status === 'running') {
+          const currentSummary = status.current_status_summary;
+          if (currentSummary !== thinkingStatus) {
+            completeCurrentActivity();
+            addActivity(currentSummary);
+            setThinkingStatus(currentSummary);
+          }
+        }
+
+        if (status.status === 'complete' || status.status === 'done') {
+          completeCurrentActivity();
+          clearActivityLog();
+          setIsThinking(false);
+          setThinkingStatus('');
+
+          const finalMessage = status.final_summary || status.final_response;
+          if (finalMessage) {
+            const msgTimestamp = Date.now();
+            animatedMessagesRef.current.add(msgTimestamp);
+            setThoughts((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content: finalMessage,
+                type: 'completion',
+                timestamp: msgTimestamp,
+              },
+            ]);
+          }
+
+          toast.success('Task completed', { duration: 3000 });
+        } else if (status.status === 'failed' || status.status === 'error') {
+          setIsThinking(false);
+          setThinkingStatus('');
+          toast.error('Task failed', { duration: 4000 });
+        }
+      });
+
+    } catch (err) {
+      console.error('[FloatBar] Failed to confirm intent:', err);
+      toast.error('Failed to start execution');
+      setIsThinking(false);
+      setThinkingStatus('');
+    }
+  }, [pendingRunTracker, thinkingStatus]);
+
+  const handleIntentReject = useCallback(async (reason) => {
+    const tracker = pendingRunTracker;
+    const pullService = pullServiceRef.current;
+
+    console.log('[FloatBar] Intent rejected:', reason);
+
+    // Close modal
+    setIntentConfirmationOpen(false);
+    setPendingIntentData(null);
+    setPendingRunTracker(null);
+
+    if (tracker && pullService) {
+      try {
+        await pullService.rejectIntent(tracker.runId, reason);
+      } catch (err) {
+        console.warn('[FloatBar] Failed to reject intent on backend:', err);
+      }
+    }
+
+    // Reset state
+    setIsThinking(false);
+    setThinkingStatus('');
+
+    if (reason === 'timeout') {
+      toast('Request timed out - please try again', { icon: '⏰', duration: 3000 });
+    } else {
+      toast('Request cancelled - feel free to refine your request', { icon: '✏️', duration: 3000 });
+    }
+  }, [pendingRunTracker]);
 
   // Stop all AI activity - cancels runs and resets thinking state
   const handleStopAll = useCallback(async () => {
@@ -3408,6 +3533,25 @@ export default function AppleFloatBar({
           // Store run ID for polling (only for tasks)
           setActiveRunId(runTracker.runId);
 
+          // NEW: Check if intent confirmation is required
+          if (runTracker.requiresConfirmation && runTracker.intentConfirmation) {
+            console.log('[FloatBar] Intent confirmation required:', {
+              runId: runTracker.runId,
+              intent: runTracker.intentConfirmation.detected_intent,
+            });
+
+            // Store the tracker and service for later use
+            pullServiceRef.current = pullService;
+            setPendingRunTracker(runTracker);
+            setPendingIntentData(runTracker.intentConfirmation);
+            setIntentConfirmationOpen(true);
+
+            // Show thinking status while waiting for confirmation
+            setThinkingStatus('Waiting for confirmation...');
+
+            return; // Don't proceed until user confirms
+          }
+
           // NEW: Handle iterative execution (new style - no upfront plan)
           if (runTracker.intent && !runTracker.plan) {
             console.log('[FloatBar] Iterative execution started:', {
@@ -5816,6 +5960,16 @@ export default function AppleFloatBar({
           }
         }}
         approveButtonText="Approve"
+      />
+
+      {/* Intent Confirmation Modal - UX improvement */}
+      <IntentConfirmationModal
+        open={intentConfirmationOpen}
+        onClose={() => handleIntentReject('user')}
+        intentData={pendingIntentData}
+        onConfirm={handleIntentConfirm}
+        onReject={handleIntentReject}
+        timeoutSeconds={pendingIntentData?.timeout_s || 60}
       />
 
       {/* Offline/Reconnecting pill (hidden during onboarding) */}
