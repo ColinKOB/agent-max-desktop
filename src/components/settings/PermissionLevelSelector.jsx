@@ -22,12 +22,13 @@ export default function PermissionLevelSelector({ currentLevel, onChange, loadin
   
   /**
    * Permission Levels - Only TWO levels are supported:
-   * - chatty: Default conversational mode
-   * - autonomous: Full autonomous capabilities
-   * 
+   * - chatty: Default conversational mode (read-only)
+   * - auto: Full autonomous capabilities
+   *
    * ⚠️ ARCHIVED/DEPRECATED - DO NOT USE:
-   * // { value: 'helpful', ... }  // REMOVED - use 'autonomous' instead
-   * // { value: 'powerful', ... } // REMOVED - use 'autonomous' instead
+   * // { value: 'helpful', ... }  // REMOVED - use 'auto' instead
+   * // { value: 'powerful', ... } // REMOVED - use 'auto' instead
+   * // { value: 'autonomous', ... } // Backend alias for 'auto' - use 'auto' directly
    * // These were removed because the backend only supports chatty/auto.
    */
   const levels = [
@@ -45,9 +46,9 @@ export default function PermissionLevelSelector({ currentLevel, onChange, loadin
       approvals: ['Financial operations']
     },
     {
-      value: 'autonomous',
+      value: 'auto',
       icon: '🤖',
-      name: 'Autonomous (Full Access)',
+      name: 'Auto (Full Access)',
       description: 'Full autonomous capabilities with multi-step execution',
       capabilities: [
         'Everything in Chatty mode',
@@ -55,7 +56,8 @@ export default function PermissionLevelSelector({ currentLevel, onChange, loadin
         'Run scripts and execute code',
         'Control desktop (windows, apps)',
         'Download files',
-        'Multi-step autonomous execution'
+        'Multi-step autonomous execution',
+        'Screenshot context on every request'
       ],
       approvals: [
         'Send emails & messages',
@@ -83,7 +85,7 @@ export default function PermissionLevelSelector({ currentLevel, onChange, loadin
       console.error('Failed to update permission level:', err);
       setError('Failed to update permission level. Please try again.');
       // Revert selection on error
-      setSelected(currentLevel || 'helpful');
+      setSelected(currentLevel || 'chatty');
     } finally {
       setSaving(false);
     }

@@ -10,7 +10,7 @@ import { permissionAPI } from '../services/api';
 const PermissionContext = createContext();
 
 export function PermissionProvider({ children }) {
-  const [level, setLevel] = useState('helpful'); // Default
+  const [level, setLevel] = useState('chatty'); // Default - chatty (read-only) or auto (full capabilities)
   const [capabilities, setCapabilities] = useState({
     can_do: [],
     requires_approval: []
@@ -31,10 +31,16 @@ export function PermissionProvider({ children }) {
       const response = await permissionAPI.getLevel();
       const data = response.data || response;
       
-      setLevel(data.permission_level || 'helpful');
+      // Normalize permission level to valid values
+      let normalizedLevel = data.permission_level || 'chatty';
+      // Migrate deprecated values: helpful/powerful/autonomous -> auto
+      if (['helpful', 'powerful', 'autonomous'].includes(normalizedLevel)) {
+        normalizedLevel = 'auto';
+      }
+      setLevel(normalizedLevel);
       setCapabilities({
-        can_do: data.can_do || [],
-        requires_approval: data.requires_approval || []
+        can_do: data.can_do || data.capabilities?.can_do || [],
+        requires_approval: data.requires_approval || data.capabilities?.requires_approval || []
       });
     } catch (err) {
       console.error('Failed to load permission level:', err);
@@ -42,8 +48,11 @@ export function PermissionProvider({ children }) {
       try {
         let saved = localStorage.getItem('permission_level');
         if (saved) {
-          // Migrate legacy values to valid ones
-          if (saved === 'powerful' || saved === 'helpful') saved = 'autonomous';
+          // Migrate legacy values to valid ones: helpful/powerful/autonomous -> auto
+          if (['helpful', 'powerful', 'autonomous'].includes(saved)) {
+            saved = 'auto';
+            localStorage.setItem('permission_level', 'auto');
+          }
           setLevel(saved);
         }
       } catch {}
@@ -120,7 +129,15 @@ export function usePermission() {
   if (!context) {
     // Graceful fallback if Provider is not mounted (e.g., alternate entry points or HMR)
     const fallbackLevel = (() => {
-      try { return localStorage.getItem('permission_level') || 'helpful'; } catch { return 'helpful'; }
+      try {
+        let saved = localStorage.getItem('permission_level');
+        // Migrate deprecated values
+        if (saved && ['helpful', 'powerful', 'autonomous'].includes(saved)) {
+          saved = 'auto';
+          localStorage.setItem('permission_level', 'auto');
+        }
+        return saved || 'chatty';
+      } catch { return 'chatty'; }
     })();
     return {
       level: fallbackLevel,
