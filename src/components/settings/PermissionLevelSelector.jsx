@@ -1,9 +1,9 @@
 /**
  * Permission Level Selector Component
- * 
- * Allows users to select their permission level (Chatty, Helpful, Powerful)
+ *
+ * Allows users to select their permission level (Chatty or Auto)
  * with glass morphism design following GLASS_DESIGN_SYSTEM.md
- * 
+ *
  * Design System:
  * - Panel opacity: 55% (var(--panel))
  * - Selected: 82% (var(--panel-strong))
@@ -12,10 +12,9 @@
  * - Transition: 180ms ease-out
  */
 import { useState, useEffect } from 'react';
-import { permissionAPI } from '../../services/api';
 
 export default function PermissionLevelSelector({ currentLevel, onChange, loading }) {
-  // Default to 'chatty' - the only valid levels are 'chatty' and 'autonomous'
+  // Default to 'chatty' - the only valid levels are 'chatty' and 'auto'
   const [selected, setSelected] = useState(currentLevel || 'chatty');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -71,15 +70,15 @@ export default function PermissionLevelSelector({ currentLevel, onChange, loadin
   
   const handleChange = async (level) => {
     if (saving) return;
-    
+
     setSelected(level);
     setSaving(true);
     setError(null);
-    
+
     try {
-      await permissionAPI.updateLevel(level);
+      // Let the parent (PermissionContext) handle the API call and state management
       if (onChange) {
-        onChange(level);
+        await onChange(level);
       }
     } catch (err) {
       console.error('Failed to update permission level:', err);

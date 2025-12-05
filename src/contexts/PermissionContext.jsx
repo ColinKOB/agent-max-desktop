@@ -64,16 +64,17 @@ export function PermissionProvider({ children }) {
   
   /**
    * Update permission level
-   * 
-   * Valid levels: 'chatty' (default) or 'autonomous' (full capabilities)
-   * 
+   *
+   * Valid levels: 'chatty' (default) or 'auto' (full capabilities)
+   * Backend also accepts 'autonomous' as an alias for 'auto'
+   *
    * ⚠️ ARCHIVED/DEPRECATED - DO NOT USE:
    * // 'helpful' and 'powerful' are NO LONGER VALID
    * // They will be rejected by the backend with a 400 error
    */
   const updateLevel = async (newLevel) => {
     try {
-      // Only 'chatty' and 'autonomous' are valid
+      // Only 'chatty' and 'auto' (or 'autonomous' alias) are valid
       try { localStorage.setItem('permission_level', newLevel); } catch {}
       setLevel(newLevel);
       await permissionAPI.updateLevel(newLevel);

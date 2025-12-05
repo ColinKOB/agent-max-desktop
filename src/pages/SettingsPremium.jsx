@@ -178,6 +178,7 @@ const ThemeCard = ({ theme, currentTheme, icon: Icon, label, colors, onClick }) 
 
 export default function SettingsPremium() {
   const { theme, setTheme } = useStore();
+  const permission = usePermission(); // Call once at top level
   const [apiUrl, setApiUrl] = useState('http://localhost:8000');
   
   // Premium settings state
@@ -330,9 +331,9 @@ export default function SettingsPremium() {
         {/* Permission Levels */}
         <SettingsSection icon={Shield} title="Permissions & Safety" badge="New">
           <PermissionLevelSelector
-            currentLevel={usePermission().level}
-            onChange={usePermission().updateLevel}
-            loading={usePermission().loading}
+            currentLevel={permission.level}
+            onChange={permission.updateLevel}
+            loading={permission.loading}
           />
         </SettingsSection>
 
