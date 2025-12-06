@@ -67,14 +67,33 @@ function registerExecutorHandlers(apiClient, config = {}) {
     // Stop run
     ipcMain.handle('executor:stop-run', async (event, runId) => {
         try {
+            console.log(`[ExecutorIPC] 🛑 Stop requested for run: ${runId}`);
             executorManager.stopRun(runId);
-            
+
             return {
                 success: true,
                 runId: runId
             };
         } catch (error) {
             console.error('[ExecutorIPC] Stop error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Emergency stop ALL runs
+    ipcMain.handle('executor:stop-all', async (event) => {
+        try {
+            console.log(`[ExecutorIPC] 🛑 EMERGENCY STOP ALL requested`);
+            executorManager.stopAllRuns();
+
+            return {
+                success: true
+            };
+        } catch (error) {
+            console.error('[ExecutorIPC] Stop all error:', error);
             return {
                 success: false,
                 error: error.message

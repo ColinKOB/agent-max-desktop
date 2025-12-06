@@ -108,18 +108,51 @@ class ExecutorManager {
     }
 
     /**
-     * Stop a run
+     * Stop a run - now immediately terminates execution
      */
     stopRun(runId) {
-        console.log(`[ExecutorManager] Stopping run: ${runId}`);
-        
-        if (this.executor.currentRunId === runId) {
-            this.executor.stop();
+        console.log(`[ExecutorManager] 🛑 STOP requested for run: ${runId}`);
+
+        // Always call stop on executor - it will terminate any active execution
+        if (this.executor) {
+            if (this.executor.currentRunId === runId) {
+                console.log(`[ExecutorManager] Stopping active executor (current run matches)`);
+                this.executor.stop();
+            } else if (this.executor.isRunning) {
+                // Even if run IDs don't match, stop if something is running
+                console.log(`[ExecutorManager] Stopping executor (different run but still running)`);
+                this.executor.stop();
+            } else {
+                console.log(`[ExecutorManager] Executor not running, just updating status`);
+            }
         }
-        
+
         if (this.activeRuns.has(runId)) {
             this.activeRuns.get(runId).status = 'stopped';
+            console.log(`[ExecutorManager] ✓ Run ${runId} marked as stopped`);
         }
+    }
+
+    /**
+     * Stop ALL runs - emergency stop
+     * Used when user clicks stop button without a specific run ID
+     */
+    stopAllRuns() {
+        console.log(`[ExecutorManager] 🛑 EMERGENCY STOP - stopping ALL runs`);
+
+        // Stop the executor immediately
+        if (this.executor) {
+            this.executor.stop();
+            console.log(`[ExecutorManager] ✓ Executor stopped`);
+        }
+
+        // Mark all active runs as stopped
+        for (const [runId, run] of this.activeRuns.entries()) {
+            run.status = 'stopped';
+            console.log(`[ExecutorManager] ✓ Run ${runId} marked as stopped`);
+        }
+
+        console.log(`[ExecutorManager] ✓ All runs stopped`);
     }
 
     /**

@@ -695,7 +695,18 @@ export default function AppleFloatBar({
   const handleStopAll = useCallback(async () => {
     logger.info('[Stop] User requested full stop');
 
-    // Cancel any active run
+    // CRITICAL: Stop local executor IMMEDIATELY to terminate any running processes
+    // This must happen FIRST to kill active shell commands, clicks, etc.
+    if (window.executor?.stopAll) {
+      try {
+        await window.executor.stopAll();
+        logger.info('[Stop] Local executor stopped');
+      } catch (err) {
+        logger.warn('[Stop] Local executor stop failed:', err?.message || err);
+      }
+    }
+
+    // Cancel any active run on the backend
     const planId = planIdRef.current || executionPlan?.plan_id || executionPlan?.planId;
     if (planId) {
       try {

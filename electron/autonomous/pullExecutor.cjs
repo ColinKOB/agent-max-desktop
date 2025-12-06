@@ -22,6 +22,58 @@ class PullExecutor {
         this.stepResults = []; // Track completed steps for context
         this.systemContext = this.getSystemContext(); // Cache system context
         this.userContext = {}; // User-specific context (e.g., google_user_email)
+
+        // Cancellation support - allows interrupting active operations
+        this.abortController = null;
+        this.activeChildProcesses = new Set(); // Track spawned processes for cleanup
+    }
+
+    /**
+     * Check if execution has been cancelled and throw if so
+     * Call this at strategic points during execution
+     */
+    checkCancellation() {
+        if (!this.isRunning) {
+            const error = new Error('Execution cancelled');
+            error.code = 'CANCELLED';
+            throw error;
+        }
+    }
+
+    /**
+     * Create a cancellable promise wrapper
+     * Allows async operations to be interrupted when stop() is called
+     */
+    withCancellation(promise) {
+        return new Promise((resolve, reject) => {
+            // Check if already cancelled
+            if (!this.isRunning) {
+                const error = new Error('Execution cancelled');
+                error.code = 'CANCELLED';
+                reject(error);
+                return;
+            }
+
+            // Set up abort handling
+            const onAbort = () => {
+                const error = new Error('Execution cancelled');
+                error.code = 'CANCELLED';
+                reject(error);
+            };
+
+            // Store cleanup callback
+            this._cancelCallback = onAbort;
+
+            promise
+                .then(result => {
+                    this._cancelCallback = null;
+                    resolve(result);
+                })
+                .catch(err => {
+                    this._cancelCallback = null;
+                    reject(err);
+                });
+        });
     }
     
     /**
@@ -124,6 +176,12 @@ class PullExecutor {
                 console.log(`[PullExecutor] Executing step ${nextStep.step_index + 1}/${nextStep.total_steps}`);
                 const result = await this.executeStepWithRetry(nextStep);
 
+                // Check if execution was cancelled
+                if (result.cancelled || !this.isRunning) {
+                    console.log(`[PullExecutor] Step execution cancelled, stopping run`);
+                    break;
+                }
+
                 // Report result to cloud
                 const reported = await this.reportStepResult(runId, nextStep.step_index, result);
 
@@ -164,11 +222,19 @@ class PullExecutor {
                 }
             }
         } catch (error) {
+            // Check if this was a cancellation
+            if (error.code === 'CANCELLED' || !this.isRunning) {
+                console.log(`[PullExecutor] Run cancelled by user`);
+                return; // Don't throw, just exit cleanly
+            }
             console.error(`[PullExecutor] Fatal error:`, error);
             throw error;
         } finally {
             this.isRunning = false;
             this.currentRunId = null;
+            // Clear any active child processes
+            this.activeChildProcesses.clear();
+            console.log(`[PullExecutor] Run completed, cleanup done`);
         }
     }
 
@@ -272,12 +338,13 @@ class PullExecutor {
 
     /**
      * Execute step with retry logic
+     * Now supports cancellation during execution
      */
     async executeStepWithRetry(stepConfig) {
         const step = stepConfig.step;
         const maxRetries = stepConfig.max_retries || this.maxRetries;
         const timeoutSec = stepConfig.timeout_sec || (this.timeoutMs / 1000);
-        
+
         // Track step results for placeholder resolution
         if (!this.stepResults) {
             this.stepResults = [];
@@ -287,6 +354,9 @@ class PullExecutor {
         const startTime = Date.now();
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            // Check for cancellation before each attempt
+            this.checkCancellation();
+
             try {
                 console.log(`[PullExecutor] Attempt ${attempt}/${maxRetries}`);
                 
@@ -377,10 +447,32 @@ class PullExecutor {
                 }
 
             } catch (error) {
+                // Check if this was a cancellation - if so, propagate immediately
+                if (error.code === 'CANCELLED' || !this.isRunning) {
+                    console.log(`[PullExecutor] ✓ Step execution cancelled`);
+                    return {
+                        success: false,
+                        error: 'Execution cancelled',
+                        cancelled: true,
+                        attempts: attempt,
+                        execution_time_ms: Date.now() - startTime
+                    };
+                }
+
                 lastError = error.message;
                 console.error(`[PullExecutor] Attempt ${attempt} error:`, error);
 
                 if (attempt < maxRetries) {
+                    // Check for cancellation before sleep
+                    if (!this.isRunning) {
+                        return {
+                            success: false,
+                            error: 'Execution cancelled',
+                            cancelled: true,
+                            attempts: attempt,
+                            execution_time_ms: Date.now() - startTime
+                        };
+                    }
                     const backoffMs = 1000 * Math.pow(2, attempt - 1);
                     await this.sleep(backoffMs);
                 }
@@ -450,8 +542,12 @@ class PullExecutor {
 
     /**
      * Execute a single step
+     * Checks for cancellation before executing
      */
     async executeStep(step, timeoutSec) {
+        // Check for cancellation before executing step
+        this.checkCancellation();
+
         const tool = step.tool_name || step.tool;
         let args = step.args || {};
 
@@ -554,12 +650,17 @@ class PullExecutor {
     }
 
     /**
-     * Execute shell command
+     * Execute shell command with cancellation support
+     * Uses spawn to allow tracking and killing child processes
      */
     async executeShellCommand(commandOrArgs, timeoutSec, step) {
         const os = require('os');
         const path = require('path');
-        
+        const { spawn } = require('child_process');
+
+        // Check for cancellation before starting
+        this.checkCancellation();
+
         try {
             // Handle both string command and args object
             let command, cwd, env;
@@ -570,7 +671,7 @@ class PullExecutor {
                 cwd = commandOrArgs.cwd;
                 env = commandOrArgs.env;
             }
-            
+
             // If no command but step description mentions Desktop path, provide it directly
             if (!command && step) {
                 const description = (step.description || step.goal || '').toLowerCase();
@@ -585,34 +686,103 @@ class PullExecutor {
                     };
                 }
             }
-            
+
             if (!command) {
                 throw new Error('No command specified');
             }
-            
-            const execOptions = {
-                timeout: timeoutSec * 1000,
-            };
-            
-            if (cwd) {
-                execOptions.cwd = cwd;
-                console.log(`[PullExecutor] Executing in directory: ${cwd}`);
-            }
-            
-            if (env) {
-                execOptions.env = { ...process.env, ...env };
-                console.log(`[PullExecutor] With environment variables: ${Object.keys(env).join(', ')}`);
-            }
-            
-            const { stdout, stderr } = await execAsync(command, execOptions);
 
-            return {
-                success: true,
-                stdout: stdout,
-                stderr: stderr,
-                exit_code: 0
-            };
+            // Use spawn with shell for better process control
+            return await new Promise((resolve, reject) => {
+                const spawnOptions = {
+                    shell: true,
+                    cwd: cwd || undefined,
+                    env: env ? { ...process.env, ...env } : process.env
+                };
+
+                if (cwd) {
+                    console.log(`[PullExecutor] Executing in directory: ${cwd}`);
+                }
+                if (env) {
+                    console.log(`[PullExecutor] With environment variables: ${Object.keys(env).join(', ')}`);
+                }
+
+                const childProcess = spawn(command, [], spawnOptions);
+
+                // Track this process so we can kill it on cancel
+                this.activeChildProcesses.add(childProcess);
+
+                let stdout = '';
+                let stderr = '';
+                let timedOut = false;
+
+                // Timeout handler
+                const timeoutId = setTimeout(() => {
+                    timedOut = true;
+                    console.log(`[PullExecutor] Command timed out after ${timeoutSec}s, killing process`);
+                    childProcess.kill('SIGTERM');
+                    setTimeout(() => {
+                        if (!childProcess.killed) {
+                            childProcess.kill('SIGKILL');
+                        }
+                    }, 2000);
+                }, timeoutSec * 1000);
+
+                childProcess.stdout?.on('data', (data) => {
+                    stdout += data.toString();
+                });
+
+                childProcess.stderr?.on('data', (data) => {
+                    stderr += data.toString();
+                });
+
+                childProcess.on('close', (code, signal) => {
+                    clearTimeout(timeoutId);
+                    this.activeChildProcesses.delete(childProcess);
+
+                    if (timedOut) {
+                        resolve({
+                            success: false,
+                            stdout,
+                            stderr: stderr + '\n(Command timed out)',
+                            exit_code: 124,
+                            error: `Command timed out after ${timeoutSec}s`
+                        });
+                    } else if (signal === 'SIGTERM' || signal === 'SIGKILL') {
+                        // Process was killed (likely by stop())
+                        resolve({
+                            success: false,
+                            stdout,
+                            stderr,
+                            exit_code: -1,
+                            error: 'Command was cancelled'
+                        });
+                    } else {
+                        resolve({
+                            success: code === 0,
+                            stdout,
+                            stderr,
+                            exit_code: code || 0,
+                            error: code !== 0 ? `Exit code ${code}` : undefined
+                        });
+                    }
+                });
+
+                childProcess.on('error', (error) => {
+                    clearTimeout(timeoutId);
+                    this.activeChildProcesses.delete(childProcess);
+                    resolve({
+                        success: false,
+                        stdout: '',
+                        stderr: error.message,
+                        exit_code: 1,
+                        error: error.message
+                    });
+                });
+            });
         } catch (error) {
+            if (error.code === 'CANCELLED') {
+                throw error; // Re-throw cancellation
+            }
             return {
                 success: false,
                 stdout: error.stdout || '',
@@ -2966,12 +3136,48 @@ class PullExecutor {
 
     /**
      * Stop execution and cleanup background processes
+     * This now actively interrupts running operations
      */
     stop() {
-        console.log(`[PullExecutor] Stopping execution`);
+        console.log(`[PullExecutor] 🛑 Stopping execution IMMEDIATELY`);
         this.isRunning = false;
-        
-        // Cleanup background processes
+
+        // Trigger any pending cancellation callback
+        if (this._cancelCallback) {
+            console.log(`[PullExecutor] Triggering cancellation callback`);
+            try {
+                this._cancelCallback();
+            } catch (e) {
+                // Expected - the callback throws to interrupt
+            }
+            this._cancelCallback = null;
+        }
+
+        // Kill any active child processes spawned during execution
+        if (this.activeChildProcesses && this.activeChildProcesses.size > 0) {
+            console.log(`[PullExecutor] Killing ${this.activeChildProcesses.size} active child process(es)`);
+            for (const childProc of this.activeChildProcesses) {
+                try {
+                    if (childProc && !childProc.killed) {
+                        console.log(`[PullExecutor] Killing child process PID: ${childProc.pid}`);
+                        childProc.kill('SIGTERM');
+                        // Force kill after 2 seconds if still running
+                        setTimeout(() => {
+                            try {
+                                if (!childProc.killed) {
+                                    childProc.kill('SIGKILL');
+                                }
+                            } catch (e) { /* ignore */ }
+                        }, 2000);
+                    }
+                } catch (error) {
+                    console.error(`[PullExecutor] Error killing child process:`, error.message);
+                }
+            }
+            this.activeChildProcesses.clear();
+        }
+
+        // Cleanup background processes (existing logic)
         if (this.backgroundProcesses && this.backgroundProcesses.size > 0) {
             console.log(`[PullExecutor] Cleaning up ${this.backgroundProcesses.size} background processes`);
             for (const [processId, procData] of this.backgroundProcesses.entries()) {
@@ -2986,13 +3192,33 @@ class PullExecutor {
             }
             this.backgroundProcesses.clear();
         }
+
+        console.log(`[PullExecutor] ✓ Stop completed - all processes terminated`);
     }
 
     /**
-     * Sleep helper
+     * Sleep helper that respects cancellation
      */
     sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+        return new Promise((resolve, reject) => {
+            const timeoutId = setTimeout(() => {
+                resolve();
+            }, ms);
+
+            // If we're cancelled during sleep, resolve immediately
+            const checkInterval = setInterval(() => {
+                if (!this.isRunning) {
+                    clearTimeout(timeoutId);
+                    clearInterval(checkInterval);
+                    resolve(); // Resolve instead of reject for cleaner cancellation
+                }
+            }, 100);
+
+            // Clean up interval when timeout completes
+            setTimeout(() => {
+                clearInterval(checkInterval);
+            }, ms + 10);
+        });
     }
 }
 

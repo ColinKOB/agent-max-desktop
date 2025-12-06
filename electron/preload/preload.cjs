@@ -181,12 +181,45 @@ contextBridge.exposeInMainWorld('telemetry', {
   },
 });
 
+// Sentry bridge for renderer error capture (forwards to main process)
+contextBridge.exposeInMainWorld('Sentry', {
+  captureException: (error, context) => {
+    try {
+      // Serialize error for IPC (can't send Error objects directly)
+      const serialized = {
+        message: error?.message || String(error),
+        name: error?.name || 'Error',
+        stack: error?.stack,
+        ...context
+      };
+      ipcRenderer.invoke('sentry:capture-exception', serialized);
+    } catch (e) {
+      console.error('[Sentry Bridge] Failed to capture exception:', e);
+    }
+  },
+  captureMessage: (message, level) => {
+    try {
+      ipcRenderer.invoke('sentry:capture-message', { message, level: level || 'info' });
+    } catch (e) {
+      console.error('[Sentry Bridge] Failed to capture message:', e);
+    }
+  },
+  addBreadcrumb: (breadcrumb) => {
+    try {
+      ipcRenderer.invoke('sentry:add-breadcrumb', breadcrumb);
+    } catch (e) {
+      console.error('[Sentry Bridge] Failed to add breadcrumb:', e);
+    }
+  },
+});
+
 // Executor IPC bridge for pull-based execution (Phase 2)
 contextBridge.exposeInMainWorld('executor', {
-  createRun: (message, context, systemContext) => 
+  createRun: (message, context, systemContext) =>
     ipcRenderer.invoke('autonomous:create-run', { message, context, systemContext }),
   startRun: (runId) => ipcRenderer.invoke('executor:start-run', runId),
   stopRun: (runId) => ipcRenderer.invoke('executor:stop-run', runId),
+  stopAll: () => ipcRenderer.invoke('executor:stop-all'), // Emergency stop ALL runs
   getStatus: (runId) => ipcRenderer.invoke('executor:get-status', runId),
   getSystemContext: () => ipcRenderer.invoke('executor:get-system-context'),
   listActive: () => ipcRenderer.invoke('executor:list-active'),

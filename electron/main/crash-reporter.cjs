@@ -3,11 +3,82 @@
  * Captures and reports crashes using Sentry
  */
 
-const { app } = require('electron');
+const { app, ipcMain } = require('electron');
 const Sentry = require('@sentry/electron/main');
 const log = require('electron-log');
 
 let initialized = false;
+
+/**
+ * Register IPC handlers for renderer -> main Sentry bridge
+ * This allows React code to capture errors via window.Sentry
+ */
+function registerSentryIPCHandlers() {
+  // Capture exception from renderer
+  ipcMain.handle('sentry:capture-exception', async (event, errorData) => {
+    if (!initialized) return { success: false, reason: 'not_initialized' };
+
+    try {
+      // Reconstruct error from serialized data
+      const error = new Error(errorData.message);
+      error.name = errorData.name || 'Error';
+      error.stack = errorData.stack;
+
+      Sentry.captureException(error, {
+        contexts: {
+          renderer: {
+            source: 'renderer_process',
+            ...errorData
+          }
+        },
+        tags: {
+          source: 'renderer'
+        }
+      });
+
+      log.error('[CrashReporter] Renderer error captured:', errorData.message);
+      return { success: true };
+    } catch (err) {
+      log.error('[CrashReporter] Failed to capture renderer exception:', err);
+      return { success: false, reason: err.message };
+    }
+  });
+
+  // Capture message from renderer
+  ipcMain.handle('sentry:capture-message', async (event, { message, level }) => {
+    if (!initialized) return { success: false, reason: 'not_initialized' };
+
+    try {
+      Sentry.captureMessage(message, level);
+      log.info('[CrashReporter] Renderer message captured:', message);
+      return { success: true };
+    } catch (err) {
+      log.error('[CrashReporter] Failed to capture renderer message:', err);
+      return { success: false, reason: err.message };
+    }
+  });
+
+  // Add breadcrumb from renderer
+  ipcMain.handle('sentry:add-breadcrumb', async (event, breadcrumb) => {
+    if (!initialized) return { success: false, reason: 'not_initialized' };
+
+    try {
+      Sentry.addBreadcrumb({
+        ...breadcrumb,
+        data: {
+          ...(breadcrumb.data || {}),
+          source: 'renderer'
+        }
+      });
+      return { success: true };
+    } catch (err) {
+      log.error('[CrashReporter] Failed to add renderer breadcrumb:', err);
+      return { success: false, reason: err.message };
+    }
+  });
+
+  log.info('[CrashReporter] IPC handlers registered for renderer bridge');
+}
 
 function setupCrashReporter() {
   // Only enable crash reporting in production
@@ -92,7 +163,10 @@ function setupCrashReporter() {
     initialized = true;
     console.log('[CrashReporter] Initialized with Sentry');
     log.info('[CrashReporter] Crash reporting enabled');
-    
+
+    // Register IPC handlers for renderer bridge
+    registerSentryIPCHandlers();
+
   } catch (error) {
     console.error('[CrashReporter] Failed to initialize:', error);
     log.error('[CrashReporter] Initialization error:', error);
@@ -185,6 +259,7 @@ async function flush() {
 
 module.exports = {
   setupCrashReporter,
+  registerSentryIPCHandlers,
   captureError,
   captureMessage,
   addBreadcrumb,
