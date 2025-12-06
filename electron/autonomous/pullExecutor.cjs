@@ -502,6 +502,42 @@ class PullExecutor {
             return await this.executeStopProcess(args);
         } else if (tool === 'screenshot') {
             return await this.executeScreenshot(args);
+        } else if (tool === 'clipboard_read' || tool === 'clipboard.read') {
+            return await this.executeClipboardRead(args);
+        } else if (tool === 'clipboard_write' || tool === 'clipboard.write') {
+            return await this.executeClipboardWrite(args);
+        } else if (tool === 'mouse_click' || tool === 'mouse.click') {
+            return await this.executeMouseClick(args);
+        } else if (tool === 'mouse_move' || tool === 'mouse.move') {
+            return await this.executeMouseMove(args);
+        } else if (tool === 'system_info' || tool === 'system.info') {
+            return await this.executeSystemInfo(args);
+        } else if (tool === 'notify' || tool === 'notification') {
+            return await this.executeNotification(args);
+        } else if (tool === 'open_url') {
+            return await this.executeOpenUrl(args);
+        } else if (tool === 'open_file') {
+            return await this.executeOpenFile(args);
+        } else if (tool === 'list_apps' || tool === 'running_apps') {
+            return await this.executeListApps(args);
+        } else if (tool === 'focus_app' || tool === 'activate_app') {
+            return await this.executeFocusApp(args);
+        } else if (tool === 'type_text' || tool === 'type') {
+            return await this.executeTypeText(args);
+        } else if (tool === 'hotkey' || tool === 'keyboard_shortcut') {
+            return await this.executeHotkey(args);
+        } else if (tool === 'window_resize' || tool === 'resize_window') {
+            return await this.executeWindowResize(args);
+        } else if (tool === 'window_arrange' || tool === 'arrange_windows') {
+            return await this.executeWindowArrange(args);
+        } else if (tool === 'get_active_window' || tool === 'active_window') {
+            return await this.executeGetActiveWindow(args);
+        } else if (tool === 'dictate' || tool === 'speak' || tool === 'say') {
+            return await this.executeDictate(args);
+        } else if (tool === 'play_sound' || tool === 'audio_play') {
+            return await this.executePlaySound(args);
+        } else if (tool === 'file_watch' || tool === 'watch_directory') {
+            return await this.executeFileWatch(args);
         } else if (tool === 'google_command') {
             // google_command is a wrapper - extract the action from args
             const action = args.action || 'google.gmail.list_messages';
@@ -1684,6 +1720,1159 @@ class PullExecutor {
             console.error(`[PullExecutor] Error reporting result:`, error);
             // Don't throw - desktop continues even if cloud unavailable
             return { status: 'error', error: error.message };
+        }
+    }
+
+    // ============================================================
+    // DESKTOP INTEGRATION TOOLS
+    // These tools help the AI interact naturally with the user's computer
+    // ============================================================
+
+    /**
+     * Read from system clipboard
+     */
+    async executeClipboardRead(args) {
+        try {
+            const { clipboard } = require('electron');
+            const format = args.format || 'text';
+
+            let content;
+            if (format === 'html') {
+                content = clipboard.readHTML();
+            } else if (format === 'rtf') {
+                content = clipboard.readRTF();
+            } else if (format === 'image') {
+                const image = clipboard.readImage();
+                if (image.isEmpty()) {
+                    return {
+                        success: true,
+                        stdout: 'Clipboard does not contain an image',
+                        exit_code: 0
+                    };
+                }
+                // Return image dimensions and base64
+                const size = image.getSize();
+                return {
+                    success: true,
+                    stdout: `Clipboard contains image: ${size.width}x${size.height}`,
+                    image_b64: image.toPNG().toString('base64'),
+                    dimensions: size,
+                    exit_code: 0
+                };
+            } else {
+                content = clipboard.readText();
+            }
+
+            console.log(`[PullExecutor] Clipboard read: ${content.length} chars`);
+
+            return {
+                success: true,
+                stdout: content || '(clipboard is empty)',
+                stderr: '',
+                exit_code: 0
+            };
+        } catch (error) {
+            console.error(`[PullExecutor] Clipboard read error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * Write to system clipboard
+     */
+    async executeClipboardWrite(args) {
+        try {
+            const { clipboard } = require('electron');
+            const text = args.text || args.content || '';
+            const format = args.format || 'text';
+
+            if (!text && format === 'text') {
+                return {
+                    success: false,
+                    error: 'Must provide text to write to clipboard',
+                    exit_code: 1
+                };
+            }
+
+            if (format === 'html') {
+                clipboard.writeHTML(text);
+            } else {
+                clipboard.writeText(text);
+            }
+
+            console.log(`[PullExecutor] Clipboard write: ${text.length} chars`);
+
+            return {
+                success: true,
+                stdout: `Copied ${text.length} characters to clipboard`,
+                stderr: '',
+                exit_code: 0
+            };
+        } catch (error) {
+            console.error(`[PullExecutor] Clipboard write error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * Click at screen coordinates
+     * Uses AppleScript on macOS, could use robotjs/nut-js for cross-platform
+     */
+    async executeMouseClick(args) {
+        try {
+            const x = args.x;
+            const y = args.y;
+            const button = args.button || 'left'; // left, right, middle
+            const clicks = args.clicks || 1; // 1 = single, 2 = double
+
+            if (x === undefined || y === undefined) {
+                return {
+                    success: false,
+                    error: 'Must provide x and y coordinates',
+                    exit_code: 1
+                };
+            }
+
+            console.log(`[PullExecutor] Mouse click at (${x}, ${y}), button: ${button}, clicks: ${clicks}`);
+
+            const os = require('os');
+            if (os.platform() === 'darwin') {
+                // macOS: Use AppleScript with System Events
+                // Note: Requires accessibility permissions
+                const clickCmd = clicks === 2 ? 'double click' : 'click';
+                const script = `
+                    tell application "System Events"
+                        ${clickCmd} at {${x}, ${y}}
+                    end tell
+                `;
+
+                const result = await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`);
+
+                return {
+                    success: true,
+                    stdout: `Clicked at (${x}, ${y})`,
+                    stderr: '',
+                    exit_code: 0
+                };
+            } else {
+                return {
+                    success: false,
+                    error: `Mouse click not implemented for ${os.platform()}. Install robotjs for cross-platform support.`,
+                    exit_code: 1
+                };
+            }
+        } catch (error) {
+            console.error(`[PullExecutor] Mouse click error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * Move mouse to screen coordinates (without clicking)
+     */
+    async executeMouseMove(args) {
+        try {
+            const x = args.x;
+            const y = args.y;
+
+            if (x === undefined || y === undefined) {
+                return {
+                    success: false,
+                    error: 'Must provide x and y coordinates',
+                    exit_code: 1
+                };
+            }
+
+            console.log(`[PullExecutor] Mouse move to (${x}, ${y})`);
+
+            const os = require('os');
+            if (os.platform() === 'darwin') {
+                // macOS: Use cliclick or Python with pyautogui
+                // Fallback to AppleScript (limited)
+                const script = `
+                    do shell script "python3 -c \\"import pyautogui; pyautogui.moveTo(${x}, ${y})\\""
+                `;
+
+                try {
+                    await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`);
+                } catch (e) {
+                    // Fallback message if pyautogui not installed
+                    return {
+                        success: true,
+                        stdout: `Mouse move requested to (${x}, ${y}). Note: Install pyautogui for actual mouse movement.`,
+                        exit_code: 0
+                    };
+                }
+
+                return {
+                    success: true,
+                    stdout: `Moved mouse to (${x}, ${y})`,
+                    exit_code: 0
+                };
+            } else {
+                return {
+                    success: false,
+                    error: `Mouse move not implemented for ${os.platform()}`,
+                    exit_code: 1
+                };
+            }
+        } catch (error) {
+            console.error(`[PullExecutor] Mouse move error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * Get system information (CPU, memory, running apps)
+     */
+    async executeSystemInfo(args) {
+        try {
+            const os = require('os');
+            const type = args.type || 'all'; // all, cpu, memory, apps, disk
+
+            let info = {};
+
+            if (type === 'all' || type === 'cpu') {
+                info.cpu = {
+                    model: os.cpus()[0]?.model || 'Unknown',
+                    cores: os.cpus().length,
+                    load: os.loadavg()
+                };
+            }
+
+            if (type === 'all' || type === 'memory') {
+                const totalMem = os.totalmem();
+                const freeMem = os.freemem();
+                info.memory = {
+                    total_gb: (totalMem / 1024 / 1024 / 1024).toFixed(2),
+                    free_gb: (freeMem / 1024 / 1024 / 1024).toFixed(2),
+                    used_gb: ((totalMem - freeMem) / 1024 / 1024 / 1024).toFixed(2),
+                    percent_used: ((1 - freeMem / totalMem) * 100).toFixed(1)
+                };
+            }
+
+            if (type === 'all' || type === 'system') {
+                info.system = {
+                    platform: os.platform(),
+                    release: os.release(),
+                    hostname: os.hostname(),
+                    uptime_hours: (os.uptime() / 3600).toFixed(1),
+                    user: os.userInfo().username,
+                    home: os.homedir()
+                };
+            }
+
+            if (type === 'all' || type === 'apps') {
+                // Get running applications (macOS)
+                if (os.platform() === 'darwin') {
+                    try {
+                        const { stdout } = await execAsync('ps aux | head -20');
+                        info.top_processes = stdout;
+                    } catch (e) {
+                        info.top_processes = 'Unable to fetch';
+                    }
+                }
+            }
+
+            const output = JSON.stringify(info, null, 2);
+            console.log(`[PullExecutor] System info retrieved`);
+
+            return {
+                success: true,
+                stdout: output,
+                system_info: info,
+                exit_code: 0
+            };
+        } catch (error) {
+            console.error(`[PullExecutor] System info error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * Show a desktop notification
+     */
+    async executeNotification(args) {
+        try {
+            const { Notification } = require('electron');
+            const title = args.title || 'Agent Max';
+            const body = args.body || args.message || '';
+            const silent = args.silent || false;
+
+            if (!body) {
+                return {
+                    success: false,
+                    error: 'Must provide notification body/message',
+                    exit_code: 1
+                };
+            }
+
+            const notification = new Notification({
+                title,
+                body,
+                silent
+            });
+
+            notification.show();
+            console.log(`[PullExecutor] Notification shown: ${title}`);
+
+            return {
+                success: true,
+                stdout: `Notification displayed: "${title}"`,
+                exit_code: 0
+            };
+        } catch (error) {
+            console.error(`[PullExecutor] Notification error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * Open a URL in the default browser
+     */
+    async executeOpenUrl(args) {
+        try {
+            const { shell } = require('electron');
+            const url = args.url;
+
+            if (!url) {
+                return {
+                    success: false,
+                    error: 'Must provide URL to open',
+                    exit_code: 1
+                };
+            }
+
+            await shell.openExternal(url);
+            console.log(`[PullExecutor] Opened URL: ${url}`);
+
+            return {
+                success: true,
+                stdout: `Opened ${url} in default browser`,
+                exit_code: 0
+            };
+        } catch (error) {
+            console.error(`[PullExecutor] Open URL error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * Open a file with its default application
+     */
+    async executeOpenFile(args) {
+        try {
+            const { shell } = require('electron');
+            const path = args.path || args.file;
+
+            if (!path) {
+                return {
+                    success: false,
+                    error: 'Must provide file path to open',
+                    exit_code: 1
+                };
+            }
+
+            await shell.openPath(path);
+            console.log(`[PullExecutor] Opened file: ${path}`);
+
+            return {
+                success: true,
+                stdout: `Opened ${path} with default application`,
+                exit_code: 0
+            };
+        } catch (error) {
+            console.error(`[PullExecutor] Open file error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * List running applications
+     */
+    async executeListApps(args) {
+        try {
+            const os = require('os');
+
+            if (os.platform() === 'darwin') {
+                // macOS: Get running apps via AppleScript
+                const script = `
+                    tell application "System Events"
+                        set appList to name of every process whose background only is false
+                        return appList
+                    end tell
+                `;
+
+                const { stdout } = await execAsync(`osascript -e '${script}'`);
+                const apps = stdout.trim().split(', ');
+
+                let output = `Running Applications (${apps.length}):\n`;
+                apps.forEach((app, i) => {
+                    output += `  ${i + 1}. ${app}\n`;
+                });
+
+                return {
+                    success: true,
+                    stdout: output,
+                    apps: apps,
+                    exit_code: 0
+                };
+            } else {
+                // Fallback to ps for other platforms
+                const { stdout } = await execAsync('ps aux | grep -v grep | awk \'{print $11}\' | sort | uniq | head -30');
+                return {
+                    success: true,
+                    stdout: `Running Processes:\n${stdout}`,
+                    exit_code: 0
+                };
+            }
+        } catch (error) {
+            console.error(`[PullExecutor] List apps error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * Focus/activate an application
+     */
+    async executeFocusApp(args) {
+        try {
+            const appName = args.app || args.app_name || args.name;
+
+            if (!appName) {
+                return {
+                    success: false,
+                    error: 'Must provide app name to focus',
+                    exit_code: 1
+                };
+            }
+
+            const os = require('os');
+
+            if (os.platform() === 'darwin') {
+                const script = `
+                    tell application "${appName}"
+                        activate
+                    end tell
+                `;
+
+                await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`);
+
+                return {
+                    success: true,
+                    stdout: `Focused application: ${appName}`,
+                    exit_code: 0
+                };
+            } else {
+                return {
+                    success: false,
+                    error: `Focus app not implemented for ${os.platform()}`,
+                    exit_code: 1
+                };
+            }
+        } catch (error) {
+            console.error(`[PullExecutor] Focus app error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    // ============================================================
+    // KEYBOARD & INPUT TOOLS
+    // Allow the AI to type and use keyboard shortcuts
+    // ============================================================
+
+    /**
+     * Type text into the currently focused application
+     * This is like having a second person type for you
+     */
+    async executeTypeText(args) {
+        try {
+            const text = args.text || args.content || '';
+            const delay = args.delay || args.delay_ms || 50; // ms between keystrokes
+            const pressEnter = args.press_enter || args.enter || false;
+
+            if (!text) {
+                return {
+                    success: false,
+                    error: 'Must provide text to type',
+                    exit_code: 1
+                };
+            }
+
+            console.log(`[PullExecutor] Typing ${text.length} characters into focused app`);
+
+            const os = require('os');
+            if (os.platform() === 'darwin') {
+                // Escape special characters for AppleScript
+                const escaped = text
+                    .replace(/\\/g, '\\\\')
+                    .replace(/"/g, '\\"')
+                    .replace(/\n/g, '\\n');
+
+                let script = `
+                    tell application "System Events"
+                        keystroke "${escaped}"
+                    end tell
+                `;
+
+                if (pressEnter) {
+                    script = `
+                        tell application "System Events"
+                            keystroke "${escaped}"
+                            keystroke return
+                        end tell
+                    `;
+                }
+
+                await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`);
+
+                return {
+                    success: true,
+                    stdout: `Typed ${text.length} characters${pressEnter ? ' and pressed Enter' : ''}`,
+                    exit_code: 0
+                };
+            } else {
+                return {
+                    success: false,
+                    error: `Type text not implemented for ${os.platform()}. Install pyautogui.`,
+                    exit_code: 1
+                };
+            }
+        } catch (error) {
+            console.error(`[PullExecutor] Type text error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * Press a keyboard shortcut (hotkey)
+     * e.g., Cmd+S, Cmd+C, Cmd+V, Cmd+Tab
+     */
+    async executeHotkey(args) {
+        try {
+            // Accept various formats: "cmd+s", ["cmd", "s"], {modifiers: ["cmd"], key: "s"}
+            let modifiers = [];
+            let key = '';
+
+            if (args.keys && Array.isArray(args.keys)) {
+                // Format: ["cmd", "shift", "s"]
+                const parts = args.keys;
+                key = parts[parts.length - 1].toLowerCase();
+                modifiers = parts.slice(0, -1).map(m => m.toLowerCase());
+            } else if (args.shortcut || args.hotkey) {
+                // Format: "cmd+s" or "cmd+shift+s"
+                const parts = (args.shortcut || args.hotkey).toLowerCase().split('+');
+                key = parts[parts.length - 1];
+                modifiers = parts.slice(0, -1);
+            } else if (args.key) {
+                // Format: {key: "s", modifiers: ["cmd"]}
+                key = args.key.toLowerCase();
+                modifiers = (args.modifiers || []).map(m => m.toLowerCase());
+            } else {
+                return {
+                    success: false,
+                    error: 'Must provide hotkey as: keys array, shortcut string (e.g., "cmd+s"), or {key, modifiers}',
+                    exit_code: 1
+                };
+            }
+
+            console.log(`[PullExecutor] Pressing hotkey: ${modifiers.join('+')}${modifiers.length ? '+' : ''}${key}`);
+
+            const os = require('os');
+            if (os.platform() === 'darwin') {
+                // Map modifier names to AppleScript
+                const modifierMap = {
+                    'cmd': 'command down',
+                    'command': 'command down',
+                    'ctrl': 'control down',
+                    'control': 'control down',
+                    'alt': 'option down',
+                    'option': 'option down',
+                    'shift': 'shift down'
+                };
+
+                const modifierStr = modifiers
+                    .map(m => modifierMap[m] || `${m} down`)
+                    .join(', ');
+
+                // Handle special keys
+                const specialKeys = {
+                    'return': 'return',
+                    'enter': 'return',
+                    'tab': 'tab',
+                    'escape': 'escape',
+                    'esc': 'escape',
+                    'space': 'space',
+                    'delete': 'delete',
+                    'backspace': 'delete',
+                    'up': 'up arrow',
+                    'down': 'down arrow',
+                    'left': 'left arrow',
+                    'right': 'right arrow'
+                };
+
+                let script;
+                if (specialKeys[key]) {
+                    script = `
+                        tell application "System Events"
+                            key code ${this.getKeyCode(specialKeys[key])} using {${modifierStr}}
+                        end tell
+                    `;
+                    // Fallback to keystroke for simpler handling
+                    script = `
+                        tell application "System Events"
+                            keystroke "${key}" using {${modifierStr}}
+                        end tell
+                    `;
+                } else {
+                    script = `
+                        tell application "System Events"
+                            keystroke "${key}" using {${modifierStr}}
+                        end tell
+                    `;
+                }
+
+                await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`);
+
+                return {
+                    success: true,
+                    stdout: `Pressed ${modifiers.join('+')}${modifiers.length ? '+' : ''}${key}`,
+                    exit_code: 0
+                };
+            } else {
+                return {
+                    success: false,
+                    error: `Hotkey not implemented for ${os.platform()}`,
+                    exit_code: 1
+                };
+            }
+        } catch (error) {
+            console.error(`[PullExecutor] Hotkey error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    // ============================================================
+    // WINDOW MANAGEMENT TOOLS
+    // Arrange and control windows like a power user
+    // ============================================================
+
+    /**
+     * Resize a specific window
+     */
+    async executeWindowResize(args) {
+        try {
+            const appName = args.app || args.app_name;
+            const width = args.width;
+            const height = args.height;
+            const x = args.x;
+            const y = args.y;
+
+            if (!appName) {
+                return {
+                    success: false,
+                    error: 'Must provide app name to resize',
+                    exit_code: 1
+                };
+            }
+
+            console.log(`[PullExecutor] Resizing ${appName} window`);
+
+            const os = require('os');
+            if (os.platform() === 'darwin') {
+                let script = `tell application "System Events"\n`;
+                script += `    tell process "${appName}"\n`;
+                script += `        tell window 1\n`;
+
+                if (x !== undefined && y !== undefined) {
+                    script += `            set position to {${x}, ${y}}\n`;
+                }
+                if (width !== undefined && height !== undefined) {
+                    script += `            set size to {${width}, ${height}}\n`;
+                }
+
+                script += `        end tell\n`;
+                script += `    end tell\n`;
+                script += `end tell`;
+
+                await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`);
+
+                return {
+                    success: true,
+                    stdout: `Resized ${appName} window`,
+                    exit_code: 0
+                };
+            } else {
+                return {
+                    success: false,
+                    error: `Window resize not implemented for ${os.platform()}`,
+                    exit_code: 1
+                };
+            }
+        } catch (error) {
+            console.error(`[PullExecutor] Window resize error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * Arrange windows in preset layouts
+     * Presets: left_half, right_half, maximize, center, top_half, bottom_half
+     */
+    async executeWindowArrange(args) {
+        try {
+            const appName = args.app || args.app_name;
+            const preset = args.preset || args.layout;
+
+            if (!appName || !preset) {
+                return {
+                    success: false,
+                    error: 'Must provide app name and preset (left_half, right_half, maximize, center)',
+                    exit_code: 1
+                };
+            }
+
+            console.log(`[PullExecutor] Arranging ${appName} window to ${preset}`);
+
+            const os = require('os');
+            if (os.platform() === 'darwin') {
+                // Get screen dimensions
+                const screenScript = `
+                    tell application "Finder"
+                        set screenBounds to bounds of window of desktop
+                        return (item 3 of screenBounds) & "," & (item 4 of screenBounds)
+                    end tell
+                `;
+
+                let screenW = 1920, screenH = 1080;
+                try {
+                    const { stdout } = await execAsync(`osascript -e '${screenScript}'`);
+                    [screenW, screenH] = stdout.trim().split(',').map(Number);
+                } catch (e) {
+                    console.log('[PullExecutor] Using default screen size');
+                }
+
+                // Calculate preset positions
+                let x, y, width, height;
+                const menuBarHeight = 25;
+
+                switch (preset) {
+                    case 'left_half':
+                        x = 0; y = menuBarHeight;
+                        width = Math.floor(screenW / 2); height = screenH - menuBarHeight;
+                        break;
+                    case 'right_half':
+                        x = Math.floor(screenW / 2); y = menuBarHeight;
+                        width = Math.floor(screenW / 2); height = screenH - menuBarHeight;
+                        break;
+                    case 'maximize':
+                    case 'full':
+                        x = 0; y = menuBarHeight;
+                        width = screenW; height = screenH - menuBarHeight;
+                        break;
+                    case 'center':
+                        width = Math.floor(screenW * 0.6);
+                        height = Math.floor(screenH * 0.7);
+                        x = Math.floor((screenW - width) / 2);
+                        y = Math.floor((screenH - height) / 2);
+                        break;
+                    case 'top_half':
+                        x = 0; y = menuBarHeight;
+                        width = screenW; height = Math.floor((screenH - menuBarHeight) / 2);
+                        break;
+                    case 'bottom_half':
+                        height = Math.floor((screenH - menuBarHeight) / 2);
+                        x = 0; y = menuBarHeight + height;
+                        width = screenW;
+                        break;
+                    default:
+                        return {
+                            success: false,
+                            error: `Unknown preset: ${preset}. Use: left_half, right_half, maximize, center, top_half, bottom_half`,
+                            exit_code: 1
+                        };
+                }
+
+                const script = `
+                    tell application "System Events"
+                        tell process "${appName}"
+                            tell window 1
+                                set position to {${x}, ${y}}
+                                set size to {${width}, ${height}}
+                            end tell
+                        end tell
+                    end tell
+                `;
+
+                await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`);
+
+                return {
+                    success: true,
+                    stdout: `Arranged ${appName} to ${preset} (${width}x${height} at ${x},${y})`,
+                    exit_code: 0
+                };
+            } else {
+                return {
+                    success: false,
+                    error: `Window arrange not implemented for ${os.platform()}`,
+                    exit_code: 1
+                };
+            }
+        } catch (error) {
+            console.error(`[PullExecutor] Window arrange error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * Get the currently active window and application
+     * This helps the AI understand what the user is working on
+     */
+    async executeGetActiveWindow(args) {
+        try {
+            console.log(`[PullExecutor] Getting active window info`);
+
+            const os = require('os');
+            if (os.platform() === 'darwin') {
+                const script = `
+                    tell application "System Events"
+                        set frontApp to first process whose frontmost is true
+                        set appName to name of frontApp
+                        try
+                            set winName to name of front window of frontApp
+                        on error
+                            set winName to "No window"
+                        end try
+                        return appName & "|" & winName
+                    end tell
+                `;
+
+                const { stdout } = await execAsync(`osascript -e '${script}'`);
+                const [appName, windowTitle] = stdout.trim().split('|');
+
+                const result = {
+                    app: appName,
+                    window_title: windowTitle,
+                    description: `User is in ${appName}${windowTitle !== 'No window' ? `: "${windowTitle}"` : ''}`
+                };
+
+                return {
+                    success: true,
+                    stdout: JSON.stringify(result, null, 2),
+                    active_window: result,
+                    exit_code: 0
+                };
+            } else {
+                return {
+                    success: false,
+                    error: `Active window detection not implemented for ${os.platform()}`,
+                    exit_code: 1
+                };
+            }
+        } catch (error) {
+            console.error(`[PullExecutor] Get active window error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    // ============================================================
+    // AUDIO & SPEECH TOOLS
+    // Allow the AI to speak and play sounds
+    // ============================================================
+
+    /**
+     * Use text-to-speech to read text aloud
+     * Useful for reading results to the user hands-free
+     */
+    async executeDictate(args) {
+        try {
+            const text = args.text || args.message || args.content || '';
+            const voice = args.voice || 'Samantha'; // Default macOS voice
+            const rate = args.rate || 200; // Words per minute
+
+            if (!text) {
+                return {
+                    success: false,
+                    error: 'Must provide text to speak',
+                    exit_code: 1
+                };
+            }
+
+            console.log(`[PullExecutor] Speaking: "${text.substring(0, 50)}..."`);
+
+            const os = require('os');
+            if (os.platform() === 'darwin') {
+                // Escape quotes for shell
+                const escaped = text.replace(/"/g, '\\"').replace(/'/g, "'\\''");
+
+                // Use macOS 'say' command
+                await execAsync(`say -v "${voice}" -r ${rate} "${escaped}"`);
+
+                return {
+                    success: true,
+                    stdout: `Spoke ${text.length} characters`,
+                    exit_code: 0
+                };
+            } else {
+                // Try espeak on Linux
+                try {
+                    const escaped = text.replace(/"/g, '\\"');
+                    await execAsync(`espeak "${escaped}"`);
+                    return {
+                        success: true,
+                        stdout: `Spoke ${text.length} characters`,
+                        exit_code: 0
+                    };
+                } catch (e) {
+                    return {
+                        success: false,
+                        error: `Text-to-speech not available. Install espeak.`,
+                        exit_code: 1
+                    };
+                }
+            }
+        } catch (error) {
+            console.error(`[PullExecutor] Dictate error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * Play a system sound or audio file
+     * Useful for alerts when tasks complete
+     */
+    async executePlaySound(args) {
+        try {
+            const sound = args.sound || args.file || 'default';
+            const volume = args.volume || 1.0; // 0.0 to 1.0
+
+            console.log(`[PullExecutor] Playing sound: ${sound}`);
+
+            const os = require('os');
+            const path = require('path');
+
+            if (os.platform() === 'darwin') {
+                // macOS system sounds are in /System/Library/Sounds/
+                const systemSounds = {
+                    'default': 'Glass',
+                    'success': 'Glass',
+                    'error': 'Basso',
+                    'warning': 'Sosumi',
+                    'notification': 'Ping',
+                    'complete': 'Hero',
+                    'pop': 'Pop',
+                    'purr': 'Purr',
+                    'blow': 'Blow',
+                    'bottle': 'Bottle',
+                    'frog': 'Frog',
+                    'funk': 'Funk',
+                    'morse': 'Morse',
+                    'submarine': 'Submarine',
+                    'tink': 'Tink'
+                };
+
+                let soundFile;
+                if (systemSounds[sound]) {
+                    soundFile = `/System/Library/Sounds/${systemSounds[sound]}.aiff`;
+                } else if (sound.startsWith('/')) {
+                    soundFile = sound;
+                } else {
+                    soundFile = `/System/Library/Sounds/${sound}.aiff`;
+                }
+
+                await execAsync(`afplay "${soundFile}"`);
+
+                return {
+                    success: true,
+                    stdout: `Played sound: ${sound}`,
+                    exit_code: 0
+                };
+            } else {
+                // Try paplay on Linux
+                try {
+                    await execAsync(`paplay /usr/share/sounds/freedesktop/stereo/complete.oga`);
+                    return {
+                        success: true,
+                        stdout: `Played sound`,
+                        exit_code: 0
+                    };
+                } catch (e) {
+                    return {
+                        success: false,
+                        error: `Sound playback not available`,
+                        exit_code: 1
+                    };
+                }
+            }
+        } catch (error) {
+            console.error(`[PullExecutor] Play sound error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    // ============================================================
+    // FILE MONITORING TOOLS
+    // Watch for changes in the filesystem
+    // ============================================================
+
+    /**
+     * Watch a directory for file changes
+     * Returns when a change is detected or timeout occurs
+     */
+    async executeFileWatch(args) {
+        try {
+            const watchPath = args.path || args.directory;
+            const timeout = args.timeout || 30000; // 30 seconds default
+            const eventTypes = args.events || ['change', 'add', 'unlink'];
+
+            if (!watchPath) {
+                return {
+                    success: false,
+                    error: 'Must provide path to watch',
+                    exit_code: 1
+                };
+            }
+
+            console.log(`[PullExecutor] Watching ${watchPath} for changes (timeout: ${timeout}ms)`);
+
+            const fs = require('fs');
+            const path = require('path');
+
+            // Check if path exists
+            if (!fs.existsSync(watchPath)) {
+                return {
+                    success: false,
+                    error: `Path does not exist: ${watchPath}`,
+                    exit_code: 1
+                };
+            }
+
+            return new Promise((resolve) => {
+                const changes = [];
+                let watcher;
+
+                const cleanup = () => {
+                    if (watcher) {
+                        watcher.close();
+                    }
+                };
+
+                const timeoutId = setTimeout(() => {
+                    cleanup();
+                    resolve({
+                        success: true,
+                        stdout: changes.length > 0
+                            ? `Detected ${changes.length} change(s):\n${changes.join('\n')}`
+                            : 'No changes detected within timeout',
+                        changes: changes,
+                        exit_code: 0
+                    });
+                }, timeout);
+
+                // Use fs.watch for simplicity (could use chokidar for more features)
+                watcher = fs.watch(watchPath, { recursive: true }, (eventType, filename) => {
+                    const change = `${eventType}: ${filename}`;
+                    changes.push(change);
+                    console.log(`[PullExecutor] File change: ${change}`);
+
+                    // If we detect a change, return immediately (or accumulate)
+                    if (args.return_on_first) {
+                        clearTimeout(timeoutId);
+                        cleanup();
+                        resolve({
+                            success: true,
+                            stdout: `Detected change: ${change}`,
+                            changes: [change],
+                            exit_code: 0
+                        });
+                    }
+                });
+
+                watcher.on('error', (error) => {
+                    clearTimeout(timeoutId);
+                    cleanup();
+                    resolve({
+                        success: false,
+                        error: error.message,
+                        exit_code: 1
+                    });
+                });
+            });
+        } catch (error) {
+            console.error(`[PullExecutor] File watch error:`, error);
+            return {
+                success: false,
+                error: error.message,
+                exit_code: 1
+            };
         }
     }
 
