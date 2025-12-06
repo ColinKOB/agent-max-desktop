@@ -477,8 +477,19 @@ class PullExecutor {
             return await this.executeFileWrite(args, step);
         } else if (tool === 'fs.read') {
             return await this.executeFileRead(args);
-        } else if (tool === 'browser') {
+        } else if (tool === 'browser' || tool === 'web_search') {
             return await this.executeBrowserSearch(args);
+        } else if (tool === 'web_fetch') {
+            // Direct URL fetch tool
+            const url = args.url || args.fetch_url;
+            if (!url) {
+                return {
+                    success: false,
+                    error: 'web_fetch requires a url parameter',
+                    exit_code: 1
+                };
+            }
+            return await this.fetchUrlContent(url);
         } else if (tool === 'think') {
             return await this.executeThink(args);
         } else if (tool === 'user_input') {
@@ -962,51 +973,111 @@ class PullExecutor {
     }
 
     /**
-     * Execute browser search (web scraping)
+     * Execute browser search (web search + content extraction)
+     *
+     * Enhanced to support:
+     * 1. Search queries - returns search results with snippets
+     * 2. Direct URL fetch - fetches and extracts text content from a URL
+     * 3. Search + fetch - searches then fetches top results for full content
      */
     async executeBrowserSearch(args) {
         try {
             const query = args.query || args.search || args.q;
-            
+            const url = args.url || args.fetch_url;
+            const fetchContent = args.fetch_content !== false; // Default true for research tasks
+            const maxResults = args.max_results || 3;
+
+            // If a direct URL is provided, fetch its content
+            if (url) {
+                return await this.fetchUrlContent(url);
+            }
+
             if (!query) {
-                throw new Error('No search query provided');
+                throw new Error('No search query or URL provided. Use {query: "search terms"} or {url: "https://..."}');
             }
 
-            // Use DuckDuckGo Instant Answer API (no API key required)
-            const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
-            
-            const response = await fetch(url);
-            const data = await response.json();
+            console.log(`[PullExecutor] Web search: "${query}" (fetch_content: ${fetchContent})`);
 
-            // Format the results
-            let result = `Search results for: ${query}\n\n`;
-            
-            if (data.AbstractText) {
-                result += `Summary: ${data.AbstractText}\n`;
-                if (data.AbstractURL) {
-                    result += `Source: ${data.AbstractURL}\n`;
+            // Use DuckDuckGo HTML search for better results
+            const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+
+            const response = await fetch(searchUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
                 }
+            });
+            const html = await response.text();
+
+            // Parse search results from HTML
+            const results = this.parseDuckDuckGoResults(html, maxResults);
+
+            if (results.length === 0) {
+                // Fallback to instant answer API
+                const instantUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+                const instantResponse = await fetch(instantUrl);
+                const instantData = await instantResponse.json();
+
+                if (instantData.AbstractText) {
+                    return {
+                        success: true,
+                        stdout: `**Search Results for: ${query}**\n\n${instantData.AbstractText}\n\nSource: ${instantData.AbstractURL || 'DuckDuckGo'}`,
+                        stderr: '',
+                        exit_code: 0
+                    };
+                }
+
+                return {
+                    success: true,
+                    stdout: `No results found for: ${query}`,
+                    stderr: '',
+                    exit_code: 0
+                };
             }
-            
-            if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-                result += `\nRelated Topics:\n`;
-                data.RelatedTopics.slice(0, 5).forEach((topic, i) => {
-                    if (topic.Text) {
-                        result += `${i + 1}. ${topic.Text}\n`;
-                        if (topic.FirstURL) {
-                            result += `   ${topic.FirstURL}\n`;
+
+            // Format search results
+            let output = `**Search Results for: ${query}**\n\n`;
+
+            for (let i = 0; i < results.length; i++) {
+                const r = results[i];
+                output += `**${i + 1}. ${r.title}**\n`;
+                output += `${r.snippet}\n`;
+                output += `URL: ${r.url}\n\n`;
+            }
+
+            // If fetch_content is true, fetch full content from top results
+            if (fetchContent && results.length > 0) {
+                output += `\n---\n**Full Content from Top Results:**\n\n`;
+
+                // Fetch content from top 2 results (to avoid overwhelming)
+                const topResults = results.slice(0, 2);
+                for (const r of topResults) {
+                    try {
+                        console.log(`[PullExecutor] Fetching content from: ${r.url}`);
+                        const contentResult = await this.fetchUrlContent(r.url);
+
+                        if (contentResult.success && contentResult.stdout) {
+                            // Limit content per source to keep response manageable
+                            const content = contentResult.stdout.substring(0, 4000);
+                            output += `\n**From: ${r.title}**\n`;
+                            output += `Source: ${r.url}\n\n`;
+                            output += `${content}\n`;
+                            output += `\n---\n`;
                         }
+                    } catch (fetchError) {
+                        console.log(`[PullExecutor] Failed to fetch ${r.url}: ${fetchError.message}`);
                     }
-                });
+                }
             }
 
             return {
                 success: true,
-                stdout: result || `No results found for: ${query}`,
+                stdout: output,
                 stderr: '',
-                exit_code: 0
+                exit_code: 0,
+                search_results: results
             };
         } catch (error) {
+            console.error(`[PullExecutor] Browser search error:`, error);
             return {
                 success: false,
                 stdout: '',
@@ -1015,6 +1086,157 @@ class PullExecutor {
                 error: error.message
             };
         }
+    }
+
+    /**
+     * Parse DuckDuckGo HTML search results
+     */
+    parseDuckDuckGoResults(html, maxResults = 5) {
+        const results = [];
+
+        // Match result blocks - DuckDuckGo uses result__a for links
+        const linkRegex = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/gi;
+        const snippetRegex = /<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([^<]*(?:<[^>]*>[^<]*)*)<\/a>/gi;
+
+        let linkMatch;
+        const links = [];
+        const titles = [];
+
+        while ((linkMatch = linkRegex.exec(html)) !== null && links.length < maxResults) {
+            let url = linkMatch[1];
+            // DuckDuckGo uses redirect URLs, extract the real URL
+            if (url.includes('uddg=')) {
+                const match = url.match(/uddg=([^&]*)/);
+                if (match) {
+                    url = decodeURIComponent(match[1]);
+                }
+            }
+            if (url.startsWith('http')) {
+                links.push(url);
+                titles.push(linkMatch[2].replace(/<[^>]*>/g, '').trim());
+            }
+        }
+
+        // Extract snippets
+        const snippets = [];
+        let snippetMatch;
+        while ((snippetMatch = snippetRegex.exec(html)) !== null && snippets.length < maxResults) {
+            snippets.push(snippetMatch[1].replace(/<[^>]*>/g, '').trim());
+        }
+
+        // Combine into results
+        for (let i = 0; i < Math.min(links.length, maxResults); i++) {
+            results.push({
+                title: titles[i] || 'Untitled',
+                url: links[i],
+                snippet: snippets[i] || ''
+            });
+        }
+
+        return results;
+    }
+
+    /**
+     * Fetch and extract text content from a URL
+     */
+    async fetchUrlContent(url) {
+        try {
+            console.log(`[PullExecutor] Fetching URL content: ${url}`);
+
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5'
+                },
+                timeout: 15000
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const contentType = response.headers.get('content-type') || '';
+
+            // Handle JSON responses
+            if (contentType.includes('application/json')) {
+                const json = await response.json();
+                return {
+                    success: true,
+                    stdout: JSON.stringify(json, null, 2),
+                    stderr: '',
+                    exit_code: 0
+                };
+            }
+
+            // Handle HTML responses - extract text content
+            const html = await response.text();
+            const text = this.extractTextFromHtml(html);
+
+            return {
+                success: true,
+                stdout: text,
+                stderr: '',
+                exit_code: 0,
+                source_url: url
+            };
+        } catch (error) {
+            console.error(`[PullExecutor] URL fetch error:`, error);
+            return {
+                success: false,
+                stdout: '',
+                stderr: `Failed to fetch ${url}: ${error.message}`,
+                exit_code: 1,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Extract readable text from HTML
+     * Removes scripts, styles, and extracts meaningful content
+     */
+    extractTextFromHtml(html) {
+        // Remove script and style tags
+        let text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+        text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+        text = text.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '');
+
+        // Remove HTML comments
+        text = text.replace(/<!--[\s\S]*?-->/g, '');
+
+        // Remove navigation, header, footer, aside elements (usually not main content)
+        text = text.replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '');
+        text = text.replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '');
+        text = text.replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '');
+        text = text.replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, '');
+
+        // Convert common block elements to newlines
+        text = text.replace(/<\/?(p|div|h[1-6]|li|tr|br|hr)[^>]*>/gi, '\n');
+
+        // Remove remaining HTML tags
+        text = text.replace(/<[^>]+>/g, ' ');
+
+        // Decode HTML entities
+        text = text.replace(/&nbsp;/g, ' ');
+        text = text.replace(/&amp;/g, '&');
+        text = text.replace(/&lt;/g, '<');
+        text = text.replace(/&gt;/g, '>');
+        text = text.replace(/&quot;/g, '"');
+        text = text.replace(/&#39;/g, "'");
+        text = text.replace(/&[a-z]+;/gi, ' ');
+
+        // Clean up whitespace
+        text = text.replace(/\s+/g, ' ');
+        text = text.replace(/\n\s*\n/g, '\n\n');
+        text = text.trim();
+
+        // Limit length to avoid overwhelming the AI
+        if (text.length > 8000) {
+            text = text.substring(0, 8000) + '\n\n[Content truncated for length...]';
+        }
+
+        return text;
     }
 
     /**

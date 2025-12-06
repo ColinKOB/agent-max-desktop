@@ -189,6 +189,13 @@ const truncateText = (value, limit = 160) => {
   return `${trimmed.slice(0, limit)}…`;
 };
 
+// Normalize permission level values to the two supported modes
+const normalizeModeValue = (level) => {
+  const key = (level || '').toLowerCase();
+  if (key === 'auto' || key === 'autonomous' || key === 'powerful') return 'autonomous';
+  return 'chatty';
+};
+
 const formatArtifactSummary = (artifact) => {
   if (!artifact || typeof artifact !== 'object') {
     return '- artifact (unknown)';
@@ -735,13 +742,16 @@ export default function AppleFloatBar({
   }, []);
 
   const { level: permissionLevel, updateLevel } = usePermission();
-  const permissionModeRef = useRef((permissionLevel || '').toLowerCase());
+  const normalizedPermissionMode = useMemo(
+    () => normalizeModeValue(permissionLevel),
+    [permissionLevel]
+  );
+  const permissionModeRef = useRef(normalizeModeValue(permissionLevel));
   useEffect(() => {
-    permissionModeRef.current = (permissionLevel || '').toLowerCase();
-  }, [permissionLevel]);
-  const permissionKey = (permissionLevel || '').toLowerCase();
-  // NOTE: 'helpful' mode is deprecated - treat as 'chatty'
-  const effectiveMode = permissionKey === 'helpful' ? 'chatty' : permissionKey;
+    permissionModeRef.current = normalizedPermissionMode;
+  }, [normalizedPermissionMode]);
+  const permissionKey = normalizedPermissionMode;
+  const effectiveMode = permissionKey;
   const planCardAllowed = false; // Plan cards deprecated with helpful mode
   const shouldDisplayPlanCard = useCallback(() => {
     return false; // Plan cards deprecated with helpful mode
@@ -906,13 +916,7 @@ export default function AppleFloatBar({
   }, [apiConnected]);
 
   // Helper to map UI level to backend mode
-  // NOTE: 'helpful' mode is deprecated - default to 'chatty'
-  const resolveMode = useCallback(() => {
-    const lvl = (permissionLevel || '').toLowerCase();
-    if (lvl === 'powerful' || lvl === 'autonomous') return 'autonomous';
-    // 'helpful' is deprecated, treat as 'chatty'
-    return 'chatty';
-  }, [permissionLevel]);
+  const resolveMode = useCallback(() => normalizedPermissionMode, [normalizedPermissionMode]);
 
   // Hard route guard: the FloatBar window should never navigate to /settings
   useEffect(() => {
@@ -1635,12 +1639,9 @@ export default function AppleFloatBar({
           setExecutionMode(null);
           executionModeRef.current = null;
           // Only require desktop actions in autonomous mode (not chatty/helpful)
-          // Note: 'helpful' is deprecated and treated as 'chatty'
-          // 'powerful' is the old name for 'autonomous'
-          const currentMode = (permissionModeRef.current || '').toLowerCase();
-          const isAutoMode = currentMode === 'autonomous' || currentMode === 'powerful';
-          const isChattyMode =
-            currentMode === 'chatty' || currentMode === 'helpful' || currentMode === '';
+          const currentMode = permissionModeRef.current;
+          const isAutoMode = currentMode === 'autonomous';
+          const isChattyMode = currentMode === 'chatty';
           console.log(
             `[Chat] Mode check: currentMode='${currentMode}', isAutoMode=${isAutoMode}, isChattyMode=${isChattyMode}`
           );
@@ -3491,8 +3492,8 @@ export default function AppleFloatBar({
       }
 
       // Execute using pull-based OR streaming approach
-      const lvl = (permissionLevel || '').toLowerCase();
-      const isAutonomous = lvl === 'powerful' || lvl === 'autonomous';
+      const currentMode = permissionModeRef.current || normalizedPermissionMode;
+      const isAutonomous = currentMode === 'autonomous';
 
       if (usePullExecution && isAutonomous) {
         // NEW: Pull-based execution
@@ -3953,8 +3954,8 @@ export default function AppleFloatBar({
       // If this is the first prompt and it looks like an email intent, open approval immediately
       // Note: Message stays visible during approval dialog
       // SKIP approval for chatty mode - it can only read emails, not send them
-      const currentMode = (permissionLevel || '').toLowerCase();
-      const isChattyMode = currentMode === 'chatty' || currentMode === 'helpful';
+      const currentMode = permissionModeRef.current || normalizedPermissionMode;
+      const isChattyMode = currentMode === 'chatty';
 
       try {
         const isFirstTurn = thoughts.length <= 1; // <= 1 because we just added the optimistic message
@@ -4056,9 +4057,8 @@ export default function AppleFloatBar({
         }
         if (data.requires_approval) {
           // In autonomous mode, auto-approve ALL actions (user explicitly chose this mode)
-          const currentMode = (permissionModeRef.current || '').toLowerCase();
-          const isAutoMode =
-            currentMode === 'autonomous' || currentMode === 'powerful' || currentMode === 'auto';
+          const currentMode = permissionModeRef.current;
+          const isAutoMode = currentMode === 'autonomous';
 
           if (isAutoMode) {
             // Auto-approve in autonomous mode - user trusts the AI
@@ -4296,12 +4296,15 @@ export default function AppleFloatBar({
   }, [toolMenuOpen]);
   const handleSelectLevel = useCallback(
     async (level) => {
+      const resolvedMode = normalizeModeValue(level);
+      const apiLevel = resolvedMode === 'autonomous' ? 'auto' : 'chatty';
+      const label = resolvedMode === 'autonomous' ? 'Autonomous' : 'Chatty';
       try {
-        await updateLevel(level);
-        toast.success(`Permission level set to ${level.charAt(0).toUpperCase()}${level.slice(1)}`);
+        await updateLevel(apiLevel);
+        toast.success(`Permission level set to ${label}`);
         try {
           // Persist selection so API client can fall back if userContext not present
-          localStorage.setItem('permission_level', level);
+          localStorage.setItem('permission_level', apiLevel);
         } catch {}
       } catch (e) {
         toast.error('Failed to update permission level');
@@ -5127,47 +5130,44 @@ export default function AppleFloatBar({
                 {[
                   { value: 'chatty', title: 'Chatty' },
                   { value: 'autonomous', title: 'Autonomous' },
-                ].map((opt, idx) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => handleSelectLevel(opt.value)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: 'none',
-                      background:
-                        permissionLevel === opt.value
-                          ? 'rgba(255,255,255,0.08)'
-                          : 'transparent',
-                      color: 'rgba(255,255,255,0.55)',
-                      cursor: 'pointer',
-                      borderRight: idx < 1 ? '1px solid rgba(255,255,255,0.08)' : 'none',
-                      boxShadow:
-                        permissionLevel === opt.value
-                          ? 'inset 0 -2px 8px rgba(255,255,255,0.15)'
-                          : 'none',
-                      transition: 'all 0.2s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (permissionLevel !== opt.value) {
-                        e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                        e.currentTarget.style.color = 'rgba(255,255,255,0.75)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background =
-                        permissionLevel === opt.value
+                ].map((opt, idx) => {
+                  const optionMode = normalizeModeValue(opt.value);
+                  const isSelected = normalizedPermissionMode === optionMode;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => handleSelectLevel(opt.value)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: 'none',
+                        background: isSelected ? 'rgba(255,255,255,0.08)' : 'transparent',
+                        color: 'rgba(255,255,255,0.55)',
+                        cursor: 'pointer',
+                        borderRight: idx < 1 ? '1px solid rgba(255,255,255,0.08)' : 'none',
+                        boxShadow: isSelected ? 'inset 0 -2px 8px rgba(255,255,255,0.15)' : 'none',
+                        transition: 'all 0.2s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) {
+                          e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                          e.currentTarget.style.color = 'rgba(255,255,255,0.75)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = isSelected
                           ? 'rgba(255,255,255,0.08)'
                           : 'transparent';
-                      e.currentTarget.style.color = 'rgba(255,255,255,0.55)';
-                    }}
-                  >
-                    <span style={{ fontSize: '0.86rem', fontWeight: 600, letterSpacing: 0.2 }}>
-                      {opt.title}
-                    </span>
-                  </button>
-                ))}
+                        e.currentTarget.style.color = 'rgba(255,255,255,0.55)';
+                      }}
+                    >
+                      <span style={{ fontSize: '0.86rem', fontWeight: 600, letterSpacing: 0.2 }}>
+                        {opt.title}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
