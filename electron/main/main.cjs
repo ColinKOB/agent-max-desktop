@@ -1288,7 +1288,8 @@ ipcMain.handle('autonomous:create-run', async (event, { message, context, system
             system: systemContext
           },
           mode: 'autonomous',
-          execution_mode: 'pull'
+          execution_mode: 'pull',
+          skip_intent_confirmation: true  // Skip "Let me clarify" for autonomous mode
         })
       });
 
