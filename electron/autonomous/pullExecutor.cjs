@@ -1372,42 +1372,61 @@ class PullExecutor {
     async executeScreenshot(args) {
         try {
             console.log('[PullExecutor] Taking screenshot of user screen');
-            
-            const { desktopCapturer } = require('electron');
+
+            const { desktopCapturer, screen } = require('electron');
             const os = require('os');
             const path = require('path');
             const fs = require('fs').promises;
-            
-            // Get all screen sources
+
+            // Get the primary display's actual dimensions
+            // This gives us the LOGICAL dimensions (what AppleScript uses for click coordinates)
+            const primaryDisplay = screen.getPrimaryDisplay();
+            const { width: logicalWidth, height: logicalHeight } = primaryDisplay.size;
+            const scaleFactor = primaryDisplay.scaleFactor;
+
+            console.log(`[PullExecutor] Screen: ${logicalWidth}x${logicalHeight} (scale factor: ${scaleFactor}x)`);
+
+            // CRITICAL FIX: Capture at LOGICAL screen size (not a fixed 1920x1080)
+            // This ensures coordinates in the screenshot match AppleScript click coordinates
             const sources = await desktopCapturer.getSources({
                 types: ['screen'],
-                thumbnailSize: { width: 1920, height: 1080 }
+                thumbnailSize: { width: logicalWidth, height: logicalHeight }
             });
-            
+
             if (!sources || sources.length === 0) {
                 throw new Error('No screen sources available');
             }
-            
+
             // Get the primary screen (first one)
             const primaryScreen = sources[0];
             const thumbnail = primaryScreen.thumbnail;
-            
+
             // Convert to base64 PNG
             const screenshotB64 = thumbnail.toPNG().toString('base64');
-            
+
             // Optionally save to temp file for debugging
             const tempPath = path.join(os.tmpdir(), `agent-max-screenshot-${Date.now()}.png`);
             await fs.writeFile(tempPath, thumbnail.toPNG());
             console.log(`[PullExecutor] Screenshot saved to: ${tempPath}`);
-            
+
+            // Store screen dimensions for coordinate validation
+            this.lastScreenDimensions = {
+                width: logicalWidth,
+                height: logicalHeight,
+                scaleFactor: scaleFactor,
+                capturedAt: Date.now()
+            };
+
             return {
                 success: true,
-                stdout: `Screenshot captured (${thumbnail.getSize().width}x${thumbnail.getSize().height})`,
+                stdout: `Screenshot captured (${thumbnail.getSize().width}x${thumbnail.getSize().height}, logical: ${logicalWidth}x${logicalHeight})`,
                 stderr: '',
                 exit_code: 0,
                 screenshot_b64: screenshotB64,
                 screenshot_path: tempPath,
-                dimensions: thumbnail.getSize()
+                dimensions: thumbnail.getSize(),
+                logical_dimensions: { width: logicalWidth, height: logicalHeight },
+                scale_factor: scaleFactor
             };
         } catch (error) {
             console.error('[PullExecutor] Screenshot error:', error);
@@ -1828,10 +1847,14 @@ class PullExecutor {
      */
     async executeMouseClick(args) {
         try {
-            const x = args.x;
-            const y = args.y;
+            let x = args.x;
+            let y = args.y;
             const button = args.button || 'left'; // left, right, middle
             const clicks = args.clicks || 1; // 1 = single, 2 = double
+
+            // Optional: source dimensions from which coordinates came (for scaling)
+            const sourceWidth = args.source_width;
+            const sourceHeight = args.source_height;
 
             if (x === undefined || y === undefined) {
                 return {
@@ -1841,34 +1864,99 @@ class PullExecutor {
                 };
             }
 
-            console.log(`[PullExecutor] Mouse click at (${x}, ${y}), button: ${button}, clicks: ${clicks}`);
-
             const os = require('os');
-            if (os.platform() === 'darwin') {
-                // macOS: Use AppleScript with System Events
-                // Note: Requires accessibility permissions
-                const clickCmd = clicks === 2 ? 'double click' : 'click';
-                const script = `
-                    tell application "System Events"
-                        ${clickCmd} at {${x}, ${y}}
-                    end tell
-                `;
-
-                const result = await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`);
-
-                return {
-                    success: true,
-                    stdout: `Clicked at (${x}, ${y})`,
-                    stderr: '',
-                    exit_code: 0
-                };
-            } else {
+            if (os.platform() !== 'darwin') {
                 return {
                     success: false,
                     error: `Mouse click not implemented for ${os.platform()}. Install robotjs for cross-platform support.`,
                     exit_code: 1
                 };
             }
+
+            // Get current screen dimensions for validation
+            const { screen } = require('electron');
+            const primaryDisplay = screen.getPrimaryDisplay();
+            const { width: screenWidth, height: screenHeight } = primaryDisplay.size;
+
+            console.log(`[PullExecutor] Click requested at (${x}, ${y}), screen: ${screenWidth}x${screenHeight}`);
+
+            // COORDINATE SCALING: If source dimensions provided and different from screen, scale
+            if (sourceWidth && sourceHeight && (sourceWidth !== screenWidth || sourceHeight !== screenHeight)) {
+                const scaleX = screenWidth / sourceWidth;
+                const scaleY = screenHeight / sourceHeight;
+                const originalX = x;
+                const originalY = y;
+                x = Math.round(x * scaleX);
+                y = Math.round(y * scaleY);
+                console.log(`[PullExecutor] Scaled coordinates: (${originalX}, ${originalY}) -> (${x}, ${y}) (scale: ${scaleX.toFixed(2)}x${scaleY.toFixed(2)})`);
+            }
+
+            // SAFETY VALIDATION: Ensure coordinates are within screen bounds
+            if (x < 0 || x >= screenWidth || y < 0 || y >= screenHeight) {
+                console.error(`[PullExecutor] SAFETY BLOCK: Coordinates (${x}, ${y}) out of screen bounds (${screenWidth}x${screenHeight})`);
+                return {
+                    success: false,
+                    error: `Coordinates (${x}, ${y}) are outside screen bounds (0-${screenWidth}, 0-${screenHeight}). Take a new screenshot to recalculate.`,
+                    exit_code: 1,
+                    safety_blocked: true
+                };
+            }
+
+            // SAFETY: Warn if clicking in extreme corners (might be system areas)
+            const cornerMargin = 5;
+            if (x < cornerMargin || y < cornerMargin || x >= screenWidth - cornerMargin || y >= screenHeight - cornerMargin) {
+                console.warn(`[PullExecutor] Warning: Clicking near screen edge at (${x}, ${y})`);
+            }
+
+            console.log(`[PullExecutor] Mouse click at (${x}, ${y}), button: ${button}, clicks: ${clicks}`);
+
+            // macOS: Try cliclick first (more reliable), fallback to AppleScript
+            // cliclick is a command-line tool for mouse clicks: brew install cliclick
+            let clickSucceeded = false;
+            let clickMethod = '';
+
+            // Try cliclick first (recommended - more reliable)
+            try {
+                // cliclick syntax: c: = click, dc: = double-click, rc: = right-click
+                let cmd = clicks === 2 ? 'dc' : 'c';
+                if (button === 'right') cmd = 'rc';
+                await execAsync(`cliclick ${cmd}:${x},${y}`);
+                clickSucceeded = true;
+                clickMethod = 'cliclick';
+                console.log(`[PullExecutor] Click succeeded using cliclick`);
+            } catch (cliclickError) {
+                console.log(`[PullExecutor] cliclick not available, trying AppleScript...`);
+
+                // Fallback to AppleScript
+                try {
+                    const clickCmd = clicks === 2 ? 'double click' : 'click';
+                    const script = `
+                        tell application "System Events"
+                            ${clickCmd} at {${x}, ${y}}
+                        end tell
+                    `;
+                    await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`);
+                    clickSucceeded = true;
+                    clickMethod = 'AppleScript';
+                    console.log(`[PullExecutor] Click succeeded using AppleScript`);
+                } catch (appleScriptError) {
+                    // If both fail, throw error with helpful message
+                    throw new Error(
+                        `Click failed. Install cliclick (brew install cliclick) or grant accessibility permissions. ` +
+                        `cliclick error: ${cliclickError.message}, AppleScript error: ${appleScriptError.message}`
+                    );
+                }
+            }
+
+            return {
+                success: true,
+                stdout: `Clicked at (${x}, ${y}) on ${screenWidth}x${screenHeight} screen using ${clickMethod}`,
+                stderr: '',
+                exit_code: 0,
+                clicked_at: { x, y },
+                screen_dimensions: { width: screenWidth, height: screenHeight },
+                click_method: clickMethod
+            };
         } catch (error) {
             console.error(`[PullExecutor] Mouse click error:`, error);
             return {
