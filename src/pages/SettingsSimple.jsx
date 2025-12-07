@@ -3,6 +3,7 @@ import { GoogleConnect } from '../components/GoogleConnect';
 import telemetry from '../services/telemetry';
 import apiConfigManager from '../config/apiConfig';
 import packageJson from '../../package.json';
+import logo from '../assets/AgentMaxLogo.png';
 
 export default function SettingsSimple() {
   // Preferences
@@ -218,6 +219,21 @@ export default function SettingsSimple() {
           WebkitBackdropFilter: 'blur(10px)'
         }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.95)' }}>About</h2>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginBottom: 16
+          }}>
+            <img
+              src={logo}
+              alt="Agent Max Logo"
+              style={{
+                height: 48,
+                width: 48,
+                filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35))'
+              }}
+            />
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>Version</span>

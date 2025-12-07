@@ -12,6 +12,7 @@ import { createLogger } from './services/logger';
 import { PermissionProvider } from './contexts/PermissionContext';
 import UpdateNotification from './components/UpdateNotification';
 import { UserInputDialog } from './components/UserInputDialog';
+import logo from './assets/AgentMaxLogo.png';
 
 const logger = createLogger('App');
 
@@ -277,8 +278,35 @@ function App({ windowMode = 'single' }) {
   return (
     <PermissionProvider>
       { (isLoading || showWelcome === null) ? (
-        <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div style={{ color:'#7a7a85' }}>Loading Agent Max...</div>
+        <div style={{
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 16
+        }}>
+          <img
+            src={logo}
+            alt="Agent Max"
+            style={{
+              height: 40,
+              width: 40,
+              filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3))',
+              animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+            }}
+          />
+          <div style={{ color: '#7a7a85' }}>Loading Agent Max...</div>
+          <style>{`
+            @keyframes pulse {
+              0%, 100% {
+                opacity: 1;
+              }
+              50% {
+                opacity: 0.5;
+              }
+            }
+          `}</style>
         </div>
       ) : (
         <AppleFloatBar

@@ -3,6 +3,7 @@ import SettingsSimple from './SettingsSimple.jsx';
 import { BillingSettings } from '../components/billing/BillingSettings.jsx';
 import ConversationHistory from '../components/ConversationHistory.jsx';
 import DeepDiveTab from '../components/settings/DeepDiveTab.jsx';
+import logo from '../assets/AgentMaxLogo.png';
 
 export default function SettingsApp() {
   const [activeTab, setActiveTab] = useState('settings');
@@ -125,7 +126,18 @@ export default function SettingsApp() {
         boxShadow: '0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)'
       }}>
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: 'rgba(255,255,255,0.95)' }}>Agent Max</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <img
+              src={logo}
+              alt="Agent Max"
+              style={{
+                height: 24,
+                width: 24,
+                filter: 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3))'
+              }}
+            />
+            <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: 'rgba(255,255,255,0.95)' }}>Agent Max</h1>
+          </div>
 
           {/* Tabs */}
           <nav aria-label="Settings navigation">

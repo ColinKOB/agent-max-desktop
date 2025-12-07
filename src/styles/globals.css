@@ -391,6 +391,9 @@
   box-shadow: 0 8px 22px rgba(6, 7, 12, 0.32);
   pointer-events: none;
   z-index: 0;
+  /* Fix for Chromium backdrop-filter rendering glitches after extended time */
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .amx-mini > * {
@@ -421,6 +424,10 @@
   user-select: none;
   -webkit-user-select: none;
   -webkit-app-region: drag;
+  /* Prevent rendering artifacts with backdrop-filter */
+  will-change: auto;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .amx-mini-drag-zone {
@@ -496,24 +503,24 @@
   -webkit-app-region: drag;  /* Drag handle is for dragging */
   pointer-events: auto;  /* Allow interaction */
   left: 8px;    /* 8px from left edge */
-  
+
   /* Size of the entire grid */
   width: 12px;   /* 2 dots × 3px + 1 gap × 3px = 9px (with some extra space) */
   height: 18px;  /* 3 dots × 3px + 2 gaps × 3px = 15px (with some extra space) */
-  
+
   /* Grid layout for dots */
   display: grid;
   grid-template-columns: repeat(2, 3px);  /* 2 columns, each 3px wide */
   grid-template-rows: repeat(3, 3px);     /* 3 rows, each 3px tall */
   gap: 3px;  /* Space between dots */
   /* TIP: Increase gap (3px → 4px) for more spaced out dots */
-  
+
   /* Interaction */
   cursor: grab;  /* Shows "grab hand" cursor */
   z-index: 10;   /* Appears above other elements */
   pointer-events: auto;  /* Allow dragging via this handle */
   -webkit-app-region: drag;  /* This area triggers window dragging */
-  
+
   /* Visibility */
   opacity: 0.4;  /* 40% visible (subtle) */
   /* TIP: Increase to 0.6 or 0.8 for more visible dots */
