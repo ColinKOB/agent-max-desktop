@@ -79,6 +79,7 @@ import MemoryToast from '../MemoryToast';
 import { qualifiesAsDeepDive, createDeepDive } from '../../services/deepDiveService';
 import { OnboardingFlow } from '../onboarding/OnboardingFlow';
 import ExecutionProgress from '../ExecutionProgress/ExecutionProgress';
+import LiveActivityFeed from '../LiveActivityFeed/LiveActivityFeed';
 import TypewriterMessage from '../TypewriterMessage/TypewriterMessage';
 import ActivityFeed from '../ActivityFeed/ActivityFeed';
 
@@ -436,6 +437,9 @@ export default function AppleFloatBar({
   const [activityLog, setActivityLog] = useState([]); // [{id, text, status: 'done'|'running', timestamp, duration}]
   const [activityStartTime, setActivityStartTime] = useState(null); // When current activity started
   const activityIdCounter = useRef(0);
+  // LiveActivityFeed state
+  const [liveActivitySteps, setLiveActivitySteps] = useState([]); // [{id, status, description, technicalDetails, error, timestamp}]
+  const [initialAIMessage, setInitialAIMessage] = useState(null); // Conversational initial response
   // Track which message timestamps should animate (only new messages)
   const animatedMessagesRef = useRef(new Set());
   const lastUserPromptRef = useRef('');
@@ -1910,6 +1914,7 @@ export default function AppleFloatBar({
           const msg = log.message || 'Processing...';
           // Prefer status_summary for user-friendly display
           const statusSummary = log.status_summary || msg;
+          const stepId = log.step_id || `step-${Date.now()}`;
 
           // Extract action name for user-friendly notifications
           const extractActionName = (message) => {
@@ -1930,6 +1935,17 @@ export default function AppleFloatBar({
             return 'Action';
           };
 
+          // Build technical details from available data
+          const buildTechnicalDetails = () => {
+            const parts = [];
+            if (log.action_type) parts.push(`Action: ${log.action_type}`);
+            if (log.stdout) parts.push(`Output:\n${log.stdout}`);
+            if (log.stderr) parts.push(`Error:\n${log.stderr}`);
+            if (log.exit_code !== undefined) parts.push(`Exit Code: ${log.exit_code}`);
+            if (log.message && log.message !== statusSummary) parts.push(`Details: ${log.message}`);
+            return parts.join('\n\n');
+          };
+
           // Handle different exec_log statuses
           switch (status) {
             case 'running':
@@ -1938,6 +1954,18 @@ export default function AppleFloatBar({
               // Add to activity feed - complete any previous running activity first
               completeCurrentActivity();
               addActivity(statusSummary || msg || 'Processing...');
+
+              // Add new running step to LiveActivityFeed
+              setLiveActivitySteps((prev) => [
+                ...prev,
+                {
+                  id: stepId,
+                  status: 'running',
+                  description: statusSummary,
+                  technicalDetails: buildTechnicalDetails(),
+                  timestamp: Date.now(),
+                },
+              ]);
               break;
 
             case 'info':
@@ -1972,6 +2000,15 @@ export default function AppleFloatBar({
                 },
               });
               setThinkingStatus(actionName);
+
+              // Mark step as completed in LiveActivityFeed
+              setLiveActivitySteps((prev) =>
+                prev.map((step) =>
+                  step.id === stepId
+                    ? { ...step, status: 'completed', technicalDetails: buildTechnicalDetails() }
+                    : step
+                )
+              );
               break;
 
             case 'failed':
@@ -1989,6 +2026,20 @@ export default function AppleFloatBar({
                 },
               });
               setThinkingStatus('Action failed');
+
+              // Mark step as failed in LiveActivityFeed
+              setLiveActivitySteps((prev) =>
+                prev.map((step) =>
+                  step.id === stepId
+                    ? {
+                        ...step,
+                        status: 'failed',
+                        error: log.error || log.stderr || reason,
+                        technicalDetails: buildTechnicalDetails(),
+                      }
+                    : step
+                )
+              );
               break;
 
             case 'replanning':
@@ -3588,12 +3639,21 @@ export default function AppleFloatBar({
             clearActivityLog();
             addActivity(runTracker.intent || 'Starting task...');
 
+            // Clear live activity feed for new task
+            setLiveActivitySteps([]);
+            setInitialAIMessage(null);
+
             // Start polling for updates - iterative execution will provide status_summary
             pullService.pollRunStatus(runTracker.runId, (status) => {
               console.log('[FloatBar] Iterative status update:', status);
               console.log('[FloatBar] Status keys:', Object.keys(status));
               console.log('[FloatBar] Has final_summary:', !!status.final_summary);
               console.log('[FloatBar] Has final_response:', !!status.final_response);
+
+              // Capture initial message on first action (if present)
+              if (status.initial_message && !initialAIMessage) {
+                setInitialAIMessage(status.initial_message);
+              }
 
               // Update activity feed with current status
               if (status.current_status_summary && status.status === 'running') {
@@ -5639,14 +5699,10 @@ export default function AppleFloatBar({
                     </div>
                   </div>
                   {/* Show execution progress checklist after user message */}
-                  {shouldShowProgress && (
-                    <ExecutionProgress
-                      steps={executionPlan.steps}
-                      stepStatuses={stepStatuses}
-                      currentStep={currentStep}
-                      summary={executionSummary}
-                      currentAction={thinkingStatus}
-                      startTime={executionStartTime}
+                  {shouldShowProgress && liveActivitySteps.length > 0 && (
+                    <LiveActivityFeed
+                      activitySteps={liveActivitySteps}
+                      initialMessage={initialAIMessage}
                     />
                   )}
                 </React.Fragment>
