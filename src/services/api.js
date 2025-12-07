@@ -519,14 +519,28 @@ export const chatAPI = {
     const baseURL = cfg.baseURL || API_BASE_URL || 'http://localhost:8000';
 
     // Derive mode from user context or localStorage
-    // NOTE: 'helpful' mode is deprecated - default to 'chatty'
+    // ONLY TWO MODES: chatty (read-only) and autonomous (full access)
+    // All deprecated names are mapped here and nowhere else
     let requestedMode = 'chatty';
     try {
-      requestedMode = (userContext && userContext.__mode) || localStorage.getItem('permission_level') || 'chatty';
-      if (requestedMode === 'powerful') requestedMode = 'autonomous';
-      if (requestedMode === 'helpful') requestedMode = 'chatty'; // Migrate helpful → chatty
-      const allowed = new Set(['chatty', 'autonomous']);
-      requestedMode = allowed.has(requestedMode) ? requestedMode : 'chatty';
+      const rawMode = (userContext && userContext.__mode) || localStorage.getItem('permission_level') || 'chatty';
+
+      // Map deprecated mode names to valid ones
+      const modeMapping = {
+        'chatty': 'chatty',
+        'autonomous': 'autonomous',
+        // Deprecated mappings (logged as warnings)
+        'helpful': 'chatty',
+        'powerful': 'autonomous',
+        'auto': 'autonomous',
+      };
+
+      requestedMode = modeMapping[rawMode] || 'chatty';
+
+      // Log if deprecated mode was used
+      if (['helpful', 'powerful', 'auto'].includes(rawMode)) {
+        console.warn(`[Mode] Deprecated mode '${rawMode}' used - mapped to '${requestedMode}'. Update your code!`);
+      }
     } catch (_) {
       requestedMode = 'chatty';
     }

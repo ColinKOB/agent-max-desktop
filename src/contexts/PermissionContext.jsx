@@ -1,42 +1,76 @@
 /**
  * Permission Context
- * 
+ *
  * Global state management for user's permission level
  * Provides permission level and functions to update it
+ *
+ * ONLY TWO VALID MODES:
+ * - 'chatty': Read-only assistant mode
+ * - 'autonomous': Full autonomous execution mode
+ *
+ * DEPRECATED (mapped automatically):
+ * - 'helpful' -> 'chatty'
+ * - 'powerful' -> 'autonomous'
+ * - 'auto' -> 'autonomous'
  */
 import { createContext, useContext, useState, useEffect } from 'react';
 import { permissionAPI } from '../services/api';
 
 const PermissionContext = createContext();
 
+/**
+ * Normalize permission level to one of the two valid modes.
+ * This is the ONLY place where deprecated mode names should be mapped.
+ */
+function normalizeMode(mode) {
+  if (!mode) return 'chatty';
+
+  const modeMapping = {
+    'chatty': 'chatty',
+    'autonomous': 'autonomous',
+    // Deprecated mappings
+    'helpful': 'chatty',
+    'powerful': 'autonomous',
+    'auto': 'autonomous',
+  };
+
+  const normalized = modeMapping[mode.toLowerCase()];
+  if (!normalized) {
+    console.warn(`[Mode] Unknown mode '${mode}' - defaulting to 'chatty'`);
+    return 'chatty';
+  }
+
+  if (['helpful', 'powerful', 'auto'].includes(mode.toLowerCase())) {
+    console.warn(`[Mode] Deprecated mode '${mode}' used - mapped to '${normalized}'. Update your code!`);
+  }
+
+  return normalized;
+}
+
 export function PermissionProvider({ children }) {
-  const [level, setLevel] = useState('chatty'); // Default - chatty (read-only) or auto (full capabilities)
+  const [level, setLevel] = useState('chatty');
   const [capabilities, setCapabilities] = useState({
     can_do: [],
     requires_approval: []
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // Load permission level on mount
   useEffect(() => {
     loadPermissionLevel();
   }, []);
-  
+
   const loadPermissionLevel = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await permissionAPI.getLevel();
       const data = response.data || response;
-      
-      // Normalize permission level to valid values
-      let normalizedLevel = data.permission_level || 'chatty';
-      // Migrate deprecated values: helpful/powerful/autonomous -> auto
-      if (['helpful', 'powerful', 'autonomous'].includes(normalizedLevel)) {
-        normalizedLevel = 'auto';
-      }
+
+      // Normalize permission level using single source of truth
+      const normalizedLevel = normalizeMode(data.permission_level);
       setLevel(normalizedLevel);
       setCapabilities({
         can_do: data.can_do || data.capabilities?.can_do || [],
@@ -46,54 +80,48 @@ export function PermissionProvider({ children }) {
       console.error('Failed to load permission level:', err);
       setError(err.message || 'Failed to load permission level');
       try {
-        let saved = localStorage.getItem('permission_level');
+        const saved = localStorage.getItem('permission_level');
         if (saved) {
-          // Migrate legacy values to valid ones: helpful/powerful/autonomous -> auto
-          if (['helpful', 'powerful', 'autonomous'].includes(saved)) {
-            saved = 'auto';
-            localStorage.setItem('permission_level', 'auto');
+          const normalized = normalizeMode(saved);
+          // Update localStorage if it had a deprecated value
+          if (saved !== normalized) {
+            localStorage.setItem('permission_level', normalized);
           }
-          setLevel(saved);
+          setLevel(normalized);
         }
       } catch {}
-      // Keep default values on error
     } finally {
       setLoading(false);
     }
   };
-  
+
   /**
    * Update permission level
    *
-   * Valid levels: 'chatty' (default) or 'auto' (full capabilities)
-   * Backend also accepts 'autonomous' as an alias for 'auto'
-   *
-   * ⚠️ ARCHIVED/DEPRECATED - DO NOT USE:
-   * // 'helpful' and 'powerful' are NO LONGER VALID
-   * // They will be rejected by the backend with a 400 error
+   * Valid levels: 'chatty' or 'autonomous'
    */
   const updateLevel = async (newLevel) => {
+    // Normalize the level before saving
+    const normalized = normalizeMode(newLevel);
     try {
-      // Only 'chatty' and 'auto' (or 'autonomous' alias) are valid
-      try { localStorage.setItem('permission_level', newLevel); } catch {}
-      setLevel(newLevel);
-      await permissionAPI.updateLevel(newLevel);
+      try { localStorage.setItem('permission_level', normalized); } catch {}
+      setLevel(normalized);
+      await permissionAPI.updateLevel(normalized);
       await loadPermissionLevel(); // Reload to get new capabilities
     } catch (err) {
       console.error('Failed to update permission level:', err);
-      try { localStorage.setItem('permission_level', newLevel); } catch {}
-      setLevel(newLevel);
-      throw err; // Let the component handle the error
+      try { localStorage.setItem('permission_level', normalized); } catch {}
+      setLevel(normalized);
+      throw err;
     }
   };
-  
+
   const checkSafety = async (message, context = {}) => {
     try {
       const response = await permissionAPI.check(message, context);
       return response.data || response;
     } catch (err) {
       console.error('Safety check failed:', err);
-      // Return safe default on error
       return {
         allowed: false,
         requires_approval: true,
@@ -106,7 +134,7 @@ export function PermissionProvider({ children }) {
       };
     }
   };
-  
+
   const value = {
     level,
     capabilities,
@@ -116,7 +144,7 @@ export function PermissionProvider({ children }) {
     checkSafety,
     reload: loadPermissionLevel
   };
-  
+
   return (
     <PermissionContext.Provider value={value}>
       {children}
@@ -126,18 +154,13 @@ export function PermissionProvider({ children }) {
 
 export function usePermission() {
   const context = useContext(PermissionContext);
-  
+
   if (!context) {
-    // Graceful fallback if Provider is not mounted (e.g., alternate entry points or HMR)
+    // Graceful fallback if Provider is not mounted
     const fallbackLevel = (() => {
       try {
-        let saved = localStorage.getItem('permission_level');
-        // Migrate deprecated values
-        if (saved && ['helpful', 'powerful', 'autonomous'].includes(saved)) {
-          saved = 'auto';
-          localStorage.setItem('permission_level', 'auto');
-        }
-        return saved || 'chatty';
+        const saved = localStorage.getItem('permission_level');
+        return normalizeMode(saved);
       } catch { return 'chatty'; }
     })();
     return {
@@ -146,9 +169,10 @@ export function usePermission() {
       loading: false,
       error: null,
       updateLevel: async (newLevel) => {
+        const normalized = normalizeMode(newLevel);
         try {
-          await permissionAPI.updateLevel(newLevel);
-          try { localStorage.setItem('permission_level', newLevel); } catch {}
+          await permissionAPI.updateLevel(normalized);
+          try { localStorage.setItem('permission_level', normalized); } catch {}
         } catch {}
       },
       checkSafety: async () => ({
@@ -164,7 +188,7 @@ export function usePermission() {
       reload: async () => {}
     };
   }
-  
+
   return context;
 }
 

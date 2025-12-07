@@ -1,8 +1,12 @@
 /**
  * Permission Level Selector Component
  *
- * Allows users to select their permission level (Chatty or Auto)
+ * Allows users to select their permission level (Chatty or Autonomous)
  * with glass morphism design following GLASS_DESIGN_SYSTEM.md
+ *
+ * ONLY TWO VALID MODES:
+ * - 'chatty': Read-only assistant mode
+ * - 'autonomous': Full autonomous execution mode
  *
  * Design System:
  * - Panel opacity: 55% (var(--panel))
@@ -14,21 +18,17 @@
 import { useState, useEffect } from 'react';
 
 export default function PermissionLevelSelector({ currentLevel, onChange, loading }) {
-  // Default to 'chatty' - the only valid levels are 'chatty' and 'auto'
+  // Default to 'chatty' - the only valid levels are 'chatty' and 'autonomous'
   const [selected, setSelected] = useState(currentLevel || 'chatty');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  
+
   /**
    * Permission Levels - Only TWO levels are supported:
    * - chatty: Default conversational mode (read-only)
-   * - auto: Full autonomous capabilities
+   * - autonomous: Full autonomous capabilities
    *
-   * ⚠️ ARCHIVED/DEPRECATED - DO NOT USE:
-   * // { value: 'helpful', ... }  // REMOVED - use 'auto' instead
-   * // { value: 'powerful', ... } // REMOVED - use 'auto' instead
-   * // { value: 'autonomous', ... } // Backend alias for 'auto' - use 'auto' directly
-   * // These were removed because the backend only supports chatty/auto.
+   * DEPRECATED (do not use): 'helpful', 'powerful', 'auto'
    */
   const levels = [
     {
@@ -45,9 +45,9 @@ export default function PermissionLevelSelector({ currentLevel, onChange, loadin
       approvals: ['Financial operations']
     },
     {
-      value: 'auto',
+      value: 'autonomous',
       icon: '🤖',
-      name: 'Auto (Full Access)',
+      name: 'Autonomous (Full Access)',
       description: 'Full autonomous capabilities with multi-step execution',
       capabilities: [
         'Everything in Chatty mode',
