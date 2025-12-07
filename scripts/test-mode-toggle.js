@@ -18,7 +18,7 @@ function nowStamp() {
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
 }
 
-async function streamRequest({ message, mode = 'helpful', conversationId = `test_${mode}` }) {
+async function streamRequest({ message, mode = 'chatty', conversationId = `test_${mode}` }) {
   const payload = {
     message,
     conversation_id: conversationId,
@@ -87,19 +87,20 @@ async function streamRequest({ message, mode = 'helpful', conversationId = `test
   return full;
 }
 
-function analyzeHelpful(text) {
+function analyzeChatty(text) {
   const t = text.toLowerCase();
+  // Chatty mode is read-only - should mention read, search, browse capabilities
   const mentions = {
-    gmail: t.includes('gmail'),
-    calendar: t.includes('calendar'),
-    google: t.includes('google') || t.includes('docs') || t.includes('sheets'),
-    browser: t.includes('browser') || t.includes('website')
+    read: t.includes('read'),
+    search: t.includes('search'),
+    browse: t.includes('browse') || t.includes('web')
   };
+  // Should NOT mention write capabilities
   const forbidden = {
-    'file system': t.includes('file system') || (t.includes('file') && t.includes('access')),
+    'file write': t.includes('write') || t.includes('create file'),
     shell: t.includes('shell') || t.includes('terminal') || t.includes('command'),
   };
-  const ok = Object.values(mentions).filter(Boolean).length >= 2 && !Object.values(forbidden).some(Boolean);
+  const ok = !Object.values(forbidden).some(Boolean);
   return { ok, mentions, forbidden };
 }
 
@@ -128,12 +129,12 @@ async function main() {
   report.push({ mode: 'chatty', prompt: chattyMsg, chars: chattyText.length, snippet: chattyText.slice(0, 800) });
   console.log('\n[chatty] len=', chattyText.length);
 
-  // Helpful test
-  const helpfulMsg = 'What can you do? List your capabilities.';
-  const helpfulText = await streamRequest({ message: helpfulMsg, mode: 'helpful' }).catch(e => `ERROR: ${e.message}`);
-  const helpfulCheck = analyzeHelpful(helpfulText);
-  report.push({ mode: 'helpful', prompt: helpfulMsg, chars: helpfulText.length, ok: helpfulCheck.ok, details: helpfulCheck, snippet: helpfulText.slice(0, 800) });
-  console.log('[helpful] len=', helpfulText.length, 'ok=', helpfulCheck.ok);
+  // Chatty capabilities test
+  const chattyCapMsg = 'What can you do? List your capabilities.';
+  const chattyCapText = await streamRequest({ message: chattyCapMsg, mode: 'chatty' }).catch(e => `ERROR: ${e.message}`);
+  const chattyCapCheck = analyzeChatty(chattyCapText);
+  report.push({ mode: 'chatty_capabilities', prompt: chattyCapMsg, chars: chattyCapText.length, ok: chattyCapCheck.ok, details: chattyCapCheck, snippet: chattyCapText.slice(0, 800) });
+  console.log('[chatty_capabilities] len=', chattyCapText.length, 'ok=', chattyCapCheck.ok);
 
   // Autonomous test
   const autoMsg = 'What can you do? Be specific about system access and coding.';

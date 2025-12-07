@@ -9,24 +9,23 @@ jest.mock('../../../services/api', () => ({
 }));
 
 describe('PermissionLevelSelector', () => {
-  it('renders all three levels', () => {
-    render(<PermissionLevelSelector currentLevel="helpful" onChange={() => {}} />);
+  it('renders both permission levels', () => {
+    render(<PermissionLevelSelector currentLevel="chatty" onChange={() => {}} />);
     expect(screen.getByText(/Chatty/i)).toBeInTheDocument();
-    expect(screen.getByText(/Helpful/i)).toBeInTheDocument();
-    expect(screen.getByText(/Powerful/i)).toBeInTheDocument();
+    expect(screen.getByText(/Autonomous/i)).toBeInTheDocument();
   });
 
   it('calls onChange and updates via API on selection', async () => {
     const onChange = jest.fn();
     const { permissionAPI } = require('../../../services/api');
 
-    render(<PermissionLevelSelector currentLevel="helpful" onChange={onChange} />);
+    render(<PermissionLevelSelector currentLevel="chatty" onChange={onChange} />);
 
-    fireEvent.click(screen.getByText(/Powerful/i));
+    fireEvent.click(screen.getByText(/Autonomous/i));
 
     await waitFor(() => {
-      expect(permissionAPI.updateLevel).toHaveBeenCalledWith('powerful');
-      expect(onChange).toHaveBeenCalledWith('powerful');
+      expect(permissionAPI.updateLevel).toHaveBeenCalledWith('autonomous');
+      expect(onChange).toHaveBeenCalledWith('autonomous');
     });
   });
 });

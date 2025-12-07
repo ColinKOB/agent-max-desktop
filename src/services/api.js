@@ -520,26 +520,16 @@ export const chatAPI = {
 
     // Derive mode from user context or localStorage
     // ONLY TWO MODES: chatty (read-only) and autonomous (full access)
-    // All deprecated names are mapped here and nowhere else
     let requestedMode = 'chatty';
     try {
       const rawMode = (userContext && userContext.__mode) || localStorage.getItem('permission_level') || 'chatty';
 
-      // Map deprecated mode names to valid ones
-      const modeMapping = {
-        'chatty': 'chatty',
-        'autonomous': 'autonomous',
-        // Deprecated mappings (logged as warnings)
-        'helpful': 'chatty',
-        'powerful': 'autonomous',
-        'auto': 'autonomous',
-      };
-
-      requestedMode = modeMapping[rawMode] || 'chatty';
-
-      // Log if deprecated mode was used
-      if (['helpful', 'powerful', 'auto'].includes(rawMode)) {
-        console.warn(`[Mode] Deprecated mode '${rawMode}' used - mapped to '${requestedMode}'. Update your code!`);
+      // Validate mode - must be chatty or autonomous
+      if (rawMode === 'chatty' || rawMode === 'autonomous') {
+        requestedMode = rawMode;
+      } else {
+        console.error(`[Mode] Invalid mode '${rawMode}' - must be 'chatty' or 'autonomous'. Defaulting to 'chatty'`);
+        requestedMode = 'chatty';
       }
     } catch (_) {
       requestedMode = 'chatty';
@@ -1536,15 +1526,15 @@ export const permissionAPI = {
    * Get current user's permission level
    * @returns {Promise<{permission_level: string, name: string, description: string, capabilities: object}>}
    */
-  getLevel: () => 
+  getLevel: () =>
     DEMO_MODE
       ? Promise.resolve({
-          permission_level: 'helpful',
-          name: 'Helpful (Standard)',
-          description: 'Balanced productivity mode',
+          permission_level: 'chatty',
+          name: 'Chatty (Default)',
+          description: 'Read-only assistant mode',
           capabilities: {
-            can_do: ['Write code', 'Run scripts'],
-            requires_approval: ['Send emails', 'Delete files']
+            can_do: ['Read files', 'Search web'],
+            requires_approval: []
           }
         })
       : (async () => {
@@ -1556,15 +1546,15 @@ export const permissionAPI = {
             } catch (err2) {
               const status = err2?.response?.status || err2?.status || err2?.statusCode;
               if (status === 404 || status === 405 || status === 400 || status === 501) {
-                logger.warn('[Safety] permission-level unavailable, defaulting to helpful');
+                logger.warn('[Safety] permission-level unavailable, defaulting to chatty');
                 return {
                   data: {
-                    permission_level: 'helpful',
-                    name: 'Helpful (Default)',
+                    permission_level: 'chatty',
+                    name: 'Chatty (Default)',
                     description: 'Safety service unavailable',
                     capabilities: {
-                      can_do: ['Write code', 'Run scripts'],
-                      requires_approval: ['Send emails', 'Delete files']
+                      can_do: ['Read files', 'Search web'],
+                      requires_approval: []
                     }
                   }
                 };
@@ -1576,7 +1566,7 @@ export const permissionAPI = {
 
   /**
    * Update user's permission level
-   * @param {string} level - 'chatty', 'helpful', or 'powerful'
+   * @param {string} level - 'chatty' or 'autonomous'
    * @returns {Promise<{success: boolean, permission_level: string, message: string}>}
    */
   updateLevel: (level) =>
@@ -1595,7 +1585,7 @@ export const permissionAPI = {
       return {
         allowed: true,
         requires_approval: false,
-        permission_level: 'helpful',
+        permission_level: 'chatty',
         markers: [],
         reason: 'Demo mode',
         suggested_flow: null,
@@ -1608,12 +1598,12 @@ export const permissionAPI = {
     } catch (err) {
       const status = err?.response?.status || err?.status || err?.statusCode;
       if (status === 404 || status === 405 || status === 400 || status === 501) {
-        // Backend doesn’t implement safety yet – permit by default
+        // Backend doesn't implement safety yet – permit by default
         logger.warn('[Safety] check unavailable, allowing by default:', status);
         return {
           allowed: true,
           requires_approval: false,
-          permission_level: 'helpful',
+          permission_level: 'chatty',
           markers: [],
           reason: 'Safety service unavailable',
           suggested_flow: null,

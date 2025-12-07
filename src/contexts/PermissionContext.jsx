@@ -7,11 +7,6 @@
  * ONLY TWO VALID MODES:
  * - 'chatty': Read-only assistant mode
  * - 'autonomous': Full autonomous execution mode
- *
- * DEPRECATED (mapped automatically):
- * - 'helpful' -> 'chatty'
- * - 'powerful' -> 'autonomous'
- * - 'auto' -> 'autonomous'
  */
 import { createContext, useContext, useState, useEffect } from 'react';
 import { permissionAPI } from '../services/api';
@@ -19,32 +14,18 @@ import { permissionAPI } from '../services/api';
 const PermissionContext = createContext();
 
 /**
- * Normalize permission level to one of the two valid modes.
- * This is the ONLY place where deprecated mode names should be mapped.
+ * Validate permission level is one of the two valid modes.
  */
-function normalizeMode(mode) {
+function validateMode(mode) {
   if (!mode) return 'chatty';
 
-  const modeMapping = {
-    'chatty': 'chatty',
-    'autonomous': 'autonomous',
-    // Deprecated mappings
-    'helpful': 'chatty',
-    'powerful': 'autonomous',
-    'auto': 'autonomous',
-  };
-
-  const normalized = modeMapping[mode.toLowerCase()];
-  if (!normalized) {
-    console.warn(`[Mode] Unknown mode '${mode}' - defaulting to 'chatty'`);
-    return 'chatty';
+  const modeLower = mode.toLowerCase();
+  if (modeLower === 'chatty' || modeLower === 'autonomous') {
+    return modeLower;
   }
 
-  if (['helpful', 'powerful', 'auto'].includes(mode.toLowerCase())) {
-    console.warn(`[Mode] Deprecated mode '${mode}' used - mapped to '${normalized}'. Update your code!`);
-  }
-
-  return normalized;
+  console.error(`[Mode] Invalid mode '${mode}' - must be 'chatty' or 'autonomous'. Defaulting to 'chatty'`);
+  return 'chatty';
 }
 
 export function PermissionProvider({ children }) {
@@ -70,7 +51,7 @@ export function PermissionProvider({ children }) {
       const data = response.data || response;
 
       // Normalize permission level using single source of truth
-      const normalizedLevel = normalizeMode(data.permission_level);
+      const normalizedLevel = validateMode(data.permission_level);
       setLevel(normalizedLevel);
       setCapabilities({
         can_do: data.can_do || data.capabilities?.can_do || [],
@@ -82,7 +63,7 @@ export function PermissionProvider({ children }) {
       try {
         const saved = localStorage.getItem('permission_level');
         if (saved) {
-          const normalized = normalizeMode(saved);
+          const normalized = validateMode(saved);
           // Update localStorage if it had a deprecated value
           if (saved !== normalized) {
             localStorage.setItem('permission_level', normalized);
@@ -102,7 +83,7 @@ export function PermissionProvider({ children }) {
    */
   const updateLevel = async (newLevel) => {
     // Normalize the level before saving
-    const normalized = normalizeMode(newLevel);
+    const normalized = validateMode(newLevel);
     try {
       try { localStorage.setItem('permission_level', normalized); } catch {}
       setLevel(normalized);
@@ -160,7 +141,7 @@ export function usePermission() {
     const fallbackLevel = (() => {
       try {
         const saved = localStorage.getItem('permission_level');
-        return normalizeMode(saved);
+        return validateMode(saved);
       } catch { return 'chatty'; }
     })();
     return {
@@ -169,7 +150,7 @@ export function usePermission() {
       loading: false,
       error: null,
       updateLevel: async (newLevel) => {
-        const normalized = normalizeMode(newLevel);
+        const normalized = validateMode(newLevel);
         try {
           await permissionAPI.updateLevel(normalized);
           try { localStorage.setItem('permission_level', normalized); } catch {}

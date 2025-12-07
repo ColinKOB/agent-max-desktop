@@ -135,7 +135,7 @@ async function testModeComparison() {
   console.log('\n📊 Test 3: Mode Comparison');
   console.log('Testing that modes have different capabilities...\n');
   
-  const modes = ['helpful', 'autonomous'];
+  const modes = ['chatty', 'autonomous'];
   
   for (const mode of modes) {
     console.log(`  Testing ${mode} mode:`);

@@ -190,10 +190,12 @@ const truncateText = (value, limit = 160) => {
   return `${trimmed.slice(0, limit)}…`;
 };
 
-// Normalize permission level values to the two supported modes
-const normalizeModeValue = (level) => {
+// Validate permission level - only two modes supported
+const validateModeValue = (level) => {
   const key = (level || '').toLowerCase();
-  if (key === 'auto' || key === 'autonomous' || key === 'powerful') return 'autonomous';
+  if (key === 'autonomous') return 'autonomous';
+  if (key === 'chatty') return 'chatty';
+  console.error(`[Mode] Invalid mode '${level}' - must be 'chatty' or 'autonomous'`);
   return 'chatty';
 };
 
@@ -842,19 +844,19 @@ export default function AppleFloatBar({
   }, []);
 
   const { level: permissionLevel, updateLevel } = usePermission();
-  const normalizedPermissionMode = useMemo(
-    () => normalizeModeValue(permissionLevel),
+  const validatedPermissionMode = useMemo(
+    () => validateModeValue(permissionLevel),
     [permissionLevel]
   );
-  const permissionModeRef = useRef(normalizeModeValue(permissionLevel));
+  const permissionModeRef = useRef(validateModeValue(permissionLevel));
   useEffect(() => {
-    permissionModeRef.current = normalizedPermissionMode;
-  }, [normalizedPermissionMode]);
-  const permissionKey = normalizedPermissionMode;
+    permissionModeRef.current = validatedPermissionMode;
+  }, [validatedPermissionMode]);
+  const permissionKey = validatedPermissionMode;
   const effectiveMode = permissionKey;
-  const planCardAllowed = false; // Plan cards deprecated with helpful mode
+  const planCardAllowed = false; // Plan cards not used
   const shouldDisplayPlanCard = useCallback(() => {
-    return false; // Plan cards deprecated with helpful mode
+    return false; // Plan cards not used
   }, []);
 
   const showTopExecutionCard = false;
@@ -1738,7 +1740,7 @@ export default function AppleFloatBar({
           setTotalSteps(0);
           setExecutionMode(null);
           executionModeRef.current = null;
-          // Only require desktop actions in autonomous mode (not chatty/helpful)
+          // Only require desktop actions in autonomous mode (not chatty)
           const currentMode = permissionModeRef.current;
           const isAutoMode = currentMode === 'autonomous';
           const isChattyMode = currentMode === 'chatty';
@@ -3010,7 +3012,7 @@ export default function AppleFloatBar({
         __mode:
           typeof resolveMode === 'function'
             ? resolveMode()
-            : localStorage.getItem('permission_level') || 'helpful',
+            : localStorage.getItem('permission_level') || 'chatty',
       };
       // NEW: include current mode so backend can enable tools appropriately
       try {
@@ -4632,15 +4634,14 @@ export default function AppleFloatBar({
   }, [toolMenuOpen]);
   const handleSelectLevel = useCallback(
     async (level) => {
-      const resolvedMode = normalizeModeValue(level);
-      const apiLevel = resolvedMode === 'autonomous' ? 'auto' : 'chatty';
+      const resolvedMode = validateModeValue(level);
       const label = resolvedMode === 'autonomous' ? 'Autonomous' : 'Chatty';
       try {
-        await updateLevel(apiLevel);
+        await updateLevel(resolvedMode);
         toast.success(`Permission level set to ${label}`);
         try {
           // Persist selection so API client can fall back if userContext not present
-          localStorage.setItem('permission_level', apiLevel);
+          localStorage.setItem('permission_level', resolvedMode);
         } catch {}
       } catch (e) {
         toast.error('Failed to update permission level');
@@ -5151,7 +5152,7 @@ export default function AppleFloatBar({
                 cursor: 'pointer',
               }}
             >
-              {resolveMode() === 'autonomous' ? 'auto' : 'chatty'}
+              {resolveMode() === 'autonomous' ? 'autonomous' : 'chatty'}
             </div>
             <div
               onClick={
@@ -5461,13 +5462,12 @@ export default function AppleFloatBar({
                 transition: 'opacity 160ms ease-out, transform 220ms cubic-bezier(.22,.61,.36,1)',
               }}
             >
-              {/* NOTE: 'helpful' mode is deprecated - only show chatty and autonomous */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', height: '100%' }}>
                 {[
                   { value: 'chatty', title: 'Chatty' },
                   { value: 'autonomous', title: 'Autonomous' },
                 ].map((opt, idx) => {
-                  const optionMode = normalizeModeValue(opt.value);
+                  const optionMode = validateModeValue(opt.value);
                   const isSelected = normalizedPermissionMode === optionMode;
                   return (
                     <button

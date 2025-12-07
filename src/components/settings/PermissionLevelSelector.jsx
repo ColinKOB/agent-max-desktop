@@ -27,8 +27,6 @@ export default function PermissionLevelSelector({ currentLevel, onChange, loadin
    * Permission Levels - Only TWO levels are supported:
    * - chatty: Default conversational mode (read-only)
    * - autonomous: Full autonomous capabilities
-   *
-   * DEPRECATED (do not use): 'helpful', 'powerful', 'auto'
    */
   const levels = [
     {
