@@ -84,21 +84,16 @@ class PullExecutorV2 extends PullExecutor {
 
     /**
      * Pull plan from cloud and persist to local state
+     * For iterative runs, we just create an empty run - the first action
+     * will be fetched in executeFromLocalState to avoid wasting an LLM call.
      */
     async pullAndPersistPlan(runId) {
-        console.log(`[PullExecutorV2] Pulling plan for run ${runId}`);
+        console.log(`[PullExecutorV2] Creating run entry for ${runId}`);
 
         try {
-            // Fetch plan from cloud (using Phase 1 pull endpoint)
-            const nextStep = await this.fetchNextStep(runId, -1);
-            
-            if (nextStep.status === 'not_found') {
-                throw new Error(`Run not found: ${runId}`);
-            }
-
-            // For now, we need to fetch the full plan
-            // In future, backend should return full plan in first pull
-            // For now, we'll create a minimal plan structure
+            // Create a minimal run structure
+            // For iterative execution, we don't fetch from cloud here
+            // The first action will be fetched in executeFromLocalState
             const plan = {
                 plan_id: runId,
                 run_id: runId,
@@ -109,11 +104,11 @@ class PullExecutorV2 extends PullExecutor {
 
             // Create run in local state
             this.stateStore.createRun(runId, plan);
-            
-            console.log(`[PullExecutorV2] Plan persisted to local state`);
-            
+
+            console.log(`[PullExecutorV2] Run entry created in local state`);
+
         } catch (error) {
-            console.error(`[PullExecutorV2] Error pulling plan:`, error);
+            console.error(`[PullExecutorV2] Error creating run:`, error);
             throw error;
         }
     }
@@ -154,12 +149,20 @@ class PullExecutorV2 extends PullExecutor {
                     // Save new step to local state
                     this.stateStore.saveStep(runId, cloudStep.step_index, cloudStep.step);
                     step = this.stateStore.getStep(cloudStep.step.step_id);
-                    
+
                     // Update run with current status_summary for UI visibility
                     const statusSummary = cloudStep.status_summary || cloudStep.step?.description || `Executing step ${cloudStep.step_index + 1}`;
-                    this.stateStore.updateRun(runId, {
+                    const updates = {
                         current_status_summary: statusSummary
-                    });
+                    };
+
+                    // Save initial_message if present (first action only)
+                    if (cloudStep.initial_message) {
+                        updates.initial_message = cloudStep.initial_message;
+                        console.log(`[PullExecutorV2] Captured initial_message: ${cloudStep.initial_message}`);
+                    }
+
+                    this.stateStore.updateRun(runId, updates);
                     console.log(`[PullExecutorV2] Updated status_summary: ${statusSummary}`);
                 } else {
                     console.log(`[PullExecutorV2] Unexpected cloud step status: ${cloudStep.status}, stopping execution`);

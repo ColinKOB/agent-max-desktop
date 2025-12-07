@@ -176,6 +176,8 @@ class ExecutorManager {
                     final_summary: storeRun.final_response,
                     // Current action status for UI visibility
                     current_status_summary: storeRun.current_status_summary,
+                    // Initial AI message (for first action acknowledgment)
+                    initial_message: storeRun.initial_message,
                     // Include timing from activeRun if available
                     startedAt: activeRun?.startedAt,
                     completedAt: storeRun.completed_at

@@ -79,6 +79,14 @@ class DesktopStateStore {
                 this.db.exec("ALTER TABLE runs ADD COLUMN current_status_summary TEXT");
                 console.log('[DesktopStateStore] Migration complete: current_status_summary column added');
             }
+
+            // Migration 3: Add initial_message column for first action acknowledgment
+            const hasInitialMessage = tableInfo.some(col => col.name === 'initial_message');
+            if (!hasInitialMessage) {
+                console.log('[DesktopStateStore] Running migration: adding initial_message column');
+                this.db.exec("ALTER TABLE runs ADD COLUMN initial_message TEXT");
+                console.log('[DesktopStateStore] Migration complete: initial_message column added');
+            }
         } catch (err) {
             console.error('[DesktopStateStore] Migration error:', err.message);
         }
@@ -152,6 +160,10 @@ class DesktopStateStore {
         if (updates.current_status_summary !== undefined) {
             fields.push('current_status_summary = ?');
             values.push(updates.current_status_summary);
+        }
+        if (updates.initial_message !== undefined) {
+            fields.push('initial_message = ?');
+            values.push(updates.initial_message);
         }
 
         // Always update updated_at

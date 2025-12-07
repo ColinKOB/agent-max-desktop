@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, ChevronRight, ChevronDown } from 'lucide-react';
+import { Loader2, ChevronRight, ChevronDown, X } from 'lucide-react';
 import './LiveActivityFeed.css';
 
 /**
@@ -41,13 +41,13 @@ export default function LiveActivityFeed({ activitySteps = [], initialMessage })
           {/* Status Indicator */}
           <div className="activity-step__indicator">
             {status === 'running' && (
-              <Loader2 size={14} className="activity-step__spinner" />
+              <Loader2 size={12} className="activity-step__spinner" />
             )}
             {status === 'completed' && (
               <span className="activity-step__checkmark">✓</span>
             )}
             {status === 'failed' && (
-              <span className="activity-step__failed-indicator" />
+              <X size={12} className="activity-step__failed-indicator" />
             )}
           </div>
 
@@ -62,9 +62,9 @@ export default function LiveActivityFeed({ activitySteps = [], initialMessage })
               aria-label={isExpanded ? 'Collapse details' : 'Expand details'}
             >
               {isExpanded ? (
-                <ChevronDown size={14} />
+                <ChevronDown size={12} />
               ) : (
-                <ChevronRight size={14} />
+                <ChevronRight size={12} />
               )}
             </button>
           )}

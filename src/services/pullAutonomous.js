@@ -243,6 +243,10 @@ class PullAutonomousService {
                     tracker.final_summary = status.final_summary || status.final_response;
                     // Current action status for UI visibility
                     tracker.current_status_summary = status.current_status_summary;
+                    // Initial AI message (first action acknowledgment)
+                    if (status.initial_message) {
+                        tracker.initial_message = status.initial_message;
+                    }
                     
                     console.log('[PullAutonomous] Raw status from IPC:', JSON.stringify(status, null, 2));
                     console.log('[PullAutonomous] Updated tracker:', { 

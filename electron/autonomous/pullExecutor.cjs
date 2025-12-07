@@ -249,7 +249,7 @@ class PullExecutor {
             const response = await fetch(url + params, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${this.apiClient.token}`,
+                    'X-API-Key': this.apiClient.apiKey,
                     'Content-Type': 'application/json'
                 }
             });
@@ -309,12 +309,12 @@ class PullExecutor {
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${this.apiClient.token}`,
+                    'X-API-Key': this.apiClient.apiKey,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(requestBody)
             });
-            
+
             if (!response.ok) {
                 console.error(`[PullExecutor] Arg generation failed: ${response.status}`);
                 return null;
@@ -1888,7 +1888,7 @@ class PullExecutor {
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${this.apiClient.token}`,
+                    'X-API-Key': this.apiClient.apiKey,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({

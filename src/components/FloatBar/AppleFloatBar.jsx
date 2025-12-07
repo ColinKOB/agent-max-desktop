@@ -615,17 +615,87 @@ export default function AppleFloatBar({
       clearActivityLog();
       addActivity(tracker.intent || 'Starting task...');
 
+      // Clear live activity feed for new task
+      setLiveActivitySteps([]);
+      setInitialAIMessage(null);
+
       // Start polling for updates
       pullService.pollRunStatus(tracker.runId, (status) => {
         console.log('[FloatBar] Status update after confirmation:', status);
 
-        if (status.current_status_summary && status.status === 'running') {
-          const currentSummary = status.current_status_summary;
-          if (currentSummary !== thinkingStatus) {
-            completeCurrentActivity();
-            addActivity(currentSummary);
-            setThinkingStatus(currentSummary);
+        // Capture initial message on first action (if present)
+        if (status.initial_message && !initialAIMessage) {
+          setInitialAIMessage(status.initial_message);
+        }
+
+        // Use current_status_summary, or fall back to action description
+        // Avoid showing "Working on step X" as it's not user-friendly
+        const currentSummary =
+          status.current_status_summary ||
+          status.action?.status_summary ||
+          status.action?.description ||
+          null; // Let the fallback "Getting started..." handle initial state
+
+        // Check for 'running' or 'executing' (desktop state uses 'executing')
+        const isRunning = status.status === 'running' || status.status === 'executing';
+
+        // Update LiveActivityFeed using functional update to avoid stale closure issues
+        const stepId = `poll-step-${status.currentStep ?? status.currentStepIndex ?? 'current'}`;
+        setLiveActivitySteps((prev) => {
+          // Get the last step's description to compare (avoids stale closure)
+          const lastStep = prev.length > 0 ? prev[prev.length - 1] : null;
+          const lastDescription = lastStep?.description;
+
+          if (currentSummary && isRunning) {
+            // Check if this is a new/different activity
+            if (currentSummary !== lastDescription) {
+              // Check if this step already exists
+              const existingIndex = prev.findIndex((s) => s.id === stepId);
+              if (existingIndex >= 0) {
+                // Update existing step description
+                const updated = [...prev];
+                updated[existingIndex] = {
+                  ...updated[existingIndex],
+                  description: currentSummary,
+                };
+                return updated;
+              } else {
+                // Mark previous running steps as completed, then add new
+                const updated = prev.map((s) =>
+                  s.status === 'running' ? { ...s, status: 'completed' } : s
+                );
+                return [
+                  ...updated,
+                  {
+                    id: stepId,
+                    status: 'running',
+                    description: currentSummary,
+                    technicalDetails: '',
+                    timestamp: Date.now(),
+                  },
+                ];
+              }
+            }
+          } else if (isRunning && prev.length === 0) {
+            // If no summary but we're running and no steps yet, add a generic step
+            return [
+              {
+                id: `poll-step-initial`,
+                status: 'running',
+                description: 'Getting started...',
+                technicalDetails: '',
+                timestamp: Date.now(),
+              },
+            ];
           }
+          return prev; // No change
+        });
+
+        // Also update thinkingStatus for ActivityFeed (legacy)
+        if (currentSummary && currentSummary !== thinkingStatus) {
+          completeCurrentActivity();
+          addActivity(currentSummary);
+          setThinkingStatus(currentSummary);
         }
 
         if (status.status === 'complete' || status.status === 'done') {
@@ -633,6 +703,11 @@ export default function AppleFloatBar({
           clearActivityLog();
           setIsThinking(false);
           setThinkingStatus('');
+
+          // Mark all running steps as completed
+          setLiveActivitySteps((prev) =>
+            prev.map((s) => (s.status === 'running' ? { ...s, status: 'completed' } : s))
+          );
 
           const finalMessage = status.final_summary || status.final_response;
           if (finalMessage) {
@@ -653,6 +728,16 @@ export default function AppleFloatBar({
         } else if (status.status === 'failed' || status.status === 'error') {
           setIsThinking(false);
           setThinkingStatus('');
+
+          // Mark last running step as failed
+          setLiveActivitySteps((prev) =>
+            prev.map((s) =>
+              s.status === 'running'
+                ? { ...s, status: 'failed', error: status.error || 'Task failed' }
+                : s
+            )
+          );
+
           toast.error('Task failed', { duration: 4000 });
         }
       });
@@ -1736,6 +1821,8 @@ export default function AppleFloatBar({
           const statusSummary = log.status_summary || log.message || log.stdout || log.error || '';
           const msg = log.message || log.stdout || log.error || '';
           const status = log.status || 'info';
+          const stepId = log.step_id || `step-${Date.now()}`;
+
           if (statusSummary) {
             setThinkingStatus(statusSummary);
           }
@@ -1749,6 +1836,79 @@ export default function AppleFloatBar({
             const next = [{ ...log, ts: Date.now() }, ...prev];
             return next.slice(0, 10);
           });
+
+          // Build technical details from available data
+          const buildTechnicalDetails = () => {
+            const parts = [];
+            if (log.action_type) parts.push(`Action: ${log.action_type}`);
+            if (log.stdout) parts.push(`Output:\n${log.stdout}`);
+            if (log.stderr) parts.push(`Error:\n${log.stderr}`);
+            if (log.exit_code !== undefined) parts.push(`Exit Code: ${log.exit_code}`);
+            if (log.message && log.message !== statusSummary) parts.push(`Details: ${log.message}`);
+            return parts.join('\n\n');
+          };
+
+          // Update LiveActivityFeed based on status
+          if (status === 'running' && statusSummary) {
+            // Add new running step to LiveActivityFeed (with duplicate check)
+            setLiveActivitySteps((prev) => {
+              // Check if this step already exists or if description is same as last step
+              const existingIndex = prev.findIndex((s) => s.id === stepId);
+              const lastStep = prev.length > 0 ? prev[prev.length - 1] : null;
+
+              if (existingIndex >= 0) {
+                // Update existing step
+                const updated = [...prev];
+                updated[existingIndex] = {
+                  ...updated[existingIndex],
+                  description: statusSummary,
+                  technicalDetails: buildTechnicalDetails(),
+                };
+                return updated;
+              } else if (lastStep?.description === statusSummary) {
+                // Same description as last step - don't add duplicate
+                return prev;
+              } else {
+                // Mark previous running steps as completed, add new
+                const updated = prev.map((s) =>
+                  s.status === 'running' ? { ...s, status: 'completed' } : s
+                );
+                return [
+                  ...updated,
+                  {
+                    id: stepId,
+                    status: 'running',
+                    description: statusSummary,
+                    technicalDetails: buildTechnicalDetails(),
+                    timestamp: Date.now(),
+                  },
+                ];
+              }
+            });
+          } else if (status === 'completed') {
+            // Mark step as completed in LiveActivityFeed
+            setLiveActivitySteps((prev) =>
+              prev.map((step) =>
+                step.id === stepId
+                  ? { ...step, status: 'completed', technicalDetails: buildTechnicalDetails() }
+                  : step
+              )
+            );
+          } else if (status === 'failed') {
+            // Mark step as failed in LiveActivityFeed
+            setLiveActivitySteps((prev) =>
+              prev.map((step) =>
+                step.id === stepId
+                  ? {
+                      ...step,
+                      status: 'failed',
+                      error: log.error || log.stderr || msg,
+                      technicalDetails: buildTechnicalDetails(),
+                    }
+                  : step
+              )
+            );
+          }
 
           // Track background processes
           if (log.tool_name === 'start_background_process' && log.stdout) {
@@ -1955,17 +2115,40 @@ export default function AppleFloatBar({
               completeCurrentActivity();
               addActivity(statusSummary || msg || 'Processing...');
 
-              // Add new running step to LiveActivityFeed
-              setLiveActivitySteps((prev) => [
-                ...prev,
-                {
-                  id: stepId,
-                  status: 'running',
-                  description: statusSummary,
-                  technicalDetails: buildTechnicalDetails(),
-                  timestamp: Date.now(),
-                },
-              ]);
+              // Add new running step to LiveActivityFeed (with duplicate check)
+              setLiveActivitySteps((prev) => {
+                const existingIndex = prev.findIndex((s) => s.id === stepId);
+                const lastStep = prev.length > 0 ? prev[prev.length - 1] : null;
+
+                if (existingIndex >= 0) {
+                  // Update existing step
+                  const updated = [...prev];
+                  updated[existingIndex] = {
+                    ...updated[existingIndex],
+                    description: statusSummary,
+                    technicalDetails: buildTechnicalDetails(),
+                  };
+                  return updated;
+                } else if (lastStep?.description === statusSummary) {
+                  // Same description - don't add duplicate
+                  return prev;
+                } else {
+                  // Mark previous running steps as completed, add new
+                  const updated = prev.map((s) =>
+                    s.status === 'running' ? { ...s, status: 'completed' } : s
+                  );
+                  return [
+                    ...updated,
+                    {
+                      id: stepId,
+                      status: 'running',
+                      description: statusSummary,
+                      technicalDetails: buildTechnicalDetails(),
+                      timestamp: Date.now(),
+                    },
+                  ];
+                }
+              });
               break;
 
             case 'info':
@@ -3577,6 +3760,10 @@ export default function AppleFloatBar({
             setIsThinking(false);
             setThinkingStatus('');
 
+            // Clear any old live activity steps (from previous executions)
+            setLiveActivitySteps([]);
+            setInitialAIMessage(null);
+
             // Add the AI's response to thoughts with typewriter animation
             const directMsgTimestamp = Date.now();
             animatedMessagesRef.current.add(directMsgTimestamp);
@@ -3656,14 +3843,74 @@ export default function AppleFloatBar({
               }
 
               // Update activity feed with current status
-              if (status.current_status_summary && status.status === 'running') {
-                const currentSummary = status.current_status_summary;
-                // Check if this is a new activity (different from current thinkingStatus)
-                if (currentSummary !== thinkingStatus) {
-                  completeCurrentActivity();
-                  addActivity(currentSummary);
-                  setThinkingStatus(currentSummary);
+              // Use current_status_summary, or fall back to action description
+              // Avoid showing "Working on step X" as it's not user-friendly
+              const currentSummary =
+                status.current_status_summary ||
+                status.action?.status_summary ||
+                status.action?.description ||
+                null; // Let the fallback "Getting started..." handle initial state
+
+              // Check for 'running' or 'executing' (desktop state uses 'executing')
+              const isRunning = status.status === 'running' || status.status === 'executing';
+
+              // Update LiveActivityFeed using functional update to avoid stale closure issues
+              const stepId = `poll-step-${status.currentStep ?? status.currentStepIndex ?? 'current'}`;
+              setLiveActivitySteps((prev) => {
+                // Get the last step's description to compare (avoids stale closure)
+                const lastStep = prev.length > 0 ? prev[prev.length - 1] : null;
+                const lastDescription = lastStep?.description;
+
+                if (currentSummary && isRunning) {
+                  // Check if this is a new/different activity
+                  if (currentSummary !== lastDescription) {
+                    // Check if this step already exists
+                    const existingIndex = prev.findIndex((s) => s.id === stepId);
+                    if (existingIndex >= 0) {
+                      // Update existing step description
+                      const updated = [...prev];
+                      updated[existingIndex] = {
+                        ...updated[existingIndex],
+                        description: currentSummary,
+                      };
+                      return updated;
+                    } else {
+                      // Mark previous running steps as completed, then add new
+                      const updated = prev.map((s) =>
+                        s.status === 'running' ? { ...s, status: 'completed' } : s
+                      );
+                      return [
+                        ...updated,
+                        {
+                          id: stepId,
+                          status: 'running',
+                          description: currentSummary,
+                          technicalDetails: '',
+                          timestamp: Date.now(),
+                        },
+                      ];
+                    }
+                  }
+                } else if (isRunning && prev.length === 0) {
+                  // If no summary but we're running and no steps yet, add a generic step
+                  return [
+                    {
+                      id: `poll-step-initial`,
+                      status: 'running',
+                      description: 'Getting started...',
+                      technicalDetails: '',
+                      timestamp: Date.now(),
+                    },
+                  ];
                 }
+                return prev; // No change
+              });
+
+              // Also update thinkingStatus for ActivityFeed (legacy)
+              if (currentSummary && currentSummary !== thinkingStatus) {
+                completeCurrentActivity();
+                addActivity(currentSummary);
+                setThinkingStatus(currentSummary);
               }
 
               if (status.status === 'complete' || status.status === 'done') {
@@ -3671,6 +3918,11 @@ export default function AppleFloatBar({
                 clearActivityLog(); // Clear for next task
                 setIsThinking(false);
                 setThinkingStatus('');
+
+                // Mark all running steps as completed in LiveActivityFeed
+                setLiveActivitySteps((prev) =>
+                  prev.map((s) => (s.status === 'running' ? { ...s, status: 'completed' } : s))
+                );
 
                 // Add final summary as message (check both final_summary and final_response)
                 const finalMessage = status.final_summary || status.final_response;
@@ -3700,6 +3952,16 @@ export default function AppleFloatBar({
               } else if (status.status === 'failed' || status.status === 'error') {
                 setIsThinking(false);
                 setThinkingStatus('');
+
+                // Mark last running step as failed in LiveActivityFeed
+                setLiveActivitySteps((prev) =>
+                  prev.map((s, i) =>
+                    s.status === 'running'
+                      ? { ...s, status: 'failed', error: status.error || 'Task failed' }
+                      : s
+                  )
+                );
+
                 toast.error('Task failed', { duration: 4000 });
               }
             });
@@ -3743,8 +4005,11 @@ export default function AppleFloatBar({
             pullService.pollRunStatus(runTracker.runId, (status) => {
               console.log('[FloatBar] Status update:', status);
 
+              // Check for 'running' or 'executing' (desktop state uses 'executing')
+              const isRunning = status.status === 'running' || status.status === 'executing';
+
               // Update activity feed with current status
-              if (status.current_status_summary && status.status === 'running') {
+              if (status.current_status_summary && isRunning) {
                 const currentSummary = status.current_status_summary;
                 completeCurrentActivity();
                 addActivity(currentSummary);
@@ -3764,7 +4029,7 @@ export default function AppleFloatBar({
                     }
                   }
                   // Mark current step as running
-                  if (status.status === 'running' && updated[status.currentStep] !== 'failed') {
+                  if (isRunning && updated[status.currentStep] !== 'failed') {
                     updated[status.currentStep] = 'running';
                   }
                   return updated;
@@ -5489,8 +5754,15 @@ export default function AppleFloatBar({
             {thoughts.map((thought, idx) => {
               // Render user message first, then execution progress checklist
               const isUserMessage = thought.role === 'user';
+              // Find the index of the last user message - only show progress for that one
+              const lastUserMessageIdx = thoughts.reduce((lastIdx, t, i) =>
+                t.role === 'user' ? i : lastIdx, -1);
+              const isLastUserMessage = isUserMessage && idx === lastUserMessageIdx;
               const shouldShowProgress =
-                isUserMessage && usePullExecution && executionPlan && executionPlan.steps;
+                isLastUserMessage && (
+                  (usePullExecution && executionPlan && executionPlan.steps) || // Old planned execution
+                  (liveActivitySteps.length > 0) // New iterative execution
+                );
               if (thought.type === 'thought') {
                 const isExpanded = thought.expanded !== false;
                 return (
@@ -5699,18 +5971,29 @@ export default function AppleFloatBar({
                     </div>
                   </div>
                   {/* Show execution progress checklist after user message */}
-                  {shouldShowProgress && liveActivitySteps.length > 0 && (
-                    <LiveActivityFeed
-                      activitySteps={liveActivitySteps}
-                      initialMessage={initialAIMessage}
-                    />
+                  {shouldShowProgress && (
+                    liveActivitySteps.length > 0 ? (
+                      <LiveActivityFeed
+                        activitySteps={liveActivitySteps}
+                        initialMessage={initialAIMessage}
+                      />
+                    ) : executionPlan && executionPlan.steps ? (
+                      <ExecutionProgress
+                        steps={executionPlan.steps}
+                        stepStatuses={stepStatuses}
+                        currentStep={currentStep}
+                        summary={executionSummary}
+                        currentAction={thinkingStatus}
+                        startTime={executionStartTime}
+                      />
+                    ) : null
                   )}
                 </React.Fragment>
               );
             })}
-            {isThinking && (
+            {isThinking && !liveActivitySteps.length && (
               <div className="apple-message apple-message-thinking">
-                {/* Show ActivityFeed when in autonomous mode, otherwise simple indicator */}
+                {/* Show ActivityFeed when in autonomous mode (but not when using LiveActivityFeed) */}
                 {executionPlan || activityLog.length > 0 || runStatus === 'running' ? (
                   <ActivityFeed
                     activities={activityLog}
