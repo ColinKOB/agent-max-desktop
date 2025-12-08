@@ -25,43 +25,57 @@ if (!SUPABASE_ENABLED) {
  */
 export async function emailPasswordSignInOrCreate(email, password) {
   if (!SUPABASE_ENABLED || !supabase) return null;
-  
+
   // First try to sign in
   const signIn = await supabase.auth.signInWithPassword({ email, password });
   if (signIn?.data?.user) {
     logger.info('Signed in existing user', { email });
     const authUserId = signIn.data.user.id;
     try { localStorage.setItem('user_id', authUserId); } catch {}
-    
+
     // CRITICAL: Check if this email has an existing subscription in the users table
     // If so, we should use THAT user_id to ensure subscription continuity
+    let finalUserId = authUserId;
     try {
       const existingUser = await supabase
         .from('users')
         .select('id, email, subscription_status, subscription_tier, credits')
         .eq('email', email)
         .single();
-      
+
       if (existingUser?.data && existingUser.data.subscription_status === 'active') {
         // User has an existing subscription - use that user_id
         const existingUserId = existingUser.data.id;
-        logger.info('Found existing subscription for email', { 
-          email, 
-          existingUserId, 
+        logger.info('Found existing subscription for email', {
+          email,
+          existingUserId,
           tier: existingUser.data.subscription_tier,
-          credits: existingUser.data.credits 
+          credits: existingUser.data.credits
         });
-        
+
         // Update localStorage to use the existing user_id
         try { localStorage.setItem('user_id', existingUserId); } catch {}
-        
+        finalUserId = existingUserId;
+
+        // Check for weekly credit reset (backup for pg_cron)
+        // This runs asynchronously to not block login
+        checkAndResetWeeklyCredits(existingUserId).catch(err => {
+          logger.warn('Weekly credit reset check failed (non-blocking)', err);
+        });
+
         // Return the auth user but with the existing subscription user_id
         return { ...signIn.data.user, id: existingUserId, _authId: authUserId };
       }
     } catch (lookupErr) {
       logger.warn('Failed to lookup existing subscription', lookupErr);
     }
-    
+
+    // Still check for weekly reset even if no active subscription found
+    // (in case subscription was just activated)
+    checkAndResetWeeklyCredits(finalUserId).catch(err => {
+      logger.warn('Weekly credit reset check failed (non-blocking)', err);
+    });
+
     return signIn.data.user;
   }
   
@@ -636,6 +650,56 @@ export async function trackEvent(userId, sessionId, eventType, action, metadata 
 }
 
 // ============================================
+// WEEKLY CREDIT RESET CHECK (BACKUP FOR PG_CRON)
+// ============================================
+
+/**
+ * Check if user's weekly credit reset is due and perform it if needed.
+ * This is a BACKUP mechanism for the pg_cron scheduled reset.
+ * Call this on user login/session start.
+ *
+ * @param {string} userId - User UUID
+ * @returns {Promise<Object>} Reset result
+ */
+export async function checkAndResetWeeklyCredits(userId) {
+  try {
+    if (!SUPABASE_ENABLED || !supabase || String(userId).startsWith('local-')) {
+      return { reset_performed: false, reason: 'Supabase not available or local user' };
+    }
+
+    const apiUrl = import.meta.env.VITE_API_URL || 'https://agentmax-production.up.railway.app';
+
+    const response = await fetch(`${apiUrl}/api/v2/credits/check-weekly-reset/${userId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.warn('Weekly credit reset check failed', { status: response.status, error: errorText });
+      return { reset_performed: false, reason: `API error: ${response.status}` };
+    }
+
+    const result = await response.json();
+
+    if (result.reset_performed) {
+      logger.info('Weekly credit reset performed!', {
+        previous: result.previous_credits,
+        new: result.credits,
+        tier: result.subscription_tier
+      });
+    } else {
+      logger.debug('Weekly credit reset not needed', { reason: result.reason });
+    }
+
+    return result;
+  } catch (error) {
+    logger.error('Failed to check weekly credit reset', error);
+    return { reset_performed: false, reason: error.message };
+  }
+}
+
+// ============================================
 // GDPR COMPLIANCE
 // ============================================
 
@@ -673,4 +737,5 @@ export default {
   storeMessage,
   trackEvent,
   purgeUserData,
+  checkAndResetWeeklyCredits,
 };
