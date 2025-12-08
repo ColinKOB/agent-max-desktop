@@ -4,7 +4,7 @@
  * Replaces card mode entirely with a dynamic expanding bar
  */
 
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo, useReducer } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -82,6 +82,8 @@ import ExecutionProgress from '../ExecutionProgress/ExecutionProgress';
 import LiveActivityFeed from '../LiveActivityFeed/LiveActivityFeed';
 import TypewriterMessage from '../TypewriterMessage/TypewriterMessage';
 import ActivityFeed from '../ActivityFeed/ActivityFeed';
+import EmailRenderer from './EmailRenderer';
+import ComposerBar from './ComposerBar';
 
 const logger = createLogger('FloatBar');
 
@@ -213,185 +215,159 @@ const formatArtifactSummary = (artifact) => {
   return `- ${source}${label} (${artifact.kind || 'unknown'})${suffix}`;
 };
 
-// Component to render email content with nice formatting
-const EmailRenderer = ({ content }) => {
-  // Check if content contains email-like patterns (handles markdown bold, emoji, or plain text)
-  // Look for "Email Results" or "From:" followed by "Subject:" pattern
-  const emailPattern = /Email Results|From:.*Subject:|📧/is;
-  const isEmailContent = emailPattern.test(content);
+// EmailRenderer is now imported from ./EmailRenderer.jsx (wrapped in React.memo)
 
-  if (!isEmailContent) {
-    // Not email content, render as regular markdown
-    return (
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          a: ({ node, ...props }) => (
-            <a target="_blank" rel="noreferrer" {...props} />
-          ),
-        }}
-      >
-        {content}
-      </ReactMarkdown>
-    );
-  }
-
-  // Parse email content - handle inline format like "From: X Subject: Y Date: Z Preview: W ID: I"
-  const emailBlocks = [];
-  let introText = '';
-
-  // Split by lines first
-  const lines = content.split('\n').filter(l => l.trim());
-
-  // Find intro text (first line that doesn't contain email data)
-  if (lines.length > 0 && !lines[0].includes('Email Results') && !lines[0].includes('From:')) {
-    introText = lines[0].trim();
-  }
-
-  // Helper function to clean text: remove markdown and decode HTML entities
-  const cleanText = (text) => {
-    if (!text) return '';
-    return text
-      .replace(/\*\*/g, '') // Remove markdown bold
-      .replace(/&quot;/g, '"') // Decode HTML quotes
-      .replace(/&amp;/g, '&') // Decode ampersand
-      .replace(/&lt;/g, '<') // Decode less than
-      .replace(/&gt;/g, '>') // Decode greater than
-      .replace(/&#39;/g, "'") // Decode apostrophe
-      .replace(/\s+/g, ' ') // Normalize whitespace
-      .trim();
-  };
-
-  // Try to parse inline format: "From: X Subject: Y Date: Z Preview: W ID: I"
-  // This handles the format shown in the screenshot
-  const inlineEmailRegex = /From:\s*([^]*?)(?=Subject:|$)Subject:\s*([^]*?)(?=Date:|$)Date:\s*([^]*?)(?=Preview:|$)Preview:\s*([^]*?)(?=ID:|$)(?:ID:\s*(\S+))?/gi;
-
-  let match;
-  const fullContent = content;
-
-  while ((match = inlineEmailRegex.exec(fullContent)) !== null) {
-    const email = {
-      from: cleanText(match[1]),
-      subject: cleanText(match[2]),
-      date: cleanText(match[3]),
-      preview: cleanText(match[4]), // Don't truncate - show full preview
-    };
-    // Don't include ID - user doesn't need to see it
-    if (email.from || email.subject) {
-      emailBlocks.push(email);
-    }
-  }
-
-  // If inline parsing didn't work, try line-by-line parsing
-  if (emailBlocks.length === 0) {
-    let currentEmail = null;
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-
-      // Skip header lines
-      if (trimmed.includes('Email Results') || trimmed.includes('Found') && trimmed.includes('email')) {
-        continue;
-      }
-
-      // Start of new email
-      const fromMatch = trimmed.match(/^\*?\*?From:?\*?\*?\s*(.+)/i);
-      if (fromMatch) {
-        if (currentEmail && (currentEmail.from || currentEmail.subject)) {
-          emailBlocks.push(currentEmail);
-        }
-        currentEmail = { from: cleanText(fromMatch[1]) };
-        continue;
-      }
-
-      if (currentEmail) {
-        const subjectMatch = trimmed.match(/^\*?\*?Subject:?\*?\*?\s*(.+)/i);
-        const dateMatch = trimmed.match(/^\*?\*?Date:?\*?\*?\s*(.+)/i);
-        const previewMatch = trimmed.match(/^\*?\*?Preview:?\*?\*?\s*(.+)/i);
-
-        if (subjectMatch) {
-          currentEmail.subject = cleanText(subjectMatch[1]);
-        } else if (dateMatch) {
-          currentEmail.date = cleanText(dateMatch[1]);
-        } else if (previewMatch) {
-          currentEmail.preview = cleanText(previewMatch[1]);
-        }
-        // Skip ID - don't show to user
-      }
-    }
-
-    if (currentEmail && (currentEmail.from || currentEmail.subject)) {
-      emailBlocks.push(currentEmail);
-    }
-  }
-
-  // If we still couldn't parse any emails, fall back to markdown
-  if (emailBlocks.length === 0) {
-    return (
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          a: ({ node, ...props }) => (
-            <a target="_blank" rel="noreferrer" {...props} />
-          ),
-        }}
-      >
-        {content}
-      </ReactMarkdown>
-    );
-  }
-
-  // Format the date nicely
-  const formatDate = (dateStr) => {
-    if (!dateStr) return null;
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return dateStr;
-      return date.toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit'
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
-  return (
-    <div>
-      {introText && (
-        <p style={{ marginBottom: 10, color: 'rgba(255,255,255,0.85)', fontSize: 13 }}>{introText}</p>
-      )}
-
-      {emailBlocks.map((email, idx) => (
-        <div key={idx} className="email-card">
-          {/* Email Header - From & Date */}
-          <div className="email-header-row">
-            <div className="email-sender">
-              <Mail size={14} style={{ opacity: 0.6, flexShrink: 0 }} />
-              <span className="email-from-name">{email.from}</span>
-            </div>
-            {email.date && (
-              <span className="email-date">{formatDate(email.date)}</span>
-            )}
-          </div>
-
-          {/* Subject Line */}
-          {email.subject && (
-            <div className="email-subject">{email.subject}</div>
-          )}
-
-          {/* Preview/Body */}
-          {email.preview && (
-            <div className="email-body">{email.preview}</div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
+// ═══════════════════════════════════════════════════════════════════════════════
+// Execution State Reducer - consolidates 14 related useState hooks for atomic updates
+// ═══════════════════════════════════════════════════════════════════════════════
+const initialExecutionState = {
+  plan: null,
+  actionPlanMetadata: null,
+  clarifyStats: null,
+  confirmStats: null,
+  currentStep: 0,
+  totalSteps: 0,
+  mode: null,
+  desktopActionsRequired: false,
+  desktopBridgeStatus: null,
+  stepStatuses: {},
+  summary: null,
+  startTime: null,
+  runStatus: null,
+  activeRunId: null,
 };
+
+function executionReducer(state, action) {
+  switch (action.type) {
+    case 'RESET':
+      // Full reset for new conversation
+      return initialExecutionState;
+
+    case 'PARTIAL_RESET':
+      // Reset for new message (preserves some state)
+      return {
+        ...state,
+        plan: null,
+        actionPlanMetadata: null,
+        clarifyStats: null,
+        confirmStats: null,
+        currentStep: 0,
+        totalSteps: 0,
+        mode: null,
+        desktopActionsRequired: action.desktopActionsRequired ?? false,
+      };
+
+    case 'START_EXECUTION':
+      // Initialize execution with plan
+      return {
+        ...state,
+        plan: action.plan,
+        totalSteps: action.totalSteps || action.plan?.steps?.length || 0,
+        currentStep: 0,
+        stepStatuses: action.stepStatuses || {},
+        startTime: Date.now(),
+        summary: null,
+      };
+
+    case 'SET_ERROR_PLAN':
+      // Error during planning
+      return {
+        ...state,
+        plan: action.plan,
+        stepStatuses: { 0: 'failed' },
+        summary: action.summary,
+      };
+
+    case 'STEP_UPDATE':
+      // Update step progress
+      return {
+        ...state,
+        currentStep: action.currentStep ?? state.currentStep,
+        totalSteps: action.totalSteps ?? state.totalSteps,
+        stepStatuses: action.stepStatuses
+          ? { ...state.stepStatuses, ...action.stepStatuses }
+          : state.stepStatuses,
+      };
+
+    case 'SET_STEP_STATUSES':
+      // Bulk update step statuses (functional update pattern)
+      return {
+        ...state,
+        stepStatuses:
+          typeof action.updater === 'function'
+            ? action.updater(state.stepStatuses)
+            : action.stepStatuses,
+      };
+
+    case 'EXECUTION_COMPLETE':
+      // Mark execution as complete
+      return {
+        ...state,
+        summary: action.summary,
+        stepStatuses: action.stepStatuses ?? state.stepStatuses,
+      };
+
+    case 'CANCELLED':
+      // User cancelled execution
+      return {
+        ...state,
+        runStatus: 'cancelled',
+        summary: {
+          status: 'cancelled',
+          message: 'Stopped by user',
+          successCount: action.successCount ?? 0,
+          failedCount: 0,
+          goalAchieved: false,
+        },
+      };
+
+    case 'SET_METADATA':
+      // Update action plan metadata
+      return {
+        ...state,
+        actionPlanMetadata: action.metadata,
+        plan: state.plan
+          ? { ...state.plan, actionPlanMetadata: action.metadata }
+          : state.plan,
+      };
+
+    case 'SET_STATS':
+      // Update clarify/confirm stats
+      return {
+        ...state,
+        clarifyStats: action.clarifyStats ?? state.clarifyStats,
+        confirmStats: action.confirmStats ?? state.confirmStats,
+      };
+
+    case 'SET_RUN_STATUS':
+      return { ...state, runStatus: action.status };
+
+    case 'SET_ACTIVE_RUN':
+      return { ...state, activeRunId: action.runId };
+
+    case 'SET_MODE':
+      return {
+        ...state,
+        mode: action.mode,
+        desktopActionsRequired: action.desktopActionsRequired ?? state.desktopActionsRequired,
+      };
+
+    case 'SET_DESKTOP_ACTIONS_REQUIRED':
+      return { ...state, desktopActionsRequired: action.required };
+
+    case 'SET_DESKTOP_BRIDGE_STATUS':
+      return { ...state, desktopBridgeStatus: action.status };
+
+    case 'SET_PLAN':
+      return { ...state, plan: action.plan };
+
+    case 'SET_SUMMARY':
+      return { ...state, summary: action.summary };
+
+    default:
+      return state;
+  }
+}
 
 export default function AppleFloatBar({
   showWelcome,
@@ -418,22 +394,25 @@ export default function AppleFloatBar({
   const [thinkingStatus, setThinkingStatus] = useState('');
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [factTiles, setFactTiles] = useState([]);
-  // Autonomous mode state
-  const [executionPlan, setExecutionPlan] = useState(null);
-  const [actionPlanMetadata, setActionPlanMetadata] = useState(null);
-  const [clarifyStats, setClarifyStats] = useState(null);
-  const [confirmStats, setConfirmStats] = useState(null);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [totalSteps, setTotalSteps] = useState(0);
-  const [executionMode, setExecutionMode] = useState(null);
-  const [desktopActionsRequired, setDesktopActionsRequired] = useState(false);
-  const [desktopBridgeStatus, setDesktopBridgeStatus] = useState(null);
-  // Pull execution progress tracking
-  const [stepStatuses, setStepStatuses] = useState({}); // {stepIndex: 'pending'|'running'|'done'|'failed'}
-  const [executionSummary, setExecutionSummary] = useState(null); // Final summary when complete
-  const [executionStartTime, setExecutionStartTime] = useState(null); // When execution began
-  const [runStatus, setRunStatus] = useState(null); // "running" | "paused" | "cancelled" | "failed" | "completed"
-  const [activeRunId, setActiveRunId] = useState(null); // Track active run ID for polling
+  // Autonomous mode state - consolidated via useReducer for atomic updates
+  const [executionState, dispatchExecution] = useReducer(executionReducer, initialExecutionState);
+  // Destructure for backward compatibility with existing code
+  const {
+    plan: executionPlan,
+    actionPlanMetadata,
+    clarifyStats,
+    confirmStats,
+    currentStep,
+    totalSteps,
+    mode: executionMode,
+    desktopActionsRequired,
+    desktopBridgeStatus,
+    stepStatuses,
+    summary: executionSummary,
+    startTime: executionStartTime,
+    runStatus,
+    activeRunId,
+  } = executionState;
   const [backgroundProcesses, setBackgroundProcesses] = useState([]); // Track active background processes
   // Activity feed state for live progress display
   const [activityLog, setActivityLog] = useState([]); // [{id, text, status: 'done'|'running', timestamp, duration}]
@@ -812,13 +791,9 @@ export default function AppleFloatBar({
     setIsThinking(false);
     setThinkingStatus('');
     clearActivityLog(); // Clear activity feed
-    setRunStatus('cancelled');
-    setExecutionSummary({
-      status: 'cancelled',
-      message: 'Stopped by user',
+    dispatchExecution({
+      type: 'CANCELLED',
       successCount: Object.values(stepStatuses).filter((s) => s === 'done').length,
-      failedCount: 0,
-      goalAchieved: false,
     });
 
     toast('AI stopped', { icon: '🛑', duration: 2000 });
@@ -832,6 +807,32 @@ export default function AppleFloatBar({
       toast.error('Copy failed');
     }
   }, []);
+
+  // Extracted inline handlers for stable references (enables child component memoization)
+  const handleToggleThoughtExpand = useCallback((thoughtId, currentExpanded) => {
+    setThoughts((prev) => {
+      const idx = prev.findIndex((m) => m?.id === thoughtId);
+      if (idx === -1) return prev;
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], expanded: !currentExpanded };
+      return copy;
+    });
+  }, []);
+
+  const handleExpandThought = useCallback((thoughtId) => {
+    setThoughts((prev) => {
+      const idx = prev.findIndex((m) => m?.id === thoughtId);
+      if (idx === -1) return prev;
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], expanded: true };
+      return copy;
+    });
+  }, []);
+
+  const handleRemoveAttachment = useCallback((index) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
   const handleDesktopReconnect = useCallback(async () => {
     try {
       if (typeof window === 'undefined') return;
@@ -1731,15 +1732,6 @@ export default function AppleFloatBar({
           clearActivityLog(); // Start fresh activity feed for new task
           // Reset thought ref (bubble will be created lazily on first thinking event)
           thoughtIdRef.current = null;
-          setActionPlanMetadata(null);
-          setClarifyStats(null);
-          setConfirmStats(null);
-          setExecutionPlan(null);
-          setPlanCardDismissed(!shouldDisplayPlanCard());
-          setCurrentStep(0);
-          setTotalSteps(0);
-          setExecutionMode(null);
-          executionModeRef.current = null;
           // Only require desktop actions in autonomous mode (not chatty)
           const currentMode = permissionModeRef.current;
           const isAutoMode = currentMode === 'autonomous';
@@ -1747,8 +1739,13 @@ export default function AppleFloatBar({
           console.log(
             `[Chat] Mode check: currentMode='${currentMode}', isAutoMode=${isAutoMode}, isChattyMode=${isChattyMode}`
           );
-          // Default to NOT requiring desktop actions unless explicitly in auto mode
-          setDesktopActionsRequired(isAutoMode && !isChattyMode);
+          // Atomic reset of execution state
+          dispatchExecution({
+            type: 'PARTIAL_RESET',
+            desktopActionsRequired: isAutoMode && !isChattyMode,
+          });
+          setPlanCardDismissed(!shouldDisplayPlanCard());
+          executionModeRef.current = null;
           desktopActionsRef.current = isAutoMode && !isChattyMode;
           chatModeAnnouncementRef.current = false;
           // Set initial thinking status based on query type for better UX
@@ -1786,8 +1783,7 @@ export default function AppleFloatBar({
           if (!key) {
             console.warn('[Chat] metadata event missing key', meta);
           } else if (key === 'action_plan') {
-            setActionPlanMetadata(value);
-            setExecutionPlan((prev) => (prev ? { ...prev, actionPlanMetadata: value } : prev));
+            dispatchExecution({ type: 'SET_METADATA', metadata: value });
           } else if (key === 'run_status' || meta.run_status) {
             const runState = meta.run_status || value || meta;
             if (runState?.last_heartbeat_at) {
@@ -1810,11 +1806,11 @@ export default function AppleFloatBar({
               setThinkingStatus('Completed');
             }
 
-            setRunStatus(runState?.status || null);
+            dispatchExecution({ type: 'SET_RUN_STATUS', status: runState?.status || null });
           } else if (key === 'desktop_actions_required') {
             const normalized = Boolean(value);
             desktopActionsRef.current = normalized;
-            setDesktopActionsRequired(normalized);
+            dispatchExecution({ type: 'SET_DESKTOP_ACTIONS_REQUIRED', required: normalized });
           }
         } else if (event.type === 'exec_log' && event.data?.source === 'run_stream') {
           // Mirror run stream exec logs into the Thoughts area and progress UI
@@ -2057,10 +2053,12 @@ export default function AppleFloatBar({
           const planData = { ...rawPlan, actionPlanMetadata: mergedMetadata };
           planIdRef.current = planData.plan_id || planData.planId || planData.id || null;
           console.log('[Chat] Execution plan received:', planData);
-          setExecutionPlan(planData);
+          dispatchExecution({
+            type: 'START_EXECUTION',
+            plan: planData,
+            totalSteps: planData.total_steps || planData.steps?.length || 0,
+          });
           setPlanCardDismissed(!shouldDisplayPlanCard());
-          setTotalSteps(planData.total_steps || planData.steps?.length || 0);
-          setCurrentStep(0);
           setThinkingStatus(`📋 Plan ready: ${planData.total_steps || 0} steps`);
 
           // Show plan as a special message (annotated with metadata when available)
@@ -2408,7 +2406,7 @@ export default function AppleFloatBar({
           }
 
           if (typeof log.step === 'number') {
-            setCurrentStep(log.step);
+            dispatchExecution({ type: 'STEP_UPDATE', currentStep: log.step });
           }
         } else if (event.type === 'final') {
           const finalData = event.data || event;
@@ -2467,8 +2465,7 @@ export default function AppleFloatBar({
 
           // Update current step for progress tracking
           if (step > 0) {
-            setCurrentStep(step);
-            setTotalSteps(totalSteps);
+            dispatchExecution({ type: 'STEP_UPDATE', currentStep: step, totalSteps });
           }
 
           setThinkingStatus(message);
@@ -3170,10 +3167,9 @@ export default function AppleFloatBar({
       }
       // Reset autonomous progress state
       try {
-        setExecutionPlan(null);
+        dispatchExecution({ type: 'SET_PLAN', plan: null });
+        dispatchExecution({ type: 'STEP_UPDATE', currentStep: 0, totalSteps: 0 });
         setPlanCardDismissed(!shouldDisplayPlanCard());
-        setCurrentStep(0);
-        setTotalSteps(0);
       } catch {}
       // Remember the last user prompt for memory extraction
       lastUserPromptRef.current = text;
@@ -3732,9 +3728,8 @@ export default function AppleFloatBar({
           } catch (mergeErr) {
             console.warn('[Memory] Failed to merge memory_pack into userContext', mergeErr);
           }
-          setActionPlanMetadata(null);
-          setClarifyStats(null);
-          setConfirmStats(null);
+          dispatchExecution({ type: 'SET_METADATA', metadata: null });
+          dispatchExecution({ type: 'SET_STATS', clarifyStats: null, confirmStats: null });
         }
       } catch (e) {
         console.warn('[Memory] Failed to attach memory_pack', e);
@@ -3790,7 +3785,7 @@ export default function AppleFloatBar({
           }
 
           // Store run ID for polling (only for tasks)
-          setActiveRunId(runTracker.runId);
+          dispatchExecution({ type: 'SET_ACTIVE_RUN', runId: runTracker.runId });
 
           // NEW: Check if intent confirmation is required
           if (runTracker.requiresConfirmation && runTracker.intentConfirmation) {
@@ -3985,26 +3980,29 @@ export default function AppleFloatBar({
               goal: runTracker.goalSummary,
             });
 
-            setExecutionPlan({
-              steps: runTracker.steps.map((step, i) => ({
-                id: step.step_id || `step-${i + 1}`,
-                description: step.description,
-                goal: step.goal,
-                tool_name: step.tool_name,
-              })),
-              goal: runTracker.goalSummary,
-              definition_of_done: runTracker.definitionOfDone,
-            });
-            setTotalSteps(runTracker.totalSteps);
-            setPlanCardDismissed(false);
-
             // Initialize all steps as pending
             const initialStatuses = {};
             runTracker.steps.forEach((_, i) => {
               initialStatuses[i] = 'pending';
             });
-            setStepStatuses(initialStatuses);
-            setExecutionStartTime(Date.now()); // Track when execution began
+
+            // Atomic execution state update
+            dispatchExecution({
+              type: 'START_EXECUTION',
+              plan: {
+                steps: runTracker.steps.map((step, i) => ({
+                  id: step.step_id || `step-${i + 1}`,
+                  description: step.description,
+                  goal: step.goal,
+                  tool_name: step.tool_name,
+                })),
+                goal: runTracker.goalSummary,
+                definition_of_done: runTracker.definitionOfDone,
+              },
+              totalSteps: runTracker.totalSteps,
+              stepStatuses: initialStatuses,
+            });
+            setPlanCardDismissed(false);
 
             // Do not render a separate "Execution Plan" message; rely on ExecutionProgress + final summary.
             setThinkingStatus('Executing locally...');
@@ -4027,22 +4025,24 @@ export default function AppleFloatBar({
 
               // Update current step
               if (status.currentStep !== undefined) {
-                setCurrentStep(status.currentStep);
-
-                // Mark previous steps as done
-                setStepStatuses((prev) => {
-                  const updated = { ...prev };
-                  for (let i = 0; i < status.currentStep; i++) {
-                    if (updated[i] === 'running' || updated[i] === 'pending') {
-                      updated[i] = 'done';
+                // Mark previous steps as done, current step as running
+                dispatchExecution({
+                  type: 'SET_STEP_STATUSES',
+                  updater: (prev) => {
+                    const updated = { ...prev };
+                    for (let i = 0; i < status.currentStep; i++) {
+                      if (updated[i] === 'running' || updated[i] === 'pending') {
+                        updated[i] = 'done';
+                      }
                     }
-                  }
-                  // Mark current step as running
-                  if (isRunning && updated[status.currentStep] !== 'failed') {
-                    updated[status.currentStep] = 'running';
-                  }
-                  return updated;
+                    // Mark current step as running
+                    if (isRunning && updated[status.currentStep] !== 'failed') {
+                      updated[status.currentStep] = 'running';
+                    }
+                    return updated;
+                  },
                 });
+                dispatchExecution({ type: 'STEP_UPDATE', currentStep: status.currentStep });
               }
 
               // Handle completion
@@ -4051,49 +4051,54 @@ export default function AppleFloatBar({
                 setThinkingStatus('');
 
                 // Calculate summary values
-                const totalSteps = runTracker.totalSteps || runTracker.steps?.length || 0;
+                const totalStepsCount = runTracker.totalSteps || runTracker.steps?.length || 0;
 
-                // Mark all steps as done/failed and calculate summary
-                setStepStatuses((prev) => {
-                  const updated = { ...prev };
-                  Object.keys(updated).forEach((key) => {
-                    if (updated[key] !== 'failed') {
-                      updated[key] = status.status === 'complete' ? 'done' : 'failed';
-                    }
-                  });
+                // Calculate final step statuses and summary atomically
+                dispatchExecution({
+                  type: 'SET_STEP_STATUSES',
+                  updater: (prev) => {
+                    const updated = { ...prev };
+                    Object.keys(updated).forEach((key) => {
+                      if (updated[key] !== 'failed') {
+                        updated[key] = status.status === 'complete' ? 'done' : 'failed';
+                      }
+                    });
+                    return updated;
+                  },
+                });
 
-                  // Calculate summary with updated statuses
-                  const successCount = Object.values(updated).filter((s) => s === 'done').length;
-                  const failedCount = Object.values(updated).filter((s) => s === 'failed').length;
+                // Calculate counts from current state (will be consistent due to batching)
+                const successCount = Object.values(stepStatuses).filter((s) => s === 'done' || (status.status === 'complete' && s !== 'failed')).length;
+                const failedCount = Object.values(stepStatuses).filter((s) => s === 'failed' || (status.status === 'failed' && s !== 'done')).length;
 
-                  setExecutionSummary({
+                dispatchExecution({
+                  type: 'EXECUTION_COMPLETE',
+                  summary: {
                     status: status.status,
-                    totalSteps,
-                    successCount,
-                    failedCount,
+                    totalSteps: totalStepsCount,
+                    successCount: status.status === 'complete' ? totalStepsCount : successCount,
+                    failedCount: status.status === 'failed' ? totalStepsCount - successCount : failedCount,
                     goalAchieved: status.status === 'complete',
                     message:
                       status.status === 'complete'
-                        ? `✅ Successfully completed all ${totalSteps} steps`
-                        : `❌ Execution failed after ${successCount} steps`,
-                  });
-
-                  // Add summary to thoughts
-                  setThoughts((prev) => [
-                    ...prev,
-                    {
-                      role: 'assistant',
-                      content:
-                        status.status === 'complete'
-                          ? `**Execution Complete!**\n\nSuccessfully completed all ${totalSteps} steps.\n\n${runTracker.definitionOfDone}`
-                          : `❌ **Execution Failed**\n\nCompleted ${successCount} out of ${totalSteps} steps before encountering an error.`,
-                      timestamp: Date.now(),
-                      metadata: { summary: true },
-                    },
-                  ]);
-
-                  return updated;
+                        ? `✅ Successfully completed all ${totalStepsCount} steps`
+                        : `❌ Execution failed`,
+                  },
                 });
+
+                // Add summary to thoughts
+                setThoughts((prev) => [
+                  ...prev,
+                  {
+                    role: 'assistant',
+                    content:
+                      status.status === 'complete'
+                        ? `**Execution Complete!**\n\nSuccessfully completed all ${totalStepsCount} steps.\n\n${runTracker.definitionOfDone}`
+                        : `❌ **Execution Failed**\n\nExecution encountered an error.`,
+                    timestamp: Date.now(),
+                    metadata: { summary: true },
+                  },
+                ]);
 
                 toast(
                   status.status === 'complete' ? '✅ Execution complete!' : '❌ Execution failed',
@@ -4114,28 +4119,29 @@ export default function AppleFloatBar({
           setIsThinking(false);
           setThinkingStatus('');
 
-          // Show error state in execution panel
-          setExecutionPlan({
-            steps: [
-              {
-                id: 'error-step',
-                description: 'Planning failed',
-                goal: error.message,
-                tool_name: 'error',
-              },
-            ],
-            goal: text,
-            definition_of_done: 'Fix the error and try again',
-          });
-
-          setStepStatuses({ 0: 'failed' });
-          setExecutionSummary({
-            status: 'failed',
-            totalSteps: 0,
-            successCount: 0,
-            failedCount: 1,
-            goalAchieved: false,
-            message: `❌ Planning failed: ${error.message}`,
+          // Show error state in execution panel (atomic update)
+          dispatchExecution({
+            type: 'SET_ERROR_PLAN',
+            plan: {
+              steps: [
+                {
+                  id: 'error-step',
+                  description: 'Planning failed',
+                  goal: error.message,
+                  tool_name: 'error',
+                },
+              ],
+              goal: text,
+              definition_of_done: 'Fix the error and try again',
+            },
+            summary: {
+              status: 'failed',
+              totalSteps: 0,
+              successCount: 0,
+              failedCount: 1,
+              goalAchieved: false,
+              message: `❌ Planning failed: ${error.message}`,
+            },
           });
           setPlanCardDismissed(false);
 
@@ -4558,15 +4564,8 @@ export default function AppleFloatBar({
     enrichTileIdRef.current = null;
     clearMessages();
 
-    // Clear multi-step execution state so progress UI resets
-    setExecutionPlan(null);
-    setStepStatuses({});
-    setExecutionSummary(null);
-    setExecutionStartTime(null);
-    setCurrentStep(0);
-    setTotalSteps(0);
-    setRunStatus(null);
-    setActiveRunId(null);
+    // Clear multi-step execution state so progress UI resets (atomic)
+    dispatchExecution({ type: 'RESET' });
     setExecutionDetails(null);
     setRunExecLogs([]);
     setArtifactSummary(null);
@@ -5005,18 +5004,18 @@ export default function AppleFloatBar({
     const pollStatus = async () => {
       try {
         if (typeof window === 'undefined' || !window?.electron?.handsOnDesktop?.status) {
-          if (!cancelled) {
-            setDesktopBridgeStatus((prev) => prev || { connected: false, enabled: false });
+          if (!cancelled && !desktopBridgeStatus) {
+            dispatchExecution({ type: 'SET_DESKTOP_BRIDGE_STATUS', status: { connected: false, enabled: false } });
           }
         } else {
           const status = await window.electron.handsOnDesktop.status();
           if (!cancelled) {
-            setDesktopBridgeStatus(status || { connected: false, enabled: false });
+            dispatchExecution({ type: 'SET_DESKTOP_BRIDGE_STATUS', status: status || { connected: false, enabled: false } });
           }
         }
       } catch (err) {
         if (!cancelled) {
-          setDesktopBridgeStatus({ connected: false, enabled: false, error: err?.message });
+          dispatchExecution({ type: 'SET_DESKTOP_BRIDGE_STATUS', status: { connected: false, enabled: false, error: err?.message } });
         }
       } finally {
         if (!cancelled) {
@@ -5803,15 +5802,7 @@ export default function AppleFloatBar({
                         Thought
                       </span>
                       <button
-                        onClick={() => {
-                          setThoughts((prev) => {
-                            const copy = [...prev];
-                            const i = copy.findIndex((m) => m?.id === thought.id);
-                            if (i === -1) return prev;
-                            copy[i] = { ...copy[i], expanded: !isExpanded };
-                            return copy;
-                          });
-                        }}
+                        onClick={() => handleToggleThoughtExpand(thought.id, isExpanded)}
                         style={{
                           marginLeft: 'auto',
                           background: 'transparent',
@@ -5830,15 +5821,7 @@ export default function AppleFloatBar({
                       </div>
                     ) : (
                       <div
-                        onClick={() => {
-                          setThoughts((prev) => {
-                            const copy = [...prev];
-                            const i = copy.findIndex((m) => m?.id === thought.id);
-                            if (i === -1) return prev;
-                            copy[i] = { ...copy[i], expanded: true };
-                            return copy;
-                          });
-                        }}
+                        onClick={() => handleExpandThought(thought.id)}
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -6055,7 +6038,7 @@ export default function AppleFloatBar({
                   </span>
                   <button
                     className="attachment-remove-btn"
-                    onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                    onClick={() => handleRemoveAttachment(idx)}
                   >
                     <X size={12} />
                   </button>
@@ -6064,241 +6047,32 @@ export default function AppleFloatBar({
             </div>
           )}
 
-          {/* Input Area */}
-          <div className="apple-input-area" ref={composerRef}>
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,.pdf,.txt,.md,.json,.csv"
-              multiple
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                const files = Array.from(e.target.files || []);
-                files.forEach((file) => {
-                  const isImage = file.type.startsWith('image/');
-                  if (isImage) {
-                    const reader = new FileReader();
-                    reader.onload = (ev) => {
-                      setAttachments((prev) => [
-                        ...prev,
-                        {
-                          file,
-                          preview: ev.target.result,
-                          type: 'image',
-                        },
-                      ]);
-                    };
-                    reader.readAsDataURL(file);
-                  } else {
-                    // For text files, read the content
-                    const textReader = new FileReader();
-                    textReader.onload = (ev) => {
-                      setAttachments((prev) => [
-                        ...prev,
-                        {
-                          file,
-                          preview: null,
-                          type: 'file',
-                          content: ev.target.result, // text content
-                        },
-                      ]);
-                    };
-                    textReader.readAsText(file);
-                  }
-                });
-                e.target.value = ''; // Reset input
-              }}
-            />
-
-            {/* Attach button */}
-            <button
-              className="apple-attach-btn"
-              onClick={async () => {
-                // Use native file dialog if available (opens as separate window)
-                const openFileDialog =
-                  window.electron?.openFileDialog || window.electronAPI?.openFileDialog;
-                if (openFileDialog) {
-                  try {
-                    const result = await openFileDialog();
-                    if (result?.success && result.files?.length) {
-                      result.files.forEach((file) => {
-                        setAttachments((prev) => [
-                          ...prev,
-                          {
-                            file: { name: file.name, size: file.size, path: file.path },
-                            preview: file.data, // base64 data URL for images
-                            type: file.type,
-                            content: file.content, // text content for documents
-                          },
-                        ]);
-                      });
-                    }
-                  } catch (err) {
-                    console.error('[FileDialog] Error:', err);
-                    // Fallback to HTML input
-                    fileInputRef.current?.click();
-                  }
-                } else {
-                  // Fallback for web
-                  fileInputRef.current?.click();
-                }
-              }}
-              title="Attach files or images"
-            >
-              <Plus size={18} />
-            </button>
-
-            <textarea
-              ref={inputRef}
-              className={`apple-input apple-textarea${message.includes('\n') || inputRef.current?.scrollHeight > 40 ? ' has-overflow' : ''}`}
-              placeholder={
-                userInputRequest
-                  ? 'Type your response...'
-                  : apiConnected
-                    ? 'Ask anything...'
-                    : 'Connecting...'
-              }
-              value={message}
-              onChange={(e) => {
-                setMessage(e.target.value);
-                // Auto-resize textarea - only grow when content actually wraps.
-                e.target.style.height = 'auto';
-                const scrollHeight = e.target.scrollHeight;
-                const singleLineMax = 36; // Accounts for padding
-                const isMultiLine = scrollHeight > singleLineMax;
-
-                if (isMultiLine) {
-                  const newHeight = Math.min(scrollHeight, 120);
-                  e.target.style.height = newHeight + 'px';
-                  e.target.classList.add('has-overflow');
-                } else {
-                  e.target.style.height = '';
-                  e.target.classList.remove('has-overflow');
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  if (userInputRequest) {
-                    handleUserInputSubmit();
-                  } else {
-                    handleSubmit();
-                  }
-                }
-              }}
-              disabled={!apiConnected || (isThinking && !userInputRequest)}
-              rows={1}
-              style={
-                userInputRequest
-                  ? {
-                      borderColor: 'rgba(59, 130, 246, 0.5)',
-                      background: 'rgba(59, 130, 246, 0.05)',
-                    }
-                  : {}
-              }
-            />
-            <div
-              className="apple-send-wrapper"
-              onMouseEnter={() => {
-                if (hoverTimeoutRef.current) {
-                  clearTimeout(hoverTimeoutRef.current);
-                  hoverTimeoutRef.current = null;
-                }
-                const hasActiveRun =
-                  (executionPlan && !executionSummary) ||
-                  ((runStatus === 'running' || runStatus === 'paused') &&
-                    (executionPlan || planIdRef.current));
-                if (hasActiveRun) {
-                  setShowSendControls(true);
-                }
-              }}
-              onMouseLeave={() => {
-                if (hoverTimeoutRef.current) {
-                  clearTimeout(hoverTimeoutRef.current);
-                }
-                hoverTimeoutRef.current = setTimeout(() => {
-                  setShowSendControls(false);
-                  hoverTimeoutRef.current = null;
-                }, 500);
-              }}
-            >
-              {showSendControls &&
-                ((executionPlan && !executionSummary) ||
-                  ((runStatus === 'running' || runStatus === 'paused') &&
-                    (executionPlan || planIdRef.current))) && (
-                  <div className="send-controls-popup">
-                    {runStatus === 'paused' ? (
-                      <>
-                        <button
-                          className="control-btn resume-btn"
-                          onClick={handleResumeRun}
-                          title="Resume execution"
-                        >
-                          <Play size={14} />
-                          <span>Resume</span>
-                        </button>
-                        <button
-                          className="control-btn cancel-btn"
-                          onClick={handleCancelRun}
-                          title="Cancel execution"
-                        >
-                          <X size={14} />
-                          <span>Cancel</span>
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          className="control-btn pause-btn"
-                          onClick={handlePauseRun}
-                          title="Pause execution"
-                        >
-                          <Pause size={14} />
-                          <span>Pause</span>
-                        </button>
-                        <button
-                          className="control-btn cancel-btn"
-                          onClick={handleCancelRun}
-                          title="Cancel execution"
-                        >
-                          <X size={14} />
-                          <span>Cancel</span>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              {/* Show stop button when AI is working, otherwise show send button */}
-              {isThinking || (executionPlan && !executionSummary) || runStatus === 'running' ? (
-                <button
-                  className="apple-send-btn apple-stop-btn"
-                  onClick={handleStopAll}
-                  title="Stop AI"
-                >
-                  <Square size={14} fill="currentColor" />
-                </button>
-              ) : (
-                <button
-                  className="apple-send-btn"
-                  onClick={userInputRequest ? handleUserInputSubmit : handleSubmit}
-                  disabled={
-                    (!message.trim() && attachments.length === 0) ||
-                    (!userInputRequest && !apiConnected)
-                  }
-                  style={
-                    userInputRequest
-                      ? {
-                          background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                        }
-                      : {}
-                  }
-                >
-                  <ArrowUp size={16} />
-                </button>
-              )}
-            </div>
-          </div>
+          {/* Input Area - Extracted to ComposerBar for performance */}
+          <ComposerBar
+            composerRef={composerRef}
+            fileInputRef={fileInputRef}
+            inputRef={inputRef}
+            hoverTimeoutRef={hoverTimeoutRef}
+            planIdRef={planIdRef}
+            message={message}
+            attachments={attachments}
+            userInputRequest={userInputRequest}
+            apiConnected={apiConnected}
+            isThinking={isThinking}
+            executionPlan={executionPlan}
+            executionSummary={executionSummary}
+            runStatus={runStatus}
+            showSendControls={showSendControls}
+            setMessage={setMessage}
+            setAttachments={setAttachments}
+            setShowSendControls={setShowSendControls}
+            handleUserInputSubmit={handleUserInputSubmit}
+            handleSubmit={handleSubmit}
+            handleStopAll={handleStopAll}
+            handleResumeRun={handleResumeRun}
+            handlePauseRun={handlePauseRun}
+            handleCancelRun={handleCancelRun}
+          />
         </div>
       </div>
       {/* Approval Dialog */}
