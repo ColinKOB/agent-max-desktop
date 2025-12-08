@@ -1979,6 +1979,13 @@ export default function AppleFloatBar({
           const content = event.content || event.data?.content || '';
           if (!content) return;
 
+          // Hide thinking indicator as soon as content starts arriving
+          // This prevents the dots from lingering after content is visible
+          if (isThinking) {
+            setIsThinking(false);
+            setThinkingStatus('');
+          }
+
           // Track tokens for credit calculation (approximate: ~4 chars per token)
           totalOutputTokens += Math.ceil(content.length / 4);
 
