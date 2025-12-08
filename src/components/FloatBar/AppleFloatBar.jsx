@@ -4887,12 +4887,26 @@ export default function AppleFloatBar({
   }, [updateWindowHeight]);
 
 
-  // Auto-scroll behavior: keep greeting visible in empty state, otherwise stick to bottom
-  // Also triggers when a message gains a Deep Dive button (streaming: false + isDeepDive)
-  const lastThought = thoughts[thoughts.length - 1];
-  const lastThoughtKey = lastThought 
-    ? `${lastThought.streaming}-${lastThought.isDeepDive || false}-${(lastThought.content || '').length}`
-    : '';
+  // PERF: Memoize message-derived computations to avoid recalculating on every render
+  // These are used for auto-scroll behavior and progress display
+
+  // Last thought for scroll key generation
+  const lastThought = useMemo(() => thoughts[thoughts.length - 1], [thoughts]);
+
+  // Key for detecting when we need to scroll (content changes, streaming state, deep dive)
+  const lastThoughtKey = useMemo(
+    () =>
+      lastThought
+        ? `${lastThought.streaming}-${lastThought.isDeepDive || false}-${(lastThought.content || '').length}`
+        : '',
+    [lastThought]
+  );
+
+  // Index of last user message - for showing execution progress under the right message
+  const lastUserMessageIdx = useMemo(
+    () => thoughts.reduce((lastIdx, t, i) => (t.role === 'user' ? i : lastIdx), -1),
+    [thoughts]
+  );
 
   useEffect(() => {
     const el = messagesRef.current;
@@ -5017,7 +5031,11 @@ export default function AppleFloatBar({
     };
   }, []);
 
-  const desktopBridgeConnected = Boolean(desktopBridgeStatus?.connected);
+  // PERF: Memoize connection status derivations
+  const desktopBridgeConnected = useMemo(
+    () => Boolean(desktopBridgeStatus?.connected),
+    [desktopBridgeStatus?.connected]
+  );
   const backendConnected = apiConnected;
   useEffect(() => {
     if (!desktopActionsRequired) {
@@ -5761,9 +5779,7 @@ export default function AppleFloatBar({
             {thoughts.map((thought, idx) => {
               // Render user message first, then execution progress checklist
               const isUserMessage = thought.role === 'user';
-              // Find the index of the last user message - only show progress for that one
-              const lastUserMessageIdx = thoughts.reduce((lastIdx, t, i) =>
-                t.role === 'user' ? i : lastIdx, -1);
+              // Use memoized lastUserMessageIdx (computed once above, not per message)
               const isLastUserMessage = isUserMessage && idx === lastUserMessageIdx;
               const shouldShowProgress =
                 isLastUserMessage && (
