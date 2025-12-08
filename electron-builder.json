@@ -26,6 +26,29 @@
       "teamId": "${env.APPLE_TEAM_ID}"
     }
   },
+  "dmg": {
+    "background": "resources/dmg-background.png",
+    "backgroundColor": "#0f0f1a",
+    "iconSize": 100,
+    "iconTextSize": 12,
+    "contents": [
+      {
+        "x": 150,
+        "y": 170,
+        "type": "file"
+      },
+      {
+        "x": 390,
+        "y": 170,
+        "type": "link",
+        "path": "/Applications"
+      }
+    ],
+    "window": {
+      "width": 540,
+      "height": 380
+    }
+  },
   "win": {
     "target": ["nsis", "portable"],
     "icon": "build/icon.ico"
