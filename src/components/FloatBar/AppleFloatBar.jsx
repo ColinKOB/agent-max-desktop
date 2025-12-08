@@ -1018,7 +1018,7 @@ export default function AppleFloatBar({
   }, [apiConnected]);
 
   // Helper to map UI level to backend mode
-  const resolveMode = useCallback(() => normalizedPermissionMode, [normalizedPermissionMode]);
+  const resolveMode = useCallback(() => validatedPermissionMode, [validatedPermissionMode]);
 
   // Hard route guard: the FloatBar window should never navigate to /settings
   useEffect(() => {
@@ -3739,7 +3739,7 @@ export default function AppleFloatBar({
       }
 
       // Execute using pull-based OR streaming approach
-      const currentMode = permissionModeRef.current || normalizedPermissionMode;
+      const currentMode = permissionModeRef.current || validatedPermissionMode;
       const isAutonomous = currentMode === 'autonomous';
 
       if (usePullExecution && isAutonomous) {
@@ -4292,7 +4292,7 @@ export default function AppleFloatBar({
       // If this is the first prompt and it looks like an email intent, open approval immediately
       // Note: Message stays visible during approval dialog
       // SKIP approval for chatty mode - it can only read emails, not send them
-      const currentMode = permissionModeRef.current || normalizedPermissionMode;
+      const currentMode = permissionModeRef.current || validatedPermissionMode;
       const isChattyMode = currentMode === 'chatty';
 
       try {
@@ -5468,7 +5468,7 @@ export default function AppleFloatBar({
                   { value: 'autonomous', title: 'Autonomous' },
                 ].map((opt, idx) => {
                   const optionMode = validateModeValue(opt.value);
-                  const isSelected = normalizedPermissionMode === optionMode;
+                  const isSelected = validatedPermissionMode === optionMode;
                   return (
                     <button
                       key={opt.value}
