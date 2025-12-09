@@ -680,14 +680,18 @@ export async function addMessage(role, content, sessionId = null) {
 export async function getRecentMessages(count = 20, sessionId = null) {
   const userId = localStorage.getItem('user_id');
   const activeSessionId = sessionId || localStorage.getItem('session_id');
-  
+
   if (!userId || !activeSessionId) {
     return [];
   }
 
+  // Don't query Supabase with pending or local session IDs - they're not valid UUIDs
+  const isPendingOrLocal = activeSessionId.startsWith('pending-session-') ||
+                           activeSessionId.startsWith('local-session-');
+
   try {
-    // Try Supabase first
-    if (isOnline && supabase) {
+    // Try Supabase first (only if we have a real UUID session)
+    if (isOnline && supabase && !isPendingOrLocal) {
       const { data, error } = await supabase
         .from('messages')
         .select('*')
@@ -696,7 +700,7 @@ export async function getRecentMessages(count = 20, sessionId = null) {
         .limit(count);
 
       if (error) throw error;
-      
+
       // Convert to expected format
       return data.reverse().map(msg => ({
         role: msg.role,
@@ -708,11 +712,12 @@ export async function getRecentMessages(count = 20, sessionId = null) {
     logger.warn('Failed to get messages from Supabase, falling back to Electron:', error);
   }
 
-  // Fallback to Electron
+  // Fallback to Electron (also handles pending/local sessions)
   if (window.electron?.memory?.getRecentMessages) {
     return await window.electron.memory.getRecentMessages(count, activeSessionId);
   }
 
+  // For pending sessions with no Electron backend, return empty (no messages yet)
   return [];
 }
 
@@ -722,14 +727,18 @@ export async function getRecentMessages(count = 20, sessionId = null) {
 export async function clearSession(sessionId = null) {
   const userId = localStorage.getItem('user_id');
   const activeSessionId = sessionId || localStorage.getItem('session_id');
-  
+
   if (!userId || !activeSessionId) {
     throw new Error('User or session not initialized');
   }
 
+  // Don't query Supabase with pending or local session IDs - they're not valid UUIDs
+  const isPendingOrLocal = activeSessionId.startsWith('pending-session-') ||
+                           activeSessionId.startsWith('local-session-');
+
   try {
-    // Try Supabase first
-    if (isOnline && supabase) {
+    // Try Supabase first (only if we have a real UUID session)
+    if (isOnline && supabase && !isPendingOrLocal) {
       const { error } = await supabase
         .from('messages')
         .delete()
@@ -743,7 +752,7 @@ export async function clearSession(sessionId = null) {
     logger.warn('Failed to clear session in Supabase, falling back to Electron:', error);
   }
 
-  // Fallback to Electron
+  // Fallback to Electron (also handles pending/local sessions)
   if (window.electron?.memory) {
     await window.electron.memory.clearSession(activeSessionId);
   }

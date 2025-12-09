@@ -93,57 +93,54 @@ async function generateBackground(scale = 1) {
     ctx.stroke();
   }
 
-  // === DIRECTIONAL ARROW: Installation guide ===
-  // Elegant arrow pointing from app to Applications folder
+  // === DIRECTIONAL ARROW: Professional chevron-style arrow ===
   const arrowY = height * 0.5;
-  const arrowStartX = width * 0.42;
-  const arrowEndX = width * 0.58;
+  const arrowCenterX = width * 0.5;
 
-  // Arrow line
-  const arrowGradient = ctx.createLinearGradient(arrowStartX, arrowY, arrowEndX, arrowY);
-  arrowGradient.addColorStop(0, 'rgba(234, 140, 50, 0.4)');
-  arrowGradient.addColorStop(1, 'rgba(234, 140, 50, 0.7)');
+  // Create a sophisticated double-chevron arrow
+  const chevronWidth = 14 * scale;
+  const chevronHeight = 20 * scale;
+  const chevronGap = 8 * scale;
+  const strokeWidth = 2.5 * scale;
+
+  // Gradient for the chevrons
+  const arrowGradient = ctx.createLinearGradient(
+    arrowCenterX - 30 * scale, arrowY,
+    arrowCenterX + 30 * scale, arrowY
+  );
+  arrowGradient.addColorStop(0, 'rgba(234, 140, 50, 0.35)');
+  arrowGradient.addColorStop(0.5, 'rgba(234, 140, 50, 0.7)');
+  arrowGradient.addColorStop(1, 'rgba(234, 140, 50, 0.9)');
 
   ctx.strokeStyle = arrowGradient;
-  ctx.lineWidth = 2 * scale;
-  ctx.lineCap = 'round';
-
-  ctx.beginPath();
-  ctx.moveTo(arrowStartX, arrowY);
-  ctx.lineTo(arrowEndX - 8 * scale, arrowY);
-  ctx.stroke();
-
-  // Arrow head
-  ctx.fillStyle = 'rgba(234, 140, 50, 0.7)';
-  ctx.beginPath();
-  ctx.moveTo(arrowEndX, arrowY);
-  ctx.lineTo(arrowEndX - 12 * scale, arrowY - 6 * scale);
-  ctx.lineTo(arrowEndX - 12 * scale, arrowY + 6 * scale);
-  ctx.closePath();
-  ctx.fill();
-
-  // === CHEVRON ACCENT (Agent Max brand element) ===
-  // Subtle brand mark in corner
-  ctx.strokeStyle = 'rgba(234, 140, 50, 0.15)';
-  ctx.lineWidth = 2 * scale;
+  ctx.lineWidth = strokeWidth;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  const chevronX = width * 0.92;
-  const chevronY = height * 0.08;
-  const chevronSize = 12 * scale;
-
-  // Left chevron
+  // First chevron (left, more faded)
+  const chev1X = arrowCenterX - chevronGap - chevronWidth;
   ctx.beginPath();
-  ctx.moveTo(chevronX - chevronSize, chevronY - chevronSize);
-  ctx.lineTo(chevronX - chevronSize - 4 * scale, chevronY + chevronSize);
+  ctx.moveTo(chev1X, arrowY - chevronHeight / 2);
+  ctx.lineTo(chev1X + chevronWidth, arrowY);
+  ctx.lineTo(chev1X, arrowY + chevronHeight / 2);
   ctx.stroke();
 
-  // Right chevron
+  // Second chevron (middle)
+  const chev2X = arrowCenterX - chevronWidth / 2;
   ctx.beginPath();
-  ctx.moveTo(chevronX, chevronY - chevronSize);
-  ctx.lineTo(chevronX - 4 * scale, chevronY + chevronSize);
+  ctx.moveTo(chev2X, arrowY - chevronHeight / 2);
+  ctx.lineTo(chev2X + chevronWidth, arrowY);
+  ctx.lineTo(chev2X, arrowY + chevronHeight / 2);
   ctx.stroke();
+
+  // Third chevron (right, brightest)
+  const chev3X = arrowCenterX + chevronGap;
+  ctx.beginPath();
+  ctx.moveTo(chev3X, arrowY - chevronHeight / 2);
+  ctx.lineTo(chev3X + chevronWidth, arrowY);
+  ctx.lineTo(chev3X, arrowY + chevronHeight / 2);
+  ctx.stroke();
+
 
   // === BOTTOM TEXT: Whispered guidance ===
   ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
