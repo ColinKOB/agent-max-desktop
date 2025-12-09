@@ -84,6 +84,7 @@ import TypewriterMessage from '../TypewriterMessage/TypewriterMessage';
 import ActivityFeed from '../ActivityFeed/ActivityFeed';
 import EmailRenderer from './EmailRenderer';
 import ComposerBar from './ComposerBar';
+import { processImageFile } from '../../utils/imageCompression';
 
 const logger = createLogger('FloatBar');
 
@@ -592,7 +593,7 @@ export default function AppleFloatBar({
     e.stopPropagation();
   }, []);
 
-  const handleDrop = useCallback((e) => {
+  const handleDrop = useCallback(async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -603,51 +604,41 @@ export default function AppleFloatBar({
     const files = Array.from(e.dataTransfer?.files || []);
     if (files.length === 0) return;
 
-    // Process dropped files
-    files.forEach((file) => {
+    // Process dropped files with compression for images
+    const processPromises = files.map(async (file) => {
       const isImage = file.type.startsWith('image/');
       const isAllowedDocument = /\.(pdf|txt|md|json|csv)$/i.test(file.name);
 
       if (!isImage && !isAllowedDocument) {
         toast.error(`Unsupported file type: ${file.name}`, { duration: 3000 });
-        return;
+        return null;
       }
 
-      if (isImage) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          setAttachments((prev) => [
-            ...prev,
-            {
-              file,
-              preview: ev.target.result,
-              type: 'image',
-            },
-          ]);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        // Text/document files
-        const textReader = new FileReader();
-        textReader.onload = (ev) => {
-          setAttachments((prev) => [
-            ...prev,
-            {
-              file,
-              preview: null,
-              type: 'file',
-              content: ev.target.result,
-            },
-          ]);
-        };
-        textReader.readAsText(file);
+      try {
+        // Use compression utility for all files (handles both images and text)
+        const processed = await processImageFile(file, {
+          maxWidth: 1920,
+          maxHeight: 1080,
+          quality: 0.8,
+        });
+        return processed;
+      } catch (err) {
+        console.error('[handleDrop] Error processing file:', err);
+        toast.error(`Failed to process: ${file.name}`, { duration: 3000 });
+        return null;
       }
     });
 
-    toast.success(`${files.length} file${files.length > 1 ? 's' : ''} added`, {
-      icon: '📎',
-      duration: 2000
-    });
+    const results = await Promise.all(processPromises);
+    const validResults = results.filter(Boolean);
+
+    if (validResults.length > 0) {
+      setAttachments((prev) => [...prev, ...validResults]);
+      toast.success(`${validResults.length} file${validResults.length > 1 ? 's' : ''} added`, {
+        icon: '📎',
+        duration: 2000
+      });
+    }
   }, [setAttachments]);
 
   // Intent confirmation handlers

@@ -8,6 +8,7 @@
 
 import React, { useCallback } from 'react';
 import { Plus, ArrowUp, Square, Pause, Play, X } from 'lucide-react';
+import { processImageFile, compressImage } from '../../utils/imageCompression';
 
 const ComposerBar = React.memo(function ComposerBar({
   // Refs
@@ -38,42 +39,27 @@ const ComposerBar = React.memo(function ComposerBar({
   handlePauseRun,
   handleCancelRun,
 }) {
-  // Handle file selection from hidden input
+  // Handle file selection from hidden input - with compression for images
   const handleFileChange = useCallback(
-    (e) => {
+    async (e) => {
       const files = Array.from(e.target.files || []);
-      files.forEach((file) => {
-        const isImage = file.type.startsWith('image/');
-        if (isImage) {
-          const reader = new FileReader();
-          reader.onload = (ev) => {
-            setAttachments((prev) => [
-              ...prev,
-              {
-                file,
-                preview: ev.target.result,
-                type: 'image',
-              },
-            ]);
-          };
-          reader.readAsDataURL(file);
-        } else {
-          // For text files, read the content
-          const textReader = new FileReader();
-          textReader.onload = (ev) => {
-            setAttachments((prev) => [
-              ...prev,
-              {
-                file,
-                preview: null,
-                type: 'file',
-                content: ev.target.result, // text content
-              },
-            ]);
-          };
-          textReader.readAsText(file);
-        }
-      });
+
+      // Process all files with compression
+      const processPromises = files.map((file) =>
+        processImageFile(file, {
+          maxWidth: 1920,
+          maxHeight: 1080,
+          quality: 0.8,
+        })
+      );
+
+      try {
+        const results = await Promise.all(processPromises);
+        setAttachments((prev) => [...prev, ...results]);
+      } catch (err) {
+        console.error('[ComposerBar] Error processing files:', err);
+      }
+
       e.target.value = ''; // Reset input
     },
     [setAttachments]
@@ -87,17 +73,46 @@ const ComposerBar = React.memo(function ComposerBar({
       try {
         const result = await openFileDialog();
         if (result?.success && result.files?.length) {
-          result.files.forEach((file) => {
-            setAttachments((prev) => [
-              ...prev,
-              {
-                file: { name: file.name, size: file.size, path: file.path },
-                preview: file.data, // base64 data URL for images
-                type: file.type,
-                content: file.content, // text content for documents
-              },
-            ]);
+          // Process files with compression for images
+          const processPromises = result.files.map(async (file) => {
+            if (file.type === 'image' && file.data) {
+              // Compress the image data
+              try {
+                const compressed = await compressImage(file.data, {
+                  maxWidth: 1920,
+                  maxHeight: 1080,
+                  quality: 0.8,
+                });
+                return {
+                  file: { name: file.name, size: file.size, path: file.path },
+                  preview: compressed.dataUrl,
+                  type: file.type,
+                  compressionInfo: {
+                    originalSize: compressed.originalSize,
+                    compressedSize: compressed.compressedSize,
+                    reduction: compressed.reduction,
+                  },
+                };
+              } catch (err) {
+                console.warn('[FileDialog] Compression failed, using original:', err);
+                return {
+                  file: { name: file.name, size: file.size, path: file.path },
+                  preview: file.data,
+                  type: file.type,
+                };
+              }
+            }
+            // Non-image files pass through unchanged
+            return {
+              file: { name: file.name, size: file.size, path: file.path },
+              preview: file.data,
+              type: file.type,
+              content: file.content,
+            };
           });
+
+          const processedFiles = await Promise.all(processPromises);
+          setAttachments((prev) => [...prev, ...processedFiles]);
         }
       } catch (err) {
         console.error('[FileDialog] Error:', err);
