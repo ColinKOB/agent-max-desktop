@@ -452,6 +452,8 @@ export default function AppleFloatBar({
 
   const [attachments, setAttachments] = useState([]); // [{file, preview, type}]
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false); // Track drag-and-drop state
+  const dragCounterRef = useRef(0); // Counter to handle nested drag events
   const fileInputRef = useRef(null);
 
   // Refs
@@ -557,6 +559,96 @@ export default function AppleFloatBar({
       toast.error(`Resume failed: ${err?.message || err}`);
     }
   }, [executionPlan]);
+
+  // Drag-and-drop handlers for files/images
+  const handleDragEnter = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current += 1;
+
+    // Check if dragging files
+    if (e.dataTransfer?.types?.includes('Files')) {
+      setIsDraggingFile(true);
+      // Auto-expand if in mini mode
+      if (isMini) {
+        setIsMini(false);
+        isMiniRef.current = false;
+      }
+    }
+  }, [isMini]);
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current -= 1;
+
+    if (dragCounterRef.current === 0) {
+      setIsDraggingFile(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Reset drag state
+    dragCounterRef.current = 0;
+    setIsDraggingFile(false);
+
+    const files = Array.from(e.dataTransfer?.files || []);
+    if (files.length === 0) return;
+
+    // Process dropped files
+    files.forEach((file) => {
+      const isImage = file.type.startsWith('image/');
+      const isAllowedDocument = /\.(pdf|txt|md|json|csv)$/i.test(file.name);
+
+      if (!isImage && !isAllowedDocument) {
+        toast.error(`Unsupported file type: ${file.name}`, { duration: 3000 });
+        return;
+      }
+
+      if (isImage) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          setAttachments((prev) => [
+            ...prev,
+            {
+              file,
+              preview: ev.target.result,
+              type: 'image',
+            },
+          ]);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Text/document files
+        const textReader = new FileReader();
+        textReader.onload = (ev) => {
+          setAttachments((prev) => [
+            ...prev,
+            {
+              file,
+              preview: null,
+              type: 'file',
+              content: ev.target.result,
+            },
+          ]);
+        };
+        textReader.readAsText(file);
+      }
+    });
+
+    toast.success(`${files.length} file${files.length > 1 ? 's' : ''} added`, {
+      icon: '📎',
+      duration: 2000
+    });
+  }, [setAttachments]);
 
   // Intent confirmation handlers
   const handleIntentConfirm = useCallback(async () => {
@@ -5116,7 +5208,13 @@ export default function AppleFloatBar({
   // Render mini pill (use original unchanged pill markup and classes)
   if (isMini) {
     return (
-      <div className="apple-floatbar-root mini">
+      <div
+        className="apple-floatbar-root mini"
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
         <div
           className={`amx-root amx-mini amx-mini-draggable ${isTransitioning ? 'amx-transitioning' : ''}`}
           onClick={handleExpand}
@@ -5143,9 +5241,27 @@ export default function AppleFloatBar({
 
   // Render expanded bar
   return (
-    <div className={windowClasses}>
+    <div
+      className={windowClasses}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <div className="apple-bar-container" ref={barRef}>
         <div className="apple-bar-glass" style={{ position: 'relative' }}>
+          {/* Drop Zone Overlay */}
+          {isDraggingFile && (
+            <div className="drop-zone-overlay">
+              <div className="drop-zone-content">
+                <div className="drop-zone-icon">
+                  <Paperclip size={48} />
+                </div>
+                <div className="drop-zone-text">Drop Here!</div>
+                <div className="drop-zone-hint">Images, PDFs, and text files</div>
+              </div>
+            </div>
+          )}
           <div className="apple-logo-drag-hit" />
           <div className="apple-bar-logo" style={{ backgroundImage: `url(${LogoPng})` }} />
           <div className="apple-drag-strip" />

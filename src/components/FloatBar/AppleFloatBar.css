@@ -732,3 +732,90 @@
   background: rgba(239, 68, 68, 0.4);
   color: #fca5a5;
 }
+
+/* Drop Zone Overlay - shown when dragging files over the app */
+.drop-zone-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26, 26, 31, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: inherit;
+  border: 2px dashed rgba(172, 116, 51, 0.6);
+  animation: dropZoneFadeIn 0.2s ease-out;
+}
+
+@keyframes dropZoneFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+}
+
+.drop-zone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  animation: dropZoneContentBounce 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes dropZoneContentBounce {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.drop-zone-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(172, 116, 51, 0.25) 0%, rgba(138, 90, 40, 0.15) 100%);
+  border: 2px solid rgba(172, 116, 51, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 200, 120, 0.9);
+  animation: dropZoneIconPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes dropZoneIconPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(172, 116, 51, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(172, 116, 51, 0);
+    transform: scale(1.05);
+  }
+}
+
+.drop-zone-text {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.5px;
+}
+
+.drop-zone-hint {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 400;
+}
