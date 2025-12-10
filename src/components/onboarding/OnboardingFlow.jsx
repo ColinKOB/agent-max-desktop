@@ -27,7 +27,9 @@ import {
   Cpu,
   MessageSquare,
   Bot,
-  AlertCircle
+  AlertCircle,
+  FileWarning,
+  Scale
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { healthAPI, googleAPI, creditsAPI, subscriptionAPI } from '../../services/api';
@@ -289,7 +291,201 @@ function WelcomeStep({ onNext }) {
 }
 
 // ============================================================================
-// STEP 1: NAME
+// STEP 1: LEGAL DISCLAIMER
+// ============================================================================
+function LegalStep({ onNext, onBack }) {
+  const [agreed, setAgreed] = useState(false);
+
+  const handleContinue = () => {
+    if (!agreed) return;
+    // Save agreement to localStorage
+    try {
+      localStorage.setItem('legal_agreement_accepted', 'true');
+      localStorage.setItem('legal_agreement_date', new Date().toISOString());
+    } catch (e) {
+      console.warn('[Onboarding] Failed to save legal agreement:', e);
+    }
+    onNext({ legalAccepted: true });
+  };
+
+  return (
+    <div style={{
+      maxWidth: 360,
+      margin: '0 auto',
+      padding: '16px 20px',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        style={{ textAlign: 'center', marginBottom: 16 }}
+      >
+        <div style={{
+          width: 56,
+          height: 56,
+          margin: '0 auto 12px',
+          borderRadius: 14,
+          background: 'rgba(245, 158, 11, 0.15)',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <Scale style={{ width: 28, height: 28, color: BRAND_ORANGE }} />
+        </div>
+
+        <h2 style={{ ...styles.heading, fontSize: 22, marginBottom: 6 }}>
+          Before We Begin
+        </h2>
+        <p style={{ ...styles.subheading, fontSize: 13, marginBottom: 0 }}>
+          Please review and accept our terms
+        </p>
+      </motion.div>
+
+      {/* Legal Content Box */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        style={{
+          flex: 1,
+          background: 'rgba(255, 255, 255, 0.03)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 16,
+          overflowY: 'auto',
+        }}
+      >
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 12,
+          color: BRAND_ORANGE,
+          fontSize: 13,
+          fontWeight: 600,
+        }}>
+          <FileWarning style={{ width: 16, height: 16 }} />
+          Experimental Software Disclaimer
+        </div>
+
+        <div style={{
+          fontSize: 12,
+          lineHeight: 1.6,
+          color: 'rgba(255, 255, 255, 0.7)',
+        }}>
+          <p style={{ marginBottom: 12 }}>
+            <strong style={{ color: '#fff' }}>Agent Max is experimental software in active development.</strong> By using this application, you acknowledge and agree to the following:
+          </p>
+
+          <ul style={{
+            margin: 0,
+            paddingLeft: 16,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}>
+            <li>
+              <strong style={{ color: '#fff' }}>No Warranty:</strong> This software is provided "as is" without any warranties of any kind, express or implied.
+            </li>
+            <li>
+              <strong style={{ color: '#fff' }}>Use at Your Own Risk:</strong> You assume all risks associated with using Agent Max, including but not limited to data loss, system issues, or unintended actions.
+            </li>
+            <li>
+              <strong style={{ color: '#fff' }}>Limitation of Liability:</strong> The developers shall not be held liable for any damages, direct or indirect, arising from your use of this software.
+            </li>
+            <li>
+              <strong style={{ color: '#fff' }}>AI Actions:</strong> Agent Max can perform actions on your computer. Always review suggested actions before approval.
+            </li>
+            <li>
+              <strong style={{ color: '#fff' }}>Beta Features:</strong> Features may change, break, or be removed without notice.
+            </li>
+          </ul>
+
+          <p style={{ marginTop: 12, marginBottom: 0, fontStyle: 'italic', color: 'rgba(255, 255, 255, 0.5)' }}>
+            By continuing, you release Agent Max and its developers from any claims, damages, or liability.
+          </p>
+        </div>
+      </motion.div>
+
+      {/* Agreement Checkbox */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        style={{ marginBottom: 16 }}
+      >
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 12,
+            cursor: 'pointer',
+            padding: 12,
+            background: agreed ? BRAND_ORANGE_LIGHT : 'rgba(255, 255, 255, 0.03)',
+            border: agreed ? `1px solid ${BRAND_ORANGE_GLOW}` : '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: 10,
+            transition: 'all 0.2s',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            style={{ display: 'none' }}
+          />
+          <div style={{
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            border: agreed ? 'none' : '2px solid rgba(255, 255, 255, 0.3)',
+            background: agreed ? BRAND_ORANGE : 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            transition: 'all 0.2s',
+          }}>
+            {agreed && <Check style={{ width: 14, height: 14, color: '#fff' }} />}
+          </div>
+          <span style={{
+            fontSize: 13,
+            color: agreed ? '#fff' : 'rgba(255, 255, 255, 0.7)',
+            lineHeight: 1.4,
+          }}>
+            I understand this is experimental software and I accept full responsibility for its use on my computer.
+          </span>
+        </label>
+      </motion.div>
+
+      {/* Buttons */}
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button onClick={onBack} style={styles.secondaryButton}>
+          Back
+        </button>
+        <button
+          onClick={handleContinue}
+          disabled={!agreed}
+          style={{
+            ...styles.primaryButton,
+            flex: 1,
+            opacity: !agreed ? 0.4 : 1,
+            cursor: !agreed ? 'not-allowed' : 'pointer',
+          }}
+        >
+          I Agree & Continue
+          <ArrowRight style={{ width: 18, height: 18 }} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// STEP 2: NAME
 // ============================================================================
 function NameStep({ userData, onNext }) {
   const [name, setName] = useState(userData.name || '');
@@ -1669,6 +1865,7 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
 
   const steps = [
     { id: 'welcome', component: WelcomeStep },
+    { id: 'legal', component: LegalStep },
     { id: 'name', component: NameStep },
     { id: 'usecase', component: UseCaseStep },
     { id: 'account', component: AccountStep },
