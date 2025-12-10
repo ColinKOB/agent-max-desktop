@@ -4301,6 +4301,9 @@ export default function AppleFloatBar({
       setAttachments([]);
       setMessage('');
 
+      // Clear previous run's steps immediately to avoid showing stale steps
+      setLiveActivitySteps([]);
+
       const userId = localStorage.getItem('user_id');
 
       // CREDIT GATE: Check if user has credits before allowing any message

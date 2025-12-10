@@ -2490,12 +2490,11 @@ class PullExecutor {
 
     /**
      * Type text into the currently focused application
-     * This is like having a second person type for you
+     * Uses clipboard paste (pbcopy + Cmd+V) for reliability with any content
      */
     async executeTypeText(args) {
         try {
             const text = args.text || args.content || '';
-            const delay = args.delay || args.delay_ms || 50; // ms between keystrokes
             const pressEnter = args.press_enter || args.enter || false;
 
             if (!text) {
@@ -2506,32 +2505,63 @@ class PullExecutor {
                 };
             }
 
-            console.log(`[PullExecutor] Typing ${text.length} characters into focused app`);
+            console.log(`[PullExecutor] Typing ${text.length} characters via clipboard paste`);
 
             const os = require('os');
             if (os.platform() === 'darwin') {
-                // Escape special characters for AppleScript
-                const escaped = text
-                    .replace(/\\/g, '\\\\')
-                    .replace(/"/g, '\\"')
-                    .replace(/\n/g, '\\n');
+                // Save current clipboard content
+                let originalClipboard = '';
+                try {
+                    const { stdout } = await execAsync('pbpaste');
+                    originalClipboard = stdout;
+                } catch (e) {
+                    // Clipboard might be empty or contain non-text data
+                }
 
+                // Copy text to clipboard using echo and pbcopy
+                // Use spawn to handle the input properly
+                const { spawn } = require('child_process');
+                await new Promise((resolve, reject) => {
+                    const pbcopy = spawn('pbcopy');
+                    pbcopy.stdin.write(text);
+                    pbcopy.stdin.end();
+                    pbcopy.on('close', (code) => {
+                        if (code === 0) resolve();
+                        else reject(new Error(`pbcopy failed with code ${code}`));
+                    });
+                    pbcopy.on('error', reject);
+                });
+
+                // Paste using Cmd+V
                 let script = `
                     tell application "System Events"
-                        keystroke "${escaped}"
+                        keystroke "v" using command down
                     end tell
                 `;
 
                 if (pressEnter) {
                     script = `
                         tell application "System Events"
-                            keystroke "${escaped}"
+                            keystroke "v" using command down
+                            delay 0.1
                             keystroke return
                         end tell
                     `;
                 }
 
                 await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`);
+
+                // Restore original clipboard after a short delay
+                setTimeout(async () => {
+                    try {
+                        const { spawn } = require('child_process');
+                        const pbcopy = spawn('pbcopy');
+                        pbcopy.stdin.write(originalClipboard);
+                        pbcopy.stdin.end();
+                    } catch (e) {
+                        // Ignore restore errors
+                    }
+                }, 500);
 
                 return {
                     success: true,
