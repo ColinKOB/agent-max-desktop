@@ -109,11 +109,11 @@ test.describe('Chat & Messaging Features', () => {
     await reader.cancel();
   });
 
-  (SKIP_AI ? test.skip : test)('Chat UI expands and sends message via autonomous endpoint', async ({ page }) => {
+  (SKIP_AI ? test.skip : test)('Chat UI expands and sends message via streaming endpoint', async ({ page }) => {
     await page.goto(`${BASE_URL}/#/card`);
-    
-    // Track autonomous API calls
-    const apiPromise = captureResponse(page, '/api/v2/autonomous/execute');
+
+    // Track chat streaming API calls (the actual endpoint used by the UI)
+    const apiPromise = captureResponse(page, '/api/v2/chat/streaming/stream');
     
     // Expand mini bar
     const mini = page.locator('.amx-mini, .apple-floatbar-root.mini');
