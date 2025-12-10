@@ -14,8 +14,39 @@ import useStore from '../store/useStore';
 class PullAutonomousService {
     constructor() {
         this.activeRuns = new Map();
+        this.pollTimeouts = new Map(); // Track poll timeouts for cancellation
         this.pollIntervalMs = 1000; // Poll every second
         this.maxPollTime = 300000; // 5 minutes max
+        this.isStopped = false; // Flag to prevent new polls after stop
+    }
+
+    /**
+     * Stop all polling and mark service as stopped
+     */
+    stopPolling() {
+        logger.info('[PullAutonomous] Stopping all polling');
+        this.isStopped = true;
+
+        // Clear all active poll timeouts
+        for (const [runId, timeoutId] of this.pollTimeouts) {
+            clearTimeout(timeoutId);
+            logger.info('[PullAutonomous] Cleared poll timeout for run:', runId);
+        }
+        this.pollTimeouts.clear();
+
+        // Mark all active runs as cancelled
+        for (const [runId, tracker] of this.activeRuns) {
+            tracker.status = 'cancelled';
+            logger.info('[PullAutonomous] Marked run as cancelled:', runId);
+        }
+        this.activeRuns.clear();
+    }
+
+    /**
+     * Reset the stopped state (call when starting new execution)
+     */
+    resetStopState() {
+        this.isStopped = false;
     }
 
     /**
@@ -208,6 +239,9 @@ class PullAutonomousService {
      * Poll for run status updates
      */
     async pollRunStatus(runId, onUpdate) {
+        // Reset stop state when starting a new poll
+        this.isStopped = false;
+
         const tracker = this.activeRuns.get(runId);
         if (!tracker) {
             logger.warn('[PullAutonomous] Run not found', { runId });
@@ -215,12 +249,20 @@ class PullAutonomousService {
         }
 
         const startTime = Date.now();
-        
+
         const poll = async () => {
+            // Check if polling was stopped
+            if (this.isStopped) {
+                logger.info('[PullAutonomous] Polling stopped, exiting poll loop', { runId });
+                this.pollTimeouts.delete(runId);
+                return;
+            }
+
             // Check timeout
             if (Date.now() - startTime > this.maxPollTime) {
                 logger.warn('[PullAutonomous] Poll timeout', { runId });
                 tracker.status = 'timeout';
+                this.pollTimeouts.delete(runId);
                 onUpdate(tracker);
                 return;
             }
@@ -228,12 +270,12 @@ class PullAutonomousService {
             try {
                 // Get status from executor (via IPC)
                 const result = await window.executor.getStatus(runId);
-                
+
                 // Handle IPC response wrapper
                 const status = result?.success ? result.status : result;
-                
+
                 console.log('[PullAutonomous] Poll result:', { result, status, hasStatus: !!status });
-                
+
                 if (status) {
                     // Update tracker
                     tracker.status = status.status;
@@ -247,42 +289,48 @@ class PullAutonomousService {
                     if (status.initial_message) {
                         tracker.initial_message = status.initial_message;
                     }
-                    
+
                     console.log('[PullAutonomous] Raw status from IPC:', JSON.stringify(status, null, 2));
-                    console.log('[PullAutonomous] Updated tracker:', { 
-                        status: tracker.status, 
+                    console.log('[PullAutonomous] Updated tracker:', {
+                        status: tracker.status,
                         currentStep: tracker.currentStep,
                         totalSteps: tracker.totalSteps,
                         hasFinalResponse: !!tracker.final_response,
                         finalResponsePreview: tracker.final_response?.substring(0, 100)
                     });
-                    
+
                     // Notify UI
                     onUpdate(tracker);
 
-                    // Continue polling if still running
-                    if (status.status === 'running' || status.status === 'executing') {
+                    // Continue polling if still running (and not stopped)
+                    if (!this.isStopped && (status.status === 'running' || status.status === 'executing')) {
                         console.log('[PullAutonomous] Still running, continuing poll...');
-                        setTimeout(poll, this.pollIntervalMs);
+                        const timeoutId = setTimeout(poll, this.pollIntervalMs);
+                        this.pollTimeouts.set(runId, timeoutId);
                     } else {
-                        // Run complete
+                        // Run complete or stopped
                         console.log('[PullAutonomous] Run finished with status:', status.status);
-                        logger.info('[PullAutonomous] Run complete', { 
-                            runId, 
-                            status: status.status 
+                        logger.info('[PullAutonomous] Run complete', {
+                            runId,
+                            status: status.status
                         });
+                        this.pollTimeouts.delete(runId);
                         this.activeRuns.delete(runId);
                     }
                 } else {
-                    // No status yet, keep polling
-                    console.log('[PullAutonomous] No status, continuing poll...');
-                    setTimeout(poll, this.pollIntervalMs);
+                    // No status yet, keep polling (if not stopped)
+                    if (!this.isStopped) {
+                        console.log('[PullAutonomous] No status, continuing poll...');
+                        const timeoutId = setTimeout(poll, this.pollIntervalMs);
+                        this.pollTimeouts.set(runId, timeoutId);
+                    }
                 }
 
             } catch (error) {
                 logger.error('[PullAutonomous] Poll error', { error: error.message });
                 tracker.status = 'error';
                 tracker.error = error.message;
+                this.pollTimeouts.delete(runId);
                 onUpdate(tracker);
             }
         };

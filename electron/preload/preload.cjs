@@ -217,6 +217,7 @@ contextBridge.exposeInMainWorld('Sentry', {
 contextBridge.exposeInMainWorld('executor', {
   createRun: (message, context, systemContext) =>
     ipcRenderer.invoke('autonomous:create-run', { message, context, systemContext }),
+  abortRequest: () => ipcRenderer.invoke('autonomous:abort-request'), // Abort in-flight request
   startRun: (runId) => ipcRenderer.invoke('executor:start-run', runId),
   stopRun: (runId) => ipcRenderer.invoke('executor:stop-run', runId),
   stopAll: () => ipcRenderer.invoke('executor:stop-all'), // Emergency stop ALL runs

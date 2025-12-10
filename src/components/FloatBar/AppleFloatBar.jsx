@@ -662,16 +662,8 @@ export default function AppleFloatBar({
       // Confirm intent via API and start execution
       await pullService.confirmIntent(tracker.runId);
 
-      // Show intent as the AI's initial response
-      setThoughts((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: tracker.intent || tracker.intentConfirmation?.detected_intent || 'Starting task...',
-          type: 'intent',
-          timestamp: Date.now(),
-        },
-      ]);
+      // Intent is now shown in the task list (ExecutionProgress/LiveActivityFeed)
+      // so we don't need to add it as a separate assistant message
 
       setThinkingStatus('Working...');
 
@@ -859,28 +851,51 @@ export default function AppleFloatBar({
       }
     }
 
-    // Cancel any active run on the backend
-    const planId = planIdRef.current || executionPlan?.plan_id || executionPlan?.planId;
-    if (planId) {
+    // Abort any in-flight chat/run creation request
+    if (window.executor?.abortRequest) {
       try {
-        await runAPI.cancel(planId);
-        logger.info('[Stop] Run cancelled:', planId);
+        const result = await window.executor.abortRequest();
+        if (result?.aborted) {
+          logger.info('[Stop] In-flight request aborted');
+        }
+      } catch (err) {
+        logger.warn('[Stop] Abort request failed:', err?.message || err);
+      }
+    }
+
+    // Cancel any active run on the backend
+    // Use activeRunId (for iterative execution) OR planId (for planned execution)
+    const runId = activeRunId || planIdRef.current || executionPlan?.plan_id || executionPlan?.planId;
+    if (runId) {
+      try {
+        await runAPI.cancel(runId);
+        logger.info('[Stop] Run cancelled:', runId);
       } catch (err) {
         logger.warn('[Stop] Run cancel failed:', err?.message || err);
       }
+    } else {
+      logger.warn('[Stop] No active run ID found to cancel');
+    }
+
+    // Stop polling in pullService
+    const pullService = pullServiceRef.current;
+    if (pullService?.stopPolling) {
+      pullService.stopPolling();
+      logger.info('[Stop] Polling stopped');
     }
 
     // Reset all thinking/execution states
     setIsThinking(false);
     setThinkingStatus('');
     clearActivityLog(); // Clear activity feed
+    setLiveActivitySteps([]); // Clear live activity feed
     dispatchExecution({
       type: 'CANCELLED',
       successCount: Object.values(stepStatuses).filter((s) => s === 'done').length,
     });
 
     toast('AI stopped', { icon: '🛑', duration: 2000 });
-  }, [executionPlan, stepStatuses]);
+  }, [executionPlan, stepStatuses, activeRunId]);
 
   const copyToClipboard = useCallback(async (text, note = 'Copied') => {
     try {
@@ -3896,16 +3911,8 @@ export default function AppleFloatBar({
               intent: runTracker.intent,
             });
 
-            // Show intent as the AI's initial response
-            setThoughts((prev) => [
-              ...prev,
-              {
-                role: 'assistant',
-                content: runTracker.intent,
-                type: 'intent',
-                timestamp: Date.now(),
-              },
-            ]);
+            // Intent is now shown in the task list (LiveActivityFeed)
+            // so we don't need to add it as a separate assistant message
 
             setThinkingStatus('Working...');
 

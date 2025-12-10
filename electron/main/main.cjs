@@ -1260,6 +1260,20 @@ ipcMain.handle('take-screenshot', async () => {
   }
 });
 
+// Store active request AbortController for cancellation
+let activeRunAbortController = null;
+
+// Abort any in-flight create-run request
+ipcMain.handle('autonomous:abort-request', async () => {
+  if (activeRunAbortController) {
+    console.log('[Autonomous] 🛑 Aborting in-flight request');
+    activeRunAbortController.abort();
+    activeRunAbortController = null;
+    return { aborted: true };
+  }
+  return { aborted: false, reason: 'No active request to abort' };
+});
+
 // Create autonomous run with retry logic (main process for network stability)
 ipcMain.handle('autonomous:create-run', async (event, { message, context, systemContext }) => {
   const backendUrl = resolveBackendUrl();
@@ -1267,10 +1281,20 @@ ipcMain.handle('autonomous:create-run', async (event, { message, context, system
   const maxRetries = 3;
   let lastError;
 
+  // Create AbortController for this request
+  activeRunAbortController = new AbortController();
+  const { signal } = activeRunAbortController;
+
   console.log('[Autonomous] Creating run via main process (stable network)');
   console.log('[Autonomous] User ID from context:', context?.userId || 'NOT PROVIDED - using desktop_user');
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    // Check if aborted before each attempt
+    if (signal.aborted) {
+      console.log('[Autonomous] Request was aborted before attempt', attempt);
+      throw new Error('Request aborted by user');
+    }
+
     try {
       console.log(`[Autonomous] Attempt ${attempt}/${maxRetries}`);
 
@@ -1290,12 +1314,13 @@ ipcMain.handle('autonomous:create-run', async (event, { message, context, system
           mode: 'autonomous',
           execution_mode: 'pull',
           skip_intent_confirmation: true  // Skip "Let me clarify" for autonomous mode
-        })
+        }),
+        signal  // Pass AbortController signal to fetch
       });
 
       if (response.ok) {
         const result = await response.json();
-        
+
         // Check if planning failed (backend returns success: false)
         if (result.success === false) {
           const errorMsg = result.error || 'Planning failed';
@@ -1304,6 +1329,7 @@ ipcMain.handle('autonomous:create-run', async (event, { message, context, system
         }
 
         console.log(`[Autonomous] ✓ Run created successfully: ${result.run_id}`);
+        activeRunAbortController = null; // Clear controller on success
         return result;
       }
 
@@ -1312,12 +1338,20 @@ ipcMain.handle('autonomous:create-run', async (event, { message, context, system
       throw new Error(`HTTP ${response.status}: ${errorText}`);
 
     } catch (error) {
+      // Handle abort specifically
+      if (error.name === 'AbortError' || signal.aborted) {
+        console.log('[Autonomous] 🛑 Request aborted by user');
+        activeRunAbortController = null;
+        throw new Error('Request aborted by user');
+      }
+
       lastError = error;
       const errorMsg = error.message || String(error);
 
       // Don't retry on 4xx errors (client errors - won't succeed on retry)
       if (errorMsg.includes('HTTP 4')) {
         console.error('[Autonomous] Client error, not retrying:', errorMsg);
+        activeRunAbortController = null;
         throw error;
       }
 
@@ -1333,6 +1367,7 @@ ipcMain.handle('autonomous:create-run', async (event, { message, context, system
   }
 
   // All retries failed
+  activeRunAbortController = null;
   console.error('[Autonomous] All retry attempts failed:', lastError.message);
   throw lastError;
 });
