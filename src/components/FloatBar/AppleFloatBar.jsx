@@ -4481,7 +4481,8 @@ export default function AppleFloatBar({
       // Safety check based on permission level
       setThinkingStatus('Checking permissions...');
       try {
-        const res = await permissionAPI.check(text, {});
+        const currentMode = permissionModeRef.current || validatedPermissionMode;
+        const res = await permissionAPI.check(text, { permission_level: currentMode });
         const data = res.data || res;
         if (!data.allowed) {
           // Not allowed - rollback and show error
