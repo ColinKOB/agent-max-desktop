@@ -757,12 +757,21 @@ class PullExecutor {
                             error: 'Command was cancelled'
                         });
                     } else {
+                        // Exit code 1 from grep/find means "no matches found" - not an error
+                        // Exit code 2 from grep means "no matches found" (some versions)
+                        // Treat these as success with empty/no results
+                        const isSearchCommand = /\b(grep|find|rg|ag|ack|fd|locate|mdfind)\b/.test(command);
+                        const isNoMatchesExitCode = (code === 1 || code === 2);
+                        const treatAsSuccess = (code === 0) || (isSearchCommand && isNoMatchesExitCode);
+
                         resolve({
-                            success: code === 0,
-                            stdout,
+                            success: treatAsSuccess,
+                            stdout: treatAsSuccess && !stdout.trim() && isSearchCommand && isNoMatchesExitCode
+                                ? '(no matches found)'
+                                : stdout,
                             stderr,
                             exit_code: code || 0,
-                            error: code !== 0 ? `Exit code ${code}` : undefined
+                            error: !treatAsSuccess ? `Exit code ${code}` : undefined
                         });
                     }
                 });
