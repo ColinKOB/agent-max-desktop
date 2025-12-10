@@ -310,9 +310,9 @@ function LegalStep({ onNext, onBack }) {
 
   return (
     <div style={{
-      maxWidth: 360,
+      maxWidth: 380,
       margin: '0 auto',
-      padding: '16px 20px',
+      padding: '12px 16px 16px',
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
@@ -320,104 +320,90 @@ function LegalStep({ onNext, onBack }) {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        style={{ textAlign: 'center', marginBottom: 16 }}
+        transition={{ delay: 0.1 }}
+        style={{ textAlign: 'center', marginBottom: 12, flexShrink: 0 }}
       >
-        <div style={{
-          width: 56,
-          height: 56,
-          margin: '0 auto 12px',
-          borderRadius: 14,
-          background: 'rgba(245, 158, 11, 0.15)',
-          border: '1px solid rgba(245, 158, 11, 0.3)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <Scale style={{ width: 28, height: 28, color: BRAND_ORANGE }} />
-        </div>
-
-        <h2 style={{ ...styles.heading, fontSize: 22, marginBottom: 6 }}>
-          Before We Begin
-        </h2>
-        <p style={{ ...styles.subheading, fontSize: 13, marginBottom: 0 }}>
-          Please review and accept our terms
+        <h2 style={styles.heading}>Before We Begin</h2>
+        <p style={styles.subheading}>
+          We want to keep you safe. For your safety and ours, please review the terms and conditions below
         </p>
       </motion.div>
 
-      {/* Legal Content Box */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
+        transition={{ delay: 0.2 }}
         style={{
           flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          textAlign: 'left',
+          minHeight: 0,
+        }}
+      >
+        {/* Legal Content Box */}
+        <div style={{
           background: 'rgba(255, 255, 255, 0.03)',
           border: '1px solid rgba(255, 255, 255, 0.08)',
           borderRadius: 12,
           padding: 16,
-          marginBottom: 16,
+          maxHeight: 100,
           overflowY: 'auto',
-        }}
-      >
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          marginBottom: 12,
-          color: BRAND_ORANGE,
-          fontSize: 13,
-          fontWeight: 600,
         }}>
-          <FileWarning style={{ width: 16, height: 16 }} />
-          Experimental Software Disclaimer
-        </div>
-
-        <div style={{
-          fontSize: 12,
-          lineHeight: 1.6,
-          color: 'rgba(255, 255, 255, 0.7)',
-        }}>
-          <p style={{ marginBottom: 12 }}>
-            <strong style={{ color: '#fff' }}>Agent Max is experimental software in active development.</strong> By using this application, you acknowledge and agree to the following:
-          </p>
-
-          <ul style={{
-            margin: 0,
-            paddingLeft: 16,
+          <div style={{
             display: 'flex',
-            flexDirection: 'column',
+            alignItems: 'center',
             gap: 8,
+            marginBottom: 12,
+            color: BRAND_ORANGE,
+            fontSize: 13,
+            fontWeight: 600,
           }}>
-            <li>
-              <strong style={{ color: '#fff' }}>No Warranty:</strong> This software is provided "as is" without any warranties of any kind, express or implied.
-            </li>
-            <li>
-              <strong style={{ color: '#fff' }}>Use at Your Own Risk:</strong> You assume all risks associated with using Agent Max, including but not limited to data loss, system issues, or unintended actions.
-            </li>
-            <li>
-              <strong style={{ color: '#fff' }}>Limitation of Liability:</strong> The developers shall not be held liable for any damages, direct or indirect, arising from your use of this software.
-            </li>
-            <li>
-              <strong style={{ color: '#fff' }}>AI Actions:</strong> Agent Max can perform actions on your computer. Always review suggested actions before approval.
-            </li>
-            <li>
-              <strong style={{ color: '#fff' }}>Beta Features:</strong> Features may change, break, or be removed without notice.
-            </li>
-          </ul>
+            <FileWarning style={{ width: 16, height: 16 }} />
+            Experimental Software Disclaimer
+          </div>
 
-          <p style={{ marginTop: 12, marginBottom: 0, fontStyle: 'italic', color: 'rgba(255, 255, 255, 0.5)' }}>
-            By continuing, you release Agent Max and its developers from any claims, damages, or liability.
-          </p>
+          <div style={{
+            fontSize: 12,
+            lineHeight: 1.6,
+            color: 'rgba(255, 255, 255, 0.7)',
+          }}>
+            <p style={{ marginBottom: 12 }}>
+              <strong style={{ color: '#fff' }}>Agent Max is experimental software in active development.</strong> By using this application, you acknowledge and agree to the following:
+            </p>
+
+            <ul style={{
+              margin: 0,
+              paddingLeft: 16,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}>
+              <li>
+                <strong style={{ color: '#fff' }}>No Warranty:</strong> This software is provided "as is" without any warranties of any kind, express or implied.
+              </li>
+              <li>
+                <strong style={{ color: '#fff' }}>Use at Your Own Risk:</strong> You assume all risks associated with using Agent Max, including but not limited to data loss, system issues, or unintended actions.
+              </li>
+              <li>
+                <strong style={{ color: '#fff' }}>Limitation of Liability:</strong> The developers shall not be held liable for any damages, direct or indirect, arising from your use of this software.
+              </li>
+              <li>
+                <strong style={{ color: '#fff' }}>AI Actions:</strong> Agent Max can perform actions on your computer. Always review suggested actions before approval.
+              </li>
+              <li>
+                <strong style={{ color: '#fff' }}>Beta Features:</strong> Features may change, break, or be removed without notice.
+              </li>
+            </ul>
+
+            <p style={{ marginTop: 12, marginBottom: 0, fontStyle: 'italic', color: 'rgba(255, 255, 255, 0.5)' }}>
+              By continuing, you release Agent Max and its developers from any claims, damages, or liability.
+            </p>
+          </div>
         </div>
-      </motion.div>
 
-      {/* Agreement Checkbox */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-        style={{ marginBottom: 16 }}
-      >
+        {/* Agreement Checkbox */}
         <label
           style={{
             display: 'flex',
@@ -429,6 +415,7 @@ function LegalStep({ onNext, onBack }) {
             border: agreed ? `1px solid ${BRAND_ORANGE_GLOW}` : '1px solid rgba(255, 255, 255, 0.08)',
             borderRadius: 10,
             transition: 'all 0.2s',
+            flexShrink: 0,
           }}
         >
           <input
@@ -452,34 +439,34 @@ function LegalStep({ onNext, onBack }) {
             {agreed && <Check style={{ width: 14, height: 14, color: '#fff' }} />}
           </div>
           <span style={{
-            fontSize: 13,
+            fontSize: 10,
             color: agreed ? '#fff' : 'rgba(255, 255, 255, 0.7)',
             lineHeight: 1.4,
           }}>
             I understand this is experimental software and I accept full responsibility for its use on my computer.
           </span>
         </label>
-      </motion.div>
 
-      {/* Buttons */}
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button onClick={onBack} style={styles.secondaryButton}>
-          Back
-        </button>
-        <button
-          onClick={handleContinue}
-          disabled={!agreed}
-          style={{
-            ...styles.primaryButton,
-            flex: 1,
-            opacity: !agreed ? 0.4 : 1,
-            cursor: !agreed ? 'not-allowed' : 'pointer',
-          }}
-        >
-          I Agree & Continue
-          <ArrowRight style={{ width: 18, height: 18 }} />
-        </button>
-      </div>
+        {/* Buttons */}
+        <div style={{ display: 'flex', gap: 10, flexShrink: 0, marginTop: 'auto', paddingTop: 8 }}>
+          <button onClick={onBack} style={styles.secondaryButton}>
+            Back
+          </button>
+          <button
+            onClick={handleContinue}
+            disabled={!agreed}
+            style={{
+              ...styles.primaryButton,
+              flex: 1,
+              opacity: !agreed ? 0.4 : 1,
+              cursor: !agreed ? 'not-allowed' : 'pointer',
+            }}
+          >
+            I Agree & Continue
+            <ArrowRight style={{ width: 18, height: 18 }} />
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -516,16 +503,19 @@ function NameStep({ userData, onNext }) {
   };
 
   return (
-    <div style={{ 
-      maxWidth: 340, 
-      margin: '0 auto', 
-      padding: '20px',
-      textAlign: 'center',
+    <div style={{
+      maxWidth: 340,
+      margin: '0 auto',
+      padding: '12px 16px 16px',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
     }}>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
+        style={{ textAlign: 'center', marginBottom: 16, flexShrink: 0 }}
       >
         <h2 style={styles.heading}>What should I call you?</h2>
         <p style={styles.subheading}>
@@ -537,7 +527,12 @@ function NameStep({ userData, onNext }) {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+        }}
       >
         <input
           value={name}
@@ -551,9 +546,10 @@ function NameStep({ userData, onNext }) {
             ...styles.input,
             borderColor: focused ? BRAND_ORANGE_GLOW : 'rgba(255, 255, 255, 0.12)',
             boxShadow: focused ? `0 0 0 3px ${BRAND_ORANGE_LIGHT}` : 'none',
+            marginBottom: 12,
           }}
         />
-        
+
         <button
           onClick={handleContinue}
           disabled={!name.trim() || saving}
@@ -561,6 +557,7 @@ function NameStep({ userData, onNext }) {
             ...styles.primaryButton,
             opacity: !name.trim() || saving ? 0.5 : 1,
             cursor: !name.trim() || saving ? 'not-allowed' : 'pointer',
+            marginTop: 'auto',
           }}
         >
           {saving ? 'Saving...' : 'Continue'}

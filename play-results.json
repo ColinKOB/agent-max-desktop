@@ -10,9 +10,7 @@
     "grep": {},
     "grepInvert": null,
     "maxFailures": 0,
-    "metadata": {
-      "actualWorkers": 1
-    },
+    "metadata": {},
     "preserveOutput": "always",
     "reporter": [
       [
@@ -42,9 +40,7 @@
         "outputDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {
-          "actualWorkers": 1
-        },
+        "metadata": {},
         "id": "chromium",
         "name": "chromium",
         "testDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e",
@@ -58,9 +54,7 @@
         "outputDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {
-          "actualWorkers": 1
-        },
+        "metadata": {},
         "id": "firefox",
         "name": "firefox",
         "testDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e",
@@ -74,9 +68,7 @@
         "outputDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {
-          "actualWorkers": 1
-        },
+        "metadata": {},
         "id": "webkit",
         "name": "webkit",
         "testDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e",
@@ -90,9 +82,7 @@
         "outputDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {
-          "actualWorkers": 1
-        },
+        "metadata": {},
         "id": "Mobile Chrome",
         "name": "Mobile Chrome",
         "testDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e",
@@ -106,9 +96,7 @@
         "outputDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {
-          "actualWorkers": 1
-        },
+        "metadata": {},
         "id": "Mobile Safari",
         "name": "Mobile Safari",
         "testDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e",
@@ -131,64 +119,17 @@
       "timeout": 120000
     }
   },
-  "suites": [
+  "suites": [],
+  "errors": [
     {
-      "title": "floatbar-ui.spec.js",
-      "file": "floatbar-ui.spec.js",
-      "column": 0,
-      "line": 0,
-      "specs": [],
-      "suites": [
-        {
-          "title": "Apple FloatBar - Pill/Bar UX",
-          "file": "floatbar-ui.spec.js",
-          "line": 8,
-          "column": 6,
-          "specs": [
-            {
-              "title": "Pill is present, expands to bar, shrink returns to pill, no card",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1293,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-11-22T16:49:33.357Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "798846d4a26ba70728ac-d3c9dd34d995477736bf",
-              "file": "floatbar-ui.spec.js",
-              "line": 9,
-              "column": 7
-            }
-          ]
-        }
-      ]
+      "message": "Error: No tests found",
+      "stack": "Error: No tests found"
     }
   ],
-  "errors": [],
   "stats": {
-    "startTime": "2025-11-22T16:49:32.975Z",
-    "duration": 1931.244,
-    "expected": 1,
+    "startTime": "2025-12-10T14:44:14.098Z",
+    "duration": 111.83800000000002,
+    "expected": 0,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0
