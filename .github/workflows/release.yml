@@ -45,7 +45,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-        run: npm run build && electron-builder --mac --publish always
+        run: npm run build && npx electron-builder --mac --publish always
         timeout-minutes: 30
 
       - name: Upload macOS artifacts
@@ -81,7 +81,7 @@ jobs:
       - name: Build and publish Windows app
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: npm run build && electron-builder --win --publish always
+        run: npm run build && npx electron-builder --win --publish always
         timeout-minutes: 30
 
       - name: Upload Windows artifacts
