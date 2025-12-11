@@ -100,11 +100,13 @@ export default function ExecutionProgress({
   // Generate status message based on current state
   const getStatusMessage = () => {
     if (summary) {
-      return summary.status === 'complete' ? 'All tasks completed!' : 'Execution stopped';
+      if (summary.status === 'complete') return 'All tasks completed!';
+      if (summary.status === 'cancelled') return 'Execution stopped by user';
+      return 'Execution stopped';
     }
     const currentStepData = steps[safeCurrentIndex];
     if (!currentStepData) return 'Preparing...';
-    
+
     const status = stepStatuses[safeCurrentIndex];
     if (status === 'running') {
       return currentAction || `Working on: ${currentStepData.description}`;
@@ -242,8 +244,8 @@ export default function ExecutionProgress({
         
         {/* Progress bar */}
         <div className="progress-bar-container">
-          <div 
-            className={`progress-bar-fill ${summary?.status === 'complete' ? 'complete' : ''} ${summary?.status === 'failed' ? 'failed' : ''}`}
+          <div
+            className={`progress-bar-fill ${summary?.status === 'complete' ? 'complete' : ''} ${summary?.status === 'failed' ? 'failed' : ''} ${summary?.status === 'cancelled' ? 'cancelled' : ''}`}
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -294,7 +296,7 @@ export default function ExecutionProgress({
       {summary && (
         <div className={`execution-summary ${summary.status}`}>
           <div className="summary-icon">
-            {summary.status === 'complete' ? '🎉' : '⚠️'}
+            {summary.status === 'complete' ? '🎉' : summary.status === 'cancelled' ? '⏹️' : '⚠️'}
           </div>
           <div className="summary-content">
             <div className="summary-message">{summary.message}</div>
@@ -302,6 +304,9 @@ export default function ExecutionProgress({
               <span className="stat success">✓ {summary.successCount} completed</span>
               {summary.failedCount > 0 && (
                 <span className="stat failed">✗ {summary.failedCount} failed</span>
+              )}
+              {summary.status === 'cancelled' && (
+                <span className="stat cancelled">⏹ Stopped by user</span>
               )}
               <span className="stat time">⏱ {formatTime(elapsedTime)} total</span>
             </div>

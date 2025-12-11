@@ -308,11 +308,12 @@ class PullAutonomousService {
                         const timeoutId = setTimeout(poll, this.pollIntervalMs);
                         this.pollTimeouts.set(runId, timeoutId);
                     } else {
-                        // Run complete or stopped
+                        // Run complete, failed, cancelled, or stopped
                         console.log('[PullAutonomous] Run finished with status:', status.status);
                         logger.info('[PullAutonomous] Run complete', {
                             runId,
-                            status: status.status
+                            status: status.status,
+                            wasCancelled: status.status === 'cancelled'
                         });
                         this.pollTimeouts.delete(runId);
                         this.activeRuns.delete(runId);

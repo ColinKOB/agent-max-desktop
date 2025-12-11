@@ -87,9 +87,10 @@ export function usePullExecution() {
                 onUpdate(status);
             }
 
-            // Clean up if complete
-            if (status.status === 'complete' || 
-                status.status === 'failed' || 
+            // Clean up if complete, failed, cancelled, or error
+            if (status.status === 'complete' ||
+                status.status === 'failed' ||
+                status.status === 'cancelled' ||
                 status.status === 'error') {
                 stopPolling(runId);
             }
