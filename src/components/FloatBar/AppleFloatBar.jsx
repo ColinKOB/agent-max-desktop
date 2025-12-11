@@ -1816,6 +1816,14 @@ export default function AppleFloatBar({
     // Track token usage for credit calculation
     let totalOutputTokens = 0;
 
+    // FIX: Ensure session_id exists before sending chat message
+    let sessionId = localStorage.getItem('session_id');
+    if (!sessionId) {
+      sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      localStorage.setItem('session_id', sessionId);
+      logger.info('[Session] Generated initial session_id', { sessionId });
+    }
+
     chatAPI
       .sendMessageStream(text, userContext, screenshotData, async (event) => {
         console.log('[Chat] Received SSE event:', event);
@@ -4161,6 +4169,22 @@ export default function AppleFloatBar({
                 const successCount = Object.values(stepStatuses).filter((s) => s === 'done' || (status.status === 'complete' && s !== 'failed')).length;
                 const failedCount = Object.values(stepStatuses).filter((s) => s === 'failed' || (status.status === 'failed' && s !== 'done')).length;
 
+                // Determine message based on status
+                let summaryMessage, thoughtsContent, toastMessage;
+                if (status.status === 'complete') {
+                  summaryMessage = `✅ Successfully completed all ${totalStepsCount} steps`;
+                  thoughtsContent = `**Execution Complete!**\n\nSuccessfully completed all ${totalStepsCount} steps.\n\n${runTracker.definitionOfDone}`;
+                  toastMessage = '✅ Execution complete!';
+                } else if (status.status === 'cancelled') {
+                  summaryMessage = `⏹ Execution stopped by user after ${successCount} steps`;
+                  thoughtsContent = `**Execution Stopped**\n\nYou manually stopped the execution after completing ${successCount} of ${totalStepsCount} steps.`;
+                  toastMessage = '⏹ Execution stopped';
+                } else {
+                  summaryMessage = `❌ Execution failed`;
+                  thoughtsContent = `❌ **Execution Failed**\n\nExecution encountered an error.`;
+                  toastMessage = '❌ Execution failed';
+                }
+
                 dispatchExecution({
                   type: 'EXECUTION_COMPLETE',
                   summary: {
@@ -4168,11 +4192,9 @@ export default function AppleFloatBar({
                     totalSteps: totalStepsCount,
                     successCount: status.status === 'complete' ? totalStepsCount : successCount,
                     failedCount: status.status === 'failed' ? totalStepsCount - successCount : failedCount,
+                    cancelledCount: status.status === 'cancelled' ? 1 : 0,
                     goalAchieved: status.status === 'complete',
-                    message:
-                      status.status === 'complete'
-                        ? `✅ Successfully completed all ${totalStepsCount} steps`
-                        : `❌ Execution failed`,
+                    message: summaryMessage,
                   },
                 });
 
@@ -4181,21 +4203,15 @@ export default function AppleFloatBar({
                   ...prev,
                   {
                     role: 'assistant',
-                    content:
-                      status.status === 'complete'
-                        ? `**Execution Complete!**\n\nSuccessfully completed all ${totalStepsCount} steps.\n\n${runTracker.definitionOfDone}`
-                        : `❌ **Execution Failed**\n\nExecution encountered an error.`,
+                    content: thoughtsContent,
                     timestamp: Date.now(),
                     metadata: { summary: true },
                   },
                 ]);
 
-                toast(
-                  status.status === 'complete' ? '✅ Execution complete!' : '❌ Execution failed',
-                  {
-                    duration: 4000,
-                  }
-                );
+                toast(toastMessage, {
+                  duration: 4000,
+                });
               }
             });
           }
@@ -4664,6 +4680,11 @@ export default function AppleFloatBar({
     setRunExecLogs([]);
     setArtifactSummary(null);
     planIdRef.current = null;
+
+    // FIX: Generate new session_id for conversation isolation
+    const newSessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    localStorage.setItem('session_id', newSessionId);
+    logger.info('[Session] Generated new session_id for new conversation', { sessionId: newSessionId });
 
     // Start new session in memory manager
     if (localStorage.getItem('user_id')) {

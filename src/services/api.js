@@ -629,6 +629,7 @@ export const chatAPI = {
 
     // Prepare headers with configured API key
     const configuredKey = apiConfigManager.getApiKey && apiConfigManager.getApiKey();
+    const sessionId = localStorage.getItem('session_id');
     const baseHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'text/event-stream',
@@ -636,6 +637,7 @@ export const chatAPI = {
       'X-User-Id': localStorage.getItem('user_id') || 'anonymous'
     };
     if (configuredKey) baseHeaders['X-API-Key'] = configuredKey;
+    if (sessionId) baseHeaders['X-Session-ID'] = sessionId; // FIX: Add session_id for conversation context
     let headers = { ...baseHeaders };
 
     // v2.1: Stream identity and resume support
