@@ -11,6 +11,9 @@ const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
 
+// macOS AppleScript tools (Safari, Notes, Mail, Calendar, Finder, Reminders)
+const { executeMacOSTool, isMacOSTool } = require('./macosAppleScript.cjs');
+
 class PullExecutor {
     constructor(apiClient, config = {}) {
         this.apiClient = apiClient;
@@ -640,6 +643,9 @@ class PullExecutor {
             return await this.executeGoogleAction(action, args);
         } else if (tool.startsWith('google.')) {
             return await this.executeGoogleAction(tool, args);
+        } else if (isMacOSTool(tool)) {
+            // macOS AppleScript tools: safari.*, notes.*, mail.*, calendar.*, finder.*, reminders.*
+            return await executeMacOSTool(tool, args);
         } else {
             return {
                 success: false,
