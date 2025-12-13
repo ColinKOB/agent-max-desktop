@@ -1,6 +1,6 @@
 {
   "name": "agent-max-desktop",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "Desktop application for Agent Max Memory System V2",
   "main": "electron/main/main.cjs",
   "author": "Colin O'Brien",
@@ -58,6 +58,7 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "build/**/*",
       "package.json"
     ],
     "asarUnpack": [],
@@ -84,18 +85,20 @@
       "gatekeeperAssess": false,
       "entitlements": "resources/entitlements.mac.plist",
       "entitlementsInherit": "resources/entitlements.mac.plist",
-      "identity": "Colin OBrien (Q3Q2BF22GL)",
+      "identity": "Developer ID Application: Colin OBrien (Q3Q2BF22GL)",
       "notarize": {
         "teamId": "Q3Q2BF22GL"
       }
     },
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         "nsis",
         "zip"
       ]
     },
     "linux": {
+      "icon": "build/icon.png",
       "target": [
         "AppImage",
         "deb",

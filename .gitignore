@@ -29,8 +29,14 @@ dist-electron
 .env.production
 
 # Build outputs
-build
 out
+
+# Build directory - ignore all except icons and resources
+build/*
+!build/icon.icns
+!build/icon.ico
+!build/icon.png
+!build/assets/
 
 # Electron
 release

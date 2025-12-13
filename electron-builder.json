@@ -6,7 +6,8 @@
   },
   "files": [
     "dist/**/*",
-    "electron/**/*"
+    "electron/**/*",
+    "build/**/*"
   ],
   "publish": {
     "provider": "github",
@@ -50,8 +51,8 @@
     }
   },
   "win": {
-    "target": ["nsis", "portable"],
-    "icon": "build/icon.ico"
+    "icon": "build/icon.ico",
+    "target": ["nsis", "portable"]
   },
   "linux": {
     "target": ["AppImage", "deb"],
