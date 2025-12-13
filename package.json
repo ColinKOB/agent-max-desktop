@@ -1,6 +1,6 @@
 {
   "name": "agent-max-desktop",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Desktop application for Agent Max Memory System V2",
   "main": "electron/main/main.cjs",
   "author": "Colin O'Brien",
@@ -85,7 +85,6 @@
       "gatekeeperAssess": false,
       "entitlements": "resources/entitlements.mac.plist",
       "entitlementsInherit": "resources/entitlements.mac.plist",
-      "identity": null,
       "notarize": {
         "teamId": "Q3Q2BF22GL"
       }
