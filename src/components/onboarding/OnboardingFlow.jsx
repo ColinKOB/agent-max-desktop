@@ -769,61 +769,166 @@ function UseCaseStep({ userData, onNext, onBack }) {
 }
 
 // ============================================================================
-// STEP 3: EMAIL/ACCOUNT
+// STEP 3: EMAIL/ACCOUNT (Sign Up or Sign In)
 // ============================================================================
 function AccountStep({ onNext, onBack, userData }) {
+  const [mode, setMode] = useState('signup'); // 'signup' or 'signin'
   const [email, setEmail] = useState(userData?.email || '');
   const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+  const [error, setError] = useState(null);
 
   const validEmail = (v) => /.+@.+\..+/.test(v);
   const strongPw = (v) => v.length >= 8;
   const canSubmit = validEmail(email) && strongPw(password) && !saving;
 
-  const handleSubmit = async () => {
+  const handleSignUp = async () => {
     if (!canSubmit) return;
     setSaving(true);
+    setError(null);
+
     try {
       const trimmedEmail = email.trim();
-      
-      // Save to localStorage immediately
-      try { localStorage.setItem('user_email', trimmedEmail); } catch {}
-      
-      // Create account and save to Supabase
-      const user = await emailPasswordSignInOrCreate(trimmedEmail, password);
-      
-      // Ensure user row exists before writing preferences
-      const userRowCreated = await ensureUsersRow(trimmedEmail);
-      
-      // Only write preferences if user row exists
-      if (userRowCreated) {
-        try { await setUserPreference('email', trimmedEmail); } catch (e) {
-          console.warn('[Onboarding] Failed to save email preference:', e);
-        }
-        try { await setUserPreference('has_password', 'true'); } catch (e) {
-          console.warn('[Onboarding] Failed to save password preference:', e);
-        }
-      } else {
-        console.warn('[Onboarding] User row not created, skipping preference writes');
+
+      // First check if user already exists
+      const { data: existingUser, error: checkError } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password: password,
+      });
+
+      if (existingUser?.user) {
+        // User exists and password is correct - they're signing in, not signing up
+        console.log('[Onboarding] Existing user signed in:', trimmedEmail);
+        try { localStorage.setItem('user_email', trimmedEmail); } catch {}
+
+        // Check if email is verified
+        const isVerified = existingUser.user.email_confirmed_at != null;
+
+        // Ensure user row exists
+        await ensureUsersRow(trimmedEmail);
+
+        // Skip to appropriate step based on verification status
+        onNext?.({
+          amxAccount: true,
+          email: trimmedEmail,
+          isExistingUser: true,
+          emailVerified: isVerified
+        });
+        return;
       }
-      
-      console.log('[Onboarding] Account created for:', trimmedEmail);
-      onNext?.({ amxAccount: !!user, email: trimmedEmail });
+
+      // If we get invalid_credentials error, user might exist with different password
+      // or might not exist at all - try to create account
+      if (checkError?.message?.includes('Invalid login credentials')) {
+        // Could be wrong password OR new user - try to sign up
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: trimmedEmail,
+          password: password,
+        });
+
+        if (signUpError) {
+          // If user already exists, show error
+          if (signUpError.message?.includes('already registered') ||
+              signUpError.message?.includes('User already registered')) {
+            setError('An account with this email already exists. Try signing in instead.');
+            setSaving(false);
+            return;
+          }
+          throw signUpError;
+        }
+
+        // New user created successfully
+        try { localStorage.setItem('user_email', trimmedEmail); } catch {}
+
+        // Ensure user row exists before writing preferences
+        const userRowCreated = await ensureUsersRow(trimmedEmail);
+
+        if (userRowCreated) {
+          try { await setUserPreference('email', trimmedEmail); } catch (e) {
+            console.warn('[Onboarding] Failed to save email preference:', e);
+          }
+          try { await setUserPreference('has_password', 'true'); } catch (e) {
+            console.warn('[Onboarding] Failed to save password preference:', e);
+          }
+        }
+
+        console.log('[Onboarding] Account created for:', trimmedEmail);
+        onNext?.({ amxAccount: true, email: trimmedEmail, isExistingUser: false });
+        return;
+      }
+
+      // Other errors
+      if (checkError) throw checkError;
+
     } catch (err) {
-      console.error('[Onboarding] Account creation failed:', err);
-      // Still proceed - user can retry later
-      onNext?.({ amxAccount: false, email: email.trim() });
+      console.error('[Onboarding] Account operation failed:', err);
+      setError(err.message || 'Failed to create account. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
+  const handleSignIn = async () => {
+    if (!canSubmit) return;
+    setSaving(true);
+    setError(null);
+
+    try {
+      const trimmedEmail = email.trim();
+
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password: password,
+      });
+
+      if (signInError) {
+        if (signInError.message?.includes('Invalid login credentials')) {
+          setError('Invalid email or password. Please try again.');
+        } else if (signInError.message?.includes('Email not confirmed')) {
+          setError('Please verify your email first. Check your inbox.');
+        } else {
+          setError(signInError.message || 'Sign in failed. Please try again.');
+        }
+        setSaving(false);
+        return;
+      }
+
+      if (data?.user) {
+        console.log('[Onboarding] User signed in:', trimmedEmail);
+        try { localStorage.setItem('user_email', trimmedEmail); } catch {}
+
+        // Check if email is verified
+        const isVerified = data.user.email_confirmed_at != null;
+
+        // Ensure user row exists
+        await ensureUsersRow(trimmedEmail);
+
+        // For existing users, skip email verification and go straight to Google step
+        // They've already verified their email when they first signed up
+        onNext?.({
+          amxAccount: true,
+          email: trimmedEmail,
+          isExistingUser: true,
+          emailVerified: isVerified,
+          skipToStep: isVerified ? 'google' : null // Skip verification if already verified
+        });
+      }
+    } catch (err) {
+      console.error('[Onboarding] Sign in failed:', err);
+      setError(err.message || 'Sign in failed. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSubmit = mode === 'signin' ? handleSignIn : handleSignUp;
+
   return (
-    <div style={{ 
-      maxWidth: 340, 
-      margin: '0 auto', 
+    <div style={{
+      maxWidth: 340,
+      margin: '0 auto',
       padding: '20px',
       textAlign: 'center',
     }}>
@@ -832,11 +937,70 @@ function AccountStep({ onNext, onBack, userData }) {
         animate={{ opacity: 1, y: 0 }}
       >
         <h2 style={styles.heading}>
-          {userData?.name ? `Almost there, ${userData.name}!` : 'Create your account'}
+          {mode === 'signin'
+            ? 'Welcome back!'
+            : userData?.name
+              ? `Almost there, ${userData.name}!`
+              : 'Create your account'}
         </h2>
         <p style={styles.subheading}>
-          This secures your data and syncs across devices.
+          {mode === 'signin'
+            ? 'Sign in to continue where you left off.'
+            : 'This secures your data and syncs across devices.'}
         </p>
+      </motion.div>
+
+      {/* Mode Toggle */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.05 }}
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          marginBottom: 16,
+        }}
+      >
+        <div style={{
+          display: 'inline-flex',
+          background: 'rgba(255, 255, 255, 0.06)',
+          borderRadius: 8,
+          padding: 3,
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+        }}>
+          <button
+            onClick={() => { setMode('signup'); setError(null); }}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 6,
+              fontSize: 13,
+              fontWeight: 600,
+              color: mode === 'signup' ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
+              background: mode === 'signup' ? BRAND_ORANGE : 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            Sign Up
+          </button>
+          <button
+            onClick={() => { setMode('signin'); setError(null); }}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 6,
+              fontSize: 13,
+              fontWeight: 600,
+              color: mode === 'signin' ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
+              background: mode === 'signin' ? BRAND_ORANGE : 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            Sign In
+          </button>
+        </div>
       </motion.div>
 
       <motion.div
@@ -847,7 +1011,7 @@ function AccountStep({ onNext, onBack, userData }) {
       >
         <input
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => { setEmail(e.target.value); setError(null); }}
           onFocus={() => setEmailFocused(true)}
           onBlur={() => setEmailFocused(false)}
           placeholder="Email address"
@@ -858,14 +1022,14 @@ function AccountStep({ onNext, onBack, userData }) {
             boxShadow: emailFocused ? `0 0 0 3px ${BRAND_ORANGE_LIGHT}` : 'none',
           }}
         />
-        
+
         <input
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => { setPassword(e.target.value); setError(null); }}
           onFocus={() => setPasswordFocused(true)}
           onBlur={() => setPasswordFocused(false)}
           onKeyDown={(e) => e.key === 'Enter' && canSubmit && handleSubmit()}
-          placeholder="Create password (8+ characters)"
+          placeholder={mode === 'signin' ? 'Password' : 'Create password (8+ characters)'}
           type="password"
           style={{
             ...styles.input,
@@ -873,6 +1037,29 @@ function AccountStep({ onNext, onBack, userData }) {
             boxShadow: passwordFocused ? `0 0 0 3px ${BRAND_ORANGE_LIGHT}` : 'none',
           }}
         />
+
+        {/* Error Message */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+              padding: 12,
+              background: 'rgba(239, 68, 68, 0.1)',
+              borderRadius: 8,
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              color: '#ef4444',
+              fontSize: 13,
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 8,
+            }}
+          >
+            <AlertCircle style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} />
+            {error}
+          </motion.div>
+        )}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
           <button onClick={onBack} style={styles.secondaryButton}>
@@ -888,7 +1075,9 @@ function AccountStep({ onNext, onBack, userData }) {
               cursor: !canSubmit ? 'not-allowed' : 'pointer',
             }}
           >
-            {saving ? 'Creating...' : 'Create Account'}
+            {saving
+              ? (mode === 'signin' ? 'Signing in...' : 'Creating...')
+              : (mode === 'signin' ? 'Sign In' : 'Create Account')}
           </button>
         </div>
       </motion.div>
@@ -2110,6 +2299,24 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
 
   const handleNext = (data = {}) => {
     setUserData(prev => ({ ...prev, ...data }));
+
+    // Handle skip to specific step for existing users
+    if (data.skipToStep) {
+      const targetIndex = steps.findIndex(s => s.id === data.skipToStep);
+      if (targetIndex !== -1) {
+        console.log(`[Onboarding] Skipping to step: ${data.skipToStep}`);
+        setCurrentStep(targetIndex);
+        return;
+      }
+    }
+
+    // For existing users with verified email, skip the verify-email step
+    if (data.isExistingUser && data.emailVerified && steps[currentStep + 1]?.id === 'verify-email') {
+      console.log('[Onboarding] Existing verified user - skipping email verification');
+      setCurrentStep(currentStep + 2); // Skip verify-email step
+      return;
+    }
+
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
