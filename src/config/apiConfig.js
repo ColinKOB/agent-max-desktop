@@ -59,10 +59,10 @@ class ApiConfigManager {
       };
     }
 
-    // Priority 4: Production default
-    console.log('[ApiConfig] Production mode - using default API');
+    // Priority 4: Production default (Railway backend)
+    console.log('[ApiConfig] Production mode - using Railway API');
     return {
-      baseURL: 'https://api.agentmax.com',
+      baseURL: 'https://agentmax-production.up.railway.app',
       apiKey: import.meta.env.VITE_API_KEY || null
     };
   }
