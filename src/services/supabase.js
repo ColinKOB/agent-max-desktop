@@ -8,12 +8,19 @@ import { createLogger } from './logger.js';
 
 const logger = createLogger('Supabase');
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Production Supabase configuration
+// These are the PUBLIC anon key and URL - safe to include in client code
+// The anon key only has access to RLS-protected data
+const PRODUCTION_SUPABASE_URL = 'https://rburoajxsyfousnleydw.supabase.co';
+const PRODUCTION_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidXJvYWp4c3lmb3VzbmxleWR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5OTE2MTgsImV4cCI6MjA3NjU2NzYxOH0.sWHCQpHiQvI_whjLKF8ybR3mr9BNtPF68MgKT1LLuSc';
+
+// Use env vars if available, otherwise fall back to production defaults
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || PRODUCTION_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || PRODUCTION_SUPABASE_ANON_KEY;
 export const SUPABASE_ENABLED = Boolean(supabaseUrl && supabaseAnonKey);
 
-if (!SUPABASE_ENABLED) {
-  logger.warn('Supabase disabled: missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY');
+if (!import.meta.env.VITE_SUPABASE_URL) {
+  logger.info('Using production Supabase defaults (env vars not set)');
 }
 
 /**

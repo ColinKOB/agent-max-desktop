@@ -45,6 +45,11 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Supabase configuration (required for user data)
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # API configuration (optional - has production fallback)
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
         run: npm run build && npx electron-builder --mac --publish always
         timeout-minutes: 30
 
@@ -81,6 +86,11 @@ jobs:
       - name: Build and publish Windows app
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          # Supabase configuration (required for user data)
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # API configuration (optional - has production fallback)
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
         run: npm run build && npx electron-builder --win --publish always
         timeout-minutes: 30
 

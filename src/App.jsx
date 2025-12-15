@@ -231,33 +231,42 @@ function App({ windowMode = 'single' }) {
       // Load profile from Supabase (with Electron fallback)
       const profileData = await getProfile();
 
-      // Onboarding check is now done earlier in the useEffect
-      // This function only loads profile data for users who completed onboarding
+      // CRITICAL: Validate that profile has actual user data
+      // If name is null/undefined/empty, the user needs to complete onboarding
+      // This catches cases where localStorage has onboarding_completed but Supabase has no data
+      const hasValidProfile = profileData.name && profileData.name.trim() !== '';
+
+      if (!hasValidProfile) {
+        console.log('[App] Profile missing name - forcing onboarding', {
+          profileSource: profileData._source,
+          name: profileData.name
+        });
+        // Clear the invalid onboarding state so user can re-onboard
+        localStorage.removeItem('onboarding_completed');
+        setShowWelcome(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // Valid profile found - proceed normally
       setShowWelcome(false);
 
       setProfile({
-        name: profileData.name || 'User',
+        name: profileData.name,
         interaction_count: profileData.interaction_count || 0,
         temporal_info: profileData.temporal_info || {},
         top_preferences: profileData.top_preferences || [],
       });
 
       // Generate greeting
-      const greeting = profileData.name ? `Hi, ${profileData.name}!` : 'Hi there!';
+      const greeting = `Hi, ${profileData.name}!`;
       setGreeting(greeting);
     } catch (error) {
       console.error('Failed to load profile:', error);
-      // Set default profile if everything fails
-      setProfile({
-        name: 'User',
-        interaction_count: 0,
-        temporal_info: {},
-        top_preferences: [],
-      });
-      setGreeting('Hi there!');
-      // Don't show welcome on error - user already completed onboarding
-      // Just show the app with default values
-      setShowWelcome(false);
+      // Profile load failed - force re-onboarding instead of showing "User"
+      console.log('[App] Profile load failed - forcing onboarding');
+      localStorage.removeItem('onboarding_completed');
+      setShowWelcome(true);
     } finally {
       setIsLoading(false);
     }
