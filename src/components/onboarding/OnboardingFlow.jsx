@@ -905,14 +905,63 @@ function AccountStep({ onNext, onBack, userData }) {
         // Ensure user row exists
         await ensureUsersRow(trimmedEmail);
 
-        // For existing users, skip email verification and go straight to Google step
-        // They've already verified their email when they first signed up
+        // CRITICAL: Check if user already has an active subscription
+        // If so, skip subscription step entirely
+        let hasActiveSubscription = false;
+        let existingUserId = null;
+        try {
+          const { data: existingUser } = await supabase
+            .from('users')
+            .select('id, subscription_status, subscription_tier, credits, metadata')
+            .eq('email', trimmedEmail)
+            .single();
+
+          if (existingUser) {
+            hasActiveSubscription = existingUser.subscription_status === 'active';
+            existingUserId = existingUser.id;
+
+            // Store the user_id so profile loading works
+            try { localStorage.setItem('user_id', existingUser.id); } catch {}
+
+            // Also restore the user's name from metadata if available
+            const existingName = existingUser.metadata?.profile?.name;
+            if (existingName) {
+              try { localStorage.setItem('user_name', existingName); } catch {}
+              // Update userData with the name
+              userData.name = existingName;
+            }
+
+            console.log('[Onboarding] Existing user subscription check:', {
+              email: trimmedEmail,
+              userId: existingUser.id,
+              subscriptionStatus: existingUser.subscription_status,
+              tier: existingUser.subscription_tier,
+              credits: existingUser.credits,
+              name: existingName,
+              hasActiveSubscription
+            });
+          }
+        } catch (subErr) {
+          console.warn('[Onboarding] Failed to check subscription status:', subErr);
+        }
+
+        // For existing users with active subscription, skip to complete step
+        // For existing users without subscription, skip to subscription step
+        let skipToStep = null;
+        if (hasActiveSubscription) {
+          skipToStep = 'complete'; // Skip everything, go to finish
+          console.log('[Onboarding] User has active subscription - skipping to complete');
+        } else if (isVerified) {
+          skipToStep = 'google'; // Skip email verification, continue normal flow
+        }
+
         onNext?.({
           amxAccount: true,
           email: trimmedEmail,
           isExistingUser: true,
           emailVerified: isVerified,
-          skipToStep: isVerified ? 'google' : null // Skip verification if already verified
+          hasActiveSubscription,
+          skipToStep
         });
       }
     } catch (err) {
