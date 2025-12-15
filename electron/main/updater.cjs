@@ -369,13 +369,34 @@ function setupAutoUpdater(window) {
   });
   
   autoUpdater.on('error', (err) => {
-    auditLog('UPDATE_ERROR', { 
+    auditLog('UPDATE_ERROR', {
       error: err.message,
       stack: err.stack?.substring(0, 500), // Truncate stack
     });
-    
+
     updateState.isDownloading = false;
-    
+
+    // GRACEFUL DEGRADATION: Don't show error notifications for expected failures
+    // like 404 (no release available yet), network errors, or draft releases.
+    // These are normal conditions, especially for:
+    // - First launch after fresh install (no prior release to update from)
+    // - Draft releases where latest-mac.yml isn't published yet
+    // - Offline usage
+    const errorMsg = err.message || '';
+    const isExpectedFailure =
+      errorMsg.includes('404') ||
+      errorMsg.includes('latest-mac.yml') ||
+      errorMsg.includes('ENOTFOUND') ||
+      errorMsg.includes('ECONNREFUSED') ||
+      errorMsg.includes('network') ||
+      errorMsg.includes('getaddrinfo');
+
+    if (isExpectedFailure) {
+      log.info('[Updater] Expected update check failure (no release available or offline) - suppressing error notification');
+      return; // Don't show error to user
+    }
+
+    // Only show unexpected errors to the user
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('update-error', {
         message: sanitizeErrorMessage(err.message),
