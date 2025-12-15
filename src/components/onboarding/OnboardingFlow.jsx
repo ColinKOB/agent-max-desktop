@@ -38,7 +38,7 @@ import { GoogleConnect } from '../../components/GoogleConnect';
 import apiConfigManager from '../../config/apiConfig';
 import LogoPng from '../../assets/AgentMaxLogo.png';
 import { setName as setProfileName, setPreference as setUserPreference, updateProfile as updateUserProfile, flushPreAuthQueue } from '../../services/supabaseMemory';
-import { emailPasswordSignInOrCreate, ensureUsersRow } from '../../services/supabase.js';
+import { emailPasswordSignInOrCreate, ensureUsersRow, supabase } from '../../services/supabase.js';
 
 // Brand orange color from logo (no gradients)
 const BRAND_ORANGE = '#f59e0b';
@@ -897,7 +897,260 @@ function AccountStep({ onNext, onBack, userData }) {
 }
 
 // ============================================================================
-// STEP 4: GOOGLE CONNECT
+// STEP 4: EMAIL VERIFICATION
+// ============================================================================
+function EmailVerificationStep({ userData, onNext, onBack }) {
+  const [checking, setChecking] = useState(false);
+  const [verified, setVerified] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [error, setError] = useState(null);
+  const pollIntervalRef = useRef(null);
+
+  // Start polling for email verification
+  useEffect(() => {
+    let mounted = true;
+
+    const checkVerification = async () => {
+      if (!supabase) return false;
+
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error) {
+          console.log('[EmailVerification] Error getting user:', error.message);
+          return false;
+        }
+
+        // Check if email is confirmed
+        if (user?.email_confirmed_at) {
+          console.log('[EmailVerification] Email verified!');
+          return true;
+        }
+
+        return false;
+      } catch (err) {
+        console.log('[EmailVerification] Check failed:', err.message);
+        return false;
+      }
+    };
+
+    // Poll every 3 seconds
+    pollIntervalRef.current = setInterval(async () => {
+      const isVerified = await checkVerification();
+      if (mounted && isVerified) {
+        setVerified(true);
+        clearInterval(pollIntervalRef.current);
+        // Auto-proceed after brief delay
+        setTimeout(() => {
+          if (mounted) onNext({ emailVerified: true });
+        }, 1500);
+      }
+    }, 3000);
+
+    // Initial check
+    checkVerification().then(isVerified => {
+      if (mounted && isVerified) {
+        setVerified(true);
+        clearInterval(pollIntervalRef.current);
+        setTimeout(() => {
+          if (mounted) onNext({ emailVerified: true });
+        }, 1500);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, [onNext]);
+
+  // Cooldown timer
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
+  const handleResendEmail = async () => {
+    if (resending || resendCooldown > 0) return;
+
+    setResending(true);
+    setError(null);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: userData?.email,
+      });
+
+      if (error) throw error;
+
+      setResendCooldown(60); // 60 second cooldown
+      console.log('[EmailVerification] Resent verification email');
+    } catch (err) {
+      console.error('[EmailVerification] Resend failed:', err);
+      setError('Failed to resend email. Please try again.');
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const handleSkipVerification = () => {
+    // Allow users to skip but mark as not verified
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
+    onNext({ emailVerified: false, skippedVerification: true });
+  };
+
+  return (
+    <div style={{
+      maxWidth: 340,
+      margin: '0 auto',
+      padding: '20px',
+      textAlign: 'center',
+    }}>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <div style={{
+          width: 64,
+          height: 64,
+          margin: '0 auto 20px',
+          borderRadius: 16,
+          background: verified
+            ? 'rgba(34, 197, 94, 0.15)'
+            : 'rgba(245, 158, 11, 0.15)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.3s ease',
+        }}>
+          {verified ? (
+            <Check style={{ width: 32, height: 32, color: '#22c55e' }} />
+          ) : (
+            <Mail style={{ width: 32, height: 32, color: BRAND_ORANGE }} />
+          )}
+        </div>
+
+        <h2 style={{ ...styles.heading, marginBottom: 8 }}>
+          {verified ? 'Email Verified!' : 'Verify Your Email'}
+        </h2>
+        <p style={{ ...styles.subheading, marginBottom: 24 }}>
+          {verified
+            ? 'Your account is confirmed. Continuing...'
+            : `We sent a verification link to ${userData?.email || 'your email'}. Please check your inbox and click the link to continue.`
+          }
+        </p>
+      </motion.div>
+
+      {!verified && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+        >
+          {/* Checking indicator */}
+          <div style={{
+            padding: 16,
+            background: 'rgba(255, 255, 255, 0.05)',
+            borderRadius: 12,
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 12,
+          }}>
+            <div style={{
+              width: 20,
+              height: 20,
+              border: '2px solid rgba(245, 158, 11, 0.3)',
+              borderTopColor: BRAND_ORANGE,
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+            }} />
+            <span style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 14 }}>
+              Waiting for verification...
+            </span>
+          </div>
+
+          {error && (
+            <div style={{
+              padding: 12,
+              background: 'rgba(239, 68, 68, 0.1)',
+              borderRadius: 8,
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              color: '#ef4444',
+              fontSize: 13,
+            }}>
+              {error}
+            </div>
+          )}
+
+          {/* Resend button */}
+          <button
+            onClick={handleResendEmail}
+            disabled={resending || resendCooldown > 0}
+            style={{
+              ...styles.secondaryButton,
+              width: '100%',
+              opacity: (resending || resendCooldown > 0) ? 0.5 : 1,
+              cursor: (resending || resendCooldown > 0) ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {resending
+              ? 'Sending...'
+              : resendCooldown > 0
+                ? `Resend in ${resendCooldown}s`
+                : 'Resend Verification Email'
+            }
+          </button>
+
+          {/* Navigation buttons */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+            <button onClick={onBack} style={styles.secondaryButton}>
+              Back
+            </button>
+            <button
+              onClick={handleSkipVerification}
+              style={{
+                ...styles.secondaryButton,
+                flex: 1,
+                color: 'rgba(255, 255, 255, 0.5)',
+                border: '1px dashed rgba(255, 255, 255, 0.15)',
+              }}
+            >
+              Skip for Now
+            </button>
+          </div>
+
+          <p style={{
+            color: 'rgba(255, 255, 255, 0.4)',
+            fontSize: 11,
+            marginTop: 8,
+            lineHeight: 1.4,
+          }}>
+            Check your spam folder if you don't see the email.
+          </p>
+        </motion.div>
+      )}
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ============================================================================
+// STEP 5: GOOGLE CONNECT
 // ============================================================================
 function GoogleStep({ userData, onNext, onBack }) {
   const handleSkip = () => onNext?.({ googleConnected: false });
@@ -1866,6 +2119,7 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
     { id: 'name', component: NameStep },
     { id: 'usecase', component: UseCaseStep },
     { id: 'account', component: AccountStep },
+    { id: 'verify-email', component: EmailVerificationStep },
     { id: 'google', component: GoogleStep },
     { id: 'subscription', component: SubscriptionStep },
     { id: 'complete', component: CompleteStep },
