@@ -6258,8 +6258,8 @@ export default function AppleFloatBar({
         timeoutSeconds={pendingIntentData?.timeout_s || 60}
       />
 
-      {/* Offline/Reconnecting pill (hidden during onboarding) */}
-      {!apiConnected && !showWelcome && (
+      {/* Offline/Reconnecting pill (hidden during onboarding or loading) */}
+      {!apiConnected && showWelcome === false && (
         <div
           style={{
             position: 'fixed',
