@@ -998,13 +998,7 @@ function EmailVerificationStep({ userData, onNext, onBack }) {
     }
   };
 
-  const handleSkipVerification = () => {
-    // Allow users to skip but mark as not verified
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-    }
-    onNext({ emailVerified: false, skippedVerification: true });
-  };
+  // Email verification is required - no skip option
 
   return (
     <div style={{
@@ -1111,21 +1105,10 @@ function EmailVerificationStep({ userData, onNext, onBack }) {
             }
           </button>
 
-          {/* Navigation buttons */}
+          {/* Back button */}
           <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-            <button onClick={onBack} style={styles.secondaryButton}>
+            <button onClick={onBack} style={{ ...styles.secondaryButton, width: '100%' }}>
               Back
-            </button>
-            <button
-              onClick={handleSkipVerification}
-              style={{
-                ...styles.secondaryButton,
-                flex: 1,
-                color: 'rgba(255, 255, 255, 0.5)',
-                border: '1px dashed rgba(255, 255, 255, 0.15)',
-              }}
-            >
-              Skip for Now
             </button>
           </div>
 
