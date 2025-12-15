@@ -25,12 +25,25 @@ function App({ windowMode = 'single' }) {
   const [updateProgress, setUpdateProgress] = useState(null);
 
   useEffect(() => {
-    // Initialize user in Supabase
+    // CRITICAL: Check onboarding completion FIRST, before any user init
+    // This ensures fresh installs show onboarding even if device_id gets created
+    const onboardingCompleted = localStorage.getItem('onboarding_completed') === 'true';
+
+    if (!onboardingCompleted) {
+      // Fresh install or onboarding not completed - show onboarding immediately
+      console.log('[App] Onboarding not completed - showing welcome flow');
+      setShowWelcome(true);
+      // Still check API connection but skip user init until onboarding completes
+      checkApiConnection();
+      return;
+    }
+
+    // Onboarding was completed - initialize user and load profile
     initializeUser();
-    
+
     // Initialize hybrid search (async, non-blocking)
     initializeHybridSearch();
-    
+
     // Check API connection
     checkApiConnection();
 
@@ -218,17 +231,9 @@ function App({ windowMode = 'single' }) {
       // Load profile from Supabase (with Electron fallback)
       const profileData = await getProfile();
 
-      // Check onboarding completion with local-first logic
-      let localCompleted = false;
-      try { localCompleted = localStorage.getItem('onboarding_completed') === 'true'; } catch {}
-      const firstRun = (() => {
-        try {
-          return !localStorage.getItem('user_data') || !localStorage.getItem('device_id');
-        } catch { return false; }
-      })();
-
-      // Show onboarding if it's first run OR locally not completed
-      setShowWelcome(firstRun || !localCompleted);
+      // Onboarding check is now done earlier in the useEffect
+      // This function only loads profile data for users who completed onboarding
+      setShowWelcome(false);
 
       setProfile({
         name: profileData.name || 'User',
@@ -250,13 +255,16 @@ function App({ windowMode = 'single' }) {
         top_preferences: [],
       });
       setGreeting('Hi there!');
-      setShowWelcome(true); // Show welcome if error (first time)
+      // Don't show welcome on error - user already completed onboarding
+      // Just show the app with default values
+      setShowWelcome(false);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleWelcomeComplete = async (userData) => {
+    console.log('[App] Onboarding complete with userData:', userData);
     setShowWelcome(false);
     setProfile({
       name: userData.name,
@@ -265,7 +273,14 @@ function App({ windowMode = 'single' }) {
       top_preferences: [],
     });
     setGreeting(`Hi, ${userData.name}!`);
-    
+
+    // Initialize user now that onboarding is complete
+    // This ensures user_id and device_id are set properly
+    await initializeUser();
+
+    // Initialize hybrid search
+    initializeHybridSearch();
+
     // Resize window back to normal size after onboarding
     try {
       await window.electron?.resizeWindow?.(360, 220);
