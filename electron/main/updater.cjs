@@ -382,14 +382,17 @@ function setupAutoUpdater(window) {
     // - First launch after fresh install (no prior release to update from)
     // - Draft releases where latest-mac.yml isn't published yet
     // - Offline usage
-    const errorMsg = err.message || '';
+    const errorMsg = (err.message || '').toLowerCase();
     const isExpectedFailure =
       errorMsg.includes('404') ||
       errorMsg.includes('latest-mac.yml') ||
-      errorMsg.includes('ENOTFOUND') ||
-      errorMsg.includes('ECONNREFUSED') ||
+      errorMsg.includes('enotfound') ||
+      errorMsg.includes('econnrefused') ||
       errorMsg.includes('network') ||
-      errorMsg.includes('getaddrinfo');
+      errorMsg.includes('getaddrinfo') ||
+      errorMsg.includes('err_network') ||
+      errorMsg.includes('etimedout') ||
+      errorMsg.includes('econnreset');
 
     if (isExpectedFailure) {
       log.info('[Updater] Expected update check failure (no release available or offline) - suppressing error notification');

@@ -479,6 +479,7 @@ export default function AppleFloatBar({
   const hoverTimeoutRef = useRef(null);
   const pendingOptimisticMsgRef = useRef(null); // Track optimistic message for rollback
   const [showReconnected, setShowReconnected] = useState(false);
+  const [showDisconnectedBanner, setShowDisconnectedBanner] = useState(false); // Delayed display of disconnected banner
   const thoughtIdRef = useRef(null); // current inline thought entry id
   const [execPanelOpen, setExecPanelOpen] = useState(true);
   const [executionDetails, setExecutionDetails] = useState(null);
@@ -1114,6 +1115,20 @@ export default function AppleFloatBar({
       setTimeout(() => setShowReconnected(false), 1400);
     }
     prevOnlineRef.current = apiConnected;
+  }, [apiConnected]);
+
+  // Delay showing disconnected banner by 3 seconds to avoid flash on startup
+  useEffect(() => {
+    if (apiConnected) {
+      // Connected - immediately hide the banner
+      setShowDisconnectedBanner(false);
+      return;
+    }
+    // Disconnected - wait 3 seconds before showing banner
+    const timer = setTimeout(() => {
+      setShowDisconnectedBanner(true);
+    }, 3000);
+    return () => clearTimeout(timer);
   }, [apiConnected]);
 
   // Helper to map UI level to backend mode
@@ -6258,8 +6273,8 @@ export default function AppleFloatBar({
         timeoutSeconds={pendingIntentData?.timeout_s || 60}
       />
 
-      {/* Offline/Reconnecting pill (hidden during onboarding or loading) */}
-      {!apiConnected && showWelcome === false && (
+      {/* Offline/Reconnecting pill (hidden during onboarding, loading, or first 3 seconds) */}
+      {showDisconnectedBanner && showWelcome === false && (
         <div
           style={{
             position: 'fixed',
