@@ -145,6 +145,34 @@ function App({ windowMode = 'single' }) {
 
   const initializeUser = async () => {
     try {
+      // CRITICAL: Check if there's already a valid (non-local) user_id from sign-in
+      // If so, DON'T overwrite it with getOrCreateUser which would replace authenticated
+      // user ID with a device-based ID
+      const existingUserId = localStorage.getItem('user_id');
+      const isAuthenticatedUser = existingUserId && !existingUserId.startsWith('local-');
+
+      if (isAuthenticatedUser) {
+        logger.info('Using existing authenticated user_id', { userId: existingUserId });
+        // User was authenticated via sign-in, keep that ID
+        // Still ensure device_id exists for telemetry
+        let deviceId = localStorage.getItem('device_id');
+        if (!deviceId) {
+          const gen = () => (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function')
+            ? globalThis.crypto.randomUUID()
+            : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+                const r = (Math.random() * 16) | 0;
+                const v = c === 'x' ? r : (r & 0x3) | 0x8;
+                return v.toString(16);
+              });
+          deviceId = gen();
+          localStorage.setItem('device_id', deviceId);
+        }
+
+        // Identify user in PostHog analytics
+        identify(existingUserId, { device_id: deviceId });
+        return;
+      }
+
       // Generate or retrieve device_id
       let deviceId = localStorage.getItem('device_id');
       if (!deviceId) {
@@ -160,7 +188,7 @@ function App({ windowMode = 'single' }) {
         logger.info('Generated new device ID', { deviceId });
       }
 
-      // Create or get user in Supabase
+      // Create or get user in Supabase (only for non-authenticated users)
       const user = await getOrCreateUser(deviceId);
       if (user) {
         localStorage.setItem('user_id', user.id);
