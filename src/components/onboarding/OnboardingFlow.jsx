@@ -905,19 +905,29 @@ function AccountStep({ onNext, onBack, userData }) {
         // Ensure user row exists
         await ensureUsersRow(trimmedEmail);
 
-        // CRITICAL: Check if user already has an active subscription
-        // If so, skip subscription step entirely
+        // CRITICAL: Check if user already exists and has profile/subscription
+        // Returning users should skip onboarding entirely
         let hasActiveSubscription = false;
+        let hasExistingProfile = false;
         let existingUserId = null;
         try {
-          const { data: existingUser } = await supabase
+          // Get ALL user records for this email (handles duplicates)
+          // Prioritize: active subscription > has profile > newest
+          // Use case-insensitive match for email
+          const { data: userRecords } = await supabase
             .from('users')
-            .select('id, subscription_status, subscription_tier, credits, metadata')
-            .eq('email', trimmedEmail)
-            .single();
+            .select('id, subscription_status, subscription_tier, credits, metadata, created_at')
+            .ilike('email', trimmedEmail.toLowerCase())
+            .order('created_at', { ascending: false });
 
-          if (existingUser) {
+          if (userRecords && userRecords.length > 0) {
+            // Find best record: prefer active subscription, then one with profile
+            const activeUser = userRecords.find(u => u.subscription_status === 'active');
+            const profileUser = userRecords.find(u => u.metadata?.profile?.name);
+            const existingUser = activeUser || profileUser || userRecords[0];
+
             hasActiveSubscription = existingUser.subscription_status === 'active';
+            hasExistingProfile = !!existingUser.metadata?.profile?.name;
             existingUserId = existingUser.id;
 
             // Store the user_id so profile loading works
@@ -931,26 +941,28 @@ function AccountStep({ onNext, onBack, userData }) {
               userData.name = existingName;
             }
 
-            console.log('[Onboarding] Existing user subscription check:', {
+            console.log('[Onboarding] Existing user check:', {
               email: trimmedEmail,
               userId: existingUser.id,
               subscriptionStatus: existingUser.subscription_status,
               tier: existingUser.subscription_tier,
               credits: existingUser.credits,
               name: existingName,
-              hasActiveSubscription
+              hasActiveSubscription,
+              hasExistingProfile,
+              totalRecords: userRecords.length
             });
           }
         } catch (subErr) {
-          console.warn('[Onboarding] Failed to check subscription status:', subErr);
+          console.warn('[Onboarding] Failed to check user status:', subErr);
         }
 
-        // For existing users with active subscription, skip to complete step
-        // For existing users without subscription, skip to subscription step
+        // For returning users (have profile OR active subscription), skip to complete
+        // This is a returning user on a new device - no need to re-onboard
         let skipToStep = null;
-        if (hasActiveSubscription) {
+        if (hasActiveSubscription || hasExistingProfile) {
           skipToStep = 'complete'; // Skip everything, go to finish
-          console.log('[Onboarding] User has active subscription - skipping to complete');
+          console.log('[Onboarding] Returning user detected - skipping to complete');
         } else if (isVerified) {
           skipToStep = 'google'; // Skip email verification, continue normal flow
         }
