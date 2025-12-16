@@ -68,7 +68,7 @@ const LocalMemoryManager = require('../memory/memory-manager-backend-bridge.cjs'
 const IPCValidator = require('../security/ipc-validator.cjs');
 const { createApplicationMenu } = require('./menu.cjs');
 const { setupAutoUpdater, checkForUpdates } = require('./updater.cjs');
-const { setupCrashReporter, captureError } = require('./crash-reporter.cjs');
+const posthogAnalytics = require('../analytics/posthog-main.cjs');
 const autonomousIPC = require('../autonomous/autonomousIPC.cjs');
 const { HandsOnDesktopClient } = require('../integrations/hands-on-desktop-client.cjs');
 const { DevicePairing } = require('./devicePairing.cjs');
@@ -379,8 +379,9 @@ function showPillWindow() {
 
 app.whenReady().then(async () => {
   telemetry.initialize({ app, ipcMain });
-  // Initialize crash reporter first (to catch any startup errors)
-  setupCrashReporter();
+  // Initialize PostHog analytics (to catch any startup errors)
+  await posthogAnalytics.initialize();
+  posthogAnalytics.setupLifecycleTracking();
   
   // Register autonomous IPC handlers
   autonomousIPC.register();
@@ -419,12 +420,15 @@ app.whenReady().then(async () => {
   }, 2000); // Give app time to fully initialize
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', async () => {
   telemetry.captureEvent('app.lifecycle.before-quit', {
     openWindows: BrowserWindow.getAllWindows().length,
   });
   telemetry.flush();
-  
+
+  // Flush PostHog analytics
+  await posthogAnalytics.shutdown();
+
   // Cleanup executor (Phase 2)
   cleanupOnQuit();
 });
@@ -874,7 +878,7 @@ ipcMain.handle('check-for-updates', async () => {
     const result = await checkForUpdates();
     return { success: true, result };
   } catch (error) {
-    captureError(error, { context: 'manual-update-check' });
+    posthogAnalytics.captureError(error, { context: 'manual-update-check' });
     return { success: false, error: error.message };
   }
 });
@@ -895,7 +899,7 @@ ipcMain.handle('download-update', async () => {
     await autoUpdater.downloadUpdate();
     return { success: true };
   } catch (error) {
-    captureError(error, { context: 'download-update' });
+    posthogAnalytics.captureError(error, { context: 'download-update' });
     return { success: false, error: error.message };
   }
 });
@@ -908,7 +912,7 @@ ipcMain.handle('install-update', async () => {
     autoUpdater.quitAndInstall(false, true);
     return { success: true };
   } catch (error) {
-    captureError(error, { context: 'install-update' });
+    posthogAnalytics.captureError(error, { context: 'install-update' });
     return { success: false, error: error.message };
   }
 });
@@ -923,7 +927,7 @@ ipcMain.handle('restart-for-update', async () => {
     autoUpdater.quitAndInstall(false, true);
     return { success: true };
   } catch (error) {
-    captureError(error, { context: 'restart-for-update' });
+    posthogAnalytics.captureError(error, { context: 'restart-for-update' });
     return { success: false, error: error.message };
   }
 });

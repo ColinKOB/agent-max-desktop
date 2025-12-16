@@ -13,6 +13,7 @@ import { PermissionProvider } from './contexts/PermissionContext';
 import UpdateNotification from './components/UpdateNotification';
 import { UserInputDialog } from './components/UserInputDialog';
 import logo from './assets/AgentMaxLogo.png';
+import { initializeAnalytics, identify, trackPageViewed } from './services/analytics';
 
 const logger = createLogger('App');
 
@@ -25,6 +26,10 @@ function App({ windowMode = 'single' }) {
   const [updateProgress, setUpdateProgress] = useState(null);
 
   useEffect(() => {
+    // Initialize PostHog analytics
+    initializeAnalytics();
+    trackPageViewed('app_main');
+
     // CRITICAL: Check onboarding completion FIRST, before any user init
     // This ensures fresh installs show onboarding even if device_id gets created
     const onboardingCompleted = localStorage.getItem('onboarding_completed') === 'true';
@@ -160,9 +165,15 @@ function App({ windowMode = 'single' }) {
       if (user) {
         localStorage.setItem('user_id', user.id);
         logger.info('User initialized', { userId: user.id, credits: user.metadata?.credits || 0 });
-        
+
         // Store user in global store for easy access
         useStore.getState().setCurrentUser(user);
+
+        // Identify user in PostHog analytics
+        identify(user.id, {
+          device_id: deviceId,
+          credits: user.metadata?.credits || 0,
+        });
       }
     } catch (error) {
       logger.error('Failed to initialize user', error);

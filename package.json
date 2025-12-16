@@ -120,7 +120,6 @@
     }
   },
   "dependencies": {
-    "@sentry/electron": "^7.2.0",
     "@stripe/react-stripe-js": "^5.2.0",
     "@stripe/stripe-js": "^8.1.0",
     "@supabase/supabase-js": "^2.76.0",
@@ -138,6 +137,8 @@
     "keytar": "^7.9.0",
     "lucide-react": "^0.294.0",
     "node-machine-id": "^1.1.12",
+    "posthog-js": "^1.306.2",
+    "posthog-node": "^5.17.2",
     "puppeteer": "^21.11.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

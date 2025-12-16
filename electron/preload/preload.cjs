@@ -181,35 +181,84 @@ contextBridge.exposeInMainWorld('telemetry', {
   },
 });
 
-// Sentry bridge for renderer error capture (forwards to main process)
-contextBridge.exposeInMainWorld('Sentry', {
-  captureException: (error, context) => {
+// PostHog analytics bridge for renderer (forwards to main process)
+contextBridge.exposeInMainWorld('posthog', {
+  capture: (eventName, properties) => {
     try {
-      // Serialize error for IPC (can't send Error objects directly)
+      ipcRenderer.invoke('posthog:capture', { eventName, properties });
+    } catch (e) {
+      console.error('[PostHog Bridge] Failed to capture event:', e);
+    }
+  },
+  identify: (userId, properties) => {
+    try {
+      ipcRenderer.invoke('posthog:identify', { userId, properties });
+    } catch (e) {
+      console.error('[PostHog Bridge] Failed to identify user:', e);
+    }
+  },
+  captureError: (error, context) => {
+    try {
       const serialized = {
         message: error?.message || String(error),
         name: error?.name || 'Error',
         stack: error?.stack,
-        ...context
       };
-      ipcRenderer.invoke('sentry:capture-exception', serialized);
+      ipcRenderer.invoke('posthog:capture-error', { error: serialized, context });
     } catch (e) {
-      console.error('[Sentry Bridge] Failed to capture exception:', e);
+      console.error('[PostHog Bridge] Failed to capture error:', e);
+    }
+  },
+  getFeatureFlag: async (flagName, defaultValue) => {
+    try {
+      return await ipcRenderer.invoke('posthog:get-feature-flag', { flagName, defaultValue });
+    } catch (e) {
+      console.error('[PostHog Bridge] Failed to get feature flag:', e);
+      return { value: defaultValue };
+    }
+  },
+  setEnabled: (enabled) => {
+    try {
+      ipcRenderer.invoke('posthog:set-enabled', { enabled });
+    } catch (e) {
+      console.error('[PostHog Bridge] Failed to set enabled:', e);
+    }
+  },
+  flush: async () => {
+    try {
+      await ipcRenderer.invoke('posthog:flush');
+    } catch (e) {
+      console.error('[PostHog Bridge] Failed to flush:', e);
+    }
+  },
+});
+
+// Legacy Sentry bridge for backwards compatibility (redirects to PostHog)
+contextBridge.exposeInMainWorld('Sentry', {
+  captureException: (error, context) => {
+    try {
+      const serialized = {
+        message: error?.message || String(error),
+        name: error?.name || 'Error',
+        stack: error?.stack,
+      };
+      ipcRenderer.invoke('posthog:capture-error', { error: serialized, context });
+    } catch (e) {
+      console.error('[Sentry->PostHog Bridge] Failed to capture exception:', e);
     }
   },
   captureMessage: (message, level) => {
     try {
-      ipcRenderer.invoke('sentry:capture-message', { message, level: level || 'info' });
+      ipcRenderer.invoke('posthog:capture', {
+        eventName: 'sentry_message',
+        properties: { message, level: level || 'info' }
+      });
     } catch (e) {
-      console.error('[Sentry Bridge] Failed to capture message:', e);
+      console.error('[Sentry->PostHog Bridge] Failed to capture message:', e);
     }
   },
-  addBreadcrumb: (breadcrumb) => {
-    try {
-      ipcRenderer.invoke('sentry:add-breadcrumb', breadcrumb);
-    } catch (e) {
-      console.error('[Sentry Bridge] Failed to add breadcrumb:', e);
-    }
+  addBreadcrumb: () => {
+    // No-op for backwards compatibility
   },
 });
 
