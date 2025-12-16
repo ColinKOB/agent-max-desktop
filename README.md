@@ -1,208 +1,275 @@
 # Agent Max Desktop
 
-**Version:** 2.0 - Clarity  
-**Focus:** Behavior-first UX overhaul
+**Version:** 1.1.12
+**Author:** Colin O'Brien
+**Homepage:** https://agentmax.app
 
-A powerful AI assistant for your desktop with a glass-morphism interface and keyboard-first workflow.
+A cross-platform AI desktop assistant with glass-morphism UI, intelligent memory system, and autonomous task execution.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
-\`\`\`bash
+```bash
 npm install
 npm run dev
-\`\`\`
+```
 
-**First-time users:**
-- Press \`Cmd/Ctrl+F\` to search your conversation
-- Press \`Cmd/Ctrl+K\` for quick switcher
-- Hover over messages for actions
-- Your drafts autosave as you type
-
----
-
-## ✨ What's New in v2.0
-
-### Power Features
-- **Search** (Cmd/Ctrl+F) - Find any message instantly
-- **Quick Switcher** (Cmd/Ctrl+K) - Jump between conversations
-- **Message Actions** - Copy, Regenerate, Edit, Delete (hover or keyboard)
-- **Stop/Continue** - Control generation in real-time
-
-### Smart Behaviors
-- **Draft Autosave** - Never lose your work (500ms debounce)
-- **Auto-Expand** - Window grows when you need space
-- **Status Progression** - Connecting → Thinking → Answering
-- **Collapsible Thoughts** - Auto-hide after completion
-
-### Safety & Recovery
-- **Undo Everywhere** - 5-second restore for destructive actions
-- **Mode Memory** - Resumes preferred mode per screen corner
-- **IME Protection** - Proper Asian language input handling
-
-See [RELEASE_NOTES_v2.0.md](docs/RELEASE_NOTES_v2.0.md) for full details.
+For Electron development:
+```bash
+npm run electron:dev
+```
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## Features
+
+### Core Capabilities
+- **Glass-Morphism UI** - Modern frosted glass interface with backdrop blur effects
+- **Floating Pill Interface** - Minimalist, always-on-top design that expands dynamically
+- **Keyboard-First Workflow** - Full keyboard navigation with Cmd/Ctrl shortcuts
+- **Real-time Status** - Connection state indicators (Connecting → Thinking → Answering)
+
+### Memory System
+- **Profile Management** - User profiles with interaction tracking
+- **Facts Storage** - Knowledge stored as domain/predicate/object triplets
+- **Hybrid Search** - Local-first search with cloud fallback
+- **Client-side Embeddings** - Privacy-focused embeddings via Transformers.js (all-MiniLM-L6-v2)
+- **Offline Support** - Sync queue for offline operations
+
+### Autonomous Execution
+- **Pull-based Model** - Client polls for task status (no SSE streaming)
+- **Intent Detection** - AI identifies user intent before execution
+- **Intent Confirmation** - Approval dialogs for sensitive operations
+- **Live Activity Feed** - Real-time updates during task execution
+- **Code Execution** - Local Python/shell script execution
+- **macOS AppleScript** - Native automation support
+
+### Integrations
+- **Google OAuth** - Gmail, Calendar, Drive, and Contacts access
+- **Stripe Billing** - Subscription and credit-based payment system
+- **Supabase** - PostgreSQL backend with authentication and RLS
+- **PostHog Analytics** - 50+ event types for product telemetry
+
+---
+
+## Keyboard Shortcuts
 
 | Action | Shortcut |
 |--------|----------|
-| Open search | \`Cmd/Ctrl+F\` |
-| Quick switcher | \`Cmd/Ctrl+K\` |
-| Toggle mode | \`Cmd/Ctrl+Alt+C\` |
-| Copy message | \`C\` (when focused) |
-| Regenerate | \`R\` (agent messages) |
-| Edit message | \`E\` (user messages) |
-| Delete | \`Backspace\` (with confirm) |
-| Back out | \`Escape\` |
+| Search | `Cmd/Ctrl+F` |
+| Quick Switcher | `Cmd/Ctrl+K` |
+| Toggle Mode | `Cmd/Ctrl+Alt+C` |
+| Copy Message | `C` (when focused) |
+| Regenerate | `R` (agent messages) |
+| Edit Message | `E` (user messages) |
+| Delete | `Backspace` (with confirm) |
+| Back/Cancel | `Escape` |
 
 ---
 
-## 📚 Documentation
+## Tech Stack
 
-**📖 [Complete Documentation Index](docs/README.md)** - Navigate all 100+ documentation files organized by category
+### Frontend
+- **React** 18.2.0 - UI framework
+- **Vite** 5.0.8 - Build tool and dev server
+- **TailwindCSS** 3.4.0 - Utility-first CSS
+- **Framer Motion** 12.23.24 - Animations
+- **React Router** 7.9.4 - Client-side routing
+- **Zustand** 4.4.7 - Lightweight state management
+- **Lucide React** 0.294.0 - Icon library
 
-### Quick Links
-- **[Release Notes](docs/RELEASE_NOTES_v2.0.md)** - What's new in v2.0
-- **[Ship Checklist](docs/SHIP_CHECKLIST.md)** - Deployment guide
-- **[Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md)** - Technical deep dive
-- **[UX Plan](docs/design/UX_IMPROVEMENT_PLAN.md)** - Full feature roadmap
+### Backend Integration
+- **Axios** 1.12.2 - HTTP client with retry support
+- **Supabase** 2.76.0 - PostgreSQL + Auth + RLS
+- **Stripe** 5.2.0 / 8.1.0 - Payments
+- **PostHog** 1.306.2 - Product analytics
 
-### Documentation Categories
-- **[Guides](docs/guides/)** - Installation, building, deployment, and integration guides
-- **[Architecture](docs/architecture/)** - Technical architecture and system design
-- **[Design](docs/design/)** - UI/UX design, brand guidelines, and glass effects
-- **[Phases](docs/phases/)** - Development phases and milestone completions
-- **[Fixes](docs/fixes/)** - Bug fixes and debugging reports
-- **[Testing](docs/testing/)** - Test reports, plans, and instructions
+### Desktop (Electron)
+- **Electron** 28.0.0 - Desktop wrapper
+- **Electron Builder** 24.9.1 - Packaging (Mac/Win/Linux)
+- **Electron Updater** 6.6.2 - Auto-updates
+- **Better SQLite3** 9.2.2 - Local database
+- **Keytar** 7.9.0 - Secure credential storage (OS keychain)
+
+### AI/ML
+- **@xenova/transformers** 2.17.1 - Client-side embeddings
+- **Puppeteer** 21.11.0 - Web automation
+
+### Testing
+- **Playwright** 1.56.1 - E2E testing
+- **Vitest** 1.0.4 - Unit testing
+- **Jest** 30.2.0 - JavaScript testing
+- **Testing Library** - React component testing
 
 ---
 
-## 🏗️ Architecture
+## Project Structure
 
-\`\`\`
+```
 agent-max-desktop/
 ├── src/
-│   ├── components/       # React components (FloatBar, etc.)
-│   ├── services/         # API, memory, telemetry
-│   ├── styles/           # Global CSS with glassmorphism
-│   └── utils/            # Helper functions
-├── electron/             # Electron main process
-└── docs/                 # Additional documentation
-\`\`\`
-
-### Key Technologies
-- **React** - UI framework
-- **Electron** - Desktop app wrapper
-- **Vite** - Build tool
-- **TailwindCSS** - Utility-first CSS
-- **Lucide React** - Icon library
-
----
-
-## 📊 Telemetry
-
-All events include \`ux_schema: 'v1'\` for future-proof metrics.
-
-**Categories:**
-- Search & Switcher
-- Generation Control (Stop/Continue)
-- Message Actions
-- Mode & Composer
-- Conversation Management
-- Performance (TTFT)
-
-See [UX_IMPROVEMENT_PLAN.md](docs/design/UX_IMPROVEMENT_PLAN.md) for full event list.
-
-The new desktop telemetry broker, including configuration steps for beta
-distribution, lives in [docs/TELEMETRY_PIPELINE.md](docs/TELEMETRY_PIPELINE.md).
-
----
-
-## 🧪 Development
-
-\`\`\`bash
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Package Electron app
-npm run package
-
-# Run tests
-npm test
-\`\`\`
+│   ├── App.jsx                    # Root component
+│   ├── main.jsx                   # Vite entry point
+│   ├── components/                # React components
+│   │   ├── FloatBar/              # Main UI (AppleFloatBar, ComposerBar)
+│   │   ├── onboarding/            # User setup flow
+│   │   ├── ExecutionProgress/     # Task status UI
+│   │   ├── LiveActivityFeed/      # Real-time activity
+│   │   └── GoogleConnect.jsx      # Google OAuth
+│   ├── services/                  # API and business logic
+│   │   ├── api.js                 # REST API client
+│   │   ├── supabase.js            # Supabase client
+│   │   ├── supabaseMemory.js      # Memory operations
+│   │   ├── pullAutonomous.js      # Task execution service
+│   │   ├── hybridSearch.js        # Local + cloud search
+│   │   ├── embeddings.js          # Embedding generation
+│   │   └── analytics.js           # PostHog tracking
+│   ├── store/                     # Zustand state management
+│   ├── config/                    # API and feature configuration
+│   ├── hooks/                     # Custom React hooks
+│   ├── lib/                       # Shared utilities
+│   ├── styles/                    # CSS (glass-morphism effects)
+│   └── utils/                     # Helper functions
+├── electron/
+│   ├── main/                      # Main process (main.cjs, menu.cjs)
+│   ├── autonomous/                # Task execution engine
+│   │   ├── pullExecutor.cjs       # Pull-based executor
+│   │   ├── macosAppleScript.cjs   # macOS automation
+│   │   └── executorManager.cjs    # Executor lifecycle
+│   ├── memory/                    # Local memory backend
+│   ├── integrations/              # Third-party integrations
+│   └── preload/                   # Electron preload scripts
+├── tests/                         # Test files (e2e, unit, integration)
+├── supabase/                      # Supabase configuration
+└── build/                         # App icons and resources
+```
 
 ---
 
-## 🎯 Success Metrics (Target)
+## Development Commands
 
-- Search usage: >20% WAU
-- Switcher usage: >15% WAU
-- Message actions: >30% WAU
-- Stop rate: <8% (quality indicator)
-- Mode resume: >60%
-- TTFT p95: <1.5s
+```bash
+# Development
+npm run dev                        # Start Vite dev server
+npm run electron:dev               # Run Electron in dev mode
+npm run electron:dev:prodlike      # Production-like build
+npm run electron:watch:prodlike    # Watch with production env
 
----
+# Building
+npm run build                      # Build for production
+npm run electron:build             # Package for all platforms
+npm run electron:build:mac         # macOS (DMG + ZIP)
+npm run electron:build:win         # Windows (NSIS + ZIP)
+npm run electron:build:linux       # Linux (AppImage + DEB + RPM)
 
-## 🐛 Known Issues
+# Testing
+npm test                           # Run Vitest
+npm run test:watch                 # Watch mode
+npm run test:ui                    # Vitest UI
+npm run test:coverage              # Coverage report
+npm run test:jest                  # Jest tests
+npm run test:e2e                   # Playwright E2E tests
+npm run test:e2e:ui                # E2E with UI
+npm run test:api                   # API tests
+npm run test:unit                  # Unit tests only
+npm run test:all                   # Run all tests
 
-### In v2.0
-- Quick switcher shows current conversation only
-- Search uses substring matching (no fuzzy)
-- Session IDs hardcoded to 'current'
-
-### Planned for v2.1
-- Full conversation list
-- Fuzzy search (Fuse.js)
-- Complete Continue integration
-- Memory panel UI
-- Export conversations
-
----
-
-## 🤝 Contributing
-
-1. Read the [UX Improvement Plan](docs/design/UX_IMPROVEMENT_PLAN.md)
-2. Check existing issues/PRs
-3. Follow the existing code style
-4. Add telemetry for new features
-5. Update documentation
-
-**Key Principles:**
-- Surgical, focused changes
-- Telemetry-first approach
-- Keyboard-first design
-- Undo for destructive actions
+# Code Quality
+npm run lint                       # ESLint check
+npm run lint:fix                   # Auto-fix linting
+npm run stylelint                  # CSS linting
+npm run stylelint:fix              # Fix CSS issues
+npm run format                     # Prettier format
+npm run format:check               # Check formatting
+```
 
 ---
 
-## 📄 License
+## Environment Variables
+
+Create a `.env` file based on `.env.example`:
+
+### Core Settings
+- `VITE_API_URL` - Backend API URL
+- `VITE_API_KEY` - API authentication key
+- `VITE_ENVIRONMENT` - Environment (development/production/beta)
+
+### Services
+- `VITE_STRIPE_PUBLISHABLE_KEY` - Stripe public key
+- `VITE_SUPABASE_URL` - Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` - Supabase anonymous key
+- `VITE_GOOGLE_CLIENT_ID` - Google OAuth client ID
+- `VITE_GOOGLE_API_KEY` - Google API key
+
+### Feature Flags
+- `VITE_ENABLE_PAYMENTS` - Enable Stripe billing
+- `VITE_ENABLE_GOOGLE_INTEGRATION` - Enable Google OAuth
+- `VITE_ENABLE_HYBRID_SEARCH` - Enable semantic search
+- `VITE_ENABLE_ANALYTICS` - Enable PostHog tracking
+
+### Developer Settings
+- `VITE_DEBUG_MODE` - Enable debug logging
+- `VITE_BETA_MODE` - Enable beta features
+- `VITE_UPDATE_CHANNEL` - Auto-update channel
+
+---
+
+## Architecture Highlights
+
+### State Management
+- Zustand for minimal, performant global state
+- Persisted to localStorage for session recovery
+
+### API Communication
+- Axios with automatic retry (3 retries, exponential backoff)
+- 60-second timeout
+- Auto-detect local backend in development
+
+### Search Architecture
+- **Local**: IndexedDB with keyword/semantic indexes (offline capable)
+- **Cloud**: Supabase RPC for comprehensive search
+- **Hybrid**: Local-first, merge with cloud, rank combined results
+- **Embeddings**: 384-dimensional vectors via all-MiniLM-L6-v2
+
+### Security
+- IPC message validation for Electron
+- Keytar for secure credential storage
+- Row-level security in Supabase
+- Sandbox enabled for Electron
+
+---
+
+## Telemetry
+
+Event tracking with PostHog includes:
+- App lifecycle (launched, ready, activated, closed, updated)
+- Onboarding flow events
+- Authentication events
+- Billing and subscription events
+- Chat and conversation events
+- Search and navigation
+- Message actions
+- Error tracking
+
+All events include `ux_schema: 'v1'` for versioned metrics.
+
+---
+
+## Contributing
+
+1. Follow the existing code style
+2. Add telemetry for new features
+3. Include tests for new functionality
+4. Use keyboard-first design principles
+5. Implement undo for destructive actions
+
+---
+
+## License
 
 MIT License - See LICENSE file for details
 
 ---
 
-## 🙏 Acknowledgments
-
-Built with discipline. Shipped with confidence.
-
-**v2.0 - Clarity** (October 2025)
-- 1,500+ lines of UX improvements
-- 19 telemetry events
-- 0 regressions
-- 8 hours of focused work
-
----
-
-**Questions?** See [SHIP_CHECKLIST.md](docs/SHIP_CHECKLIST.md) for support info.
-
-**Feedback?** We'd love to hear what you think about search, switcher, and message actions!
+**Copyright © 2025 Colin O'Brien**
