@@ -1389,11 +1389,14 @@ function GoogleStep({ userData, onNext, onBack }) {
   const handleSkip = () => onNext?.({ googleConnected: false });
 
   return (
-    <div style={{ 
-      maxWidth: 340, 
-      margin: '0 auto', 
+    <div style={{
+      maxWidth: 340,
+      margin: '0 auto',
       padding: '16px 20px',
       textAlign: 'center',
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: '100%',
     }}>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -1432,7 +1435,13 @@ function GoogleStep({ userData, onNext, onBack }) {
         <GoogleConnect compact />
       </motion.div>
 
-      <div style={{ display: 'flex', gap: 10, marginTop: 8, paddingBottom: 16 }}>
+      <div style={{
+        display: 'flex',
+        gap: 10,
+        paddingTop: 10,
+        flexShrink: 0,
+        marginTop: 'auto',
+      }}>
         <button onClick={onBack} style={styles.secondaryButton}>
           Back
         </button>
@@ -1454,7 +1463,7 @@ function GoogleStep({ userData, onNext, onBack }) {
 }
 
 // ============================================================================
-// STEP 5: SUBSCRIPTION (Enhanced with Feature Comparison)
+// STEP 6: SUBSCRIPTION (Enhanced with Feature Comparison)
 // ============================================================================
 const STRIPE_PAYMENT_LINKS = {
   starter_monthly: 'https://buy.stripe.com/eVqbIU2nN1uue2o2Q11Nu06',
