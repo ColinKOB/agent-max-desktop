@@ -772,7 +772,7 @@ function UseCaseStep({ userData, onNext, onBack }) {
 // STEP 3: EMAIL/ACCOUNT (Sign Up or Sign In)
 // ============================================================================
 function AccountStep({ onNext, onBack, userData }) {
-  const [mode, setMode] = useState('signup'); // 'signup' or 'signin'
+  const [mode, setMode] = useState('signin'); // 'signin' or 'signup' - default to signin for returning users
   const [email, setEmail] = useState(userData?.email || '');
   const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);
@@ -994,8 +994,8 @@ function AccountStep({ onNext, onBack, userData }) {
         </h2>
         <p style={styles.subheading}>
           {mode === 'signin'
-            ? 'Sign in to continue where you left off.'
-            : 'This secures your data and syncs across devices.'}
+            ? 'Sign in to access your Agent Max account.'
+            : 'New here? Create an account to get started.'}
         </p>
       </motion.div>
 
@@ -1018,22 +1018,6 @@ function AccountStep({ onNext, onBack, userData }) {
           border: '1px solid rgba(255, 255, 255, 0.08)',
         }}>
           <button
-            onClick={() => { setMode('signup'); setError(null); }}
-            style={{
-              padding: '8px 16px',
-              borderRadius: 6,
-              fontSize: 13,
-              fontWeight: 600,
-              color: mode === 'signup' ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
-              background: mode === 'signup' ? BRAND_ORANGE : 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-          >
-            Sign Up
-          </button>
-          <button
             onClick={() => { setMode('signin'); setError(null); }}
             style={{
               padding: '8px 16px',
@@ -1048,6 +1032,22 @@ function AccountStep({ onNext, onBack, userData }) {
             }}
           >
             Sign In
+          </button>
+          <button
+            onClick={() => { setMode('signup'); setError(null); }}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 6,
+              fontSize: 13,
+              fontWeight: 600,
+              color: mode === 'signup' ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
+              background: mode === 'signup' ? BRAND_ORANGE : 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            Sign Up
           </button>
         </div>
       </motion.div>

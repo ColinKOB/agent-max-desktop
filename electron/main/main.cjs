@@ -436,6 +436,9 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
+  // Guard: screen module can't be used before app is ready
+  if (!app.isReady()) return;
+
   // On macOS, clicking dock icon opens Settings window
   if (settingsWindow) {
     settingsWindow.show();
