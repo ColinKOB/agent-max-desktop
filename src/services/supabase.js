@@ -199,7 +199,12 @@ export async function ensureUsersRow(email) {
 
 export const supabase = SUPABASE_ENABLED
   ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { persistSession: false },
+      auth: {
+        persistSession: true,
+        storageKey: 'amx-supabase-auth',
+        autoRefreshToken: true,
+        detectSessionInUrl: false, // Electron doesn't use URL for session
+      },
     })
   : null;
 

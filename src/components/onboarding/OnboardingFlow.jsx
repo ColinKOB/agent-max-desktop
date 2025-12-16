@@ -2334,12 +2334,13 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
     return () => { mounted = false; clearInterval(id); };
   }, []);
 
+  // Step order: Account (sign in/up) comes before Legal so returning users can sign in first
   const steps = [
     { id: 'welcome', component: WelcomeStep },
-    { id: 'legal', component: LegalStep },
+    { id: 'account', component: AccountStep },      // Sign in/up FIRST
+    { id: 'legal', component: LegalStep },          // Then legal consent
     { id: 'name', component: NameStep },
     { id: 'usecase', component: UseCaseStep },
-    { id: 'account', component: AccountStep },
     { id: 'verify-email', component: EmailVerificationStep },
     { id: 'google', component: GoogleStep },
     { id: 'subscription', component: SubscriptionStep },
