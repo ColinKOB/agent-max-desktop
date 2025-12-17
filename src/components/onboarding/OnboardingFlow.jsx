@@ -785,6 +785,8 @@ function AccountStep({ onNext, onBack, userData }) {
   const canSubmit = validEmail(email) && strongPw(password) && !saving;
 
   const handleSignUp = async () => {
+    console.log('[Onboarding] ========== SIGN UP HANDLER CALLED ==========');
+    console.log('[Onboarding] Mode:', mode, '| Email:', email);
     if (!canSubmit) return;
     setSaving(true);
     setError(null);
@@ -800,7 +802,7 @@ function AccountStep({ onNext, onBack, userData }) {
 
       if (existingUser?.user) {
         // User exists and password is correct - they're signing in, not signing up
-        console.log('[Onboarding] Existing user signed in:', trimmedEmail);
+        console.log('[Onboarding] Existing user signed in via sign-up form:', trimmedEmail);
         try { localStorage.setItem('user_email', trimmedEmail); } catch {}
 
         // Check if email is verified
@@ -809,12 +811,57 @@ function AccountStep({ onNext, onBack, userData }) {
         // Ensure user row exists
         await ensureUsersRow(trimmedEmail);
 
-        // Skip to appropriate step based on verification status
+        // CRITICAL: Check if user already has subscription/credits - skip to complete if so
+        let hasActiveSubscription = false;
+        let hasExistingProfile = false;
+        let hasSignificantCredits = false;
+        try {
+          const { data: userRecords } = await supabase
+            .from('users')
+            .select('id, subscription_status, subscription_tier, credits, metadata, created_at')
+            .ilike('email', trimmedEmail.toLowerCase())
+            .order('created_at', { ascending: false });
+
+          if (userRecords && userRecords.length > 0) {
+            const activeUser = userRecords.find(u => u.subscription_status === 'active');
+            const creditsUser = userRecords.find(u => (u.credits || 0) > 50);
+            const profileUser = userRecords.find(u => u.metadata?.profile?.name);
+            const existingUserRecord = activeUser || creditsUser || profileUser || userRecords[0];
+
+            hasActiveSubscription = existingUserRecord.subscription_status === 'active';
+            hasExistingProfile = !!existingUserRecord.metadata?.profile?.name;
+            hasSignificantCredits = (existingUserRecord.credits || 0) > 50;
+
+            try { localStorage.setItem('user_id', existingUserRecord.id); } catch {}
+
+            console.log('[Onboarding] Sign-up form - existing user check:', {
+              email: trimmedEmail,
+              hasActiveSubscription,
+              hasExistingProfile,
+              hasSignificantCredits,
+              credits: existingUserRecord.credits
+            });
+          }
+        } catch (subErr) {
+          console.warn('[Onboarding] Failed to check user status:', subErr);
+        }
+
+        // Determine skip destination
+        let skipToStep = null;
+        if (hasActiveSubscription || hasExistingProfile || hasSignificantCredits) {
+          skipToStep = 'complete';
+          console.log('[Onboarding] Returning user (via sign-up form) - skipping to complete');
+        } else if (isVerified) {
+          skipToStep = 'google';
+        }
+
         onNext?.({
           amxAccount: true,
           email: trimmedEmail,
           isExistingUser: true,
-          emailVerified: isVerified
+          emailVerified: isVerified,
+          hasActiveSubscription,
+          skipToStep
         });
         return;
       }
@@ -871,6 +918,8 @@ function AccountStep({ onNext, onBack, userData }) {
   };
 
   const handleSignIn = async () => {
+    console.log('[Onboarding] ========== SIGN IN HANDLER CALLED ==========');
+    console.log('[Onboarding] Mode:', mode, '| Email:', email);
     if (!canSubmit) return;
     setSaving(true);
     setError(null);
@@ -909,10 +958,11 @@ function AccountStep({ onNext, onBack, userData }) {
         // Returning users should skip onboarding entirely
         let hasActiveSubscription = false;
         let hasExistingProfile = false;
+        let hasSignificantCredits = false;
         let existingUserId = null;
         try {
           // Get ALL user records for this email (handles duplicates)
-          // Prioritize: active subscription > has profile > newest
+          // Prioritize: active subscription > has credits > has profile > newest
           // Use case-insensitive match for email
           const { data: userRecords } = await supabase
             .from('users')
@@ -921,13 +971,15 @@ function AccountStep({ onNext, onBack, userData }) {
             .order('created_at', { ascending: false });
 
           if (userRecords && userRecords.length > 0) {
-            // Find best record: prefer active subscription, then one with profile
+            // Find best record: prefer active subscription, then credits, then profile
             const activeUser = userRecords.find(u => u.subscription_status === 'active');
+            const creditsUser = userRecords.find(u => (u.credits || 0) > 50); // More than free trial
             const profileUser = userRecords.find(u => u.metadata?.profile?.name);
-            const existingUser = activeUser || profileUser || userRecords[0];
+            const existingUser = activeUser || creditsUser || profileUser || userRecords[0];
 
             hasActiveSubscription = existingUser.subscription_status === 'active';
             hasExistingProfile = !!existingUser.metadata?.profile?.name;
+            hasSignificantCredits = (existingUser.credits || 0) > 50; // More than free trial amount
             existingUserId = existingUser.id;
 
             // Store the user_id so profile loading works
@@ -950,6 +1002,7 @@ function AccountStep({ onNext, onBack, userData }) {
               name: existingName,
               hasActiveSubscription,
               hasExistingProfile,
+              hasSignificantCredits,
               totalRecords: userRecords.length
             });
           }
@@ -957,15 +1010,28 @@ function AccountStep({ onNext, onBack, userData }) {
           console.warn('[Onboarding] Failed to check user status:', subErr);
         }
 
-        // For returning users (have profile OR active subscription), skip to complete
+        // For returning users (have profile OR active subscription OR significant credits), skip to complete
         // This is a returning user on a new device - no need to re-onboard
         let skipToStep = null;
-        if (hasActiveSubscription || hasExistingProfile) {
+        if (hasActiveSubscription || hasExistingProfile || hasSignificantCredits) {
           skipToStep = 'complete'; // Skip everything, go to finish
-          console.log('[Onboarding] Returning user detected - skipping to complete');
+          console.log('[Onboarding] Returning user detected - skipping to complete', {
+            reason: hasActiveSubscription ? 'active subscription' : hasSignificantCredits ? 'has credits (>50)' : 'has profile'
+          });
         } else if (isVerified) {
           skipToStep = 'google'; // Skip email verification, continue normal flow
         }
+
+        console.log('[Onboarding] ========== CALLING onNext ==========');
+        console.log('[Onboarding] Final skipToStep value:', skipToStep);
+        console.log('[Onboarding] Full data:', {
+          amxAccount: true,
+          email: trimmedEmail,
+          isExistingUser: true,
+          emailVerified: isVerified,
+          hasActiveSubscription,
+          skipToStep
+        });
 
         onNext?.({
           amxAccount: true,
@@ -2369,16 +2435,27 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
   ];
 
   const handleNext = (data = {}) => {
+    console.log('[Onboarding] ========== handleNext CALLED ==========');
+    console.log('[Onboarding] Received data:', JSON.stringify(data, null, 2));
+    console.log('[Onboarding] Current step index:', currentStep);
+    console.log('[Onboarding] Steps array:', steps.map(s => s.id));
+
     setUserData(prev => ({ ...prev, ...data }));
 
     // Handle skip to specific step for existing users
     if (data.skipToStep) {
+      console.log('[Onboarding] skipToStep found:', data.skipToStep);
       const targetIndex = steps.findIndex(s => s.id === data.skipToStep);
+      console.log('[Onboarding] Target index for', data.skipToStep, ':', targetIndex);
       if (targetIndex !== -1) {
-        console.log(`[Onboarding] Skipping to step: ${data.skipToStep}`);
+        console.log(`[Onboarding] SKIPPING to step ${targetIndex}: ${data.skipToStep}`);
         setCurrentStep(targetIndex);
         return;
+      } else {
+        console.error('[Onboarding] ERROR: Could not find step', data.skipToStep);
       }
+    } else {
+      console.log('[Onboarding] No skipToStep in data, proceeding normally');
     }
 
     // For existing users with verified email, skip the verify-email step

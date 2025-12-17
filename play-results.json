@@ -10,7 +10,9 @@
     "grep": {},
     "grepInvert": null,
     "maxFailures": 0,
-    "metadata": {},
+    "metadata": {
+      "actualWorkers": 1
+    },
     "preserveOutput": "always",
     "reporter": [
       [
@@ -40,7 +42,9 @@
         "outputDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 1
+        },
         "id": "chromium",
         "name": "chromium",
         "testDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e",
@@ -48,13 +52,15 @@
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 30000
+        "timeout": 60000
       },
       {
         "outputDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 1
+        },
         "id": "firefox",
         "name": "firefox",
         "testDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e",
@@ -62,13 +68,15 @@
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 30000
+        "timeout": 60000
       },
       {
         "outputDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 1
+        },
         "id": "webkit",
         "name": "webkit",
         "testDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e",
@@ -76,13 +84,15 @@
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 30000
+        "timeout": 60000
       },
       {
         "outputDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 1
+        },
         "id": "Mobile Chrome",
         "name": "Mobile Chrome",
         "testDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e",
@@ -90,13 +100,15 @@
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 30000
+        "timeout": 60000
       },
       {
         "outputDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 1
+        },
         "id": "Mobile Safari",
         "name": "Mobile Safari",
         "testDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e",
@@ -104,7 +116,7 @@
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 30000
+        "timeout": 60000
       }
     ],
     "shard": null,
@@ -119,19 +131,131 @@
       "timeout": 120000
     }
   },
-  "suites": [],
-  "errors": [
+  "suites": [
     {
-      "message": "Error: No tests found",
-      "stack": "Error: No tests found"
+      "title": "test-signin-headed.spec.js",
+      "file": "test-signin-headed.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "sign in with existing user should skip to complete",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 22935,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('input[type=\"email\"], input[placeholder*=\"email\" i]').first()\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('input[type=\"email\"], input[placeholder*=\"email\" i]').first()\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('input[type=\"email\"], input[placeholder*=\"email\" i]').first()\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('input[type=\"email\"], input[placeholder*=\"email\" i]').first()\u001b[22m\n\n    at /Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e/test-signin-headed.spec.js:67:30",
+                    "location": {
+                      "file": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e/test-signin-headed.spec.js",
+                      "column": 30,
+                      "line": 67
+                    },
+                    "snippet": "  65 |     console.log('\\n=== Filling in credentials ===');\n  66 |     const emailInput = page.locator('input[type=\"email\"], input[placeholder*=\"email\" i]').first();\n> 67 |     await expect(emailInput).toBeVisible({ timeout: 5000 });\n     |                              ^\n  68 |     await emailInput.fill('colinkobrien1@gmail.com');\n  69 |\n  70 |     // Fill in password"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e/test-signin-headed.spec.js",
+                        "column": 30,
+                        "line": 67
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('input[type=\"email\"], input[placeholder*=\"email\" i]').first()\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('input[type=\"email\"], input[placeholder*=\"email\" i]').first()\u001b[22m\n\n\n  65 |     console.log('\\n=== Filling in credentials ===');\n  66 |     const emailInput = page.locator('input[type=\"email\"], input[placeholder*=\"email\" i]').first();\n> 67 |     await expect(emailInput).toBeVisible({ timeout: 5000 });\n     |                              ^\n  68 |     await emailInput.fill('colinkobrien1@gmail.com');\n  69 |\n  70 |     // Fill in password\n    at /Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e/test-signin-headed.spec.js:67:30"
+                    }
+                  ],
+                  "stdout": [
+                    {
+                      "text": "BROWSER: [App] Onboarding not completed - showing welcome flow\n"
+                    },
+                    {
+                      "text": "BROWSER: [App] Onboarding not completed - showing welcome flow\n"
+                    },
+                    {
+                      "text": "BROWSER: [App] Onboarding not completed - showing welcome flow\n"
+                    },
+                    {
+                      "text": "BROWSER: [App] Onboarding not completed - showing welcome flow\n"
+                    },
+                    {
+                      "text": "\n=== Looking for Get Started button ===\n"
+                    },
+                    {
+                      "text": "No start button found, checking current state...\n"
+                    },
+                    {
+                      "text": "Page has Sign In: \u001b[33mfalse\u001b[39m\n"
+                    },
+                    {
+                      "text": "Page has Sign Up: \u001b[33mfalse\u001b[39m\n"
+                    },
+                    {
+                      "text": "\n=== Looking for Sign In option ===\n"
+                    },
+                    {
+                      "text": "Sign In tab not found or already selected\n"
+                    },
+                    {
+                      "text": "\n=== Filling in credentials ===\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2025-12-16T15:00:30.694Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results/test-signin-headed-sign-in-70df9-ser-should-skip-to-complete-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results/test-signin-headed-sign-in-70df9-ser-should-skip-to-complete-chromium/video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results/test-signin-headed-sign-in-70df9-ser-should-skip-to-complete-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e/test-signin-headed.spec.js",
+                    "column": 30,
+                    "line": 67
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "6b4fa24d3315036c86f9-7e1bb804eb010c475a5e",
+          "file": "test-signin-headed.spec.js",
+          "line": 6,
+          "column": 1
+        }
+      ]
     }
   ],
+  "errors": [],
   "stats": {
-    "startTime": "2025-12-10T14:44:14.098Z",
-    "duration": 111.83800000000002,
+    "startTime": "2025-12-16T15:00:30.375Z",
+    "duration": 23773.31,
     "expected": 0,
     "skipped": 0,
-    "unexpected": 0,
+    "unexpected": 1,
     "flaky": 0
   }
 }
