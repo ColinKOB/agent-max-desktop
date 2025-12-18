@@ -598,6 +598,9 @@ export const chatAPI = {
       desktopFlagPayload.desktop_bridge_connected = desktopBridgeStatus.connected;
     }
 
+    // Get Google user email from localStorage to pass to backend for Google services context
+    const googleUserEmail = localStorage.getItem('google_user_email') || null;
+
     const payload = isAutonomous ? {
       // Autonomous endpoint: include both keys for compatibility with guide/backend
       goal: message,
@@ -613,7 +616,8 @@ export const chatAPI = {
       image: image || null,
       max_steps: 10,
       timeout: 300,
-      flags: desktopFlagPayload
+      flags: desktopFlagPayload,
+      google_user_email: googleUserEmail  // Pass Google connection status to backend
     } : {
       // Chat endpoint
       message: truncatedMessage,
@@ -624,7 +628,8 @@ export const chatAPI = {
       stream: true,
       memory_mode: 'auto',
       mode: requestedMode,
-      image: image || null
+      image: image || null,
+      google_user_email: googleUserEmail  // Pass Google connection status to backend
     };
 
     // Prepare headers with configured API key
