@@ -607,29 +607,34 @@ export const chatAPI = {
       message: message,
       mode: requestedMode,
       events_version: '2.1',
-      user_context: userContext ? {
-        profile: userContext.profile || {},
-        facts: userContext.facts || {},
-        preferences: userContext.preferences || {},
-        recent_messages: userContext.recent_messages || []
-      } : null,
+      user_context: {
+        profile: userContext?.profile || {},
+        facts: userContext?.facts || {},
+        preferences: userContext?.preferences || {},
+        recent_messages: userContext?.recent_messages || [],
+        google_user_email: googleUserEmail  // Backend reads from user_context.google_user_email
+      },
       image: image || null,
       max_steps: 10,
       timeout: 300,
-      flags: desktopFlagPayload,
-      google_user_email: googleUserEmail  // Pass Google connection status to backend
+      flags: desktopFlagPayload
     } : {
       // Chat endpoint
       message: truncatedMessage,
       events_version: '2.1',
-      context: userContext,
+      user_context: {
+        profile: userContext?.profile || {},
+        facts: userContext?.facts || {},
+        preferences: userContext?.preferences || {},
+        recent_messages: userContext?.recent_messages || [],
+        google_user_email: googleUserEmail  // Backend reads from user_context.google_user_email
+      },
       max_tokens: 1024,
       temperature: 0.7,
       stream: true,
       memory_mode: 'auto',
       mode: requestedMode,
-      image: image || null,
-      google_user_email: googleUserEmail  // Pass Google connection status to backend
+      image: image || null
     };
 
     // Prepare headers with configured API key
