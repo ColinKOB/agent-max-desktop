@@ -324,12 +324,18 @@ class PullExecutor {
             }
             
             const result = await response.json();
-            
+
             if (result.status === 'error') {
                 console.error(`[PullExecutor] Arg generation error: ${result.error}`);
                 return null;
             }
-            
+
+            // Handle unrecoverable errors - return special marker to stop retries
+            if (result.status === 'unrecoverable' || result.unrecoverable) {
+                console.error(`[PullExecutor] ⛔ UNRECOVERABLE error - stopping retries: ${result.error}`);
+                return { __unrecoverable: true, error: result.error };
+            }
+
             console.log(`[PullExecutor] ✓ Args generated successfully`);
             return result.args;
             
@@ -378,6 +384,17 @@ class PullExecutor {
                     );
                     
                     if (generatedArgs) {
+                        // Check for unrecoverable error marker
+                        if (generatedArgs.__unrecoverable) {
+                            console.error(`[PullExecutor] ⛔ Unrecoverable error - failing immediately: ${generatedArgs.error}`);
+                            return {
+                                success: false,
+                                error: generatedArgs.error,
+                                unrecoverable: true,
+                                attempts: attempt,
+                                execution_time_ms: Date.now() - startTime
+                            };
+                        }
                         // Update step with generated args
                         step.args = generatedArgs;
                         console.log(`[PullExecutor] ✓ Using ${attempt > 1 ? 'adaptive' : 'generated'} args`);
@@ -441,6 +458,30 @@ class PullExecutor {
                 }
 
                 lastError = result.error || `Exit code ${result.exit_code}`;
+
+                // Check for unrecoverable errors that should stop retries immediately
+                const unrecoverablePhrases = [
+                    'google account not connected',
+                    'not connected',
+                    'please connect your google account',
+                    'authentication required',
+                    'oauth',
+                    'access token',
+                    'google email not found',
+                ];
+                const errorLower = (lastError || '').toLowerCase();
+                const isUnrecoverable = unrecoverablePhrases.some(phrase => errorLower.includes(phrase));
+
+                if (isUnrecoverable) {
+                    console.error(`[PullExecutor] ⛔ Unrecoverable error detected - stopping retries: ${lastError}`);
+                    return {
+                        success: false,
+                        error: 'Google account not connected. Please connect your account in Settings > Google Services to use Calendar/Gmail features.',
+                        unrecoverable: true,
+                        attempts: attempt,
+                        execution_time_ms: Date.now() - startTime
+                    };
+                }
 
                 // Exponential backoff before retry
                 if (attempt < maxRetries) {
