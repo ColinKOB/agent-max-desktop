@@ -2607,6 +2607,21 @@ export default function AppleFloatBar({
           // Final response received - mark streaming message as complete
           planIdRef.current = null;
           const d = event.data || event || {};
+
+          // Check for execution_steps in the response (from non-streaming chat endpoint)
+          // This provides user-friendly progress display like "✅ Getting started", "✅ Checked your calendar"
+          if (d.execution_steps && Array.isArray(d.execution_steps) && d.execution_steps.length > 0) {
+            console.log('[Chat] Found execution_steps in response:', d.execution_steps);
+            // Convert execution_steps to LiveActivityFeed format
+            const steps = d.execution_steps.map((step, idx) => ({
+              id: step.id || `step-${idx}`,
+              status: step.status === 'completed' ? 'completed' : step.status === 'failed' ? 'failed' : 'completed',
+              description: step.description || 'Processing...',
+              timestamp: step.timestamp ? step.timestamp * 1000 : Date.now(), // Convert to ms if needed
+            }));
+            setLiveActivitySteps(steps);
+          }
+
           // Try common keys first
           const primaryKeys = [
             'final_response',

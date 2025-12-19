@@ -1040,7 +1040,14 @@ export const chatAPI = {
                           });
                           if (jsonResp.ok) {
                             const data = await jsonResp.json();
-                            onEvent({ type: 'done', data: { final_response: data.response || '' } });
+                            // Include execution_steps for UI progress display
+                            onEvent({
+                              type: 'done',
+                              data: {
+                                final_response: data.response || '',
+                                execution_steps: data.execution_steps || null
+                              }
+                            });
                             return { aborted: true };
                           }
                         } catch (_) { /* swallow and continue */ }
