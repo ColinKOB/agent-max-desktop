@@ -281,3 +281,13 @@ contextBridge.exposeInMainWorld('executor', {
   // Set user context (e.g., google_user_email for Gmail integration)
   setUserContext: (context) => ipcRenderer.invoke('pull-executor:set-context', context),
 });
+
+// macOS native tool execution bridge
+contextBridge.exposeInMainWorld('macos', {
+  // Execute a macOS AppleScript tool (notes.list, safari.navigate, etc.)
+  executeTool: (tool, args) => ipcRenderer.invoke('execute-macos-tool', { tool, args }),
+  // Check if a tool name is a macOS tool
+  isMacOSTool: (tool) => ipcRenderer.invoke('is-macos-tool', tool),
+  // Check if running on macOS
+  isMacOS: () => ipcRenderer.invoke('is-macos'),
+});

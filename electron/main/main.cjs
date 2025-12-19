@@ -73,6 +73,7 @@ const autonomousIPC = require('../autonomous/autonomousIPC.cjs');
 const { HandsOnDesktopClient } = require('../integrations/hands-on-desktop-client.cjs');
 const { DevicePairing } = require('./devicePairing.cjs');
 const telemetry = require('../telemetry/telemetry.cjs');
+const { executeMacOSTool, isMacOSTool, isMacOS } = require('../autonomous/macosAppleScript.cjs');
 
 // Phase 2: Pull-based executor
 const { 
@@ -1265,6 +1266,57 @@ ipcMain.handle('take-screenshot', async () => {
     console.error('[Screenshot] Error:', error);
     throw error;
   }
+});
+
+// ============================================
+// MACOS APPLESCRIPT TOOL EXECUTION
+// ============================================
+
+// Execute a macOS AppleScript tool (Notes, Calendar, Safari, etc.)
+ipcMain.handle('execute-macos-tool', async (_event, { tool, args }) => {
+  console.log('[macOS] Executing tool:', tool, args);
+
+  if (!isMacOS()) {
+    return {
+      success: false,
+      error: 'macOS tools are only available on macOS',
+      stdout: '',
+      stderr: 'Not running on macOS'
+    };
+  }
+
+  if (!isMacOSTool(tool)) {
+    return {
+      success: false,
+      error: `Not a valid macOS tool: ${tool}`,
+      stdout: '',
+      stderr: `Unknown tool: ${tool}. Supported tools: safari.*, notes.*, mail.*, calendar.*, finder.*, reminders.*`
+    };
+  }
+
+  try {
+    const result = await executeMacOSTool(tool, args || {});
+    console.log('[macOS] Tool result:', result);
+    return result;
+  } catch (error) {
+    console.error('[macOS] Tool execution error:', error);
+    return {
+      success: false,
+      error: error.message,
+      stdout: '',
+      stderr: error.message
+    };
+  }
+});
+
+// Check if a tool is a macOS tool (for renderer to check before calling)
+ipcMain.handle('is-macos-tool', (_event, tool) => {
+  return isMacOSTool(tool);
+});
+
+// Check if running on macOS
+ipcMain.handle('is-macos', () => {
+  return isMacOS();
 });
 
 // Store active request AbortController for cancellation

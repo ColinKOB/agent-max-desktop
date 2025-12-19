@@ -2913,6 +2913,88 @@ export default function AppleFloatBar({
                   }
                 }
               }
+
+              // macOS native tool actions - detect JSON action blocks like {"action": "notes.list", "args": {}}
+              // These are returned by the AI when using macOS-specific tools
+              const macosActionMatch = responseText.match(
+                /\{"action":\s*"([^"]+)"(?:,\s*"args":\s*(\{[^}]*\}))?\}/
+              );
+              if (macosActionMatch && window.macos?.executeTool) {
+                const actionName = macosActionMatch[1];
+                let args = {};
+                try {
+                  if (macosActionMatch[2]) {
+                    args = JSON.parse(macosActionMatch[2]);
+                  }
+                } catch (e) {
+                  logger.warn('[macOS] Failed to parse args:', e);
+                }
+
+                // Check if this is a macOS AppleScript tool (notes.*, safari.*, etc.)
+                const macosApps = ['notes', 'safari', 'mail', 'calendar', 'finder', 'reminders'];
+                const [appName] = actionName.split('.');
+                if (macosApps.includes(appName)) {
+                  logger.info('[macOS] Executing native tool:', actionName, args);
+
+                  // Show user-friendly feedback
+                  const friendlyMessages = {
+                    'notes.list': 'Opening Notes...',
+                    'notes.create': 'Creating note...',
+                    'notes.read': 'Reading note...',
+                    'notes.search': 'Searching notes...',
+                    'notes.activate': 'Opening Notes...',
+                    'safari.navigate': 'Opening Safari...',
+                    'safari.activate': 'Opening Safari...',
+                    'mail.get_unread': 'Checking unread emails...',
+                    'mail.send': 'Sending email...',
+                    'mail.draft': 'Creating email draft...',
+                    'mail.activate': 'Opening Mail...',
+                    'calendar.get_today': 'Checking today\'s events...',
+                    'calendar.get_upcoming': 'Getting upcoming events...',
+                    'calendar.create_event': 'Creating calendar event...',
+                    'calendar.activate': 'Opening Calendar...',
+                    'finder.list_folder': 'Listing folder contents...',
+                    'finder.open_file': 'Opening file...',
+                    'finder.reveal': 'Revealing in Finder...',
+                    'finder.activate': 'Opening Finder...',
+                    'reminders.get_incomplete': 'Getting reminders...',
+                    'reminders.create': 'Creating reminder...',
+                    'reminders.complete': 'Completing reminder...',
+                    'reminders.activate': 'Opening Reminders...',
+                  };
+                  const friendlyMsg = friendlyMessages[actionName] || `Executing ${actionName}...`;
+                  toast.loading(friendlyMsg, { id: 'macos-action' });
+
+                  window.macos
+                    .executeTool(actionName, args)
+                    .then((result) => {
+                      toast.dismiss('macos-action');
+                      if (result.success) {
+                        logger.info('[macOS] Tool executed successfully:', result);
+                        // Show success message based on action
+                        const successMessages = {
+                          'notes.list': 'Notes opened!',
+                          'notes.activate': 'Notes opened!',
+                          'safari.navigate': 'Safari opened!',
+                          'safari.activate': 'Safari opened!',
+                          'mail.activate': 'Mail opened!',
+                          'calendar.activate': 'Calendar opened!',
+                          'finder.activate': 'Finder opened!',
+                          'reminders.activate': 'Reminders opened!',
+                        };
+                        toast.success(successMessages[actionName] || 'Done!');
+                      } else {
+                        logger.error('[macOS] Tool execution failed:', result);
+                        toast.error(result.error || 'Failed to execute action');
+                      }
+                    })
+                    .catch((error) => {
+                      toast.dismiss('macos-action');
+                      logger.error('[macOS] Tool execution error:', error);
+                      toast.error(`Failed: ${error.message}`);
+                    });
+                }
+              }
             } catch (err) {
               logger.error('[Command] Failed to parse command', err);
             }
