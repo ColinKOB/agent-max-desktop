@@ -460,14 +460,17 @@ class PullExecutor {
                 lastError = result.error || `Exit code ${result.exit_code}`;
 
                 // Check for unrecoverable errors that should stop retries immediately
+                // Be VERY specific - only block errors that truly require user action
+                // Most errors are recoverable (AI can try different approach)
                 const unrecoverablePhrases = [
                     'google account not connected',
-                    'not connected',
                     'please connect your google account',
-                    'authentication required',
-                    'oauth',
-                    'access token',
-                    'google email not found',
+                    'google email not found',  // Specific to missing Google setup
+                    'oauth token expired',
+                    'oauth token invalid',
+                    'no oauth credentials',
+                    'api key not configured',
+                    'api key invalid',
                 ];
                 const errorLower = (lastError || '').toLowerCase();
                 const isUnrecoverable = unrecoverablePhrases.some(phrase => errorLower.includes(phrase));
@@ -482,6 +485,9 @@ class PullExecutor {
                         execution_time_ms: Date.now() - startTime
                     };
                 }
+
+                // For all other errors, continue retrying - AI will try a different approach
+                console.log(`[PullExecutor] 🔄 Recoverable error - AI will try alternative approach`);
 
                 // Exponential backoff before retry
                 if (attempt < maxRetries) {
