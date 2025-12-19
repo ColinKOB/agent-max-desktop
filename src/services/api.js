@@ -9,6 +9,24 @@ import { healthAPI as libHealthAPI } from '@lib/api/health';
 
 const logger = createLogger('API');
 
+/**
+ * Get the client's operating system for backend context
+ * Returns 'Darwin' for macOS to match backend expectations
+ */
+function getSystemOS() {
+  if (typeof window !== 'undefined' && window.electron?.process?.platform) {
+    // Electron environment - use actual platform
+    const platform = window.electron.process.platform;
+    return platform === 'darwin' ? 'Darwin' : platform === 'win32' ? 'Windows' : 'Linux';
+  }
+  // Fallback to user agent parsing
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  if (ua.includes('Mac')) return 'Darwin';
+  if (ua.includes('Win')) return 'Windows';
+  if (ua.includes('Linux')) return 'Linux';
+  return 'Unknown';
+}
+
 // DEMO MODE - Set to true to use mock data and disable API calls
 const DEMO_MODE = false; // Backend is now running with safety endpoints
 
@@ -601,6 +619,9 @@ export const chatAPI = {
     // Get Google user email from localStorage to pass to backend for Google services context
     const googleUserEmail = localStorage.getItem('google_user_email') || null;
 
+    // Get system OS for macOS native tools support
+    const systemOS = getSystemOS();
+
     const payload = isAutonomous ? {
       // Autonomous endpoint: include both keys for compatibility with guide/backend
       goal: message,
@@ -612,7 +633,8 @@ export const chatAPI = {
         facts: userContext?.facts || {},
         preferences: userContext?.preferences || {},
         recent_messages: userContext?.recent_messages || [],
-        google_user_email: googleUserEmail  // Backend reads from user_context.google_user_email
+        google_user_email: googleUserEmail,  // Backend reads from user_context.google_user_email
+        system_os: systemOS  // Enable macOS native tools (Notes, Calendar, Reminders, etc.)
       },
       image: image || null,
       max_steps: 10,
@@ -627,7 +649,8 @@ export const chatAPI = {
         facts: userContext?.facts || {},
         preferences: userContext?.preferences || {},
         recent_messages: userContext?.recent_messages || [],
-        google_user_email: googleUserEmail  // Backend reads from user_context.google_user_email
+        google_user_email: googleUserEmail,  // Backend reads from user_context.google_user_email
+        system_os: systemOS  // Enable macOS native tools (Notes, Calendar, Reminders, etc.)
       },
       max_tokens: 1024,
       temperature: 0.7,
@@ -1026,8 +1049,10 @@ export const chatAPI = {
                             profile: userContext.profile || {},
                             facts: userContext.facts || {},
                             preferences: userContext.preferences || {},
-                            recent_messages: userContext.recent_messages || []
-                          } : null,
+                            recent_messages: userContext.recent_messages || [],
+                            google_user_email: googleUserEmail,
+                            system_os: systemOS  // Enable macOS native tools
+                          } : { system_os: systemOS, google_user_email: googleUserEmail },
                           image: image || null,
                           memory_mode: 'auto'
                         };
@@ -1167,8 +1192,10 @@ export const chatAPI = {
             profile: userContext.profile || {},
             facts: userContext.facts || {},
             preferences: userContext.preferences || {},
-            recent_messages: userContext.recent_messages || []
-          } : null,
+            recent_messages: userContext.recent_messages || [],
+            google_user_email: googleUserEmail,
+            system_os: systemOS  // Enable macOS native tools
+          } : { system_os: systemOS, google_user_email: googleUserEmail },
           image: image || null,
           memory_mode: 'auto'
         };
