@@ -1030,32 +1030,9 @@ class PullExecutor {
         }
     }
 
-    /**
-     * Execute file read
-     */
-    async executeFileRead(args) {
-        const fs = require('fs').promises;
-
-        try {
-            const filePath = args.path || args.file_path;
-            const content = await fs.readFile(filePath, 'utf8');
-
-            return {
-                success: true,
-                stdout: content,
-                stderr: '',
-                exit_code: 0
-            };
-        } catch (error) {
-            return {
-                success: false,
-                stdout: '',
-                stderr: error.message,
-                exit_code: 1,
-                error: error.message
-            };
-        }
-    }
+    // NOTE: executeFileRead is defined earlier (line ~861) with proper validation
+    // and support for filename, path, file_path, file keys.
+    // Do NOT add a duplicate here - it would override the proper implementation.
 
     /**
      * Execute Google service action (Gmail, Calendar, YouTube)
