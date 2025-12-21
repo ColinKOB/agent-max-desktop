@@ -31,6 +31,7 @@ import '../styles/premium-glass.css';
 import PermissionLevelSelector from '../components/settings/PermissionLevelSelector';
 import { GoogleConnect } from '../components/GoogleConnect';
 import { usePermission } from '../contexts/PermissionContext';
+import { isGoogleComingSoon } from '../config/featureGates';
 
 // Helper: Recent activity list (mini)
 function RecentActivityList() {
@@ -180,7 +181,16 @@ export default function SettingsPremium() {
   const { theme, setTheme } = useStore();
   const permission = usePermission(); // Call once at top level
   const [apiUrl, setApiUrl] = useState('http://localhost:8000');
-  
+  const [userEmail, setUserEmail] = useState(null);
+
+  // Load user email for feature gating
+  useEffect(() => {
+    try {
+      const email = localStorage.getItem('user_email');
+      if (email) setUserEmail(email);
+    } catch {}
+  }, []);
+
   // Premium settings state
   const [settings, setSettings] = useState({
     notifications: true,
@@ -343,8 +353,43 @@ export default function SettingsPremium() {
         </SettingsSection>
 
         {/* Google Services */}
-        <SettingsSection icon={Globe} title="Google Services" badge="Connect">
-          <GoogleConnect />
+        <SettingsSection icon={Globe} title="Google Services" badge={isGoogleComingSoon(userEmail) ? "Coming Soon" : "Connect"}>
+          {isGoogleComingSoon(userEmail) ? (
+            <div className="p-5 rounded-xl bg-white/5 text-center">
+              <div className="mb-3">
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: 'rgba(251, 146, 60, 0.2)',
+                  color: 'rgb(251, 146, 60)',
+                  padding: '4px 10px',
+                  borderRadius: 12,
+                  fontSize: 12,
+                  fontWeight: 600
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12,6 12,12 16,14"/>
+                  </svg>
+                  Coming Soon
+                </span>
+              </div>
+              <h3 className="text-base font-semibold text-white mb-2">Google Integration</h3>
+              <p className="text-sm text-white/60 mb-4">
+                Connect your Google account to unlock powerful integrations with Gmail, Calendar, Docs, Sheets, and YouTube.
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {['Gmail', 'Calendar', 'Docs', 'Sheets', 'YouTube'].map((service) => (
+                  <span key={service} className="px-3 py-1 rounded-md bg-white/10 text-white/70 text-xs">
+                    {service}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <GoogleConnect />
+          )}
         </SettingsSection>
 
         {/* API Configuration */}

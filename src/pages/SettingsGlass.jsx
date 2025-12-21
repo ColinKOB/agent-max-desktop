@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { SubscriptionManager } from '../components/SubscriptionManager';
 import { GoogleConnect } from '../components/GoogleConnect';
 import useStore from '../store/useStore';
+import { isGoogleComingSoon } from '../config/featureGates';
 
 const navItems = [
   { id: 'billing', label: 'Billing & Usage', icon: CreditCard },
@@ -15,6 +16,7 @@ const navItems = [
 export default function SettingsGlass() {
   const [active, setActive] = useState('billing');
   const [appVersion, setAppVersion] = useState('');
+  const [userEmail, setUserEmail] = useState(null);
   const fileInputRef = useRef(null);
   const { clearHistory } = useStore();
 
@@ -22,6 +24,11 @@ export default function SettingsGlass() {
     if (window.electron?.getAppVersion) {
       window.electron.getAppVersion().then(setAppVersion).catch(() => {});
     }
+    // Load user email for feature gating
+    try {
+      const email = localStorage.getItem('user_email');
+      if (email) setUserEmail(email);
+    } catch {}
   }, []);
 
   const Sidebar = useMemo(
@@ -89,10 +96,47 @@ export default function SettingsGlass() {
         <Globe className="w-5 h-5" />
         <h2 className="amx-heading text-lg">Google Services</h2>
       </div>
-      <GoogleConnect />
-      <div className="mt-4 amx-liquid-nested p-3 rounded-lg text-sm">
-        Connect Google to enable calendar, email, and drive workflows. You can revoke access anytime from your Google Account.
-      </div>
+      {isGoogleComingSoon(userEmail) ? (
+        <div className="amx-liquid-nested p-5 rounded-xl text-center">
+          <div className="mb-3">
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'rgba(251, 146, 60, 0.2)',
+              color: 'rgb(251, 146, 60)',
+              padding: '4px 10px',
+              borderRadius: 12,
+              fontSize: 12,
+              fontWeight: 600
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12,6 12,12 16,14"/>
+              </svg>
+              Coming Soon
+            </span>
+          </div>
+          <h3 className="text-base font-semibold text-white mb-2">Google Integration</h3>
+          <p className="text-sm text-white/60 mb-4">
+            Connect your Google account to unlock powerful integrations with Gmail, Calendar, Docs, Sheets, and YouTube.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {['Gmail', 'Calendar', 'Docs', 'Sheets', 'YouTube'].map((service) => (
+              <span key={service} className="px-3 py-1 rounded-md bg-white/10 text-white/70 text-xs">
+                {service}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          <GoogleConnect />
+          <div className="mt-4 amx-liquid-nested p-3 rounded-lg text-sm">
+            Connect Google to enable calendar, email, and drive workflows. You can revoke access anytime from your Google Account.
+          </div>
+        </>
+      )}
     </div>
   );
 

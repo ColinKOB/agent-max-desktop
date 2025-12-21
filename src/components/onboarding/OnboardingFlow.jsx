@@ -39,6 +39,7 @@ import apiConfigManager from '../../config/apiConfig';
 import LogoPng from '../../assets/AgentMaxLogo.png';
 import { setName as setProfileName, setPreference as setUserPreference, updateProfile as updateUserProfile, flushPreAuthQueue } from '../../services/supabaseMemory';
 import { emailPasswordSignInOrCreate, ensureUsersRow, supabase } from '../../services/supabase.js';
+import { isGoogleComingSoon } from '../../config/featureGates';
 
 // Brand orange color from logo (no gradients)
 const BRAND_ORANGE = '#f59e0b';
@@ -1453,7 +1454,109 @@ function EmailVerificationStep({ userData, onNext, onBack }) {
 // ============================================================================
 function GoogleStep({ userData, onNext, onBack }) {
   const handleSkip = () => onNext?.({ googleConnected: false });
+  const comingSoon = isGoogleComingSoon(userData?.email);
 
+  // Coming Soon view for non-beta users
+  if (comingSoon) {
+    return (
+      <div style={{
+        maxWidth: 340,
+        margin: '0 auto',
+        padding: '16px 20px',
+        textAlign: 'center',
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100%',
+      }}>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div style={{
+            width: 56,
+            height: 56,
+            margin: '0 auto 16px',
+            borderRadius: 14,
+            background: 'rgba(255, 255, 255, 0.06)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+          }}>
+            <svg viewBox="0 0 48 48" style={{ width: 32, height: 32, opacity: 0.5 }}>
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+            </svg>
+          </div>
+
+          <h2 style={{ ...styles.heading, marginBottom: 8 }}>Google Integration</h2>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(234, 88, 12, 0.15) 100%)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            borderRadius: 20,
+            padding: '6px 14px',
+            marginBottom: 16,
+          }}>
+            <Clock style={{ width: 14, height: 14, color: BRAND_ORANGE }} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: BRAND_ORANGE }}>Coming Soon</span>
+          </div>
+          <p style={{ ...styles.subheading, marginBottom: 16, fontSize: 14 }}>
+            Gmail and Calendar integration is coming soon! We're working hard to bring you seamless email and calendar management.
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          style={{
+            background: 'rgba(255, 255, 255, 0.04)',
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 16,
+          }}
+        >
+          <p style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.6)', lineHeight: 1.5 }}>
+            <strong style={{ color: 'rgba(255, 255, 255, 0.8)' }}>What's coming:</strong><br/>
+            • Read and send emails hands-free<br/>
+            • Check your calendar and create events<br/>
+            • Smart email summaries and drafts
+          </p>
+        </motion.div>
+
+        <div style={{
+          display: 'flex',
+          gap: 10,
+          paddingTop: 10,
+          flexShrink: 0,
+          marginTop: 'auto',
+        }}>
+          <button onClick={onBack} style={styles.secondaryButton}>
+            Back
+          </button>
+          <button
+            onClick={handleSkip}
+            style={{
+              ...styles.primaryButton,
+              flex: 1,
+              background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+              boxShadow: '0 4px 14px rgba(34, 197, 94, 0.35)',
+            }}
+          >
+            Continue
+            <ArrowRight style={{ width: 18, height: 18 }} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Full access view for beta users
   return (
     <div style={{
       maxWidth: 340,
@@ -1485,7 +1588,7 @@ function GoogleStep({ userData, onNext, onBack }) {
             <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
           </svg>
         </div>
-        
+
         <h2 style={{ ...styles.heading, marginBottom: 8 }}>Connect Google</h2>
         <p style={{ ...styles.subheading, marginBottom: 16, fontSize: 14 }}>
           Enable Gmail and Calendar integration for hands-free email management.

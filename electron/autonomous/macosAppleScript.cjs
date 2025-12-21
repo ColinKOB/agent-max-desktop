@@ -1003,24 +1003,57 @@ end tell`;
 
         const expandedFolder = folder ? folder.replace(/^~/, process.env.HOME) : process.env.HOME;
 
-        const script = `
-tell application "Finder"
-    set searchFolder to POSIX file "${expandedFolder}" as alias
-    set resultList to ""
-    set itemCount to 0
-    repeat with theItem in (files of searchFolder whose name contains "${query}")
-        if itemCount < ${limit} then
-            set resultList to resultList & "- " & (name of theItem) & "\\n  " & (POSIX path of (theItem as alias)) & "\\n"
-            set itemCount to itemCount + 1
-        end if
-    end repeat
-    if resultList is "" then
-        return "No files found matching: ${query}"
-    else
-        return "Found " & itemCount & " files:\\n" & resultList
-    end if
-end tell`;
-        return await runAppleScriptMultiline(script);
+        // Use mdfind (Spotlight) for fast, recursive search - much faster than AppleScript Finder
+        // mdfind -name does case-insensitive partial matching
+        const { execSync } = require('child_process');
+
+        try {
+            // Escape query for shell - remove dangerous characters
+            const safeQuery = query.replace(/[`$"\\]/g, '');
+
+            // Use mdfind with -name for fast Spotlight search (typically < 1 second)
+            // -onlyin restricts to the specified folder
+            const cmd = `mdfind -name "${safeQuery}" -onlyin "${expandedFolder}" 2>/dev/null | head -n ${limit}`;
+
+            const result = execSync(cmd, {
+                timeout: 10000, // 10 second timeout (Spotlight is usually instant)
+                encoding: 'utf8',
+                maxBuffer: 10 * 1024 * 1024
+            });
+
+            const lines = result.trim().split('\n').filter(l => l.length > 0);
+
+            if (lines.length === 0) {
+                return {
+                    success: true,
+                    output: `No files or folders found matching: ${query}`,
+                    exit_code: 0
+                };
+            }
+
+            // Format results nicely
+            let output = `Found ${lines.length} item(s) matching "${query}":\n`;
+            for (const path of lines) {
+                const name = path.split('/').pop();
+                output += `- ${name}\n  ${path}\n`;
+            }
+
+            return { success: true, output, exit_code: 0 };
+        } catch (error) {
+            // If mdfind fails or times out, return helpful error
+            if (error.killed) {
+                return {
+                    success: false,
+                    error: `Search timed out after 10 seconds. Try a more specific query.`,
+                    exit_code: 124
+                };
+            }
+            return {
+                success: false,
+                error: `Search failed: ${error.message}`,
+                exit_code: 1
+            };
+        }
     },
 
     async reveal(args) {

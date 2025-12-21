@@ -204,28 +204,25 @@ class LocalExecutor {
       const started = Date.now();
       const shellPath = process.platform === 'win32' ? 'cmd.exe' : '/bin/bash';
 
-      // Heuristic: optimize expensive home-wide find directory searches
-      // Example pattern: find ~ -type d -iname 'AGx TEST' 2>/dev/null
+      // Heuristic: optimize expensive home-wide find/search commands
       const isDarwin = process.platform === 'darwin';
-      const findHomeDirRegex = /(^|\s)find\s+(~|\$?HOME)(?=\s|$)/i;
-      const findTypeDRegex = /\b-type\s+d\b/i;
+      const findHomeDirRegex = /(^|\s)find\s+(~|\$?HOME|\/Users\/\w+)(?=\s|$)/i;
       const inameRegex = /\b-i?name\s+(["'])(.*?)\1/i; // capture name
-      const looksLikeFindHome = findHomeDirRegex.test(command) && findTypeDRegex.test(command);
+      const looksLikeFindHome = findHomeDirRegex.test(command);
 
       // Prefer shorter timeouts for search commands; keep generous default otherwise
       const defaultTimeoutMs = (timeout_sec || 60) * 1000;
-      const searchTimeoutMs = Math.min(defaultTimeoutMs, 20000); // cap at 20s for searches
+      const searchTimeoutMs = Math.min(defaultTimeoutMs, 10000); // cap at 10s for searches
 
-      // If command is a home-wide directory find, attempt optimized path
-      if (looksLikeFindHome) {
+      // If command is a home-wide find, use fast mdfind (Spotlight) instead
+      if (looksLikeFindHome && isDarwin) {
         const nameMatch = command.match(inameRegex);
         const targetName = (nameMatch && nameMatch[2]) ? nameMatch[2] : null;
-        const folders = ['Desktop', 'Documents', 'Downloads', 'Library', 'Dropbox', 'OneDrive', 'Box', 'Google Drive'];
-        const folderArgs = folders.map(f => `"$HOME/${f}"`).join(' ');
 
-        // macOS Spotlight search is much faster
-        if (isDarwin && targetName) {
-          const mdCmd = `mdfind -onlyin "$HOME" 'kMDItemFSName == "${targetName}" && kMDItemContentType == "public.folder"' | head -n 10`;
+        if (targetName) {
+          // Use simple mdfind -name which is fast and does partial, case-insensitive matching
+          // This finds BOTH files and folders, unlike the old version
+          const mdCmd = `mdfind -name "${targetName}" -onlyin "$HOME" 2>/dev/null | head -n 20`;
           try {
             const { stdout: mdOut, stderr: mdErr } = await execAsync(mdCmd, {
               timeout: searchTimeoutMs,
@@ -233,25 +230,29 @@ class LocalExecutor {
               shell: shellPath,
             });
             const mdTrim = (mdOut || '').trim();
-            if (mdTrim.length > 0) {
-              const duration_ms = Date.now() - started;
-              return {
-                status: 'completed',
-                stdout: mdOut || '',
-                stderr: mdErr || '',
-                exit_code: 0,
-                message: 'Command executed (optimized via mdfind)',
-                duration_ms,
-              };
-            }
+            const duration_ms = Date.now() - started;
+
+            // Return results even if empty - don't fall through to slow find
+            return {
+              status: 'completed',
+              stdout: mdOut || '',
+              stderr: mdErr || '',
+              exit_code: 0,
+              message: mdTrim.length > 0
+                ? 'Command executed (optimized via mdfind - Spotlight search)'
+                : 'No results found (searched via Spotlight)',
+              duration_ms,
+            };
           } catch (e) {
-            // fall through to constrained find
+            // If mdfind fails, try constrained find as fallback
           }
         }
 
-        // Constrained find over common user folders with max depth
-        const safePattern = targetName ? `-iname "${targetName}"` : '';
-        const constrainedFind = `find ${folderArgs} -maxdepth 5 -type d ${safePattern} 2>/dev/null | head -n 10`;
+        // Constrained find fallback - search common folders with depth limit
+        const folders = ['Desktop', 'Documents', 'Downloads', 'Projects', 'Developer', 'Dropbox', 'OneDrive'];
+        const folderArgs = folders.map(f => `"$HOME/${f}"`).join(' ');
+        const safePattern = targetName ? `-iname "*${targetName}*"` : '';
+        const constrainedFind = `find ${folderArgs} -maxdepth 4 ${safePattern} 2>/dev/null | head -n 20`;
         try {
           const { stdout: fOut, stderr: fErr } = await execAsync(constrainedFind, {
             timeout: searchTimeoutMs,

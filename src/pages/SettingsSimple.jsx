@@ -4,6 +4,7 @@ import telemetry from '../services/telemetry';
 import apiConfigManager from '../config/apiConfig';
 import packageJson from '../../package.json';
 import logo from '../assets/AgentMaxLogo.png';
+import { isGoogleComingSoon } from '../config/featureGates';
 
 export default function SettingsSimple() {
   // Preferences
@@ -13,9 +14,14 @@ export default function SettingsSimple() {
   const [telemetryEnabled, setTelemetryEnabled] = useState(true);
   const [disableLegacyFallbacks, setDisableLegacyFallbacks] = useState(false);
   const [probeStatus, setProbeStatus] = useState(null);
+  const [userEmail, setUserEmail] = useState(null);
 
   useEffect(() => {
     try {
+      // Load user email for feature gating
+      const email = localStorage.getItem('user_email');
+      if (email) setUserEmail(email);
+
       const storedTheme = localStorage.getItem('pref_theme');
       const storedAnalytics = localStorage.getItem('pref_analytics');
       const storedDeepMemory = localStorage.getItem('pref_deep_memory_search');
@@ -202,10 +208,69 @@ export default function SettingsSimple() {
           WebkitBackdropFilter: 'blur(10px)'
         }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.95)' }}>Integrations</h2>
-          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 16 }}>
-            Connect your Google account to enable Gmail, Calendar, Docs, Sheets, and YouTube.
-          </p>
-          <GoogleConnect />
+
+          {isGoogleComingSoon(userEmail) ? (
+            /* Coming Soon UI for non-beta users */
+            <div style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 10,
+              padding: 20,
+              textAlign: 'center'
+            }}>
+              <div style={{ marginBottom: 12 }}>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: 'rgba(251, 146, 60, 0.2)',
+                  color: 'rgb(251, 146, 60)',
+                  padding: '4px 10px',
+                  borderRadius: 12,
+                  fontSize: 12,
+                  fontWeight: 600
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12,6 12,12 16,14"/>
+                  </svg>
+                  Coming Soon
+                </span>
+              </div>
+              <h3 style={{ fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,0.95)', marginBottom: 8 }}>
+                Google Integration
+              </h3>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 16, maxWidth: 320, margin: '0 auto 16px' }}>
+                Connect your Google account to unlock powerful integrations with Gmail, Calendar, Docs, Sheets, and YouTube.
+              </p>
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                gap: 8
+              }}>
+                {['Gmail', 'Calendar', 'Docs', 'Sheets', 'YouTube'].map((service) => (
+                  <span key={service} style={{
+                    background: 'rgba(255,255,255,0.08)',
+                    color: 'rgba(255,255,255,0.7)',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    fontSize: 12
+                  }}>
+                    {service}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* Full Google Connect for beta users */
+            <>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 16 }}>
+                Connect your Google account to enable Gmail, Calendar, Docs, Sheets, and YouTube.
+              </p>
+              <GoogleConnect />
+            </>
+          )}
         </section>
 
         {/* About */}
