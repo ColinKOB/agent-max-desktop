@@ -6033,8 +6033,8 @@ export default function AppleFloatBar({
               const isLastUserMessage = isUserMessage && idx === lastUserMessageIdx;
               const shouldShowProgress =
                 isLastUserMessage && (
-                  (usePullExecution && executionPlan && executionPlan.steps) || // Old planned execution
-                  (liveActivitySteps.length > 0) // New iterative execution
+                  (!usePullExecution && executionPlan && executionPlan.steps) || // Old planned execution (only when NOT using pull)
+                  (liveActivitySteps.length > 0) // New iterative execution (pull mode)
                 );
               if (thought.type === 'thought') {
                 const isExpanded = thought.expanded !== false;
@@ -6234,7 +6234,8 @@ export default function AppleFloatBar({
                         activitySteps={liveActivitySteps}
                         initialMessage={initialAIMessage}
                       />
-                    ) : executionPlan && executionPlan.steps ? (
+                    ) : !usePullExecution && executionPlan && executionPlan.steps ? (
+                      /* Old ExecutionProgress only shown when NOT using pull execution */
                       <ExecutionProgress
                         steps={executionPlan.steps}
                         stepStatuses={stepStatuses}
