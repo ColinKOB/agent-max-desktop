@@ -132,21 +132,75 @@ return "Navigated to: ${url}"`;
 
     async click_element(args) {
         const selector = args.selector;
-        if (!selector) return { success: false, error: 'Missing required argument: selector', exit_code: 1 };
+        const matchText = args.match_text || args.matchText || args.text;
 
+        if (!selector && !matchText) {
+            return { success: false, error: 'Missing required argument: selector or match_text', exit_code: 1 };
+        }
+
+        // Escape strings for JavaScript inside AppleScript
+        // Need to escape: backslash, single quotes, double quotes, and newlines
+        const escapeForJS = (str) => {
+            if (!str) return '';
+            return str
+                .replace(/\\/g, '\\\\')      // Escape backslashes first
+                .replace(/'/g, "\\'")         // Escape single quotes for JS strings
+                .replace(/"/g, '\\"')         // Escape double quotes
+                .replace(/\n/g, '\\n')        // Escape newlines
+                .replace(/\r/g, '\\r');       // Escape carriage returns
+        };
+
+        const escapedSelector = escapeForJS(selector || 'button, a, [role=\\'button\\']');
+        const escapedMatchText = escapeForJS(matchText);
+
+        // Build JavaScript that can find elements by selector AND optionally filter by text
+        let jsCode;
+        if (matchText) {
+            // Find element matching selector that contains the text
+            jsCode = `
+                (function() {
+                    var matchTexts = '${escapedMatchText}'.split(',').map(function(t) { return t.trim().toLowerCase(); });
+                    var elements = document.querySelectorAll('${escapedSelector}');
+
+                    for (var i = 0; i < elements.length; i++) {
+                        var el = elements[i];
+                        var elText = (el.textContent || el.innerText || '').toLowerCase().trim();
+                        var elAriaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+                        var elTitle = (el.getAttribute('title') || '').toLowerCase();
+
+                        for (var j = 0; j < matchTexts.length; j++) {
+                            var searchText = matchTexts[j];
+                            if (elText.includes(searchText) || elAriaLabel.includes(searchText) || elTitle.includes(searchText)) {
+                                el.scrollIntoView({ behavior: 'instant', block: 'center' });
+                                el.click();
+                                return 'Clicked element with text: ' + searchText;
+                            }
+                        }
+                    }
+                    return 'Element not found with text: ${escapedMatchText}';
+                })();
+            `;
+        } else {
+            // Simple selector-based click
+            jsCode = `
+                (function() {
+                    var el = document.querySelector('${escapedSelector}');
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'instant', block: 'center' });
+                        el.click();
+                        return 'Clicked: ${escapedSelector}';
+                    } else {
+                        return 'Element not found: ${escapedSelector}';
+                    }
+                })();
+            `;
+        }
+
+        // For AppleScript, we need to escape the JavaScript code as a string
+        // Use a heredoc-style approach by writing to temp file
         const script = `
 tell application "Safari"
-    set jsCode to "
-        (function() {
-            var el = document.querySelector('${selector.replace(/'/g, "\\'")}');
-            if (el) {
-                el.click();
-                return 'Clicked: ${selector.replace(/'/g, "\\'")}';
-            } else {
-                return 'Element not found: ${selector.replace(/'/g, "\\'")}';
-            }
-        })();
-    "
+    set jsCode to "${jsCode.replace(/"/g, '\\"').replace(/\n/g, ' ')}"
     set result to do JavaScript jsCode in current tab of front window
     return result
 end tell`;
@@ -158,22 +212,37 @@ end tell`;
         const value = args.value || args.text || '';
         if (!selector) return { success: false, error: 'Missing required argument: selector', exit_code: 1 };
 
-        const escapedValue = value.replace(/'/g, "\\'").replace(/"/g, '\\"');
+        // Escape strings for JavaScript inside AppleScript
+        const escapeForJS = (str) => {
+            if (!str) return '';
+            return str
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/"/g, '\\"')
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r');
+        };
+
+        const escapedSelector = escapeForJS(selector);
+        const escapedValue = escapeForJS(value);
+
+        const jsCode = `
+            (function() {
+                var el = document.querySelector('${escapedSelector}');
+                if (el) {
+                    el.value = '${escapedValue}';
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    return 'Filled: ${escapedSelector}';
+                } else {
+                    return 'Element not found: ${escapedSelector}';
+                }
+            })();
+        `;
+
         const script = `
 tell application "Safari"
-    set jsCode to "
-        (function() {
-            var el = document.querySelector('${selector.replace(/'/g, "\\'")}');
-            if (el) {
-                el.value = '${escapedValue}';
-                el.dispatchEvent(new Event('input', { bubbles: true }));
-                el.dispatchEvent(new Event('change', { bubbles: true }));
-                return 'Filled: ${selector.replace(/'/g, "\\'")}';
-            } else {
-                return 'Element not found: ${selector.replace(/'/g, "\\'")}';
-            }
-        })();
-    "
+    set jsCode to "${jsCode.replace(/"/g, '\\"').replace(/\n/g, ' ')}"
     set result to do JavaScript jsCode in current tab of front window
     return result
 end tell`;
@@ -637,6 +706,7 @@ end tell`;
     async get_upcoming(args) {
         const days = args.days || 7;
 
+        // More robust script that handles calendars with many events
         const script = `
 tell application "Calendar"
     set today to current date
@@ -644,20 +714,37 @@ tell application "Calendar"
     set endDate to startOfDay + (${days} * 24 * 60 * 60)
 
     set eventList to ""
+    set eventCount to 0
+    set maxEvents to 20
+
     repeat with cal in calendars
+        if eventCount >= maxEvents then exit repeat
         try
-            repeat with ev in (every event of cal)
-                set evStart to start date of ev
-                if evStart >= startOfDay and evStart < endDate then
-                    set evSummary to summary of ev
-                    set eventList to eventList & "- " & evSummary & " (" & (evStart as string) & ")" & return
-                end if
+            set calName to name of cal
+            -- Only check first 50 events per calendar to avoid timeout
+            set calEvents to events of cal
+            set checkCount to 0
+            repeat with ev in calEvents
+                set checkCount to checkCount + 1
+                if checkCount > 50 then exit repeat
+                if eventCount >= maxEvents then exit repeat
+
+                try
+                    set evStart to start date of ev
+                    if evStart >= startOfDay and evStart < endDate then
+                        set evSummary to summary of ev
+                        set eventList to eventList & "- " & evSummary & " (" & (evStart as string) & ")" & return
+                        set eventCount to eventCount + 1
+                    end if
+                end try
             end repeat
+        on error errMsg
+            -- Skip calendars that error
         end try
     end repeat
 
     if eventList is "" then
-        return "No upcoming events in next ${days} days"
+        return "No upcoming events in next ${days} days (checked local Calendar app)"
     else
         return "Upcoming events (next ${days} days):" & return & eventList
     end if
@@ -1004,9 +1091,36 @@ const remindersTools = {
         const escapedTitle = title.replace(/"/g, '\\"');
         const escapedNotes = notes.replace(/"/g, '\\"');
 
+        // Parse and format date for AppleScript
+        // AppleScript expects format like "December 20, 2025 4:45:00 AM"
         let dateScript = '';
         if (dueDate) {
-            dateScript = `set due date of newReminder to date "${dueDate}"`;
+            try {
+                // Parse the date (handles various formats)
+                const dateObj = new Date(dueDate);
+                if (!isNaN(dateObj.getTime())) {
+                    // Format for AppleScript: "Month Day, Year Hour:Minute:Second AM/PM"
+                    const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                                    'July', 'August', 'September', 'October', 'November', 'December'];
+                    const month = months[dateObj.getMonth()];
+                    const day = dateObj.getDate();
+                    const year = dateObj.getFullYear();
+                    let hours = dateObj.getHours();
+                    const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+                    const seconds = dateObj.getSeconds().toString().padStart(2, '0');
+                    const ampm = hours >= 12 ? 'PM' : 'AM';
+                    hours = hours % 12;
+                    if (hours === 0) hours = 12;
+
+                    const formattedDate = `${month} ${day}, ${year} ${hours}:${minutes}:${seconds} ${ampm}`;
+                    console.log(`[reminders.create] Formatted date: ${dueDate} -> ${formattedDate}`);
+                    dateScript = `set due date of newReminder to date "${formattedDate}"`;
+                } else {
+                    console.log(`[reminders.create] Could not parse date: ${dueDate}, creating without due date`);
+                }
+            } catch (e) {
+                console.log(`[reminders.create] Date parse error: ${e.message}, creating without due date`);
+            }
         }
 
         const script = `
