@@ -410,15 +410,25 @@ app.whenReady().then(async () => {
   createApplicationMenu(mainWindow);
   setupAutoUpdater(mainWindow);
   
-  // Initialize Hands on Desktop client (connects to backend for remote execution)
-  initializeHandsOnDesktop();
+  // NOTE: Hands on Desktop client DISABLED by default
+  // This was causing unexpected background execution of commands without user requests.
+  // The client polls the backend for "pending requests" and executes them automatically,
+  // which led to actions happening even after a run appeared to be complete.
+  //
+  // If needed, it can be enabled via the 'hands-on-desktop:toggle' IPC handler.
+  // initializeHandsOnDesktop();
 
-  // Resume active runs (Phase 2)
-  setTimeout(() => {
-    resumeActiveRunsOnStartup().catch(err => {
-      console.error('Failed to resume active runs:', err);
-    });
-  }, 2000); // Give app time to fully initialize
+  // NOTE: Auto-resume of active runs DISABLED
+  // This was causing unexpected background execution - runs from previous sessions
+  // would resume automatically without user consent. The stale runs in the state store
+  // could be from hours or days ago.
+  //
+  // If run persistence is needed, it should be opt-in and clearly shown to the user.
+  // setTimeout(() => {
+  //   resumeActiveRunsOnStartup().catch(err => {
+  //     console.error('Failed to resume active runs:', err);
+  //   });
+  // }, 2000);
 });
 
 app.on('before-quit', async () => {
