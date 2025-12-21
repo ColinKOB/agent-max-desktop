@@ -174,7 +174,7 @@ return "Navigated to: ${url}"`;
                 .replace(/\r/g, '\\r');
         };
 
-        const escapedSelector = escapeForJS(selector || 'button, a, [role=\\'button\\']');
+        const escapedSelector = escapeForJS(selector || "button, a, [role='button']");
         const escapedMatchText = escapeForJS(matchText);
 
         let jsCode;
@@ -349,7 +349,7 @@ return "Navigated to: ${url}"`;
                 .replace(/\r/g, '\\r');       // Escape carriage returns
         };
 
-        const escapedSelector = escapeForJS(selector || 'button, a, [role=\\'button\\']');
+        const escapedSelector = escapeForJS(selector || "button, a, [role='button']");
         const escapedMatchText = escapeForJS(matchText);
 
         // Build JavaScript that can find elements by selector AND optionally filter by text
