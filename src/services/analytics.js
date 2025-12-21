@@ -82,7 +82,7 @@ export const AnalyticsEvents = {
   GOOGLE_SYNC_COMPLETED: 'google_sync_completed',
   GOOGLE_SYNC_FAILED: 'google_sync_failed',
 
-  // Autonomous Execution (10 events)
+  // Autonomous Execution (12 events)
   PLAN_CREATED: 'plan_created',
   PLAN_APPROVED: 'plan_approved',
   PLAN_REJECTED: 'plan_rejected',
@@ -93,6 +93,8 @@ export const AnalyticsEvents = {
   EXECUTION_FAILED: 'execution_failed',
   EXECUTION_CANCELLED: 'execution_cancelled',
   EXECUTION_PAUSED: 'execution_paused',
+  TOOL_EXECUTION_FAILED: 'tool_execution_failed',
+  TOOL_EXECUTION_RECOVERED: 'tool_execution_recovered',
 
   // Memory/Vault (8 events)
   MEMORY_ACCESSED: 'memory_accessed',
@@ -519,6 +521,41 @@ export const trackExecutionFailed = (runId, error, stepFailed) =>
     step_failed: stepFailed
   });
 
+/**
+ * Track a tool execution failure with full debugging context
+ * This is for internal debugging - user just sees "tool failed" UI
+ */
+export const trackToolExecutionFailed = (data) =>
+  capture(AnalyticsEvents.TOOL_EXECUTION_FAILED, {
+    run_id: data.runId,
+    tool_name: data.toolName,
+    step_id: data.stepId,
+    step_number: data.stepNumber,
+    attempt_number: data.attemptNumber,
+    max_attempts: data.maxAttempts,
+    error_message: data.errorMessage,
+    error_stderr: data.stderr,
+    exit_code: data.exitCode,
+    args_used: JSON.stringify(data.args),
+    user_request: data.userRequest,
+    intent: data.intent,
+    os: data.os,
+    app_version: data.appVersion,
+    recovered: data.recovered || false,
+  });
+
+/**
+ * Track when a tool failure was recovered via retry
+ */
+export const trackToolExecutionRecovered = (data) =>
+  capture(AnalyticsEvents.TOOL_EXECUTION_RECOVERED, {
+    run_id: data.runId,
+    tool_name: data.toolName,
+    step_id: data.stepId,
+    attempts_before_success: data.attemptsBeforeSuccess,
+    recovery_method: data.recoveryMethod,
+  });
+
 // UI/UX
 export const trackPageViewed = (pageName, properties = {}) =>
   capture(AnalyticsEvents.PAGE_VIEWED, { page_name: pageName, ...properties });
@@ -570,6 +607,8 @@ export default {
   trackExecutionStarted,
   trackExecutionCompleted,
   trackExecutionFailed,
+  trackToolExecutionFailed,
+  trackToolExecutionRecovered,
   trackPageViewed,
   trackButtonClicked,
   trackFeatureUsed,

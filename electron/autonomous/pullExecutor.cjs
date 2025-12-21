@@ -14,6 +14,14 @@ const execAsync = promisify(exec);
 // macOS AppleScript tools (Safari, Notes, Mail, Calendar, Finder, Reminders)
 const { executeMacOSTool, isMacOSTool } = require('./macosAppleScript.cjs');
 
+// Analytics for tool failure tracking
+let analytics = null;
+try {
+    analytics = require('../analytics/posthog-main.cjs');
+} catch (e) {
+    console.warn('[PullExecutor] Analytics not available:', e.message);
+}
+
 class PullExecutor {
     constructor(apiClient, config = {}) {
         this.apiClient = apiClient;
@@ -173,6 +181,12 @@ class PullExecutor {
                     console.error(`[PullExecutor] Unexpected status: ${nextStep.status}`);
                     await this.sleep(this.pollIntervalMs);
                     continue;
+                }
+
+                // Capture run context for analytics (first step only)
+                if (lastCompletedStep < 0 && nextStep.run_context) {
+                    this.userContext.userRequest = nextStep.run_context.user_request;
+                    this.userContext.intent = nextStep.run_context.intent;
                 }
 
                 // Execute step locally
@@ -446,18 +460,48 @@ class PullExecutor {
                         // Include screenshot if present (for vision analysis)
                         screenshot_b64: result.screenshot_b64 || null
                     };
-                    
+
                     if (result.screenshot_b64) {
                         console.log(`[PullExecutor] Screenshot captured, including in result (${result.screenshot_b64.length} chars)`);
                     }
-                    
+
+                    // Track recovery if this succeeded after previous failures
+                    if (attempt > 1 && analytics?.captureToolRecovery) {
+                        analytics.captureToolRecovery({
+                            runId: this.currentRunId,
+                            toolName: step.tool_name || step.tool,
+                            stepId: step.step_id,
+                            attemptsBeforeSuccess: attempt,
+                            recoveryMethod: 'retry_with_adaptive_args',
+                        });
+                    }
+
                     // Store result for future context
                     this.stepResults.push(finalResult);
-                    
+
                     return finalResult;
                 }
 
                 lastError = result.error || `Exit code ${result.exit_code}`;
+
+                // Track tool failure for debugging (silent to user)
+                if (analytics?.captureToolFailure) {
+                    analytics.captureToolFailure({
+                        runId: this.currentRunId,
+                        toolName: step.tool_name || step.tool,
+                        stepId: step.step_id,
+                        stepNumber: this.stepResults.length + 1,
+                        attemptNumber: attempt,
+                        maxAttempts: maxRetries,
+                        errorMessage: lastError,
+                        stderr: result.stderr,
+                        exitCode: result.exit_code,
+                        args: step.args,
+                        userRequest: this.userContext?.userRequest,
+                        intent: this.userContext?.intent,
+                        recovered: false, // Will be updated if recovery happens
+                    });
+                }
 
                 // Check for unrecoverable errors that should stop retries immediately
                 // Be VERY specific - only block errors that truly require user action

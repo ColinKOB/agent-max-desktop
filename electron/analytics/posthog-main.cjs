@@ -166,6 +166,77 @@ function captureError(error, context = {}) {
 }
 
 /**
+ * Capture a tool execution failure with full debugging context
+ * This is for internal debugging - user just sees "tool failed" in UI
+ *
+ * @param {Object} data - Tool failure data
+ * @param {string} data.runId - The run ID
+ * @param {string} data.toolName - Name of the tool that failed
+ * @param {string} data.stepId - Step ID
+ * @param {number} data.stepNumber - Step number in the run
+ * @param {number} data.attemptNumber - Which retry attempt this was
+ * @param {number} data.maxAttempts - Maximum retry attempts
+ * @param {string} data.errorMessage - The error message
+ * @param {string} data.stderr - stderr output if any
+ * @param {number} data.exitCode - Exit code if applicable
+ * @param {Object} data.args - Arguments passed to the tool
+ * @param {string} data.userRequest - Original user request
+ * @param {string} data.intent - Detected intent
+ * @param {boolean} data.recovered - Whether this was eventually recovered
+ */
+function captureToolFailure(data) {
+  if (!enabled) return;
+
+  const eventData = {
+    run_id: data.runId,
+    tool_name: data.toolName,
+    step_id: data.stepId,
+    step_number: data.stepNumber,
+    attempt_number: data.attemptNumber,
+    max_attempts: data.maxAttempts,
+    error_message: data.errorMessage,
+    error_stderr: data.stderr ? data.stderr.substring(0, 2000) : null, // Limit stderr size
+    exit_code: data.exitCode,
+    args_used: data.args ? JSON.stringify(data.args).substring(0, 2000) : null, // Limit args size
+    user_request: data.userRequest ? data.userRequest.substring(0, 500) : null,
+    intent: data.intent,
+    os: process.platform,
+    app_version: app.getVersion(),
+    recovered: data.recovered || false,
+  };
+
+  capture('tool_execution_failed', eventData);
+
+  // Log locally for debugging
+  log.warn('[PostHog] Tool failure captured:', {
+    tool: data.toolName,
+    error: data.errorMessage,
+    attempt: data.attemptNumber,
+    runId: data.runId,
+  });
+}
+
+/**
+ * Capture when a tool failure was recovered via retry
+ */
+function captureToolRecovery(data) {
+  if (!enabled) return;
+
+  capture('tool_execution_recovered', {
+    run_id: data.runId,
+    tool_name: data.toolName,
+    step_id: data.stepId,
+    attempts_before_success: data.attemptsBeforeSuccess,
+    recovery_method: data.recoveryMethod || 'retry_with_new_args',
+  });
+
+  log.info('[PostHog] Tool recovery captured:', {
+    tool: data.toolName,
+    attempts: data.attemptsBeforeSuccess,
+  });
+}
+
+/**
  * Identify a user (when they sign in)
  */
 function identify(userId, properties = {}) {
@@ -323,6 +394,8 @@ module.exports = {
   initialize,
   capture,
   captureError,
+  captureToolFailure,
+  captureToolRecovery,
   identify,
   getFeatureFlag,
   setEnabled,
