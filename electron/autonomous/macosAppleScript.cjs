@@ -109,7 +109,206 @@ async function runAppleScriptMultiline(script) {
 }
 
 // ============================================================================
-// SAFARI TOOLS
+// CHROME TOOLS - Used as fallback when Safari's JavaScript is disabled
+// ============================================================================
+
+/**
+ * Check if Chrome is installed and available
+ */
+async function isChromeAvailable() {
+    try {
+        const { stdout } = await execAsync('mdfind "kMDItemCFBundleIdentifier == com.google.Chrome" | head -1', { timeout: 5000 });
+        return stdout.trim().length > 0;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Error message that indicates Safari needs JavaScript enabled
+ */
+const SAFARI_JS_DISABLED_ERROR = 'Allow JavaScript from Apple Events';
+
+/**
+ * Check if an error is the Safari JavaScript disabled error
+ */
+function isSafariJSDisabledError(error) {
+    const errorStr = String(error?.stderr || error?.error || error?.message || '');
+    return errorStr.includes(SAFARI_JS_DISABLED_ERROR);
+}
+
+const chromeTools = {
+    async navigate(args) {
+        const url = args.url;
+        if (!url) return { success: false, error: 'Missing required argument: url', exit_code: 1 };
+
+        const script = `
+tell application "Google Chrome"
+    activate
+    if (count of windows) = 0 then
+        make new window
+        set URL of active tab of front window to "${url}"
+    else
+        set URL of active tab of front window to "${url}"
+    end if
+end tell
+return "Navigated to: ${url}"`;
+        return await runAppleScriptMultiline(script);
+    },
+
+    async click_element(args) {
+        const selector = args.selector;
+        const matchText = args.match_text || args.matchText || args.text;
+
+        if (!selector && !matchText) {
+            return { success: false, error: 'Missing required argument: selector or match_text', exit_code: 1 };
+        }
+
+        const escapeForJS = (str) => {
+            if (!str) return '';
+            return str
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/"/g, '\\"')
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r');
+        };
+
+        const escapedSelector = escapeForJS(selector || 'button, a, [role=\\'button\\']');
+        const escapedMatchText = escapeForJS(matchText);
+
+        let jsCode;
+        if (matchText) {
+            jsCode = `
+                (function() {
+                    var matchTexts = '${escapedMatchText}'.split(',').map(function(t) { return t.trim().toLowerCase(); });
+                    var elements = document.querySelectorAll('${escapedSelector}');
+                    for (var i = 0; i < elements.length; i++) {
+                        var el = elements[i];
+                        var elText = (el.textContent || el.innerText || '').toLowerCase().trim();
+                        var elAriaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+                        var elTitle = (el.getAttribute('title') || '').toLowerCase();
+                        for (var j = 0; j < matchTexts.length; j++) {
+                            var searchText = matchTexts[j];
+                            if (elText.includes(searchText) || elAriaLabel.includes(searchText) || elTitle.includes(searchText)) {
+                                el.scrollIntoView({ behavior: 'instant', block: 'center' });
+                                el.click();
+                                return 'Clicked element with text: ' + searchText;
+                            }
+                        }
+                    }
+                    return 'Element not found with text: ${escapedMatchText}';
+                })();
+            `;
+        } else {
+            jsCode = `
+                (function() {
+                    var el = document.querySelector('${escapedSelector}');
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'instant', block: 'center' });
+                        el.click();
+                        return 'Clicked: ${escapedSelector}';
+                    } else {
+                        return 'Element not found: ${escapedSelector}';
+                    }
+                })();
+            `;
+        }
+
+        // Chrome uses 'execute javascript' instead of 'do JavaScript'
+        const script = `
+tell application "Google Chrome"
+    set jsCode to "${jsCode.replace(/"/g, '\\"').replace(/\n/g, ' ')}"
+    set result to execute active tab of front window javascript jsCode
+    return result
+end tell`;
+        return await runAppleScriptMultiline(script);
+    },
+
+    async fill_input(args) {
+        const selector = args.selector;
+        const value = args.value || args.text || '';
+        if (!selector) return { success: false, error: 'Missing required argument: selector', exit_code: 1 };
+
+        const escapeForJS = (str) => {
+            if (!str) return '';
+            return str
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/"/g, '\\"')
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r');
+        };
+
+        const escapedSelector = escapeForJS(selector);
+        const escapedValue = escapeForJS(value);
+
+        const jsCode = `
+            (function() {
+                var el = document.querySelector('${escapedSelector}');
+                if (el) {
+                    el.value = '${escapedValue}';
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    return 'Filled: ${escapedSelector}';
+                } else {
+                    return 'Element not found: ${escapedSelector}';
+                }
+            })();
+        `;
+
+        const script = `
+tell application "Google Chrome"
+    set jsCode to "${jsCode.replace(/"/g, '\\"').replace(/\n/g, ' ')}"
+    set result to execute active tab of front window javascript jsCode
+    return result
+end tell`;
+        return await runAppleScriptMultiline(script);
+    },
+
+    async execute_js(args) {
+        const jsScript = args.script || args.code || args.javascript;
+        if (!jsScript) return { success: false, error: 'Missing required argument: script', exit_code: 1 };
+
+        const escapedScript = jsScript.replace(/'/g, "\\'").replace(/\n/g, '\\n');
+        const script = `
+tell application "Google Chrome"
+    set jsCode to "${escapedScript}"
+    set result to execute active tab of front window javascript jsCode
+    return result
+end tell`;
+        return await runAppleScriptMultiline(script);
+    },
+
+    async get_page_source(args) {
+        const script = `
+tell application "Google Chrome"
+    set pageSource to execute active tab of front window javascript "document.documentElement.outerHTML"
+    return pageSource
+end tell`;
+        return await runAppleScriptMultiline(script);
+    },
+
+    async get_current_url(args) {
+        const script = `
+tell application "Google Chrome"
+    return URL of active tab of front window
+end tell`;
+        return await runAppleScriptMultiline(script);
+    },
+
+    async get_page_text(args) {
+        const script = `
+tell application "Google Chrome"
+    set pageText to execute active tab of front window javascript "document.body.innerText"
+    return pageText
+end tell`;
+        return await runAppleScriptMultiline(script);
+    }
+};
+
+// ============================================================================
+// SAFARI TOOLS (with Chrome fallback for JavaScript operations)
 // ============================================================================
 
 const safariTools = {
@@ -204,7 +403,25 @@ tell application "Safari"
     set result to do JavaScript jsCode in current tab of front window
     return result
 end tell`;
-        return await runAppleScriptMultiline(script);
+        const result = await runAppleScriptMultiline(script);
+
+        // If Safari fails due to JavaScript disabled, fall back to Chrome
+        if (!result.success && isSafariJSDisabledError(result)) {
+            console.log('[Safari] JavaScript disabled, falling back to Chrome...');
+            // First, get the current URL from Safari and navigate Chrome to it
+            const urlResult = await safariTools.get_current_url({});
+            if (urlResult.success && urlResult.stdout) {
+                await chromeTools.navigate({ url: urlResult.stdout.trim() });
+                // Small delay for page to load
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+            const chromeResult = await chromeTools.click_element(args);
+            chromeResult.fallback_browser = 'chrome';
+            chromeResult.stdout = (chromeResult.stdout || '') + ' (via Chrome fallback)';
+            return chromeResult;
+        }
+
+        return result;
     },
 
     async fill_input(args) {
@@ -246,21 +463,55 @@ tell application "Safari"
     set result to do JavaScript jsCode in current tab of front window
     return result
 end tell`;
-        return await runAppleScriptMultiline(script);
+        const result = await runAppleScriptMultiline(script);
+
+        // If Safari fails due to JavaScript disabled, fall back to Chrome
+        if (!result.success && isSafariJSDisabledError(result)) {
+            console.log('[Safari] JavaScript disabled for fill_input, falling back to Chrome...');
+            // First, get the current URL from Safari and navigate Chrome to it
+            const urlResult = await safariTools.get_current_url({});
+            if (urlResult.success && urlResult.stdout) {
+                await chromeTools.navigate({ url: urlResult.stdout.trim() });
+                // Small delay for page to load
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+            const chromeResult = await chromeTools.fill_input(args);
+            chromeResult.fallback_browser = 'chrome';
+            chromeResult.stdout = (chromeResult.stdout || '') + ' (via Chrome fallback)';
+            return chromeResult;
+        }
+
+        return result;
     },
 
     async execute_js(args) {
-        const script = args.script || args.code || args.javascript;
-        if (!script) return { success: false, error: 'Missing required argument: script', exit_code: 1 };
+        const jsScript = args.script || args.code || args.javascript;
+        if (!jsScript) return { success: false, error: 'Missing required argument: script', exit_code: 1 };
 
-        const escapedScript = script.replace(/'/g, "\\'").replace(/\n/g, '\\n');
+        const escapedScript = jsScript.replace(/'/g, "\\'").replace(/\n/g, '\\n');
         const appleScript = `
 tell application "Safari"
     set jsCode to "${escapedScript}"
     set result to do JavaScript jsCode in current tab of front window
     return result
 end tell`;
-        return await runAppleScriptMultiline(appleScript);
+        const result = await runAppleScriptMultiline(appleScript);
+
+        // If Safari fails due to JavaScript disabled, fall back to Chrome
+        if (!result.success && isSafariJSDisabledError(result)) {
+            console.log('[Safari] JavaScript disabled for execute_js, falling back to Chrome...');
+            const urlResult = await safariTools.get_current_url({});
+            if (urlResult.success && urlResult.stdout) {
+                await chromeTools.navigate({ url: urlResult.stdout.trim() });
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+            const chromeResult = await chromeTools.execute_js(args);
+            chromeResult.fallback_browser = 'chrome';
+            chromeResult.stdout = (chromeResult.stdout || '') + ' (via Chrome fallback)';
+            return chromeResult;
+        }
+
+        return result;
     },
 
     async get_page_source(args) {
@@ -1482,6 +1733,9 @@ async function executeMacOSTool(tool, args) {
         case 'safari':
             toolSet = safariTools;
             break;
+        case 'chrome':
+            toolSet = chromeTools;
+            break;
         case 'notes':
             toolSet = notesTools;
             break;
@@ -1502,7 +1756,7 @@ async function executeMacOSTool(tool, args) {
                 success: false,
                 error: `Unknown macOS app: ${app}`,
                 stdout: '',
-                stderr: `Unknown macOS app: ${app}. Supported: safari, notes, mail, calendar, finder, reminders`,
+                stderr: `Unknown macOS app: ${app}. Supported: safari, chrome, notes, mail, calendar, finder, reminders`,
                 exit_code: 1
             };
     }
@@ -1538,7 +1792,7 @@ async function executeMacOSTool(tool, args) {
  * Check if a tool name is a macOS AppleScript tool
  */
 function isMacOSTool(tool) {
-    const macOSApps = ['safari', 'notes', 'mail', 'calendar', 'finder', 'reminders'];
+    const macOSApps = ['safari', 'chrome', 'notes', 'mail', 'calendar', 'finder', 'reminders'];
     const parts = tool.split('.');
     return parts.length >= 2 && macOSApps.includes(parts[0]);
 }
@@ -1547,7 +1801,10 @@ module.exports = {
     executeMacOSTool,
     isMacOSTool,
     isMacOS,
+    isChromeAvailable,
+    isSafariJSDisabledError,
     safariTools,
+    chromeTools,
     notesTools,
     mailTools,
     calendarTools,
