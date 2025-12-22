@@ -93,14 +93,6 @@ import ActivityFeed from '../ActivityFeed/ActivityFeed';
 import EmailRenderer from './EmailRenderer';
 import ComposerBar from './ComposerBar';
 import { processImageFile } from '../../utils/imageCompression';
-import {
-  trackMessageSent,
-  trackMessageReceived,
-  trackChatError,
-  trackExecutionStarted,
-  trackExecutionCompleted,
-  trackExecutionFailed
-} from '../../services/analytics';
 
 const logger = createLogger('FloatBar');
 
