@@ -855,11 +855,33 @@ export default function AppleFloatBar({
   const handleStopAll = useCallback(async () => {
     logger.info('[Stop] User requested full stop');
 
-    // CRITICAL: Stop local executor IMMEDIATELY to terminate any running processes
-    // This must happen FIRST to kill active shell commands, clicks, etc.
+    // IMMEDIATELY reset UI state - don't wait for async operations
+    // This ensures the UI always responds to stop, even if backend calls hang
+    setIsThinking(false);
+    setThinkingStatus('');
+    clearActivityLog(); // Clear activity feed
+    setLiveActivitySteps([]); // Clear live activity feed
+    dispatchExecution({
+      type: 'CANCELLED',
+      successCount: Object.values(stepStatuses).filter((s) => s === 'done').length,
+    });
+    toast('AI stopped', { icon: '🛑', duration: 2000 });
+
+    // Stop polling in pullService (sync operation)
+    const pullService = pullServiceRef.current;
+    if (pullService?.stopPolling) {
+      pullService.stopPolling();
+      logger.info('[Stop] Polling stopped');
+    }
+
+    // Now do async cleanup in background - these shouldn't block UI
+    // CRITICAL: Stop local executor to terminate any running processes
     if (window.executor?.stopAll) {
       try {
-        await window.executor.stopAll();
+        await Promise.race([
+          window.executor.stopAll(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+        ]);
         logger.info('[Stop] Local executor stopped');
       } catch (err) {
         logger.warn('[Stop] Local executor stop failed:', err?.message || err);
@@ -869,7 +891,10 @@ export default function AppleFloatBar({
     // Abort any in-flight chat/run creation request
     if (window.executor?.abortRequest) {
       try {
-        const result = await window.executor.abortRequest();
+        const result = await Promise.race([
+          window.executor.abortRequest(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
+        ]);
         if (result?.aborted) {
           logger.info('[Stop] In-flight request aborted');
         }
@@ -883,7 +908,10 @@ export default function AppleFloatBar({
     const runId = activeRunId || planIdRef.current || executionPlan?.plan_id || executionPlan?.planId;
     if (runId) {
       try {
-        await runAPI.cancel(runId);
+        await Promise.race([
+          runAPI.cancel(runId),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+        ]);
         logger.info('[Stop] Run cancelled:', runId);
       } catch (err) {
         logger.warn('[Stop] Run cancel failed:', err?.message || err);
@@ -891,25 +919,6 @@ export default function AppleFloatBar({
     } else {
       logger.warn('[Stop] No active run ID found to cancel');
     }
-
-    // Stop polling in pullService
-    const pullService = pullServiceRef.current;
-    if (pullService?.stopPolling) {
-      pullService.stopPolling();
-      logger.info('[Stop] Polling stopped');
-    }
-
-    // Reset all thinking/execution states
-    setIsThinking(false);
-    setThinkingStatus('');
-    clearActivityLog(); // Clear activity feed
-    setLiveActivitySteps([]); // Clear live activity feed
-    dispatchExecution({
-      type: 'CANCELLED',
-      successCount: Object.values(stepStatuses).filter((s) => s === 'done').length,
-    });
-
-    toast('AI stopped', { icon: '🛑', duration: 2000 });
   }, [executionPlan, stepStatuses, activeRunId]);
 
   const copyToClipboard = useCallback(async (text, note = 'Copied') => {
