@@ -291,3 +291,17 @@ contextBridge.exposeInMainWorld('macos', {
   // Check if running on macOS
   isMacOS: () => ipcRenderer.invoke('is-macos'),
 });
+
+// AI ask_user tool - allows AI to ask user questions during execution
+contextBridge.exposeInMainWorld('askUser', {
+  // Listen for questions from the AI
+  onQuestion: (callback) => {
+    ipcRenderer.on('ask-user-question', (event, data) => callback(data));
+  },
+  // Send response back to the AI
+  respond: (response) => ipcRenderer.invoke('ask-user-response', response),
+  // Remove question listener
+  removeListener: () => {
+    ipcRenderer.removeAllListeners('ask-user-question');
+  }
+});

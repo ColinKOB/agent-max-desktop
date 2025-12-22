@@ -25,6 +25,9 @@ const useStore = create((set, get) => ({
   theme: localStorage.getItem('theme') || 'light',
   currentPage: 'dashboard',
 
+  // AI ask_user state - for when AI needs to ask user a question during execution
+  askUserQuestion: null, // { question, context, options, allowCustomResponse, timestamp }
+
   // Actions
   setProfile: (profile) => set({ profile }),
   setGreeting: (greeting) => set({ greeting }),
@@ -57,6 +60,10 @@ const useStore = create((set, get) => ({
   },
 
   setCurrentPage: (page) => set({ currentPage: page }),
+
+  // AI ask_user actions
+  setAskUserQuestion: (question) => set({ askUserQuestion: question }),
+  clearAskUserQuestion: () => set({ askUserQuestion: null }),
 
   // Conversation history actions
   addToHistory: (summary, messages) => {

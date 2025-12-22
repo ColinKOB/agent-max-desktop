@@ -737,6 +737,9 @@ class PullExecutor {
         } else if (isMacOSTool(tool)) {
             // macOS AppleScript tools: safari.*, notes.*, mail.*, calendar.*, finder.*, reminders.*
             return await executeMacOSTool(tool, args);
+        } else if (tool === 'ask_user') {
+            // User question tool - pauses execution to ask user a question
+            return await this.executeAskUser(args);
         } else {
             return {
                 success: false,
@@ -744,6 +747,91 @@ class PullExecutor {
                 exit_code: -1
             };
         }
+    }
+
+    /**
+     * Execute ask_user tool - prompts user with a question and waits for response
+     * This pauses execution until the user responds
+     */
+    async executeAskUser(args) {
+        const { BrowserWindow, ipcMain } = require('electron');
+
+        const question = args.question || 'Please provide input';
+        const context = args.context || '';
+        const options = args.options || [];
+        const allowCustomResponse = args.allow_custom_response || false;
+
+        console.log(`[PullExecutor] ask_user: "${question}" (context: ${context})`);
+
+        // Find the main window to show the dialog
+        const mainWindow = BrowserWindow.getAllWindows().find(w => !w.isDestroyed());
+        if (!mainWindow) {
+            return {
+                success: false,
+                error: 'No window available to show question',
+                exit_code: 1
+            };
+        }
+
+        // Send the question to the renderer
+        mainWindow.webContents.send('ask-user-question', {
+            question,
+            context,
+            options,
+            allowCustomResponse,
+            timestamp: Date.now()
+        });
+
+        // Wait for response from renderer (with timeout)
+        return new Promise((resolve) => {
+            const timeoutMs = 300000; // 5 minute timeout
+            let resolved = false;
+
+            const handler = (event, response) => {
+                if (resolved) return;
+                resolved = true;
+                ipcMain.removeHandler('ask-user-response');
+
+                console.log(`[PullExecutor] ask_user response:`, response);
+
+                if (response.cancelled) {
+                    resolve({
+                        success: false,
+                        stdout: 'User cancelled the question',
+                        stderr: '',
+                        exit_code: 1,
+                        user_cancelled: true
+                    });
+                } else {
+                    resolve({
+                        success: true,
+                        stdout: `User response: ${response.answer || response.selectedOption || 'No answer'}`,
+                        stderr: '',
+                        exit_code: 0,
+                        user_response: response.answer || response.selectedOption,
+                        selected_option_id: response.selectedOptionId
+                    });
+                }
+            };
+
+            // Register one-time handler
+            ipcMain.handleOnce('ask-user-response', handler);
+
+            // Timeout
+            setTimeout(() => {
+                if (resolved) return;
+                resolved = true;
+                ipcMain.removeHandler('ask-user-response');
+
+                resolve({
+                    success: false,
+                    stdout: 'User did not respond in time',
+                    stderr: 'Timeout waiting for user response',
+                    exit_code: 1,
+                    timeout: true
+                });
+            }, timeoutMs);
+        });
     }
 
     /**
@@ -1138,8 +1226,9 @@ class PullExecutor {
                 url += `?email=${encodeURIComponent(userEmail)}`;
             } else if (tool === 'google.gmail.send') {
                 method = 'POST';
+                // Backend expects 'email' as query param, body params separately
+                url += `?email=${encodeURIComponent(userEmail)}`;
                 body = JSON.stringify({
-                    user_email: userEmail,
                     to: args.to,
                     subject: args.subject,
                     body: args.body || args.message || args.content

@@ -137,6 +137,30 @@ function isSafariJSDisabledError(error) {
     return errorStr.includes(SAFARI_JS_DISABLED_ERROR);
 }
 
+/**
+ * Message to return when Chrome is needed but not installed
+ */
+const CHROME_NOT_INSTALLED_MESSAGE = 'CHROME_REQUIRED: I need Google Chrome to help you with this request. Safari has a setting that prevents me from interacting with web pages. Would you like to download Chrome? I can help you install it.';
+
+/**
+ * Check if Chrome is available and return appropriate error if not
+ * Returns null if Chrome is available, or an error result if not
+ */
+async function checkChromeForFallback() {
+    const chromeAvailable = await isChromeAvailable();
+    if (!chromeAvailable) {
+        return {
+            success: false,
+            error: CHROME_NOT_INSTALLED_MESSAGE,
+            stdout: CHROME_NOT_INSTALLED_MESSAGE,
+            stderr: '',
+            exit_code: 1,
+            requires_chrome: true
+        };
+    }
+    return null; // Chrome is available
+}
+
 const chromeTools = {
     async navigate(args) {
         const url = args.url;
@@ -304,6 +328,33 @@ tell application "Google Chrome"
     return pageText
 end tell`;
         return await runAppleScriptMultiline(script);
+    },
+
+    async go_back(args) {
+        const script = `
+tell application "Google Chrome"
+    execute active tab of front window javascript "history.back()"
+    return "Navigated back"
+end tell`;
+        return await runAppleScriptMultiline(script);
+    },
+
+    async go_forward(args) {
+        const script = `
+tell application "Google Chrome"
+    execute active tab of front window javascript "history.forward()"
+    return "Navigated forward"
+end tell`;
+        return await runAppleScriptMultiline(script);
+    },
+
+    async reload(args) {
+        const script = `
+tell application "Google Chrome"
+    execute active tab of front window javascript "location.reload()"
+    return "Page reloaded"
+end tell`;
+        return await runAppleScriptMultiline(script);
     }
 };
 
@@ -408,6 +459,10 @@ end tell`;
         // If Safari fails due to JavaScript disabled, fall back to Chrome
         if (!result.success && isSafariJSDisabledError(result)) {
             console.log('[Safari] JavaScript disabled, falling back to Chrome...');
+            // Check if Chrome is available
+            const chromeCheck = await checkChromeForFallback();
+            if (chromeCheck) return chromeCheck;
+
             // First, get the current URL from Safari and navigate Chrome to it
             const urlResult = await safariTools.get_current_url({});
             if (urlResult.success && urlResult.stdout) {
@@ -468,6 +523,10 @@ end tell`;
         // If Safari fails due to JavaScript disabled, fall back to Chrome
         if (!result.success && isSafariJSDisabledError(result)) {
             console.log('[Safari] JavaScript disabled for fill_input, falling back to Chrome...');
+            // Check if Chrome is available
+            const chromeCheck = await checkChromeForFallback();
+            if (chromeCheck) return chromeCheck;
+
             // First, get the current URL from Safari and navigate Chrome to it
             const urlResult = await safariTools.get_current_url({});
             if (urlResult.success && urlResult.stdout) {
@@ -500,6 +559,10 @@ end tell`;
         // If Safari fails due to JavaScript disabled, fall back to Chrome
         if (!result.success && isSafariJSDisabledError(result)) {
             console.log('[Safari] JavaScript disabled for execute_js, falling back to Chrome...');
+            // Check if Chrome is available
+            const chromeCheck = await checkChromeForFallback();
+            if (chromeCheck) return chromeCheck;
+
             const urlResult = await safariTools.get_current_url({});
             if (urlResult.success && urlResult.stdout) {
                 await chromeTools.navigate({ url: urlResult.stdout.trim() });
@@ -520,7 +583,58 @@ tell application "Safari"
     set pageSource to do JavaScript "document.documentElement.outerHTML" in current tab of front window
     return pageSource
 end tell`;
-        return await runAppleScriptMultiline(script);
+        const result = await runAppleScriptMultiline(script);
+
+        // If Safari fails due to JavaScript disabled, fall back to Chrome
+        if (!result.success && isSafariJSDisabledError(result)) {
+            console.log('[Safari] JavaScript disabled for get_page_source, falling back to Chrome...');
+            // Check if Chrome is available
+            const chromeCheck = await checkChromeForFallback();
+            if (chromeCheck) return chromeCheck;
+
+            // First, get the current URL from Safari and navigate Chrome to it
+            const urlResult = await safariTools.get_current_url({});
+            if (urlResult.success && urlResult.stdout) {
+                await chromeTools.navigate({ url: urlResult.stdout.trim() });
+                // Wait for page to load
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+            const chromeResult = await chromeTools.get_page_source(args);
+            chromeResult.fallback_browser = 'chrome';
+            chromeResult.stdout = (chromeResult.stdout || '') + '\n\n(Retrieved via Chrome fallback)';
+            return chromeResult;
+        }
+
+        return result;
+    },
+
+    async get_page_text(args) {
+        const script = `
+tell application "Safari"
+    set pageText to do JavaScript "document.body.innerText" in current tab of front window
+    return pageText
+end tell`;
+        const result = await runAppleScriptMultiline(script);
+
+        // If Safari fails due to JavaScript disabled, fall back to Chrome
+        if (!result.success && isSafariJSDisabledError(result)) {
+            console.log('[Safari] JavaScript disabled for get_page_text, falling back to Chrome...');
+            // Check if Chrome is available
+            const chromeCheck = await checkChromeForFallback();
+            if (chromeCheck) return chromeCheck;
+
+            const urlResult = await safariTools.get_current_url({});
+            if (urlResult.success && urlResult.stdout) {
+                await chromeTools.navigate({ url: urlResult.stdout.trim() });
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+            const chromeResult = await chromeTools.get_page_text(args);
+            chromeResult.fallback_browser = 'chrome';
+            chromeResult.stdout = (chromeResult.stdout || '') + '\n\n(Retrieved via Chrome fallback)';
+            return chromeResult;
+        }
+
+        return result;
     },
 
     async get_current_url(args) {
@@ -582,7 +696,27 @@ tell application "Safari"
     do JavaScript "history.back()" in current tab of front window
     return "Navigated back"
 end tell`;
-        return await runAppleScriptMultiline(script);
+        const result = await runAppleScriptMultiline(script);
+
+        // If Safari fails due to JavaScript disabled, fall back to Chrome
+        if (!result.success && isSafariJSDisabledError(result)) {
+            console.log('[Safari] JavaScript disabled for go_back, falling back to Chrome...');
+            // Check if Chrome is available
+            const chromeCheck = await checkChromeForFallback();
+            if (chromeCheck) return chromeCheck;
+
+            const urlResult = await safariTools.get_current_url({});
+            if (urlResult.success && urlResult.stdout) {
+                await chromeTools.navigate({ url: urlResult.stdout.trim() });
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+            const chromeResult = await chromeTools.go_back(args);
+            chromeResult.fallback_browser = 'chrome';
+            chromeResult.stdout = (chromeResult.stdout || '') + ' (via Chrome fallback)';
+            return chromeResult;
+        }
+
+        return result;
     },
 
     async go_forward(args) {
@@ -591,7 +725,27 @@ tell application "Safari"
     do JavaScript "history.forward()" in current tab of front window
     return "Navigated forward"
 end tell`;
-        return await runAppleScriptMultiline(script);
+        const result = await runAppleScriptMultiline(script);
+
+        // If Safari fails due to JavaScript disabled, fall back to Chrome
+        if (!result.success && isSafariJSDisabledError(result)) {
+            console.log('[Safari] JavaScript disabled for go_forward, falling back to Chrome...');
+            // Check if Chrome is available
+            const chromeCheck = await checkChromeForFallback();
+            if (chromeCheck) return chromeCheck;
+
+            const urlResult = await safariTools.get_current_url({});
+            if (urlResult.success && urlResult.stdout) {
+                await chromeTools.navigate({ url: urlResult.stdout.trim() });
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+            const chromeResult = await chromeTools.go_forward(args);
+            chromeResult.fallback_browser = 'chrome';
+            chromeResult.stdout = (chromeResult.stdout || '') + ' (via Chrome fallback)';
+            return chromeResult;
+        }
+
+        return result;
     },
 
     async reload(args) {
@@ -600,7 +754,27 @@ tell application "Safari"
     do JavaScript "location.reload()" in current tab of front window
     return "Page reloaded"
 end tell`;
-        return await runAppleScriptMultiline(script);
+        const result = await runAppleScriptMultiline(script);
+
+        // If Safari fails due to JavaScript disabled, fall back to Chrome
+        if (!result.success && isSafariJSDisabledError(result)) {
+            console.log('[Safari] JavaScript disabled for reload, falling back to Chrome...');
+            // Check if Chrome is available
+            const chromeCheck = await checkChromeForFallback();
+            if (chromeCheck) return chromeCheck;
+
+            const urlResult = await safariTools.get_current_url({});
+            if (urlResult.success && urlResult.stdout) {
+                await chromeTools.navigate({ url: urlResult.stdout.trim() });
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+            const chromeResult = await chromeTools.reload(args);
+            chromeResult.fallback_browser = 'chrome';
+            chromeResult.stdout = (chromeResult.stdout || '') + ' (via Chrome fallback)';
+            return chromeResult;
+        }
+
+        return result;
     },
 
     async activate(args) {
