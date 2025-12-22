@@ -78,6 +78,14 @@ import ContextPreview from './ContextPreview';
 import MemoryToast from '../MemoryToast';
 import { qualifiesAsDeepDive, createDeepDive } from '../../services/deepDiveService';
 import { OnboardingFlow } from '../onboarding/OnboardingFlow';
+import {
+  trackMessageSent,
+  trackMessageReceived,
+  trackChatError,
+  trackExecutionStarted,
+  trackExecutionCompleted,
+  trackExecutionFailed
+} from '../../services/analytics';
 import ExecutionProgress from '../ExecutionProgress/ExecutionProgress';
 import LiveActivityFeed from '../LiveActivityFeed/LiveActivityFeed';
 import TypewriterMessage from '../TypewriterMessage/TypewriterMessage';
@@ -85,6 +93,14 @@ import ActivityFeed from '../ActivityFeed/ActivityFeed';
 import EmailRenderer from './EmailRenderer';
 import ComposerBar from './ComposerBar';
 import { processImageFile } from '../../utils/imageCompression';
+import {
+  trackMessageSent,
+  trackMessageReceived,
+  trackChatError,
+  trackExecutionStarted,
+  trackExecutionCompleted,
+  trackExecutionFailed
+} from '../../services/analytics';
 
 const logger = createLogger('FloatBar');
 
@@ -456,6 +472,12 @@ export default function AppleFloatBar({
   const [isDraggingFile, setIsDraggingFile] = useState(false); // Track drag-and-drop state
   const dragCounterRef = useRef(0); // Counter to handle nested drag events
   const fileInputRef = useRef(null);
+
+  // ask_user inline question state (for AI to ask user questions during execution)
+  const [pendingAskUser, setPendingAskUser] = useState(null); // { question, context, options, timestamp }
+  const [isEditingContext, setIsEditingContext] = useState(false); // When user wants to edit the draft
+  const [editedContext, setEditedContext] = useState(''); // The edited content
+  const contextTextareaRef = useRef(null); // Ref for focusing the textarea
 
   // Refs
   const barRef = useRef(null);
@@ -952,6 +974,96 @@ export default function AppleFloatBar({
   useEffect(() => {
     permissionModeRef.current = validatedPermissionMode;
   }, [validatedPermissionMode]);
+
+  // Listen for ask_user questions from AI (inline in chat, not modal)
+  useEffect(() => {
+    if (!window.askUser?.onQuestion) return;
+
+    const handleAskUserQuestion = (data) => {
+      console.log('[AppleFloatBar] Received ask_user question:', data);
+      setPendingAskUser({
+        question: data.question,
+        context: data.context || '',
+        options: data.options || [],
+        allowCustomResponse: data.allowCustomResponse || false,
+        timestamp: data.timestamp || Date.now()
+      });
+    };
+
+    window.askUser.onQuestion(handleAskUserQuestion);
+
+    return () => {
+      if (window.askUser?.removeListener) {
+        window.askUser.removeListener();
+      }
+    };
+  }, []);
+
+  // Handle ask_user response
+  const handleAskUserResponse = useCallback((option) => {
+    console.log('[AppleFloatBar] User selected:', option);
+
+    // Check if this is an edit option (id contains 'edit' or label contains 'edit')
+    const isEditOption = option.id?.toLowerCase().includes('edit') ||
+                         option.label?.toLowerCase().includes('edit');
+
+    if (isEditOption && pendingAskUser?.context) {
+      // Enable editing mode instead of sending response
+      console.log('[AppleFloatBar] Edit option selected - enabling inline editing');
+      setEditedContext(pendingAskUser.context);
+      setIsEditingContext(true);
+      // Focus will be set by useEffect when isEditingContext changes
+      return;
+    }
+
+    if (window.askUser?.respond) {
+      window.askUser.respond({
+        cancelled: false,
+        answer: null,
+        selectedOption: option.label,
+        selectedOptionId: option.id
+      });
+    }
+    setPendingAskUser(null);
+    setIsEditingContext(false);
+    setEditedContext('');
+  }, [pendingAskUser]);
+
+  // Handle sending the edited content
+  const handleSendEditedContent = useCallback(() => {
+    console.log('[AppleFloatBar] Sending edited content');
+    if (window.askUser?.respond) {
+      window.askUser.respond({
+        cancelled: false,
+        answer: editedContext, // Send the edited text as a custom answer
+        selectedOption: 'Edited by user',
+        selectedOptionId: 'user_edited',
+        editedContent: editedContext
+      });
+    }
+    setPendingAskUser(null);
+    setIsEditingContext(false);
+    setEditedContext('');
+  }, [editedContext]);
+
+  // Focus textarea when editing mode is enabled
+  useEffect(() => {
+    if (isEditingContext && contextTextareaRef.current) {
+      contextTextareaRef.current.focus();
+      // Place cursor at the end
+      const len = contextTextareaRef.current.value.length;
+      contextTextareaRef.current.setSelectionRange(len, len);
+    }
+  }, [isEditingContext]);
+
+  const handleAskUserCancel = useCallback(() => {
+    console.log('[AppleFloatBar] User cancelled ask_user');
+    if (window.askUser?.respond) {
+      window.askUser.respond({ cancelled: true });
+    }
+    setPendingAskUser(null);
+  }, []);
+
   const permissionKey = validatedPermissionMode;
   const effectiveMode = permissionKey;
   const planCardAllowed = false; // Plan cards not used
@@ -1830,6 +1942,10 @@ export default function AppleFloatBar({
   const sendChat = useCallback((text, userContext, screenshotData) => {
     // Track token usage for credit calculation
     let totalOutputTokens = 0;
+    const messageSentAt = Date.now();
+
+    // Track message sent
+    trackMessageSent(text?.length || 0, !!screenshotData);
 
     // FIX: Ensure session_id exists before sending chat message
     let sessionId = localStorage.getItem('session_id');
@@ -2608,6 +2724,10 @@ export default function AppleFloatBar({
           planIdRef.current = null;
           const d = event.data || event || {};
 
+          // Track message received with response time
+          const responseTimeMs = Date.now() - messageSentAt;
+          trackMessageReceived(responseTimeMs, totalOutputTokens);
+
           // Check for execution_steps in the response (from non-streaming chat endpoint)
           // This provides user-friendly progress display like "✅ Getting started", "✅ Checked your calendar"
           if (d.execution_steps && Array.isArray(d.execution_steps) && d.execution_steps.length > 0) {
@@ -3028,6 +3148,9 @@ export default function AppleFloatBar({
             errorData?.error || errorData?.message || event.error || 'Failed to get response';
           const isTerminal = errorData?.terminal || false;
           const errorCode = errorData?.code || errorData?.error || 'UNKNOWN';
+
+          // Track chat error
+          trackChatError({ message: errorMsg, code: errorCode, name: 'ChatError' });
           const isInsufficientCredits =
             errorCode === 'insufficient_credits' ||
             errorMsg.toLowerCase().includes('insufficient credit');
@@ -3101,6 +3224,8 @@ export default function AppleFloatBar({
       })
       .catch((error) => {
         console.error('Chat error:', error);
+        // Track network/connection errors
+        trackChatError({ message: error?.message || 'Network error', code: 'NETWORK_ERROR', name: 'NetworkError' });
         // Network/connection errors should flip to offline state without spamming toasts
         setApiConnected(false);
         offlineRef.current = true;
@@ -4523,70 +4648,8 @@ export default function AppleFloatBar({
         );
       }
 
-      // If this is the first prompt and it looks like an email intent, open approval immediately
-      // Note: Message stays visible during approval dialog
-      // SKIP approval for chatty mode - it can only read emails, not send them
-      const currentMode = permissionModeRef.current || validatedPermissionMode;
-      const isChattyMode = currentMode === 'chatty';
-
-      try {
-        const isFirstTurn = thoughts.length <= 1; // <= 1 because we just added the optimistic message
-        // Simple email intent patterns: "email X", "send email", "send an email", "compose email"
-        const emailRegex =
-          /^(\s*(email|send( an)? email|compose( an)? email)\b|\bemail\b.*\b(to|about)\b)/i;
-        if (isFirstTurn && emailRegex.test(text) && !isChattyMode) {
-          // Check if user said "don't ask again" for email approvals
-          const skipEmailApproval = localStorage.getItem('approval_skip_email_send') === 'true';
-
-          if (skipEmailApproval) {
-            // Skip approval - user previously opted out
-            try {
-              await permissionAPI.logActivity({
-                action: text,
-                category: 'communication',
-                required_approval: false, // Auto-approved
-                approved: true,
-                markers: ['email', 'auto_approved'],
-                is_high_risk: false,
-              });
-            } catch {}
-            commitOptimisticMessage();
-            await continueAfterPreview(text, true); // messageAlreadyAdded = true
-            return;
-          }
-
-          // Show approval dialog with "Don't ask again" option
-          // Message stays visible - user sees what they typed
-          setApprovalDetails({
-            action: text,
-            markers: ['communication', 'email'],
-            reason: 'Composing and sending email requires your approval.',
-            isHighRisk: false,
-            showDontAskAgain: true,
-            dontAskAgainKey: 'email_send',
-            onApprove: async () => {
-              try {
-                await permissionAPI.logActivity({
-                  action: text,
-                  category: 'communication',
-                  required_approval: true,
-                  approved: true,
-                  markers: ['email'],
-                  is_high_risk: false,
-                });
-              } catch {}
-              commitOptimisticMessage();
-              await continueAfterPreview(text, true); // messageAlreadyAdded = true
-            },
-            onReject: () => {
-              // User closed dialog without approving - rollback the message
-              rollbackOptimisticMessage(text);
-            },
-          });
-          setApprovalOpen(true);
-          return;
-        }
-      } catch {}
+      // Email approval is now handled by the AI's ask_user tool
+      // The AI will compose the draft, show it to user, and ask for confirmation before sending
 
       // Cache check (cheap local operation)
       setThinkingStatus('Checking cache...');
@@ -6249,6 +6312,173 @@ export default function AppleFloatBar({
                 </React.Fragment>
               );
             })}
+
+            {/* Inline ask_user question from AI */}
+            {pendingAskUser && (
+              <div className="apple-message apple-message-assistant" style={{ marginBottom: 12 }}>
+                <div className="apple-message-content">
+                  {/* Show context (e.g., email draft) - either static or editable */}
+                  {pendingAskUser.context && (
+                    isEditingContext ? (
+                      /* Editable textarea mode */
+                      <div style={{ marginBottom: 14, marginLeft: -12, marginRight: -12 }}>
+                        <textarea
+                          ref={contextTextareaRef}
+                          value={editedContext}
+                          onChange={(e) => setEditedContext(e.target.value)}
+                          style={{
+                            width: '100%',
+                            minHeight: 220,
+                            padding: '12px 14px',
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            borderRadius: 10,
+                            border: '2px solid rgba(59, 130, 246, 0.5)',
+                            fontSize: 13,
+                            lineHeight: 1.6,
+                            color: '#fff',
+                            resize: 'vertical',
+                            fontFamily: 'inherit',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                          onKeyDown={(e) => {
+                            // Cmd/Ctrl + Enter to send
+                            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                              e.preventDefault();
+                              handleSendEditedContent();
+                            }
+                          }}
+                        />
+                        <div style={{
+                          display: 'flex',
+                          gap: 8,
+                          marginTop: 10,
+                          justifyContent: 'flex-end'
+                        }}>
+                          <button
+                            onClick={() => {
+                              setIsEditingContext(false);
+                              setEditedContext('');
+                            }}
+                            style={{
+                              padding: '8px 16px',
+                              background: 'rgba(255, 255, 255, 0.06)',
+                              border: '1px solid rgba(255, 255, 255, 0.12)',
+                              borderRadius: 8,
+                              color: 'rgba(255, 255, 255, 0.7)',
+                              fontSize: 13,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleSendEditedContent}
+                            style={{
+                              padding: '8px 16px',
+                              background: 'rgba(59, 130, 246, 0.8)',
+                              border: 'none',
+                              borderRadius: 8,
+                              color: '#fff',
+                              fontSize: 13,
+                              fontWeight: 500,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Send edited message
+                          </button>
+                        </div>
+                        <div style={{
+                          fontSize: 11,
+                          color: 'rgba(255, 255, 255, 0.4)',
+                          marginTop: 6,
+                          textAlign: 'right'
+                        }}>
+                          Press ⌘+Enter to send
+                        </div>
+                      </div>
+                    ) : (
+                      /* Static display mode */
+                      <div style={{
+                        marginBottom: 14,
+                        padding: '12px 14px',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        borderRadius: 10,
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        fontSize: 13,
+                        lineHeight: 1.5,
+                        color: 'rgba(255, 255, 255, 0.85)',
+                        whiteSpace: 'pre-wrap',
+                        maxHeight: 200,
+                        overflowY: 'auto',
+                      }}>
+                        {pendingAskUser.context}
+                      </div>
+                    )
+                  )}
+                  {/* Only show question and options when not in editing mode */}
+                  {!isEditingContext && (
+                    <>
+                      <div style={{ marginBottom: 12, fontWeight: 500 }}>{pendingAskUser.question}</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {pendingAskUser.options.map((option) => {
+                          // Rename edit-related options to "Edit message"
+                          const isEditOption = option.id?.toLowerCase().includes('edit') ||
+                                              option.label?.toLowerCase().includes('edit');
+                          const displayLabel = isEditOption ? 'Edit message' : option.label;
+
+                          return (
+                            <button
+                              key={option.id}
+                              onClick={() => handleAskUserResponse(option)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 10,
+                                padding: '10px 14px',
+                                background: 'rgba(255, 255, 255, 0.06)',
+                                border: '1px solid rgba(255, 255, 255, 0.12)',
+                                borderRadius: 10,
+                                color: '#fff',
+                                fontSize: 13,
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                transition: 'all 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)';
+                                e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                              }}
+                            >
+                              <div style={{
+                                width: 18,
+                                height: 18,
+                                borderRadius: '50%',
+                                border: '2px solid rgba(255, 255, 255, 0.3)',
+                                flexShrink: 0,
+                              }} />
+                              <div>
+                                <div style={{ fontWeight: 500 }}>{displayLabel}</div>
+                                {option.description && (
+                                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+                                    {option.description}
+                                  </div>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             {isThinking && !liveActivitySteps.length && (
               <div className="apple-message apple-message-thinking">
                 {/* Show ActivityFeed when in autonomous mode (but not when using LiveActivityFeed) */}

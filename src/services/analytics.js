@@ -167,6 +167,13 @@ export function initializeAnalytics() {
       capture_pageview: true,
       capture_pageleave: true,
 
+      // Automatic exception capture (Phase 2 - Error Tracking)
+      capture_exceptions: {
+        capture_unhandled_errors: true,      // Capture window.onerror
+        capture_unhandled_rejections: true,  // Capture unhandled promise rejections
+        capture_console_errors: true,        // Capture console.error calls
+      },
+
       // Session recording - start paused, resume on errors
       disable_session_recording: false,
       session_recording: {
@@ -186,13 +193,13 @@ export function initializeAnalytics() {
       // Loaded callback
       loaded: (ph) => {
         initialized = true;
-        logger.info('PostHog initialized');
+        logger.info('PostHog initialized with exception capture enabled');
 
         // Start with recording paused (will resume on errors)
         ph.sessionRecording?.pause?.();
         sessionRecordingActive = false;
 
-        // Set up global error handlers
+        // Set up additional error handlers for custom tracking
         setupErrorHandlers();
       },
     });

@@ -10,6 +10,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { pullAutonomousService } from '../services/pullAutonomous';
 import { logger } from '../services/logger';
+import {
+    trackExecutionStarted,
+    trackExecutionCompleted,
+    trackExecutionFailed
+} from '../services/analytics';
 
 export function usePullExecution() {
     const [activeRuns, setActiveRuns] = useState(new Map());
@@ -53,10 +58,15 @@ export function usePullExecution() {
                 return next;
             });
 
+            // Track execution started
+            trackExecutionStarted(tracker.runId, 'autonomous');
+
             return tracker;
 
         } catch (error) {
             logger.error('[usePullExecution] Execute failed', { error: error.message });
+            // Track execution failure
+            trackExecutionFailed(null, error.message);
             throw error;
         }
     }, []);
@@ -88,10 +98,13 @@ export function usePullExecution() {
             }
 
             // Clean up if complete, failed, cancelled, or error
-            if (status.status === 'complete' ||
-                status.status === 'failed' ||
+            if (status.status === 'complete') {
+                trackExecutionCompleted(runId, status.stepsCompleted || 0);
+                stopPolling(runId);
+            } else if (status.status === 'failed' ||
                 status.status === 'cancelled' ||
                 status.status === 'error') {
+                trackExecutionFailed(runId, status.error || status.status);
                 stopPolling(runId);
             }
         });
@@ -247,9 +260,14 @@ export function useRunExecution(runId, onStatusUpdate) {
                     }
 
                     // Stop polling if complete
-                    if (runStatus.status === 'complete' || 
-                        runStatus.status === 'failed' || 
+                    if (runStatus.status === 'complete') {
+                        trackExecutionCompleted(runId, runStatus.stepsCompleted || 0);
+                        if (pollInterval) {
+                            clearInterval(pollInterval);
+                        }
+                    } else if (runStatus.status === 'failed' ||
                         runStatus.status === 'error') {
+                        trackExecutionFailed(runId, runStatus.error || runStatus.status);
                         if (pollInterval) {
                             clearInterval(pollInterval);
                         }

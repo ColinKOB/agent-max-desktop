@@ -6,8 +6,8 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import useStore from '../../store/useStore';
-import { 
-  ChevronRight, 
+import {
+  ChevronRight,
   Check,
   Sparkles,
   ArrowRight,
@@ -40,6 +40,18 @@ import LogoPng from '../../assets/AgentMaxLogo.png';
 import { setName as setProfileName, setPreference as setUserPreference, updateProfile as updateUserProfile, flushPreAuthQueue } from '../../services/supabaseMemory';
 import { emailPasswordSignInOrCreate, ensureUsersRow, supabase } from '../../services/supabase.js';
 import { isGoogleComingSoon } from '../../config/featureGates';
+import {
+  trackOnboardingStarted,
+  trackOnboardingStepCompleted,
+  trackOnboardingCompleted,
+  trackSignInAttempted,
+  trackSignInSucceeded,
+  trackSignInFailed,
+  trackCheckoutStarted,
+  trackCheckoutCompleted,
+  capture,
+  AnalyticsEvents
+} from '../../services/analytics';
 
 // Brand orange color from logo (no gradients)
 const BRAND_ORANGE = '#f59e0b';
@@ -200,9 +212,11 @@ const styles = {
 // ============================================================================
 function WelcomeStep({ onNext }) {
   const [logoAnimated, setLogoAnimated] = useState(false);
-  
+
   useEffect(() => {
     const timer = setTimeout(() => setLogoAnimated(true), 100);
+    // Track onboarding started when welcome step mounts
+    trackOnboardingStarted(0);
     return () => clearTimeout(timer);
   }, []);
 
@@ -792,6 +806,9 @@ function AccountStep({ onNext, onBack, userData }) {
     setSaving(true);
     setError(null);
 
+    // Track sign-up attempt
+    trackSignInAttempted('email_signup');
+
     try {
       const trimmedEmail = email.trim();
 
@@ -903,6 +920,9 @@ function AccountStep({ onNext, onBack, userData }) {
         }
 
         console.log('[Onboarding] Account created for:', trimmedEmail);
+        // Track successful sign-up
+        trackSignInSucceeded(trimmedEmail, 'email_signup');
+        trackOnboardingStepCompleted('account', { method: 'signup', isNewUser: true });
         onNext?.({ amxAccount: true, email: trimmedEmail, isExistingUser: false });
         return;
       }
@@ -912,6 +932,8 @@ function AccountStep({ onNext, onBack, userData }) {
 
     } catch (err) {
       console.error('[Onboarding] Account operation failed:', err);
+      // Track sign-up failure
+      trackSignInFailed('email_signup', err);
       setError(err.message || 'Failed to create account. Please try again.');
     } finally {
       setSaving(false);
@@ -925,6 +947,9 @@ function AccountStep({ onNext, onBack, userData }) {
     setSaving(true);
     setError(null);
 
+    // Track sign-in attempt
+    trackSignInAttempted('email_signin');
+
     try {
       const trimmedEmail = email.trim();
 
@@ -934,6 +959,8 @@ function AccountStep({ onNext, onBack, userData }) {
       });
 
       if (signInError) {
+        // Track sign-in failure
+        trackSignInFailed('email_signin', signInError);
         if (signInError.message?.includes('Invalid login credentials')) {
           setError('Invalid email or password. Please try again.');
         } else if (signInError.message?.includes('Email not confirmed')) {
@@ -1034,6 +1061,14 @@ function AccountStep({ onNext, onBack, userData }) {
           skipToStep
         });
 
+        // Track successful sign-in
+        trackSignInSucceeded(existingUserId || trimmedEmail, 'email_signin');
+        trackOnboardingStepCompleted('account', {
+          method: 'signin',
+          isReturningUser: hasExistingProfile || hasActiveSubscription,
+          hasSubscription: hasActiveSubscription
+        });
+
         onNext?.({
           amxAccount: true,
           email: trimmedEmail,
@@ -1045,6 +1080,8 @@ function AccountStep({ onNext, onBack, userData }) {
       }
     } catch (err) {
       console.error('[Onboarding] Sign in failed:', err);
+      // Track sign-in failure
+      trackSignInFailed('email_signin', err);
       setError(err.message || 'Sign in failed. Please try again.');
     } finally {
       setSaving(false);
@@ -1773,6 +1810,11 @@ function SubscriptionStep({ userData, onNext, onBack }) {
         try { await setUserPreference('selected_plan', planId); } catch {}
         try { localStorage.setItem('selected_plan', planId); } catch {}
         console.log('[Onboarding] Subscription checkout opened:', planId);
+
+        // Track checkout started
+        const tierData = SUBSCRIPTION_TIERS.find(t => t.id === tierId);
+        const amount = billingCycle === 'yearly' ? tierData?.yearlyPrice : tierData?.monthlyPrice;
+        trackCheckoutStarted(planId, amount);
         
         // Show waiting state
         setOpening(false);
@@ -1794,6 +1836,8 @@ function SubscriptionStep({ userData, onNext, onBack }) {
               pollIntervalRef.current = null;
               setWaitingForPayment(false);
               console.log('[Onboarding] ✅ Payment confirmed!');
+              // Track checkout completed
+              trackCheckoutCompleted(planId, amount, null);
               onNext({ selectedPlan: planId, paymentConfirmed: true });
             }
             
@@ -1830,6 +1874,8 @@ function SubscriptionStep({ userData, onNext, onBack }) {
       }
       setVerifyingPayment(false);
       setWaitingForPayment(false);
+      // Track checkout completed
+      trackCheckoutCompleted(pendingPlan, null, null);
       onNext({ selectedPlan: pendingPlan, paymentConfirmed: true });
       return;
     }
@@ -2543,6 +2589,13 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
     console.log('[Onboarding] Current step index:', currentStep);
     console.log('[Onboarding] Steps array:', steps.map(s => s.id));
 
+    // Track step completion (unless it's already tracked in the step component)
+    const currentStepId = steps[currentStep]?.id;
+    if (currentStepId && !['account'].includes(currentStepId)) {
+      // account step tracks its own completion with auth details
+      trackOnboardingStepCompleted(currentStepId, data);
+    }
+
     setUserData(prev => ({ ...prev, ...data }));
 
     // Handle skip to specific step for existing users
@@ -2583,7 +2636,16 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
 
   const handleComplete = async () => {
     console.log('[Onboarding] Completing with data:', userData);
-    
+
+    // Track onboarding completed
+    trackOnboardingCompleted({
+      name: userData.name || '',
+      helpCategory: userData.helpCategory || '',
+      selectedPlan: userData.selectedPlan || 'free_trial',
+      hasGoogleConnected: !!userData.googleConnected,
+      paymentConfirmed: !!userData.paymentConfirmed
+    });
+
     // Save all collected data to localStorage as fallback
     try {
       localStorage.setItem('onboarding_completed', 'true');
