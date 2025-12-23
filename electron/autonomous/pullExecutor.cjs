@@ -802,6 +802,18 @@ class PullExecutor {
                         exit_code: 1,
                         user_cancelled: true
                     });
+                } else if (response.editedContent) {
+                    // User edited the content - send back with the edited text
+                    resolve({
+                        success: true,
+                        stdout: `User edited the message. Updated content:\n${response.editedContent}`,
+                        stderr: '',
+                        exit_code: 0,
+                        user_response: response.editedContent,
+                        selected_option_id: 'user_edited',
+                        user_edited: true,
+                        edited_content: response.editedContent
+                    });
                 } else {
                     resolve({
                         success: true,

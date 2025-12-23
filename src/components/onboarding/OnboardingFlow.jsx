@@ -29,7 +29,9 @@ import {
   Bot,
   AlertCircle,
   FileWarning,
-  Scale
+  Scale,
+  Gift,
+  Heart
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { healthAPI, googleAPI, creditsAPI, subscriptionAPI } from '../../services/api';
@@ -50,7 +52,8 @@ import {
   trackCheckoutStarted,
   trackCheckoutCompleted,
   capture,
-  AnalyticsEvents
+  AnalyticsEvents,
+  getFeatureFlag
 } from '../../services/analytics';
 
 // Brand orange color from logo (no gradients)
@@ -776,6 +779,188 @@ function UseCaseStep({ userData, onNext, onBack }) {
           }}
         >
           Continue
+          <ArrowRight style={{ width: 18, height: 18 }} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// STEP: MODE EXPLAINER (Chatty vs Autonomous)
+// ============================================================================
+const MODE_OPTIONS = [
+  {
+    id: 'chatty',
+    icon: MessageSquare,
+    title: 'Chatty Mode',
+    description: 'Have a conversation with Max. Ask questions, get answers, brainstorm ideas.',
+    features: ['Quick answers & explanations', 'Brainstorming & ideation', 'Writing assistance'],
+    recommended: true,
+  },
+  {
+    id: 'autonomous',
+    icon: Bot,
+    title: 'Autonomous Mode',
+    description: 'Let Max take control of your computer to complete tasks for you.',
+    features: ['Controls mouse & keyboard', 'Opens apps & websites', 'Completes multi-step tasks'],
+    recommended: false,
+  },
+];
+
+function ModeExplainerStep({ onNext, onBack }) {
+  return (
+    <div style={{
+      maxWidth: 380,
+      margin: '0 auto',
+      padding: '12px 16px',
+      height: '100%',
+      maxHeight: 'calc(100vh - 60px)',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+    }}>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        style={{ textAlign: 'center', marginBottom: 12, flexShrink: 0 }}
+      >
+        <h2 style={{ ...styles.heading, fontSize: 20, marginBottom: 4 }}>
+          Two Ways to Use Max
+        </h2>
+        <p style={{ ...styles.subheading, marginBottom: 4, fontSize: 12 }}>
+          Switch between modes anytime using the toggle in the chat bar.
+        </p>
+      </motion.div>
+
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingBottom: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {MODE_OPTIONS.map((option, index) => {
+            const Icon = option.icon;
+
+            return (
+              <motion.div
+                key={option.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+                style={{
+                  width: '100%',
+                  padding: '14px 14px',
+                  borderRadius: 12,
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  textAlign: 'left',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                  <div style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    background: option.id === 'chatty'
+                      ? BRAND_ORANGE
+                      : 'rgba(139, 92, 246, 0.8)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    <Icon style={{
+                      width: 20,
+                      height: 20,
+                      color: '#ffffff',
+                    }} />
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      marginBottom: 4,
+                    }}>
+                      <span style={{
+                        color: '#ffffff',
+                        fontSize: 15,
+                        fontWeight: 600,
+                      }}>
+                        {option.title}
+                      </span>
+                      {option.recommended && (
+                        <span style={{
+                          fontSize: 10,
+                          fontWeight: 600,
+                          color: BRAND_ORANGE,
+                          background: BRAND_ORANGE_LIGHT,
+                          padding: '2px 6px',
+                          borderRadius: 4,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                        }}>
+                          Default
+                        </span>
+                      )}
+                    </div>
+                    <div style={{
+                      color: 'rgba(255, 255, 255, 0.6)',
+                      fontSize: 12,
+                      lineHeight: 1.4,
+                      marginBottom: 8,
+                    }}>
+                      {option.description}
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}>
+                      {option.features.map((feature, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            fontSize: 11,
+                            color: 'rgba(255, 255, 255, 0.5)',
+                          }}
+                        >
+                          <Check style={{
+                            width: 12,
+                            height: 12,
+                            color: option.id === 'chatty' ? BRAND_ORANGE : 'rgba(139, 92, 246, 0.8)',
+                          }} />
+                          {feature}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{
+        display: 'flex',
+        gap: 8,
+        paddingTop: 10,
+        flexShrink: 0,
+        marginTop: 'auto',
+      }}>
+        <button onClick={onBack} style={styles.secondaryButton}>
+          Back
+        </button>
+        <button
+          onClick={() => onNext()}
+          style={{
+            ...styles.primaryButton,
+            flex: 1,
+          }}
+        >
+          Got it
           <ArrowRight style={{ width: 18, height: 18 }} />
         </button>
       </div>
@@ -1729,6 +1914,10 @@ const SUBSCRIPTION_TIERS = [
   }
 ];
 
+// Beta tester feature flag name
+const BETA_TESTER_FLAG = 'beta-free-credits';
+const BETA_CREDITS_AMOUNT = 250;
+
 function SubscriptionStep({ userData, onNext, onBack }) {
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [selectedTier, setSelectedTier] = useState('premium');
@@ -1739,6 +1928,26 @@ function SubscriptionStep({ userData, onNext, onBack }) {
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [verificationFailed, setVerificationFailed] = useState(false);
   const pollIntervalRef = useRef(null);
+
+  // Beta tester state
+  const [isBetaTester, setIsBetaTester] = useState(null); // null = loading, true/false = resolved
+  const [grantingCredits, setGrantingCredits] = useState(false);
+  const [creditsGranted, setCreditsGranted] = useState(false);
+
+  // Check beta tester flag on mount
+  useEffect(() => {
+    async function checkBetaFlag() {
+      try {
+        const isBeta = await getFeatureFlag(BETA_TESTER_FLAG, false);
+        console.log('[Onboarding] Beta tester flag:', isBeta);
+        setIsBetaTester(isBeta);
+      } catch (err) {
+        console.error('[Onboarding] Failed to check beta flag:', err);
+        setIsBetaTester(false);
+      }
+    }
+    checkBetaFlag();
+  }, []);
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -1939,9 +2148,301 @@ function SubscriptionStep({ userData, onNext, onBack }) {
   };
 
   const selectedTierData = SUBSCRIPTION_TIERS.find(t => t.id === selectedTier);
-  const yearlySavings = selectedTierData 
+  const yearlySavings = selectedTierData
     ? Math.round((1 - selectedTierData.yearlyPrice / (selectedTierData.monthlyPrice * 12)) * 100)
     : 17;
+
+  // Handle beta tester credit grant
+  const handleBetaClaim = async () => {
+    setGrantingCredits(true);
+    try {
+      const userId = localStorage.getItem('user_id');
+      if (userId) {
+        // Grant beta credits
+        const response = await creditsAPI.addCredits(userId, BETA_CREDITS_AMOUNT, 'beta_tester');
+        console.log('[Onboarding] Beta credits granted:', response?.data);
+
+        // Track the beta claim
+        capture('beta_credits_claimed', {
+          credits: BETA_CREDITS_AMOUNT,
+          userId,
+        });
+      }
+
+      // Save beta tester status
+      try { localStorage.setItem('selected_plan', 'beta_tester'); } catch {}
+      try { localStorage.setItem('is_beta_tester', 'true'); } catch {}
+      try { await setUserPreference('selected_plan', 'beta_tester'); } catch {}
+      try { await setUserPreference('is_beta_tester', 'true'); } catch {}
+
+      setCreditsGranted(true);
+      setGrantingCredits(false);
+
+      // Short delay for confetti effect, then proceed
+      setTimeout(() => {
+        onNext({ selectedPlan: 'beta_tester', isBetaTester: true, creditsGranted: BETA_CREDITS_AMOUNT });
+      }, 1500);
+    } catch (err) {
+      console.error('[Onboarding] Failed to grant beta credits:', err);
+      setGrantingCredits(false);
+      // Proceed anyway - credits can be added later
+      onNext({ selectedPlan: 'beta_tester', isBetaTester: true, creditsGranted: 0 });
+    }
+  };
+
+  // Show loading while checking beta flag
+  if (isBetaTester === null) {
+    return (
+      <div style={{
+        maxWidth: 380,
+        margin: '0 auto',
+        padding: '24px 20px',
+        textAlign: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100%',
+      }}>
+        <div style={{
+          width: 32,
+          height: 32,
+          border: '3px solid rgba(245, 158, 11, 0.3)',
+          borderTopColor: BRAND_ORANGE,
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+        }} />
+      </div>
+    );
+  }
+
+  // Show beta tester thank you card
+  if (isBetaTester) {
+    return (
+      <div style={{
+        maxWidth: 380,
+        margin: '0 auto',
+        padding: '24px 20px',
+        textAlign: 'center',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+      }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+        >
+          {/* Gift icon with glow */}
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
+            style={{
+              width: 80,
+              height: 80,
+              margin: '0 auto 24px',
+              borderRadius: 20,
+              background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.2) 100%)',
+              border: '1px solid rgba(34, 197, 94, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 8px 32px rgba(34, 197, 94, 0.25)',
+            }}
+          >
+            {creditsGranted ? (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 400 }}
+              >
+                <Check style={{ width: 40, height: 40, color: '#22c55e' }} />
+              </motion.div>
+            ) : (
+              <Gift style={{ width: 40, height: 40, color: '#22c55e' }} />
+            )}
+          </motion.div>
+
+          <motion.h2
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            style={{
+              ...styles.heading,
+              fontSize: 24,
+              marginBottom: 12,
+            }}
+          >
+            {creditsGranted ? 'You\'re All Set!' : 'Thank You, Beta Tester!'}
+          </motion.h2>
+
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            style={{
+              ...styles.subheading,
+              marginBottom: 24,
+              fontSize: 14,
+            }}
+          >
+            {creditsGranted
+              ? `${BETA_CREDITS_AMOUNT} credits have been added to your account.`
+              : 'Your feedback helps shape the future of Agent Max. As a thank you, here are some free credits on us!'}
+          </motion.p>
+
+          {/* Credits box */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            style={{
+              padding: 20,
+              background: 'rgba(34, 197, 94, 0.1)',
+              borderRadius: 16,
+              border: '1px solid rgba(34, 197, 94, 0.2)',
+              marginBottom: 24,
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              marginBottom: 8,
+            }}>
+              <Sparkles style={{ width: 20, height: 20, color: '#22c55e' }} />
+              <span style={{
+                fontSize: 32,
+                fontWeight: 700,
+                color: '#22c55e',
+              }}>
+                {BETA_CREDITS_AMOUNT}
+              </span>
+              <span style={{
+                fontSize: 16,
+                fontWeight: 600,
+                color: 'rgba(255, 255, 255, 0.7)',
+              }}>
+                credits
+              </span>
+            </div>
+            <p style={{
+              fontSize: 12,
+              color: 'rgba(255, 255, 255, 0.5)',
+              margin: 0,
+            }}>
+              Free credits for beta testers
+            </p>
+          </motion.div>
+
+          {/* What you get section */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            style={{
+              textAlign: 'left',
+              padding: 16,
+              background: 'rgba(255, 255, 255, 0.03)',
+              borderRadius: 12,
+              marginBottom: 24,
+            }}
+          >
+            <p style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: 'rgba(255, 255, 255, 0.7)',
+              marginBottom: 10,
+              marginTop: 0,
+            }}>
+              What you get:
+            </p>
+            {[
+              'Full access to all features',
+              'Both Chatty and Autonomous modes',
+              'Early access to new features',
+            ].map((item, i) => (
+              <div
+                key={i}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  marginBottom: 6,
+                  fontSize: 13,
+                  color: 'rgba(255, 255, 255, 0.6)',
+                }}
+              >
+                <Check style={{ width: 14, height: 14, color: '#22c55e', flexShrink: 0 }} />
+                {item}
+              </div>
+            ))}
+          </motion.div>
+
+          {/* Claim button */}
+          {!creditsGranted && (
+            <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              onClick={handleBetaClaim}
+              disabled={grantingCredits}
+              whileHover={{ scale: grantingCredits ? 1 : 1.02 }}
+              whileTap={{ scale: grantingCredits ? 1 : 0.98 }}
+              style={{
+                ...styles.primaryButton,
+                background: grantingCredits
+                  ? 'rgba(34, 197, 94, 0.5)'
+                  : 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                boxShadow: '0 4px 14px rgba(34, 197, 94, 0.35)',
+                cursor: grantingCredits ? 'wait' : 'pointer',
+              }}
+            >
+              {grantingCredits ? (
+                <>
+                  <div style={{
+                    width: 18,
+                    height: 18,
+                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                    borderTopColor: '#fff',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                  }} />
+                  Claiming Credits...
+                </>
+              ) : (
+                <>
+                  <Gift style={{ width: 18, height: 18 }} />
+                  Claim My Free Credits
+                </>
+              )}
+            </motion.button>
+          )}
+
+          {/* Small note */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8 }}
+            style={{
+              fontSize: 11,
+              color: 'rgba(255, 255, 255, 0.4)',
+              marginTop: 16,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+            }}
+          >
+            <Heart style={{ width: 12, height: 12, color: '#ef4444' }} />
+            We appreciate your help making Agent Max better
+          </motion.p>
+        </motion.div>
+      </div>
+    );
+  }
 
   // Show waiting for payment UI
   if (waitingForPayment) {
@@ -2577,6 +3078,7 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
     { id: 'legal', component: LegalStep },          // Then legal consent
     { id: 'name', component: NameStep },
     { id: 'usecase', component: UseCaseStep },
+    { id: 'modes', component: ModeExplainerStep },  // Explain Chatty vs Autonomous
     { id: 'verify-email', component: EmailVerificationStep },
     { id: 'google', component: GoogleStep },
     { id: 'subscription', component: SubscriptionStep },

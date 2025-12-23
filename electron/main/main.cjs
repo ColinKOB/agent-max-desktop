@@ -205,6 +205,20 @@ function createWindow() {
     } catch {}
   });
 
+  // macOS: Clear visual artifacts when window focus/visibility changes
+  if (process.platform === 'darwin') {
+    mainWindow.on('focus', () => {
+      setTimeout(() => {
+        try { mainWindow.invalidateShadow(); } catch {}
+      }, 100);
+    });
+    mainWindow.on('show', () => {
+      setTimeout(() => {
+        try { mainWindow.invalidateShadow(); } catch {}
+      }, 100);
+    });
+  }
+
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     const wantDevtools = (
@@ -215,6 +229,18 @@ function createWindow() {
     );
     if (wantDevtools) {
       try { mainWindow.webContents.openDevTools({ mode: 'detach' }); } catch {}
+    }
+
+    // macOS: Periodically clear visual artifacts from transparent windows
+    // This prevents the gray bar from accumulating over time
+    if (process.platform === 'darwin') {
+      setInterval(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          try {
+            mainWindow.invalidateShadow();
+          } catch {}
+        }
+      }, 5000); // Every 5 seconds
     }
   });
 
@@ -672,6 +698,16 @@ ipcMain.handle(
             );
           }
         }, 100);
+
+        // macOS: Clear visual artifacts from transparent window resizing
+        // This fixes the gray bar that appears at the bottom of the pill
+        if (process.platform === 'darwin') {
+          setTimeout(() => {
+            try {
+              mainWindow.invalidateShadow();
+            } catch {}
+          }, 50);
+        }
       }
     },
     {

@@ -384,7 +384,7 @@ function App({ windowMode = 'single' }) {
         updateProgress={updateProgress}
         onDismiss={() => setUpdateInfo(null)}
       />
-      <UserInputDialog />
+      {/* UserInputDialog removed - ask_user now handled inline in AppleFloatBar */}
       <Toaster
         position="bottom-right"
         toastOptions={{
