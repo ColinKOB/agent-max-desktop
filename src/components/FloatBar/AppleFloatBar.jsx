@@ -430,6 +430,7 @@ export default function AppleFloatBar({
   // LiveActivityFeed state
   const [liveActivitySteps, setLiveActivitySteps] = useState([]); // [{id, status, description, technicalDetails, error, timestamp}]
   const [initialAIMessage, setInitialAIMessage] = useState(null); // Conversational initial response
+  const initialAIMessageSetRef = useRef(false); // Track if initial message has been set (avoids stale closure)
   // Track which message timestamps should animate (only new messages)
   const animatedMessagesRef = useRef(new Set());
   const lastUserPromptRef = useRef('');
@@ -689,14 +690,17 @@ export default function AppleFloatBar({
       // Clear live activity feed for new task
       setLiveActivitySteps([]);
       setInitialAIMessage(null);
+      initialAIMessageSetRef.current = false; // Reset the ref for new task
 
       // Start polling for updates
       pullService.pollRunStatus(tracker.runId, (status) => {
         console.log('[FloatBar] Status update after confirmation:', status);
 
         // Capture initial message on first action (if present)
-        if (status.initial_message && !initialAIMessage) {
+        // Use ref to avoid stale closure issue with initialAIMessage state
+        if (status.initial_message && !initialAIMessageSetRef.current) {
           setInitialAIMessage(status.initial_message);
+          initialAIMessageSetRef.current = true;
         }
 
         // Use current_status_summary, or fall back to action description
@@ -4111,6 +4115,7 @@ export default function AppleFloatBar({
             // Clear any old live activity steps (from previous executions)
             setLiveActivitySteps([]);
             setInitialAIMessage(null);
+            initialAIMessageSetRef.current = false;
 
             // Add the AI's response to thoughts with typewriter animation
             const directMsgTimestamp = Date.now();
@@ -4169,6 +4174,7 @@ export default function AppleFloatBar({
             // Clear live activity feed for new task
             setLiveActivitySteps([]);
             setInitialAIMessage(null);
+            initialAIMessageSetRef.current = false; // Reset the ref for new task
 
             // Start polling for updates - iterative execution will provide status_summary
             pullService.pollRunStatus(runTracker.runId, (status) => {
@@ -4178,8 +4184,10 @@ export default function AppleFloatBar({
               console.log('[FloatBar] Has final_response:', !!status.final_response);
 
               // Capture initial message on first action (if present)
-              if (status.initial_message && !initialAIMessage) {
+              // Use ref to avoid stale closure issue with initialAIMessage state
+              if (status.initial_message && !initialAIMessageSetRef.current) {
                 setInitialAIMessage(status.initial_message);
+                initialAIMessageSetRef.current = true;
               }
 
               // Update activity feed with current status
