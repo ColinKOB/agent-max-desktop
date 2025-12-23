@@ -294,7 +294,16 @@ end tell`;
         const jsScript = args.script || args.code || args.javascript;
         if (!jsScript) return { success: false, error: 'Missing required argument: script', exit_code: 1 };
 
-        const escapedScript = jsScript.replace(/'/g, "\\'").replace(/\n/g, '\\n');
+        // CRITICAL: Escape ALL special characters for AppleScript string embedding
+        // - Double quotes must be escaped as \" for AppleScript
+        // - Backslashes must be escaped first to avoid double-escaping
+        // - Single quotes escaped for safety
+        // - Newlines converted to literal \n
+        const escapedScript = jsScript
+            .replace(/\\/g, '\\\\')     // Escape backslashes first
+            .replace(/"/g, '\\"')        // Escape double quotes for AppleScript
+            .replace(/'/g, "\\'")        // Escape single quotes
+            .replace(/\n/g, '\\n');      // Convert newlines
         const script = `
 tell application "Google Chrome"
     set jsCode to "${escapedScript}"
@@ -547,7 +556,12 @@ end tell`;
         const jsScript = args.script || args.code || args.javascript;
         if (!jsScript) return { success: false, error: 'Missing required argument: script', exit_code: 1 };
 
-        const escapedScript = jsScript.replace(/'/g, "\\'").replace(/\n/g, '\\n');
+        // CRITICAL: Escape ALL special characters for AppleScript string embedding
+        const escapedScript = jsScript
+            .replace(/\\/g, '\\\\')     // Escape backslashes first
+            .replace(/"/g, '\\"')        // Escape double quotes for AppleScript
+            .replace(/'/g, "\\'")        // Escape single quotes
+            .replace(/\n/g, '\\n');      // Convert newlines
         const appleScript = `
 tell application "Safari"
     set jsCode to "${escapedScript}"
