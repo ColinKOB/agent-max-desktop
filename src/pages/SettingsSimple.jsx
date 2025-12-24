@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { GoogleConnect } from '../components/GoogleConnect';
+import CredentialsSettings from '../components/settings/CredentialsSettings';
 import telemetry from '../services/telemetry';
 import apiConfigManager from '../config/apiConfig';
 import packageJson from '../../package.json';
@@ -15,6 +16,7 @@ export default function SettingsSimple() {
   const [disableLegacyFallbacks, setDisableLegacyFallbacks] = useState(false);
   const [probeStatus, setProbeStatus] = useState(null);
   const [userEmail, setUserEmail] = useState(null);
+  const [browserPreference, setBrowserPreference] = useState('both'); // 'workspace_only' | 'safari_only' | 'both'
 
   useEffect(() => {
     try {
@@ -59,6 +61,16 @@ export default function SettingsSimple() {
       }
       
       if (storedDisableFallbacks === '1' || storedDisableFallbacks === 'true') setDisableLegacyFallbacks(true);
+
+      // Browser preference: default to 'both' (Max can use either workspace or Safari)
+      const storedBrowserPref = localStorage.getItem('pref_browser_mode');
+      if (storedBrowserPref) {
+        setBrowserPreference(storedBrowserPref);
+      } else {
+        // First load - persist the default
+        localStorage.setItem('pref_browser_mode', 'both');
+      }
+
       try { setProbeStatus(apiConfigManager.getLastProbe?.() || null); } catch {}
     } catch {}
   }, []);
@@ -89,6 +101,21 @@ export default function SettingsSimple() {
   const handleDisableFallbacksChange = (checked) => {
     setDisableLegacyFallbacks(checked);
     try { localStorage.setItem('disable_legacy_fallbacks', checked ? '1' : '0'); } catch {}
+  };
+
+  const handleBrowserPreferenceChange = async (value) => {
+    setBrowserPreference(value);
+    try { localStorage.setItem('pref_browser_mode', value); } catch {}
+
+    // Sync to Supabase via preferences API
+    try {
+      const userId = localStorage.getItem('user_id');
+      if (userId) {
+        await window.electron?.memory?.setPreference?.('browser_mode', value, 'string');
+      }
+    } catch (err) {
+      console.error('[Settings] Failed to sync browser preference:', err);
+    }
   };
 
   const handleReprobe = async () => {
@@ -193,6 +220,32 @@ export default function SettingsSimple() {
                 }}
               />
             </div>
+            <div>
+              <label htmlFor="pref-browser" style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 6 }}>Browser mode</label>
+              <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)', marginBottom: 8 }}>
+                Choose how Max browses the web. "Max's Monitor" is an isolated browser window. "Your Safari" uses your personal browser.
+              </p>
+              <select
+                id="pref-browser"
+                value={browserPreference}
+                onChange={(e) => handleBrowserPreferenceChange(e.target.value)}
+                aria-label="Browser mode selector"
+                style={{
+                  width: '100%',
+                  background: 'rgba(255,255,255,0.08)',
+                  color: 'rgba(255,255,255,0.95)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  backdropFilter: 'blur(5px)',
+                  WebkitBackdropFilter: 'blur(5px)'
+                }}
+              >
+                <option value="both" style={{ background: '#1a1a1f', color: 'rgba(255,255,255,0.95)' }}>Both (Max chooses)</option>
+                <option value="workspace_only" style={{ background: '#1a1a1f', color: 'rgba(255,255,255,0.95)' }}>Max's Monitor only</option>
+                <option value="safari_only" style={{ background: '#1a1a1f', color: 'rgba(255,255,255,0.95)' }}>Your Safari only</option>
+              </select>
+            </div>
           </div>
         </section>
 
@@ -272,6 +325,9 @@ export default function SettingsSimple() {
             </>
           )}
         </section>
+
+        {/* AI Workspace Credentials */}
+        <CredentialsSettings />
 
         {/* About */}
         <section style={{
