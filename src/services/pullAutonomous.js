@@ -198,16 +198,27 @@ class PullAutonomousService {
         } catch (e) {
             logger.warn('[PullAutonomous] Could not get google_user_email', e);
         }
-        
-        // Merge userId, screenshot, and google_user_email into context
+
+        // Get browser mode preference for tool filtering
+        let browserMode = 'both';
+        try {
+            browserMode = localStorage.getItem('pref_browser_mode') || 'both';
+        } catch (e) {
+            logger.warn('[PullAutonomous] Could not get browser_mode', e);
+        }
+
+        // Merge userId, screenshot, google_user_email, and browser_mode into context
         const enrichedContext = {
             ...context,
             userId: userId || context?.userId,
             // Include initial screenshot for AI context (optional - may be null)
             initial_screenshot_b64: initialScreenshot,
             // Include google_user_email for Gmail/Calendar integration
-            google_user_email: googleUserEmail || context?.google_user_email
+            google_user_email: googleUserEmail || context?.google_user_email,
+            // Include browser_mode for tool filtering (workspace_only, safari_only, both)
+            browser_mode: browserMode
         };
+        logger.info('[PullAutonomous] Browser mode:', browserMode);
         
         // Use main process IPC for stable network calls with automatic retry
         // This avoids ERR_NETWORK_CHANGED errors from renderer process

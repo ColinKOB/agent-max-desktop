@@ -107,6 +107,16 @@ export default function SettingsSimple() {
     setBrowserPreference(value);
     try { localStorage.setItem('pref_browser_mode', value); } catch {}
 
+    // Sync to executor for immediate effect on next run
+    try {
+      if (window.executor?.setUserContext) {
+        window.executor.setUserContext({ browser_mode: value });
+        console.log('[Settings] Synced browser_mode to executor:', value);
+      }
+    } catch (err) {
+      console.error('[Settings] Failed to sync browser_mode to executor:', err);
+    }
+
     // Sync to Supabase via preferences API
     try {
       const userId = localStorage.getItem('user_id');

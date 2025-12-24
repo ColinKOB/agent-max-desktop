@@ -297,9 +297,12 @@ class PullExecutor {
         const fullContext = {
             ...this.systemContext,
             // Include google_user_email for Gmail/Calendar integration
-            google_user_email: this.userContext?.google_user_email || global.executorUserContext?.google_user_email
+            google_user_email: this.userContext?.google_user_email || global.executorUserContext?.google_user_email,
+            // Include browser_mode for tool filtering (workspace_only, safari_only, both)
+            browser_mode: this.userContext?.browser_mode || global.executorUserContext?.browser_mode || 'both'
         };
         console.log(`[PullExecutor] Context for arg gen - google_user_email: ${fullContext.google_user_email || 'NOT SET'}`);
+        console.log(`[PullExecutor] Context for arg gen - browser_mode: ${fullContext.browser_mode}`);
         
         const requestBody = {
             step: {

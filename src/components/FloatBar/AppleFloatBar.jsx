@@ -30,6 +30,7 @@ import {
   FileText,
   Square,
   Mail,
+  Monitor,
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import {
@@ -462,6 +463,9 @@ export default function AppleFloatBar({
 
   const [attachments, setAttachments] = useState([]); // [{file, preview, type}]
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+
+  // Max's Monitor workspace state
+  const [workspaceActive, setWorkspaceActive] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false); // Track drag-and-drop state
   const dragCounterRef = useRef(0); // Counter to handle nested drag events
   const fileInputRef = useRef(null);
@@ -1307,6 +1311,12 @@ export default function AppleFloatBar({
     if (googleEmail && window.executor?.setUserContext) {
       window.executor.setUserContext({ google_user_email: googleEmail });
       console.log('[FloatBar] Synced google_user_email to executor');
+    }
+    // Sync browser_mode preference to executor for tool filtering
+    const browserMode = localStorage.getItem('pref_browser_mode') || 'both';
+    if (window.executor?.setUserContext) {
+      window.executor.setUserContext({ browser_mode: browserMode });
+      console.log('[FloatBar] Synced browser_mode to executor:', browserMode);
     }
   }, []);
 
@@ -4895,6 +4905,46 @@ export default function AppleFloatBar({
     }
   }, []);
 
+  // Handle launching Max's Monitor workspace for user to pre-navigate
+  const handleLaunchWorkspace = useCallback(async () => {
+    try {
+      // Check if workspace is already active
+      const status = await window.workspace?.getStatus?.();
+      if (status?.active) {
+        // Already active - just notify user
+        toast.success("Max's Monitor is already open!");
+        return;
+      }
+
+      // Launch the workspace
+      const result = await window.workspace?.create?.();
+      if (result?.success) {
+        setWorkspaceActive(true);
+        toast.success("Max's Monitor launched! Navigate to where you want Max to work, then ask Max to help.");
+      } else {
+        toast.error("Failed to launch Max's Monitor");
+      }
+    } catch (err) {
+      console.error('[Workspace] Launch error:', err);
+      toast.error("Failed to launch Max's Monitor");
+    }
+  }, []);
+
+  // Check workspace status periodically
+  useEffect(() => {
+    const checkWorkspace = async () => {
+      try {
+        const status = await window.workspace?.getStatus?.();
+        setWorkspaceActive(status?.active ?? false);
+      } catch {
+        setWorkspaceActive(false);
+      }
+    };
+    checkWorkspace();
+    const interval = setInterval(checkWorkspace, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Tools overlay state for permission selection
   const [toolMenuOpen, setToolMenuOpen] = useState(false);
   const toolBtnRef = useRef(null);
@@ -5538,6 +5588,17 @@ export default function AppleFloatBar({
               userId={currentUser?.id || localStorage.getItem('user_id')}
               variant="tool"
             />
+            <button
+              className="apple-tool-btn"
+              onClick={handleLaunchWorkspace}
+              title={workspaceActive ? "Max's Monitor is active" : "Launch Max's Monitor"}
+              style={{
+                background: workspaceActive ? 'rgba(245, 158, 11, 0.2)' : undefined,
+                borderColor: workspaceActive ? 'rgba(245, 158, 11, 0.4)' : undefined,
+              }}
+            >
+              <Monitor size={16} style={{ color: workspaceActive ? '#f59e0b' : undefined }} />
+            </button>
             <button className="apple-tool-btn" onClick={handleSettings} title="Settings">
               <Settings size={16} />
             </button>
