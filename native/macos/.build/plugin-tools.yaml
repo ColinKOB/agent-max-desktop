@@ -1,0 +1,66 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "PackageStructure": ["<PackageStructure>"]
+  "VirtualDisplay-arm64-apple-macosx15.0-release.dylib": ["<VirtualDisplay-arm64-apple-macosx15.0-release.dylib>"]
+  "VirtualDisplay-arm64-apple-macosx15.0-release.module": ["<VirtualDisplay-arm64-apple-macosx15.0-release.module>"]
+  "main": ["<VirtualDisplay-arm64-apple-macosx15.0-release.dylib>","<VirtualDisplay-arm64-apple-macosx15.0-release.module>"]
+  "test": ["<VirtualDisplay-arm64-apple-macosx15.0-release.dylib>","<VirtualDisplay-arm64-apple-macosx15.0-release.module>"]
+default: "main"
+nodes:
+  "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/Sources/VirtualDisplay/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+commands:
+  "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/Sources/VirtualDisplay/Bridge.swift","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/Sources/VirtualDisplay/InputInjector.swift","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/Sources/VirtualDisplay/ScreenCapture.swift","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/Sources/VirtualDisplay/VirtualDisplayManager.swift"]
+    outputs: ["/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/sources"]
+    description: "Write auxiliary file /Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/sources"
+
+  "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.product/Objects.LinkFileList":
+    tool: write-auxiliary-file
+    inputs: ["<link-file-list>","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/Bridge.swift.o","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/InputInjector.swift.o","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/ScreenCapture.swift.o","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/VirtualDisplayManager.swift.o"]
+    outputs: ["/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.product/Objects.LinkFileList"
+
+  "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt":
+    tool: write-auxiliary-file
+    inputs: ["<swift-get-version>","/Library/Developer/CommandLineTools/usr/bin/swiftc"]
+    outputs: ["/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"]
+    always-out-of-date: "true"
+    description: "Write auxiliary file /Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"
+
+  "<VirtualDisplay-arm64-apple-macosx15.0-release.dylib>":
+    tool: phony
+    inputs: ["/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/libVirtualDisplay.dylib"]
+    outputs: ["<VirtualDisplay-arm64-apple-macosx15.0-release.dylib>"]
+
+  "<VirtualDisplay-arm64-apple-macosx15.0-release.module>":
+    tool: phony
+    inputs: ["/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/Bridge.swift.o","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/InputInjector.swift.o","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/ScreenCapture.swift.o","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/VirtualDisplayManager.swift.o","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/Modules/VirtualDisplay.swiftmodule"]
+    outputs: ["<VirtualDisplay-arm64-apple-macosx15.0-release.module>"]
+
+  "C.VirtualDisplay-arm64-apple-macosx15.0-release.dylib":
+    tool: shell
+    inputs: ["/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/Bridge.swift.o","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/InputInjector.swift.o","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/ScreenCapture.swift.o","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/VirtualDisplayManager.swift.o","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.product/Objects.LinkFileList"]
+    outputs: ["/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/libVirtualDisplay.dylib"]
+    description: "Linking ./.build/arm64-apple-macosx/release/libVirtualDisplay.dylib"
+    args: ["/Library/Developer/CommandLineTools/usr/bin/swiftc","-L","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release","-o","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/libVirtualDisplay.dylib","-module-name","VirtualDisplay","-Xlinker","-no_warn_duplicate_libraries","-emit-library","-Xlinker","-install_name","-Xlinker","@rpath/libVirtualDisplay.dylib","-Xlinker","-dead_strip","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.product/Objects.LinkFileList","-target","arm64-apple-macosx12.0","-framework","CoreGraphics","-framework","ScreenCaptureKit","-framework","AppKit","-framework","CoreVideo","-F","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-sdk","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-g","-Xlinker","-rpath","-Xlinker","/Library/Developer/CommandLineTools/Library/Developer/Frameworks"]
+
+  "C.VirtualDisplay-arm64-apple-macosx15.0-release.module":
+    tool: shell
+    inputs: ["/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/Sources/VirtualDisplay/Bridge.swift","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/Sources/VirtualDisplay/InputInjector.swift","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/Sources/VirtualDisplay/ScreenCapture.swift","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/Sources/VirtualDisplay/VirtualDisplayManager.swift","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/sources"]
+    outputs: ["/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/Bridge.swift.o","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/InputInjector.swift.o","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/ScreenCapture.swift.o","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/VirtualDisplayManager.swift.o","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/Modules/VirtualDisplay.swiftmodule"]
+    description: "Compiling Swift Module 'VirtualDisplay' (4 sources)"
+    args: ["/Library/Developer/CommandLineTools/usr/bin/swiftc","-module-name","VirtualDisplay","-emit-dependencies","-emit-module","-emit-module-path","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/Modules/VirtualDisplay.swiftmodule","-output-file-map","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/output-file-map.json","-parse-as-library","-whole-module-optimization","-num-threads","10","-c","@/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/sources","-I","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/Modules","-target","arm64-apple-macosx12.0","-O","-j10","-DSWIFT_PACKAGE","-module-cache-path","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/ModuleCache","-parseable-output","-parse-as-library","-emit-objc-header","-emit-objc-header-path","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/.build/arm64-apple-macosx/release/VirtualDisplay.build/VirtualDisplay-Swift.h","-swift-version","5","-F","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-sdk","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-g","-Xcc","-isysroot","-Xcc","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-Xcc","-fPIC","-Xcc","-g"]
+
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/Sources/VirtualDisplay/","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/Package.swift","/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/native/macos/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+

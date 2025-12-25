@@ -305,3 +305,178 @@ contextBridge.exposeInMainWorld('askUser', {
     ipcRenderer.removeAllListeners('ask-user-question');
   }
 });
+
+// ===========================================
+// Workspace API - Isolated BrowserWindow for AI
+// ===========================================
+// Used for research/browsing tasks without hijacking user's mouse/keyboard
+// The AI controls a separate Electron BrowserWindow, user sees it via PiP
+contextBridge.exposeInMainWorld('workspace', {
+  // Check if workspace is supported (always true - uses Electron BrowserWindow)
+  isSupported: () => ipcRenderer.invoke('workspace:is-supported'),
+
+  // Get current workspace status (active, url, title, windowId)
+  getStatus: () => ipcRenderer.invoke('workspace:get-status'),
+
+  // Create the AI workspace browser window
+  // Returns { success: boolean, windowId?: number, error?: string }
+  create: (width = 1280, height = 800) =>
+    ipcRenderer.invoke('workspace:create', { width, height }),
+
+  // Destroy the workspace browser window
+  destroy: () => ipcRenderer.invoke('workspace:destroy'),
+
+  // Check if workspace is currently active
+  isActive: () => ipcRenderer.invoke('workspace:is-active'),
+
+  // Get the window ID of the workspace
+  getWindowId: () => ipcRenderer.invoke('workspace:get-window-id'),
+
+  // Capture current frame as base64 PNG data URL
+  captureFrame: () => ipcRenderer.invoke('workspace:capture-frame'),
+
+  // Get last cached frame (faster, may be slightly stale)
+  getFrame: () => ipcRenderer.invoke('workspace:get-frame'),
+
+  // ===========================================
+  // Navigation
+  // ===========================================
+
+  // Navigate to a URL
+  navigate: (url) => ipcRenderer.invoke('workspace:navigate', { url }),
+
+  // Go back in browser history
+  back: () => ipcRenderer.invoke('workspace:back'),
+
+  // Go forward in browser history
+  forward: () => ipcRenderer.invoke('workspace:forward'),
+
+  // Reload the current page
+  reload: () => ipcRenderer.invoke('workspace:reload'),
+
+  // Search Google (convenience method)
+  search: (query) => ipcRenderer.invoke('workspace:search', { query }),
+
+  // ===========================================
+  // Input Actions
+  // ===========================================
+
+  // Click at coordinates
+  click: (x, y, button = 'left', clickCount = 1) =>
+    ipcRenderer.invoke('workspace:click', { x, y, button, clickCount }),
+
+  // Double click at coordinates
+  doubleClick: (x, y) =>
+    ipcRenderer.invoke('workspace:double-click', { x, y }),
+
+  // Right click at coordinates
+  rightClick: (x, y) =>
+    ipcRenderer.invoke('workspace:right-click', { x, y }),
+
+  // Type text (types into currently focused element)
+  type: (text) => ipcRenderer.invoke('workspace:type', { text }),
+
+  // Press a key (with optional modifiers)
+  pressKey: (key, modifiers = []) =>
+    ipcRenderer.invoke('workspace:press-key', { key, modifiers }),
+
+  // Scroll the page
+  scroll: (deltaX = 0, deltaY = 0, x = null, y = null) =>
+    ipcRenderer.invoke('workspace:scroll', { deltaX, deltaY, x, y }),
+
+  // ===========================================
+  // Element-based Actions (CSS selectors)
+  // ===========================================
+
+  // Click an element by CSS selector
+  clickElement: (selector) =>
+    ipcRenderer.invoke('workspace:click-element', { selector }),
+
+  // Type into an element by CSS selector
+  typeIntoElement: (selector, text) =>
+    ipcRenderer.invoke('workspace:type-into-element', { selector, text }),
+
+  // Find elements by CSS selector (returns array of element info)
+  findElements: (selector) =>
+    ipcRenderer.invoke('workspace:find-elements', { selector }),
+
+  // ===========================================
+  // Page Content Extraction
+  // ===========================================
+
+  // Get page text content
+  getText: () => ipcRenderer.invoke('workspace:get-text'),
+
+  // Get page HTML
+  getHtml: () => ipcRenderer.invoke('workspace:get-html'),
+
+  // Get all links on the page
+  getLinks: () => ipcRenderer.invoke('workspace:get-links'),
+
+  // Get all buttons on the page
+  getButtons: () => ipcRenderer.invoke('workspace:get-buttons'),
+
+  // Get all input fields on the page
+  getInputs: () => ipcRenderer.invoke('workspace:get-inputs'),
+
+  // Execute custom JavaScript in page context
+  executeScript: (script) =>
+    ipcRenderer.invoke('workspace:execute-script', { script }),
+
+  // ===========================================
+  // Window Management (Minimize/Restore)
+  // ===========================================
+
+  // Minimize the workspace (hides PiP but keeps browsing)
+  minimize: () => ipcRenderer.invoke('workspace:minimize'),
+
+  // Restore workspace from minimized state
+  restore: () => ipcRenderer.invoke('workspace:restore'),
+
+  // ===========================================
+  // Activity Logging
+  // ===========================================
+
+  // Get activity log entries
+  getActivityLog: (options = {}) =>
+    ipcRenderer.invoke('workspace:get-activity-log', options),
+
+  // Get list of sessions
+  getSessions: () => ipcRenderer.invoke('workspace:get-sessions'),
+
+  // Clear activity log
+  clearActivityLog: () => ipcRenderer.invoke('workspace:clear-activity-log'),
+
+  // ===========================================
+  // Frame streaming for PiP viewer
+  // ===========================================
+
+  // Subscribe to frame updates (for real-time PiP)
+  onFrame: (callback) => {
+    ipcRenderer.on('workspace:frame', (_event, frame) => {
+      try { callback(frame); } catch (e) { console.error('[Workspace] Frame callback error:', e); }
+    });
+  },
+
+  // Unsubscribe from frame updates
+  removeFrameListener: () => {
+    ipcRenderer.removeAllListeners('workspace:frame');
+  },
+
+  // ===========================================
+  // Common key codes (for pressKey)
+  // ===========================================
+  KeyCodes: {
+    RETURN: 'Return',
+    ENTER: 'Return',
+    TAB: 'Tab',
+    SPACE: 'Space',
+    DELETE: 'Delete',
+    BACKSPACE: 'Backspace',
+    ESCAPE: 'Escape',
+    LEFT: 'Left',
+    RIGHT: 'Right',
+    UP: 'Up',
+    DOWN: 'Down',
+  }
+});

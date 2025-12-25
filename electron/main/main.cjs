@@ -74,6 +74,26 @@ const { HandsOnDesktopClient } = require('../integrations/hands-on-desktop-clien
 const { DevicePairing } = require('./devicePairing.cjs');
 const telemetry = require('../telemetry/telemetry.cjs');
 const { executeMacOSTool, isMacOSTool, isMacOS } = require('../autonomous/macosAppleScript.cjs');
+const workspaceApiServer = require('../autonomous/workspaceApiServer.cjs');
+
+// Virtual Display Workspace (legacy - native Swift module)
+// NOTE: The native CGVirtualDisplay approach is deprecated.
+// We now use Electron BrowserWindow for the AI workspace (see workspaceManager.cjs)
+let workspaceModule = null;
+try {
+  workspaceModule = require('../../native/macos/index.cjs');
+  if (workspaceModule.isSupported()) {
+    console.log('[Workspace] Legacy virtual display module loaded');
+  } else {
+    console.log('[Workspace] Legacy virtual display not supported (expected - using BrowserWindow instead)');
+  }
+} catch (err) {
+  // This is expected - native module may not be built
+  console.log('[Workspace] Using BrowserWindow-based workspace (native module not available)');
+}
+
+// NEW: BrowserWindow-based workspace manager
+const { workspaceManager } = require('../workspace/workspaceManager.cjs');
 
 // Phase 2: Pull-based executor
 const { 
@@ -431,10 +451,15 @@ app.whenReady().then(async () => {
   console.log('✓ Executor manager initialized (Phase 2)');
 
   createWindow();
-  
+
   // Initialize desktop features
   createApplicationMenu(mainWindow);
   setupAutoUpdater(mainWindow);
+
+  // Start the workspace API server for Python backend communication
+  // NOTE: Now uses BrowserWindow-based workspace (workspaceManager), not native module
+  workspaceApiServer.startServer(mainWindow);
+  console.log('✓ Workspace API server started on port 3847');
   
   // NOTE: Hands on Desktop client DISABLED by default
   // This was causing unexpected background execution of commands without user requests.
@@ -465,6 +490,9 @@ app.on('before-quit', async () => {
 
   // Flush PostHog analytics
   await posthogAnalytics.shutdown();
+
+  // Stop workspace API server
+  workspaceApiServer.stopServer();
 
   // Cleanup executor (Phase 2)
   cleanupOnQuit();
@@ -1475,4 +1503,206 @@ ipcMain.handle('autonomous:create-run', async (event, { message, context, system
   activeRunAbortController = null;
   console.error('[Autonomous] All retry attempts failed:', lastError.message);
   throw lastError;
+});
+
+// ===========================================
+// WORKSPACE (BrowserWindow) IPC Handlers
+// Uses Electron BrowserWindow for AI isolation
+// ===========================================
+
+// Check if workspace is supported (always true now - uses BrowserWindow)
+ipcMain.handle('workspace:is-supported', () => {
+  return true; // BrowserWindow-based workspace is always supported
+});
+
+// Create workspace (BrowserWindow)
+ipcMain.handle('workspace:create', async (_event, { width = 1280, height = 800 } = {}) => {
+  try {
+    const result = await workspaceManager.create(width, height);
+    console.log('[Workspace] Created browser workspace:', result);
+    return result;
+  } catch (err) {
+    console.error('[Workspace] Failed to create:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Destroy workspace
+ipcMain.handle('workspace:destroy', async () => {
+  try {
+    const result = workspaceManager.destroy();
+    console.log('[Workspace] Destroyed browser workspace');
+    return result;
+  } catch (err) {
+    console.error('[Workspace] Failed to destroy:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Check if workspace is active
+ipcMain.handle('workspace:is-active', () => {
+  return workspaceManager.getIsActive();
+});
+
+// Get workspace window ID
+ipcMain.handle('workspace:get-window-id', () => {
+  return workspaceManager.getWindowId();
+});
+
+// Capture workspace frame as base64 PNG
+ipcMain.handle('workspace:capture-frame', async () => {
+  try {
+    return await workspaceManager.captureFrame();
+  } catch (err) {
+    console.error('[Workspace] Frame capture failed:', err);
+    return null;
+  }
+});
+
+// Get last cached frame
+ipcMain.handle('workspace:get-frame', () => {
+  return workspaceManager.getLastFrame();
+});
+
+// Navigate to URL
+ipcMain.handle('workspace:navigate', async (_event, { url }) => {
+  return await workspaceManager.navigateTo(url);
+});
+
+// Go back
+ipcMain.handle('workspace:back', async () => {
+  return await workspaceManager.goBack();
+});
+
+// Go forward
+ipcMain.handle('workspace:forward', async () => {
+  return await workspaceManager.goForward();
+});
+
+// Reload page
+ipcMain.handle('workspace:reload', async () => {
+  return await workspaceManager.reload();
+});
+
+// Search Google
+ipcMain.handle('workspace:search', async (_event, { query }) => {
+  return await workspaceManager.searchGoogle(query);
+});
+
+// Click at coordinates
+ipcMain.handle('workspace:click', async (_event, { x, y, button, clickCount }) => {
+  return await workspaceManager.clickAt(x, y, { button, clickCount });
+});
+
+// Double click
+ipcMain.handle('workspace:double-click', async (_event, { x, y }) => {
+  return await workspaceManager.doubleClick(x, y);
+});
+
+// Right click
+ipcMain.handle('workspace:right-click', async (_event, { x, y }) => {
+  return await workspaceManager.rightClick(x, y);
+});
+
+// Type text
+ipcMain.handle('workspace:type', async (_event, { text }) => {
+  return await workspaceManager.typeText(text);
+});
+
+// Press key
+ipcMain.handle('workspace:press-key', async (_event, { key, modifiers }) => {
+  return await workspaceManager.pressKey(key, modifiers || []);
+});
+
+// Scroll
+ipcMain.handle('workspace:scroll', async (_event, { deltaX, deltaY, x, y }) => {
+  return await workspaceManager.scroll(deltaX || 0, deltaY || 0, x, y);
+});
+
+// Click element by selector
+ipcMain.handle('workspace:click-element', async (_event, { selector }) => {
+  return await workspaceManager.clickElement(selector);
+});
+
+// Type into element by selector
+ipcMain.handle('workspace:type-into-element', async (_event, { selector, text }) => {
+  return await workspaceManager.typeIntoElement(selector, text);
+});
+
+// Find elements by selector
+ipcMain.handle('workspace:find-elements', async (_event, { selector }) => {
+  return await workspaceManager.findElements(selector);
+});
+
+// Get page text
+ipcMain.handle('workspace:get-text', async () => {
+  return await workspaceManager.getPageText();
+});
+
+// Get page HTML
+ipcMain.handle('workspace:get-html', async () => {
+  return await workspaceManager.getPageHtml();
+});
+
+// Get all links
+ipcMain.handle('workspace:get-links', async () => {
+  return await workspaceManager.getLinks();
+});
+
+// Get all buttons
+ipcMain.handle('workspace:get-buttons', async () => {
+  return await workspaceManager.getButtons();
+});
+
+// Get all input fields
+ipcMain.handle('workspace:get-inputs', async () => {
+  return await workspaceManager.getInputFields();
+});
+
+// Execute script in page context
+ipcMain.handle('workspace:execute-script', async (_event, { script }) => {
+  return await workspaceManager.executeScript(script);
+});
+
+// Get workspace status
+ipcMain.handle('workspace:get-status', () => {
+  return {
+    supported: true,
+    active: workspaceManager.getIsActive(),
+    minimized: workspaceManager.getIsMinimized(),
+    windowId: workspaceManager.getWindowId(),
+    url: workspaceManager.getCurrentUrl(),
+    title: workspaceManager.getPageTitle()
+  };
+});
+
+// Minimize workspace (hide PiP but keep running)
+ipcMain.handle('workspace:minimize', () => {
+  return workspaceManager.minimize();
+});
+
+// Restore workspace from minimized state
+ipcMain.handle('workspace:restore', () => {
+  return workspaceManager.restore();
+});
+
+// Get activity log
+ipcMain.handle('workspace:get-activity-log', (_event, options = {}) => {
+  return {
+    success: true,
+    log: workspaceManager.getActivityLog(options)
+  };
+});
+
+// Get sessions list
+ipcMain.handle('workspace:get-sessions', () => {
+  return {
+    success: true,
+    sessions: workspaceManager.getSessions()
+  };
+});
+
+// Clear activity log
+ipcMain.handle('workspace:clear-activity-log', () => {
+  return workspaceManager.clearActivityLog();
 });

@@ -24,9 +24,41 @@ if (!import.meta.env.VITE_SUPABASE_URL) {
 }
 
 /**
+ * Send password reset email via Supabase Auth.
+ * User will receive an email with a link to reset their password.
+ *
+ * @param {string} email - User's email address
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function resetPassword(email) {
+  if (!SUPABASE_ENABLED || !supabase) {
+    return { success: false, error: 'Authentication service unavailable' };
+  }
+
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      // Supabase will redirect here after user clicks reset link
+      // For desktop app, this goes to Supabase's hosted reset page
+      redirectTo: `${window.location.origin}/#/reset-password`,
+    });
+
+    if (error) {
+      logger.error('Password reset failed', error);
+      return { success: false, error: error.message };
+    }
+
+    logger.info('Password reset email sent', { email });
+    return { success: true };
+  } catch (err) {
+    logger.error('Password reset error', err);
+    return { success: false, error: err.message || 'Failed to send reset email' };
+  }
+}
+
+/**
  * Email/password sign-in, or create an account if it does not exist.
  * Returns the authenticated user or null when Supabase is disabled.
- * 
+ *
  * IMPORTANT: This function also checks if the user has an existing subscription
  * and links the current device to that account to prevent duplicate subscriptions.
  */

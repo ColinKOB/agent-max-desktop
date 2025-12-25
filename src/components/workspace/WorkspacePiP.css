@@ -1,0 +1,277 @@
+/**
+ * WorkspacePiP Styles - Max's Monitor
+ * Floating picture-in-picture viewer for AI workspace
+ * Orange/Amber accent theme to distinguish from user's browser
+ */
+
+/* Orange/Amber accent color variables */
+:root {
+  --max-accent: #f59e0b;
+  --max-accent-light: #fbbf24;
+  --max-accent-dark: #d97706;
+  --max-accent-glow: rgba(245, 158, 11, 0.4);
+}
+
+.workspace-pip {
+  position: fixed;
+  z-index: 9999;
+  background: rgba(20, 20, 25, 0.95);
+  border-radius: 12px;
+  /* Orange/Amber accent border to distinguish from user's browser */
+  border: 2px solid var(--max-accent);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 0 20px var(--max-accent-glow);
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  user-select: none;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.workspace-pip:hover {
+  border-color: var(--max-accent-light);
+  box-shadow:
+    0 12px 48px rgba(0, 0, 0, 0.6),
+    0 0 30px var(--max-accent-glow);
+}
+
+.workspace-pip.dragging {
+  cursor: grabbing;
+  border-color: var(--max-accent-light);
+  box-shadow:
+    0 16px 64px rgba(0, 0, 0, 0.7),
+    0 0 40px var(--max-accent-glow);
+}
+
+/* Header - Max's Monitor Branding */
+.pip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, rgba(30, 30, 35, 0.95) 0%, rgba(40, 35, 25, 0.95) 100%);
+  cursor: grab;
+  border-bottom: 1px solid var(--max-accent-dark);
+}
+
+.pip-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.3px;
+}
+
+.pip-max-icon {
+  font-size: 16px;
+}
+
+.pip-brand-name {
+  color: var(--max-accent);
+  font-weight: 600;
+  text-shadow: 0 0 10px var(--max-accent-glow);
+}
+
+.pip-working-text {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+  margin-left: 4px;
+}
+
+.pip-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #555;
+}
+
+.pip-status.active {
+  background: var(--max-accent);
+  box-shadow: 0 0 8px var(--max-accent-glow);
+  animation: pulse-amber 2s infinite;
+}
+
+.pip-status.inactive {
+  background: #6b7280;
+}
+
+@keyframes pulse-amber {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 8px var(--max-accent-glow);
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 16px var(--max-accent-glow);
+  }
+}
+
+/* Controls */
+.pip-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.pip-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.pip-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.pip-btn.pip-minimize:hover {
+  background: var(--max-accent-dark);
+  color: #fff;
+}
+
+.pip-btn.pip-close:hover {
+  background: rgba(239, 68, 68, 0.8);
+}
+
+/* URL Bar */
+.pip-url-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: rgba(25, 25, 30, 0.95);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 11px;
+}
+
+.pip-url-icon {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.pip-url-text {
+  color: rgba(255, 255, 255, 0.6);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Mono', Monaco, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+/* Canvas Container */
+.pip-canvas-container {
+  position: relative;
+  width: 100%;
+  height: calc(100% - 60px); /* Account for header (36px) + URL bar (24px) */
+  background: #000;
+  overflow: hidden;
+}
+
+.pip-canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Placeholder */
+.pip-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+.pip-placeholder-icon {
+  font-size: 48px;
+  opacity: 0.5;
+}
+
+.pip-placeholder-text {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Paused Overlay */
+.pip-paused-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.pip-paused-overlay span {
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 1px;
+}
+
+/* Error */
+.pip-error {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  padding: 6px 10px;
+  background: rgba(239, 68, 68, 0.9);
+  border-radius: 6px;
+  font-size: 11px;
+  color: #fff;
+  text-align: center;
+}
+
+/* Resize Handle */
+.pip-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  cursor: nwse-resize;
+  background: linear-gradient(
+    135deg,
+    transparent 50%,
+    rgba(255, 255, 255, 0.2) 50%
+  );
+  border-radius: 0 0 12px 0;
+  transition: background 0.15s ease;
+}
+
+.pip-resize-handle:hover {
+  background: linear-gradient(
+    135deg,
+    transparent 50%,
+    var(--max-accent) 50%
+  );
+}
+
+/* Frame Counter (debug) */
+.pip-frame-counter {
+  position: absolute;
+  bottom: 4px;
+  left: 8px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: monospace;
+}

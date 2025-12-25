@@ -3,6 +3,7 @@ import SettingsSimple from './SettingsSimple.jsx';
 import { BillingSettings } from '../components/billing/BillingSettings.jsx';
 import ConversationHistory from '../components/ConversationHistory.jsx';
 import DeepDiveTab from '../components/settings/DeepDiveTab.jsx';
+import { WorkspaceActivityLog } from '../components/workspace/WorkspaceActivityLog.tsx';
 import logo from '../assets/AgentMaxLogo.png';
 
 export default function SettingsApp() {
@@ -54,6 +55,7 @@ export default function SettingsApp() {
     { id: 'billing', label: 'Billing' },
     { id: 'deepdive', label: 'Deep Dive' },
     { id: 'history', label: 'History' },
+    { id: 'activity', label: "Max's Activity", icon: '🤖' },
   ];
 
   const renderContent = () => {
@@ -89,7 +91,7 @@ export default function SettingsApp() {
         );
       case 'deepdive':
         return (
-          <DeepDiveTab 
+          <DeepDiveTab
             selectedDeepDiveId={selectedDeepDiveId}
             onClose={() => {
               setSelectedDeepDiveId(null);
@@ -99,6 +101,18 @@ export default function SettingsApp() {
               }
             }}
           />
+        );
+      case 'activity':
+        return (
+          <div style={{ minHeight: '100%', padding: '24px' }}>
+            <div style={{ maxWidth: 900, margin: '0 auto', height: 'calc(100vh - 140px)' }}>
+              <WorkspaceActivityLog
+                maxEntries={200}
+                autoRefresh={true}
+                refreshInterval={3000}
+              />
+            </div>
+          </div>
         );
       default:
         return <SettingsSimple />;
@@ -176,6 +190,7 @@ export default function SettingsApp() {
                       }
                     }}
                   >
+                    {t.icon && <span style={{ marginRight: 4 }}>{t.icon}</span>}
                     {t.label}
                   </button>
                 </li>

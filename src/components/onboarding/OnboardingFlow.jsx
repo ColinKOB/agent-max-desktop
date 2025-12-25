@@ -40,7 +40,7 @@ import { GoogleConnect } from '../../components/GoogleConnect';
 import apiConfigManager from '../../config/apiConfig';
 import LogoPng from '../../assets/AgentMaxLogo.png';
 import { setName as setProfileName, setPreference as setUserPreference, updateProfile as updateUserProfile, flushPreAuthQueue } from '../../services/supabaseMemory';
-import { emailPasswordSignInOrCreate, ensureUsersRow, supabase } from '../../services/supabase.js';
+import { emailPasswordSignInOrCreate, ensureUsersRow, supabase, resetPassword } from '../../services/supabase.js';
 import { isGoogleComingSoon } from '../../config/featureGates';
 import {
   trackOnboardingStarted,
@@ -644,12 +644,11 @@ function UseCaseStep({ userData, onNext, onBack }) {
   };
 
   return (
-    <div style={{ 
-      maxWidth: 380, 
-      margin: '0 auto', 
+    <div style={{
+      maxWidth: 380,
+      margin: '0 auto',
       padding: '12px 16px',
       height: '100%',
-      maxHeight: 'calc(100vh - 60px)',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
@@ -667,7 +666,7 @@ function UseCaseStep({ userData, onNext, onBack }) {
         </p>
       </motion.div>
 
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingBottom: 4 }}>
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingBottom: 4, paddingRight: 4 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {USE_CASE_OPTIONS.map((option, index) => {
             const Icon = option.icon;
@@ -815,7 +814,6 @@ function ModeExplainerStep({ onNext, onBack }) {
       margin: '0 auto',
       padding: '12px 16px',
       height: '100%',
-      maxHeight: 'calc(100vh - 60px)',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
@@ -972,17 +970,19 @@ function ModeExplainerStep({ onNext, onBack }) {
 // STEP 3: EMAIL/ACCOUNT (Sign Up or Sign In)
 // ============================================================================
 function AccountStep({ onNext, onBack, userData }) {
-  const [mode, setMode] = useState('signin'); // 'signin' or 'signup' - default to signin for returning users
+  const [mode, setMode] = useState('signin'); // 'signin', 'signup', or 'forgot-password'
   const [email, setEmail] = useState(userData?.email || '');
   const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [error, setError] = useState(null);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   const validEmail = (v) => /.+@.+\..+/.test(v);
   const strongPw = (v) => v.length >= 8;
   const canSubmit = validEmail(email) && strongPw(password) && !saving;
+  const canSubmitReset = validEmail(email) && !saving;
 
   const handleSignUp = async () => {
     console.log('[Onboarding] ========== SIGN UP HANDLER CALLED ==========');
@@ -1273,6 +1273,33 @@ function AccountStep({ onNext, onBack, userData }) {
     }
   };
 
+  const handleForgotPassword = async () => {
+    console.log('[Onboarding] ========== FORGOT PASSWORD HANDLER CALLED ==========');
+    console.log('[Onboarding] Email:', email);
+    if (!canSubmitReset) return;
+    setSaving(true);
+    setError(null);
+    setResetEmailSent(false);
+
+    try {
+      const trimmedEmail = email.trim();
+      const result = await resetPassword(trimmedEmail);
+
+      if (!result.success) {
+        setError(result.error || 'Failed to send reset email. Please try again.');
+        return;
+      }
+
+      console.log('[Onboarding] Password reset email sent to:', trimmedEmail);
+      setResetEmailSent(true);
+    } catch (err) {
+      console.error('[Onboarding] Forgot password failed:', err);
+      setError(err.message || 'Failed to send reset email. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSubmit = mode === 'signin' ? handleSignIn : handleSignUp;
 
   return (
@@ -1287,20 +1314,25 @@ function AccountStep({ onNext, onBack, userData }) {
         animate={{ opacity: 1, y: 0 }}
       >
         <h2 style={styles.heading}>
-          {mode === 'signin'
-            ? 'Welcome back!'
-            : userData?.name
-              ? `Almost there, ${userData.name}!`
-              : 'Create your account'}
+          {mode === 'forgot-password'
+            ? 'Reset your password'
+            : mode === 'signin'
+              ? 'Welcome back!'
+              : userData?.name
+                ? `Almost there, ${userData.name}!`
+                : 'Create your account'}
         </h2>
         <p style={styles.subheading}>
-          {mode === 'signin'
-            ? 'Sign in to access your Agent Max account.'
-            : 'New here? Create an account to get started.'}
+          {mode === 'forgot-password'
+            ? "Enter your email and we'll send you a reset link."
+            : mode === 'signin'
+              ? 'Sign in to access your Agent Max account.'
+              : 'New here? Create an account to get started.'}
         </p>
       </motion.div>
 
-      {/* Mode Toggle */}
+      {/* Mode Toggle - Hide when in forgot-password mode */}
+      {mode !== 'forgot-password' && (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -1352,6 +1384,7 @@ function AccountStep({ onNext, onBack, userData }) {
           </button>
         </div>
       </motion.div>
+      )}
 
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -1373,20 +1406,65 @@ function AccountStep({ onNext, onBack, userData }) {
           }}
         />
 
-        <input
-          value={password}
-          onChange={(e) => { setPassword(e.target.value); setError(null); }}
-          onFocus={() => setPasswordFocused(true)}
-          onBlur={() => setPasswordFocused(false)}
-          onKeyDown={(e) => e.key === 'Enter' && canSubmit && handleSubmit()}
-          placeholder={mode === 'signin' ? 'Password' : 'Create password (8+ characters)'}
-          type="password"
-          style={{
-            ...styles.input,
-            borderColor: passwordFocused ? BRAND_ORANGE_GLOW : 'rgba(255, 255, 255, 0.12)',
-            boxShadow: passwordFocused ? `0 0 0 3px ${BRAND_ORANGE_LIGHT}` : 'none',
-          }}
-        />
+        {/* Password input - hidden in forgot-password mode */}
+        {mode !== 'forgot-password' && (
+          <input
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setError(null); }}
+            onFocus={() => setPasswordFocused(true)}
+            onBlur={() => setPasswordFocused(false)}
+            onKeyDown={(e) => e.key === 'Enter' && canSubmit && handleSubmit()}
+            placeholder={mode === 'signin' ? 'Password' : 'Create password (8+ characters)'}
+            type="password"
+            style={{
+              ...styles.input,
+              borderColor: passwordFocused ? BRAND_ORANGE_GLOW : 'rgba(255, 255, 255, 0.12)',
+              boxShadow: passwordFocused ? `0 0 0 3px ${BRAND_ORANGE_LIGHT}` : 'none',
+            }}
+          />
+        )}
+
+        {/* Forgot Password link - only show in signin mode */}
+        {mode === 'signin' && (
+          <button
+            onClick={() => { setMode('forgot-password'); setError(null); setResetEmailSent(false); }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: BRAND_ORANGE,
+              fontSize: 13,
+              cursor: 'pointer',
+              textAlign: 'right',
+              padding: 0,
+              marginTop: -4,
+            }}
+          >
+            Forgot password?
+          </button>
+        )}
+
+        {/* Success Message for password reset */}
+        {mode === 'forgot-password' && resetEmailSent && (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+              padding: 12,
+              background: 'rgba(34, 197, 94, 0.1)',
+              borderRadius: 8,
+              border: '1px solid rgba(34, 197, 94, 0.2)',
+              color: '#22c55e',
+              fontSize: 13,
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 8,
+            }}
+          >
+            <Check style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} />
+            Check your email for a password reset link.
+          </motion.div>
+        )}
 
         {/* Error Message */}
         {error && (
@@ -1411,25 +1489,51 @@ function AccountStep({ onNext, onBack, userData }) {
           </motion.div>
         )}
 
-        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-          <button onClick={onBack} style={styles.secondaryButton}>
-            Back
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            style={{
-              ...styles.primaryButton,
-              flex: 1,
-              opacity: !canSubmit ? 0.5 : 1,
-              cursor: !canSubmit ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {saving
-              ? (mode === 'signin' ? 'Signing in...' : 'Creating...')
-              : (mode === 'signin' ? 'Sign In' : 'Create Account')}
-          </button>
-        </div>
+        {/* Buttons - different layout for forgot-password mode */}
+        {mode === 'forgot-password' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
+            <button
+              onClick={handleForgotPassword}
+              disabled={!canSubmitReset || resetEmailSent}
+              style={{
+                ...styles.primaryButton,
+                opacity: (!canSubmitReset || resetEmailSent) ? 0.5 : 1,
+                cursor: (!canSubmitReset || resetEmailSent) ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {saving ? 'Sending...' : resetEmailSent ? 'Email Sent!' : 'Send Reset Link'}
+            </button>
+            <button
+              onClick={() => { setMode('signin'); setError(null); setResetEmailSent(false); }}
+              style={{
+                ...styles.secondaryButton,
+                width: '100%',
+              }}
+            >
+              Back to Sign In
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+            <button onClick={onBack} style={styles.secondaryButton}>
+              Back
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!canSubmit}
+              style={{
+                ...styles.primaryButton,
+                flex: 1,
+                opacity: !canSubmit ? 0.5 : 1,
+                cursor: !canSubmit ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {saving
+                ? (mode === 'signin' ? 'Signing in...' : 'Creating...')
+                : (mode === 'signin' ? 'Sign In' : 'Create Account')}
+            </button>
+          </div>
+        )}
       </motion.div>
     </div>
   );
@@ -2586,12 +2690,11 @@ function SubscriptionStep({ userData, onNext, onBack }) {
   }
 
   return (
-    <div style={{ 
-      maxWidth: 380, 
-      margin: '0 auto', 
+    <div style={{
+      maxWidth: 380,
+      margin: '0 auto',
       padding: '8px 12px',
       height: '100%',
-      maxHeight: 'calc(100vh - 40px)',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
@@ -2890,15 +2993,14 @@ function CompleteStep({ userData, onNext }) {
   }, [confettiTriggered]);
 
   return (
-    <div 
+    <div
       ref={confettiRef}
-      style={{ 
-        maxWidth: 360, 
-        margin: '0 auto', 
+      style={{
+        maxWidth: 360,
+        margin: '0 auto',
         padding: '12px 16px',
         textAlign: 'center',
         height: '100%',
-        maxHeight: 'calc(100vh - 40px)',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
@@ -3207,7 +3309,7 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
   return (
     <div className="absolute inset-0 z-50">
       <div className="h-full w-full flex flex-col px-3 py-3">
-        <div className="flex-1 w-full mx-auto" style={{ maxWidth: 480 }}>
+        <div className="flex-1 w-full mx-auto" style={{ maxWidth: 480, maxHeight: '100%' }}>
           <div
             className="w-full h-full rounded-2xl overflow-hidden"
             style={{
@@ -3219,6 +3321,7 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
               WebkitBackdropFilter: 'blur(20px)',
               display: 'flex',
               flexDirection: 'column',
+              maxHeight: '100%',
             }}
           >
             {/* Progress Indicator */}
@@ -3230,11 +3333,12 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
             )}
 
             {/* Step Content */}
-            <div style={{ 
-              flex: 1, 
-              overflow: 'auto',
+            <div style={{
+              flex: 1,
+              overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
+              minHeight: 0,
             }}>
               <AnimatePresence mode="wait">
                 <motion.div
@@ -3243,7 +3347,7 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -30 }}
                   transition={{ duration: 0.25, ease: 'easeInOut' }}
-                  style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}
                 >
                   <CurrentStepComponent
                     userData={userData}

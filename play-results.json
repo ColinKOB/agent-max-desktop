@@ -52,7 +52,7 @@
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 60000
+        "timeout": 30000
       },
       {
         "outputDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results",
@@ -68,7 +68,7 @@
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 60000
+        "timeout": 30000
       },
       {
         "outputDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results",
@@ -84,7 +84,7 @@
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 60000
+        "timeout": 30000
       },
       {
         "outputDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results",
@@ -100,7 +100,7 @@
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 60000
+        "timeout": 30000
       },
       {
         "outputDir": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results",
@@ -116,7 +116,7 @@
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 60000
+        "timeout": 30000
       }
     ],
     "shard": null,
@@ -133,129 +133,209 @@
   },
   "suites": [
     {
-      "title": "test-signin-headed.spec.js",
-      "file": "test-signin-headed.spec.js",
+      "title": "full-signup-debug.spec.js",
+      "file": "full-signup-debug.spec.js",
       "column": 0,
       "line": 0,
-      "specs": [
+      "specs": [],
+      "suites": [
         {
-          "title": "sign in with existing user should skip to complete",
-          "ok": false,
-          "tags": [],
-          "tests": [
+          "title": "Signup Debug Test",
+          "file": "full-signup-debug.spec.js",
+          "line": 12,
+          "column": 6,
+          "specs": [
             {
-              "timeout": 60000,
-              "annotations": [],
-              "expectedStatus": "passed",
-              "projectId": "chromium",
-              "projectName": "chromium",
-              "results": [
+              "title": "should create new user and capture all logs",
+              "ok": true,
+              "tags": [],
+              "tests": [
                 {
-                  "workerIndex": 0,
-                  "parallelIndex": 0,
-                  "status": "failed",
-                  "duration": 22935,
-                  "error": {
-                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('input[type=\"email\"], input[placeholder*=\"email\" i]').first()\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('input[type=\"email\"], input[placeholder*=\"email\" i]').first()\u001b[22m\n",
-                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('input[type=\"email\"], input[placeholder*=\"email\" i]').first()\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('input[type=\"email\"], input[placeholder*=\"email\" i]').first()\u001b[22m\n\n    at /Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e/test-signin-headed.spec.js:67:30",
-                    "location": {
-                      "file": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e/test-signin-headed.spec.js",
-                      "column": 30,
-                      "line": 67
-                    },
-                    "snippet": "  65 |     console.log('\\n=== Filling in credentials ===');\n  66 |     const emailInput = page.locator('input[type=\"email\"], input[placeholder*=\"email\" i]').first();\n> 67 |     await expect(emailInput).toBeVisible({ timeout: 5000 });\n     |                              ^\n  68 |     await emailInput.fill('colinkobrien1@gmail.com');\n  69 |\n  70 |     // Fill in password"
-                  },
-                  "errors": [
-                    {
-                      "location": {
-                        "file": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e/test-signin-headed.spec.js",
-                        "column": 30,
-                        "line": 67
-                      },
-                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('input[type=\"email\"], input[placeholder*=\"email\" i]').first()\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('input[type=\"email\"], input[placeholder*=\"email\" i]').first()\u001b[22m\n\n\n  65 |     console.log('\\n=== Filling in credentials ===');\n  66 |     const emailInput = page.locator('input[type=\"email\"], input[placeholder*=\"email\" i]').first();\n> 67 |     await expect(emailInput).toBeVisible({ timeout: 5000 });\n     |                              ^\n  68 |     await emailInput.fill('colinkobrien1@gmail.com');\n  69 |\n  70 |     // Fill in password\n    at /Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e/test-signin-headed.spec.js:67:30"
-                    }
-                  ],
-                  "stdout": [
-                    {
-                      "text": "BROWSER: [App] Onboarding not completed - showing welcome flow\n"
-                    },
-                    {
-                      "text": "BROWSER: [App] Onboarding not completed - showing welcome flow\n"
-                    },
-                    {
-                      "text": "BROWSER: [App] Onboarding not completed - showing welcome flow\n"
-                    },
-                    {
-                      "text": "BROWSER: [App] Onboarding not completed - showing welcome flow\n"
-                    },
-                    {
-                      "text": "\n=== Looking for Get Started button ===\n"
-                    },
-                    {
-                      "text": "No start button found, checking current state...\n"
-                    },
-                    {
-                      "text": "Page has Sign In: \u001b[33mfalse\u001b[39m\n"
-                    },
-                    {
-                      "text": "Page has Sign Up: \u001b[33mfalse\u001b[39m\n"
-                    },
-                    {
-                      "text": "\n=== Looking for Sign In option ===\n"
-                    },
-                    {
-                      "text": "Sign In tab not found or already selected\n"
-                    },
-                    {
-                      "text": "\n=== Filling in credentials ===\n"
-                    }
-                  ],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2025-12-16T15:00:30.694Z",
+                  "timeout": 120000,
                   "annotations": [],
-                  "attachments": [
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
                     {
-                      "name": "screenshot",
-                      "contentType": "image/png",
-                      "path": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results/test-signin-headed-sign-in-70df9-ser-should-skip-to-complete-chromium/test-failed-1.png"
-                    },
-                    {
-                      "name": "video",
-                      "contentType": "video/webm",
-                      "path": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results/test-signin-headed-sign-in-70df9-ser-should-skip-to-complete-chromium/video.webm"
-                    },
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/test-results/test-signin-headed-sign-in-70df9-ser-should-skip-to-complete-chromium/error-context.md"
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 18051,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "\n========================================\n"
+                        },
+                        {
+                          "text": "🔍 SIGNUP DEBUG TEST\n"
+                        },
+                        {
+                          "text": "========================================\n"
+                        },
+                        {
+                          "text": "Test Email: newuser-1766496799363@agentmax.test\n"
+                        },
+                        {
+                          "text": "========================================\n\n"
+                        },
+                        {
+                          "text": "📍 STEP 1: Welcome Screen\n"
+                        },
+                        {
+                          "text": "[CONSOLE log] [Onboarding] ========== handleNext CALLED ==========\n"
+                        },
+                        {
+                          "text": "[CONSOLE log] [Onboarding] Received data: {}\n"
+                        },
+                        {
+                          "text": "[CONSOLE log] [Onboarding] Current step index: 0\n"
+                        },
+                        {
+                          "text": "[CONSOLE log] [Onboarding] Steps array: [welcome, account, legal, name, usecase, modes, verify-email, google, subscription, complete]\n"
+                        },
+                        {
+                          "text": "[CONSOLE log] [Onboarding] No skipToStep in data, proceeding normally\n"
+                        },
+                        {
+                          "text": "  ✓ Clicked Get Started\n"
+                        },
+                        {
+                          "text": "\n📍 STEP 2: Account Creation\n"
+                        },
+                        {
+                          "text": "  ✓ Clicked Sign Up tab\n"
+                        },
+                        {
+                          "text": "  ✓ Email: newuser-1766496799363@agentmax.test\n"
+                        },
+                        {
+                          "text": "  ✓ Password filled\n"
+                        },
+                        {
+                          "text": "  Page has error messages before submit: true\n"
+                        },
+                        {
+                          "text": "\n  Looking for submit button...\n"
+                        },
+                        {
+                          "text": "    Button: \"Sign In\" - disabled: false\n"
+                        },
+                        {
+                          "text": "    Button: \"Sign Up\" - disabled: false\n"
+                        },
+                        {
+                          "text": "  → Clicking: \"Sign Up\"\n"
+                        },
+                        {
+                          "text": "  Submit clicked: true\n"
+                        },
+                        {
+                          "text": "\n  Waiting for auth response...\n"
+                        },
+                        {
+                          "text": "  Error elements found: 0\n"
+                        },
+                        {
+                          "text": "\n📍 Current URL: http://localhost:5173/#/onboarding\n"
+                        },
+                        {
+                          "text": "\n========================================\n"
+                        },
+                        {
+                          "text": "📡 NETWORK SUMMARY\n"
+                        },
+                        {
+                          "text": "========================================\n"
+                        },
+                        {
+                          "text": "Auth requests: 1\n"
+                        },
+                        {
+                          "text": "  200 services/oauth.js\n"
+                        },
+                        {
+                          "text": "\n========================================\n"
+                        },
+                        {
+                          "text": "📋 RELEVANT CONSOLE LOGS\n"
+                        },
+                        {
+                          "text": "========================================\n"
+                        },
+                        {
+                          "text": "  [log] \u001b[32m[2025-12-23T13:33:20.699Z] [AgentMax:Supabase] INFO: Supabase client initialized\u001b[0m\n{\n  \"url\": \"https://rburoajxsyfousnleydw.supabase.co\",\n  \"enabled\": true\n}\n"
+                        },
+                        {
+                          "text": "  [log] [Onboarding] ========== handleNext CALLED ==========\n"
+                        },
+                        {
+                          "text": "  [log] [Onboarding] Received data: {}\n"
+                        },
+                        {
+                          "text": "  [log] [Onboarding] Current step index: 0\n"
+                        },
+                        {
+                          "text": "  [log] [Onboarding] Steps array: [welcome, account, legal, name, usecase, modes, verify-email, google, subscription, complete]\n"
+                        },
+                        {
+                          "text": "  [log] [Onboarding] No skipToStep in data, proceeding normally\n"
+                        },
+                        {
+                          "text": "\n📍 Continuing through remaining steps...\n"
+                        },
+                        {
+                          "text": "[CONSOLE log] [Onboarding] ========== SIGN IN HANDLER CALLED ==========\n"
+                        },
+                        {
+                          "text": "[CONSOLE log] [Onboarding] Mode: signin | Email: newuser-1766496799363@agentmax.test\n"
+                        },
+                        {
+                          "text": "[NETWORK 400] https://rburoajxsyfousnleydw.supabase.co/auth/v1/token?grant_type=password\n"
+                        },
+                        {
+                          "text": "\n========================================\n"
+                        },
+                        {
+                          "text": "📊 FINAL STATE\n"
+                        },
+                        {
+                          "text": "========================================\n"
+                        },
+                        {
+                          "text": "Final URL: http://localhost:5173/#/onboarding\n"
+                        },
+                        {
+                          "text": "\n⚠️  Check Supabase for user: newuser-1766496799363@agentmax.test\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-12-23T13:33:19.367Z",
+                      "annotations": [],
+                      "attachments": []
                     }
                   ],
-                  "errorLocation": {
-                    "file": "/Users/colinobrien/Desktop/Coding Projects/Agent-Max-Master/agent-max-desktop/tests/e2e/test-signin-headed.spec.js",
-                    "column": 30,
-                    "line": 67
-                  }
+                  "status": "expected"
                 }
               ],
-              "status": "unexpected"
+              "id": "564872db1c86ac56576d-01976e5fef42bf326873",
+              "file": "full-signup-debug.spec.js",
+              "line": 15,
+              "column": 7
             }
-          ],
-          "id": "6b4fa24d3315036c86f9-7e1bb804eb010c475a5e",
-          "file": "test-signin-headed.spec.js",
-          "line": 6,
-          "column": 1
+          ]
         }
       ]
     }
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-12-16T15:00:30.375Z",
-    "duration": 23773.31,
-    "expected": 0,
+    "startTime": "2025-12-23T13:33:19.012Z",
+    "duration": 19214.537,
+    "expected": 1,
     "skipped": 0,
-    "unexpected": 1,
+    "unexpected": 0,
     "flaky": 0
   }
 }
