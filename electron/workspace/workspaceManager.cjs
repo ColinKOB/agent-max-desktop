@@ -879,6 +879,227 @@ class WorkspaceManager {
   }
 
   /**
+   * Build a search URL for common sites - much faster than typing into search box
+   * Supports: amazon, google, target, walmart, ebay, youtube, bing
+   */
+  buildSearchUrl(site, query) {
+    const encodedQuery = encodeURIComponent(query);
+    const searchUrls = {
+      'amazon': `https://www.amazon.com/s?k=${encodedQuery}`,
+      'google': `https://www.google.com/search?q=${encodedQuery}`,
+      'target': `https://www.target.com/s?searchTerm=${encodedQuery}`,
+      'walmart': `https://www.walmart.com/search?q=${encodedQuery}`,
+      'ebay': `https://www.ebay.com/sch/i.html?_nkw=${encodedQuery}`,
+      'youtube': `https://www.youtube.com/results?search_query=${encodedQuery}`,
+      'bing': `https://www.bing.com/search?q=${encodedQuery}`,
+      'bestbuy': `https://www.bestbuy.com/site/searchpage.jsp?st=${encodedQuery}`,
+      'etsy': `https://www.etsy.com/search?q=${encodedQuery}`,
+    };
+
+    const url = searchUrls[site.toLowerCase()];
+    if (!url) {
+      return { success: false, error: `Unknown site: ${site}. Supported: ${Object.keys(searchUrls).join(', ')}` };
+    }
+    return { success: true, url, site, query };
+  }
+
+  /**
+   * Navigate directly to search results - combines buildSearchUrl + navigate
+   */
+  async searchSite(site, query) {
+    const urlResult = this.buildSearchUrl(site, query);
+    if (!urlResult.success) {
+      return urlResult;
+    }
+
+    this.logActivity('search_site', { site, query, url: urlResult.url });
+    return this.navigateTo(urlResult.url);
+  }
+
+  /**
+   * Wait for an element to appear on the page
+   * More reliable than fixed waits
+   */
+  async waitForElement(selector, options = {}) {
+    if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
+
+    const { timeout = 10000, interval = 200 } = options;
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeout) {
+      try {
+        const result = await this.executeScript(`
+          (function() {
+            const el = document.querySelector('${selector.replace(/'/g, "\\'")}');
+            if (el) {
+              const rect = el.getBoundingClientRect();
+              return {
+                found: true,
+                visible: rect.width > 0 && rect.height > 0,
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+              };
+            }
+            return { found: false };
+          })()
+        `);
+
+        if (result.success && result.result.found && result.result.visible) {
+          this.logActivity('wait_for_element', { selector, elapsed: Date.now() - startTime });
+          return {
+            success: true,
+            selector,
+            elapsed: Date.now() - startTime,
+            x: result.result.x,
+            y: result.result.y
+          };
+        }
+      } catch (e) {
+        // Continue waiting
+      }
+
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
+
+    this.logActivity('wait_for_element', { selector }, 'error', 'Timeout waiting for element');
+    return { success: false, error: `Timeout waiting for element: ${selector}` };
+  }
+
+  /**
+   * Wait for text to appear on the page
+   */
+  async waitForText(searchText, options = {}) {
+    if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
+
+    const { timeout = 10000, interval = 200 } = options;
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeout) {
+      try {
+        const result = await this.executeScript(`
+          (function() {
+            const body = document.body.innerText || '';
+            return body.toLowerCase().includes('${searchText.toLowerCase().replace(/'/g, "\\'")}');
+          })()
+        `);
+
+        if (result.success && result.result) {
+          this.logActivity('wait_for_text', { searchText, elapsed: Date.now() - startTime });
+          return { success: true, searchText, elapsed: Date.now() - startTime };
+        }
+      } catch (e) {
+        // Continue waiting
+      }
+
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
+
+    this.logActivity('wait_for_text', { searchText }, 'error', 'Timeout waiting for text');
+    return { success: false, error: `Timeout waiting for text: ${searchText}` };
+  }
+
+  /**
+   * Get shopping cart count (works on Amazon, Target, Walmart, etc.)
+   */
+  async getCartCount() {
+    if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
+
+    try {
+      const result = await this.executeScript(`
+        (function() {
+          // Amazon cart count
+          let el = document.getElementById('nav-cart-count');
+          if (el) return { site: 'amazon', count: parseInt(el.innerText) || 0 };
+
+          // Target cart count
+          el = document.querySelector('[data-test="cart-icon-count"]');
+          if (el) return { site: 'target', count: parseInt(el.innerText) || 0 };
+
+          // Walmart cart count
+          el = document.querySelector('[data-testid="cart-item-count"]');
+          if (el) return { site: 'walmart', count: parseInt(el.innerText) || 0 };
+
+          // Generic cart badge
+          el = document.querySelector('.cart-count, .cart-badge, [class*="cart"] [class*="count"]');
+          if (el) return { site: 'generic', count: parseInt(el.innerText) || 0 };
+
+          return { site: 'unknown', count: null, error: 'Could not find cart count element' };
+        })()
+      `);
+
+      if (result.success) {
+        this.logActivity('get_cart_count', result.result);
+        return { success: true, ...result.result };
+      }
+      return { success: false, error: result.error };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Get product links from search results page
+   * Returns structured data about products
+   */
+  async getProductLinks(options = {}) {
+    if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
+
+    const { limit = 10 } = options;
+
+    try {
+      const result = await this.executeScript(`
+        (function() {
+          const products = [];
+
+          // Amazon product cards
+          document.querySelectorAll('[data-component-type="s-search-result"]').forEach((card, i) => {
+            if (i >= ${limit}) return;
+            const link = card.querySelector('h2 a');
+            const priceWhole = card.querySelector('.a-price-whole');
+            const priceFraction = card.querySelector('.a-price-fraction');
+            const rating = card.querySelector('[data-cy="reviews-ratings-count"]');
+
+            if (link) {
+              products.push({
+                name: link.innerText.trim().slice(0, 150),
+                href: link.href,
+                price: priceWhole ? '$' + priceWhole.innerText + (priceFraction ? priceFraction.innerText : '') : null,
+                rating: rating ? rating.innerText : null,
+                index: i
+              });
+            }
+          });
+
+          // If no Amazon results, try generic product links
+          if (products.length === 0) {
+            document.querySelectorAll('a[href*="/dp/"], a[href*="/product/"], a[href*="/p/"]').forEach((link, i) => {
+              if (i >= ${limit}) return;
+              const rect = link.getBoundingClientRect();
+              if (rect.width > 50 && rect.height > 20) {
+                products.push({
+                  name: link.innerText.trim().slice(0, 150),
+                  href: link.href,
+                  index: i
+                });
+              }
+            });
+          }
+
+          return products;
+        })()
+      `);
+
+      if (result.success) {
+        this.logActivity('get_product_links', { count: result.result.length });
+        return { success: true, products: result.result };
+      }
+      return { success: false, error: result.error };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
    * Type into element by CSS selector
    */
   async typeIntoElement(selector, text, options = {}) {

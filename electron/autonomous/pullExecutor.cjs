@@ -1064,6 +1064,118 @@ class PullExecutor {
                         recoverable: true
                     };
 
+                case 'workspace.search_site':
+                    // Navigate directly to search results - MUCH faster than typing
+                    // Supports: amazon, google, target, walmart, ebay, youtube, bing, bestbuy, etsy
+                    result = await workspaceManager.searchSite(args.site, args.query);
+                    if (result.success) {
+                        return {
+                            success: true,
+                            stdout: `Navigated to ${args.site} search results for "${args.query}"`,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    return {
+                        success: false,
+                        stdout: '',
+                        stderr: result.error || 'search_site failed',
+                        exit_code: 1,
+                        recoverable: true
+                    };
+
+                case 'workspace.wait_for_element':
+                    // Wait for element to appear - more reliable than fixed waits
+                    result = await workspaceManager.waitForElement(args.selector, {
+                        timeout: args.timeout || 10000,
+                        interval: args.interval || 200
+                    });
+                    if (result.success) {
+                        return {
+                            success: true,
+                            stdout: `Element "${args.selector}" found after ${result.elapsed}ms`,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    return {
+                        success: false,
+                        stdout: '',
+                        stderr: result.error || 'wait_for_element timeout',
+                        exit_code: 1,
+                        recoverable: true
+                    };
+
+                case 'workspace.wait_for_text':
+                    // Wait for text to appear on page
+                    result = await workspaceManager.waitForText(args.text, {
+                        timeout: args.timeout || 10000,
+                        interval: args.interval || 200
+                    });
+                    if (result.success) {
+                        return {
+                            success: true,
+                            stdout: `Text "${args.text}" found after ${result.elapsed}ms`,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    return {
+                        success: false,
+                        stdout: '',
+                        stderr: result.error || 'wait_for_text timeout',
+                        exit_code: 1,
+                        recoverable: true
+                    };
+
+                case 'workspace.get_cart_count':
+                    // Get shopping cart count
+                    result = await workspaceManager.getCartCount();
+                    if (result.success) {
+                        return {
+                            success: true,
+                            stdout: `Cart count: ${result.count} items (${result.site})`,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    return {
+                        success: false,
+                        stdout: '',
+                        stderr: result.error || 'get_cart_count failed',
+                        exit_code: 1,
+                        recoverable: true
+                    };
+
+                case 'workspace.get_product_links':
+                    // Get product links from search results
+                    result = await workspaceManager.getProductLinks({
+                        limit: args.limit || 10
+                    });
+                    if (result.success && result.products) {
+                        let output = `Found ${result.products.length} products:\n`;
+                        result.products.forEach((p, i) => {
+                            output += `${i + 1}. ${p.name}`;
+                            if (p.price) output += ` - ${p.price}`;
+                            if (p.rating) output += ` (${p.rating})`;
+                            output += '\n';
+                        });
+                        return {
+                            success: true,
+                            stdout: output,
+                            stderr: '',
+                            exit_code: 0,
+                            products: result.products  // Include structured data
+                        };
+                    }
+                    return {
+                        success: false,
+                        stdout: '',
+                        stderr: result.error || 'get_product_links failed',
+                        exit_code: 1,
+                        recoverable: true
+                    };
+
                 case 'workspace.scroll':
                     // Support both "direction" style and raw deltaY style
                     let deltaY = 0;

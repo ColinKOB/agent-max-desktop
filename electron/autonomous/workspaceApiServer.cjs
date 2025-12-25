@@ -267,6 +267,67 @@ async function handleRequest(req, res) {
     }
 
     // =========================================================================
+    // Smart Shopping Tools
+    // =========================================================================
+
+    if (pathname === '/workspace/search-site' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (!body.site || !body.query) {
+        return sendJson(res, 400, { success: false, error: 'Site and query required' });
+      }
+      const result = await workspaceManager.searchSite(body.site, body.query);
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/workspace/click-by-text' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (!body.text) {
+        return sendJson(res, 400, { success: false, error: 'Text required' });
+      }
+      const result = await workspaceManager.clickByText(body.text, {
+        exact: body.exact || false,
+        index: body.index || 0
+      });
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/workspace/wait-for-element' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (!body.selector) {
+        return sendJson(res, 400, { success: false, error: 'Selector required' });
+      }
+      const result = await workspaceManager.waitForElement(body.selector, {
+        timeout: body.timeout || 10000,
+        interval: body.interval || 200
+      });
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/workspace/wait-for-text' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (!body.text) {
+        return sendJson(res, 400, { success: false, error: 'Text required' });
+      }
+      const result = await workspaceManager.waitForText(body.text, {
+        timeout: body.timeout || 10000,
+        interval: body.interval || 200
+      });
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/workspace/get-cart-count' && req.method === 'GET') {
+      const result = await workspaceManager.getCartCount();
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/workspace/get-product-links' && req.method === 'GET') {
+      const parsedUrl = url.parse(req.url, true);
+      const limit = parsedUrl.query.limit ? parseInt(parsedUrl.query.limit, 10) : 10;
+      const result = await workspaceManager.getProductLinks({ limit });
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    // =========================================================================
     // Page Content
     // =========================================================================
 

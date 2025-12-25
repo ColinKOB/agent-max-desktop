@@ -41,12 +41,16 @@ async function getDistinctId() {
 async function initialize() {
   if (initialized) return;
 
+  // ALWAYS register IPC handlers (even when disabled) to prevent "No handler" errors
+  registerIPCHandlers();
+
   const apiKey = process.env.VITE_POSTHOG_KEY || process.env.POSTHOG_KEY;
   const host = process.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com';
 
   if (!apiKey) {
     log.info('[PostHog] No API key configured - analytics disabled');
     enabled = false;
+    initialized = true; // Mark as initialized even when disabled
     return;
   }
 
@@ -83,9 +87,6 @@ async function initialize() {
 
     // Flush any queued events
     flushOfflineQueue();
-
-    // Register IPC handlers
-    registerIPCHandlers();
 
   } catch (error) {
     log.error('[PostHog] Initialization failed:', error);
