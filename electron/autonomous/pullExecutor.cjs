@@ -14,6 +14,9 @@ const execAsync = promisify(exec);
 // macOS AppleScript tools (Safari, Notes, Mail, Calendar, Finder, Reminders)
 const { executeMacOSTool, isMacOSTool } = require('./macosAppleScript.cjs');
 
+// Workspace manager for isolated AI browser
+const { workspaceManager } = require('../workspace/workspaceManager.cjs');
+
 // Analytics for tool failure tracking
 let analytics = null;
 try {
@@ -743,6 +746,9 @@ class PullExecutor {
         } else if (tool === 'ask_user') {
             // User question tool - pauses execution to ask user a question
             return await this.executeAskUser(args);
+        } else if (tool.startsWith('workspace.')) {
+            // Workspace tools for isolated AI browser
+            return await this.executeWorkspaceTool(tool, args);
         } else {
             return {
                 success: false,
@@ -847,6 +853,217 @@ class PullExecutor {
                 });
             }, timeoutMs);
         });
+    }
+
+    /**
+     * Execute workspace tools for isolated AI browser
+     * Maps workspace.* tool names to workspaceManager methods
+     */
+    async executeWorkspaceTool(tool, args) {
+        console.log(`[PullExecutor] Executing workspace tool: ${tool}`, args);
+
+        try {
+            let result;
+
+            switch (tool) {
+                case 'workspace.create':
+                    const width = args.width || 1280;
+                    const height = args.height || 800;
+                    result = await workspaceManager.create(width, height);
+                    if (result.success) {
+                        return {
+                            success: true,
+                            stdout: `Workspace created (${width}x${height}), window ID: ${result.windowId}`,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    break;
+
+                case 'workspace.navigate':
+                    if (!args.url) {
+                        return { success: false, error: 'URL required', exit_code: 1 };
+                    }
+                    result = await workspaceManager.navigateTo(args.url);
+                    if (result.success) {
+                        return {
+                            success: true,
+                            stdout: `Navigated to: ${result.url}`,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    break;
+
+                case 'workspace.search':
+                    if (!args.query) {
+                        return { success: false, error: 'Query required', exit_code: 1 };
+                    }
+                    result = await workspaceManager.searchGoogle(args.query);
+                    if (result.success) {
+                        return {
+                            success: true,
+                            stdout: `Searched Google for: ${args.query}`,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    break;
+
+                case 'workspace.get_text':
+                    result = await workspaceManager.getPageText();
+                    if (result.success) {
+                        // Truncate very long text
+                        const text = result.text || '';
+                        const truncated = text.length > 10000 ? text.slice(0, 10000) + '\n...[truncated]' : text;
+                        return {
+                            success: true,
+                            stdout: truncated,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    break;
+
+                case 'workspace.click_element':
+                    if (!args.selector) {
+                        return { success: false, error: 'Selector required', exit_code: 1 };
+                    }
+                    result = await workspaceManager.clickElement(args.selector);
+                    if (result.success) {
+                        return {
+                            success: true,
+                            stdout: `Clicked element: ${args.selector}`,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    break;
+
+                case 'workspace.type_into_element':
+                    if (!args.selector || !args.text) {
+                        return { success: false, error: 'Selector and text required', exit_code: 1 };
+                    }
+                    // Pass options for clearFirst and pressEnter
+                    // Also auto-detect if text ends with \n and treat as pressEnter
+                    const shouldPressEnter = args.pressEnter || args.text.endsWith('\n');
+                    result = await workspaceManager.typeIntoElement(args.selector, args.text, {
+                        clearFirst: args.clearFirst !== false, // Default true
+                        pressEnter: shouldPressEnter
+                    });
+                    if (result.success) {
+                        const enterMsg = shouldPressEnter ? ' and pressed Enter' : '';
+                        return {
+                            success: true,
+                            stdout: `Typed into element: ${args.selector}${enterMsg}`,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    break;
+
+                case 'workspace.destroy':
+                    result = workspaceManager.destroy();
+                    return {
+                        success: true,
+                        stdout: 'Workspace destroyed',
+                        stderr: '',
+                        exit_code: 0
+                    };
+
+                case 'workspace.get_selectors':
+                    result = await workspaceManager.getSelectors(args.filter || 'all');
+                    if (result.success) {
+                        // Format output for the AI to read
+                        const elements = result.elements;
+                        let output = '';
+
+                        if (elements.buttons && elements.buttons.length > 0) {
+                            output += '## BUTTONS\n';
+                            elements.buttons.slice(0, 20).forEach(btn => {
+                                output += `- selector: "${btn.selector}" | text: "${btn.text}"\n`;
+                            });
+                            output += '\n';
+                        }
+
+                        if (elements.inputs && elements.inputs.length > 0) {
+                            output += '## INPUTS\n';
+                            elements.inputs.slice(0, 20).forEach(inp => {
+                                const desc = inp.placeholder || inp.name || inp.type;
+                                output += `- selector: "${inp.selector}" | ${desc}\n`;
+                            });
+                            output += '\n';
+                        }
+
+                        if (elements.links && elements.links.length > 0) {
+                            output += '## LINKS\n';
+                            elements.links.slice(0, 30).forEach(link => {
+                                output += `- selector: "${link.selector}" | text: "${link.text}"\n`;
+                            });
+                        }
+
+                        return {
+                            success: true,
+                            stdout: output || 'No interactive elements found',
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    break;
+
+                case 'workspace.inspect_element':
+                    result = await workspaceManager.inspectElement({
+                        text: args.text,
+                        selector: args.selector,
+                        x: args.x,
+                        y: args.y
+                    });
+                    if (result.success) {
+                        const el = result.element;
+                        let output = `Found element:\n`;
+                        output += `- Tag: ${el.tag}\n`;
+                        if (el.id) output += `- ID: ${el.id}\n`;
+                        if (el.classes) output += `- Classes: ${el.classes}\n`;
+                        if (el.text) output += `- Text: "${el.text.slice(0, 50)}"\n`;
+                        if (el.placeholder) output += `- Placeholder: "${el.placeholder}"\n`;
+                        if (el.name) output += `- Name: ${el.name}\n`;
+                        output += `\nBest selector: ${el.bestSelector}\n`;
+                        if (el.alternativeSelectors && el.alternativeSelectors.length > 0) {
+                            output += `Alternative selectors: ${el.alternativeSelectors.join(', ')}\n`;
+                        }
+
+                        return {
+                            success: true,
+                            stdout: output,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    break;
+
+                default:
+                    return {
+                        success: false,
+                        error: `Unknown workspace tool: ${tool}`,
+                        exit_code: 1
+                    };
+            }
+
+            // Handle failure case
+            return {
+                success: false,
+                error: result?.error || 'Workspace operation failed',
+                exit_code: 1
+            };
+
+        } catch (e) {
+            console.error(`[PullExecutor] Workspace tool error:`, e);
+            return {
+                success: false,
+                error: e.message,
+                exit_code: 1
+            };
+        }
     }
 
     /**
