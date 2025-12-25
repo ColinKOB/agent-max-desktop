@@ -1041,6 +1041,81 @@ class PullExecutor {
                     }
                     break;
 
+                case 'workspace.scroll':
+                    // Support both "direction" style and raw deltaY style
+                    let deltaY = 0;
+                    let deltaX = 0;
+                    if (args.direction) {
+                        // direction: "up" or "down", amount: pixels
+                        const amount = args.amount || args.scroll_amount || 500;
+                        deltaY = args.direction === 'down' ? -amount : amount;
+                    } else if (args.page_fraction) {
+                        // page_fraction: 0.0-1.0, scroll as fraction of page
+                        deltaY = args.direction === 'up' ? 800 * args.page_fraction : -800 * args.page_fraction;
+                    } else {
+                        // Raw deltaX/deltaY
+                        deltaX = args.deltaX || 0;
+                        deltaY = args.deltaY || 0;
+                    }
+                    result = await workspaceManager.scroll(deltaX, deltaY, args.x, args.y);
+                    if (result.success) {
+                        const dir = deltaY < 0 ? 'down' : 'up';
+                        return {
+                            success: true,
+                            stdout: `Scrolled ${dir} by ${Math.abs(deltaY)} pixels`,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    break;
+
+                case 'workspace.wait':
+                    // Wait for specified milliseconds (default 1000, max 10000)
+                    const waitMs = Math.min(args.ms || args.milliseconds || 1000, 10000);
+                    await new Promise(resolve => setTimeout(resolve, waitMs));
+                    return {
+                        success: true,
+                        stdout: `Waited ${waitMs}ms`,
+                        stderr: '',
+                        exit_code: 0
+                    };
+
+                case 'workspace.press_key':
+                    // Press a key (useful for Escape, Tab, Enter, etc.)
+                    const key = args.key || 'Escape';
+                    const modifiers = args.modifiers || [];
+                    result = await workspaceManager.pressKey(key, modifiers);
+                    if (result.success) {
+                        return {
+                            success: true,
+                            stdout: `Pressed key: ${key}`,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    break;
+
+                case 'workspace.scroll_page':
+                    // Alternative scroll tool using browser.scroll_page naming
+                    // for compatibility with AI that uses this tool name
+                    let scrollAmount = 500;
+                    if (args.page_fraction) {
+                        scrollAmount = Math.round(800 * args.page_fraction);
+                    } else if (args.amount) {
+                        scrollAmount = args.amount;
+                    }
+                    const scrollDir = args.direction === 'up' ? scrollAmount : -scrollAmount;
+                    result = await workspaceManager.scroll(0, scrollDir);
+                    if (result.success) {
+                        return {
+                            success: true,
+                            stdout: `Scrolled ${args.direction || 'down'} by ${scrollAmount} pixels`,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    break;
+
                 default:
                     return {
                         success: false,
