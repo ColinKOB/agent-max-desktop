@@ -1041,6 +1041,29 @@ class PullExecutor {
                     }
                     break;
 
+                case 'workspace.click_by_text':
+                    // Click element by visible text - more robust than CSS selectors
+                    result = await workspaceManager.clickByText(args.text, {
+                        exact: args.exact || false,
+                        index: args.index || 0
+                    });
+                    if (result.success) {
+                        return {
+                            success: true,
+                            stdout: `Clicked element with text "${args.text}"`,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    // Return the actual error so we can debug
+                    return {
+                        success: false,
+                        stdout: '',
+                        stderr: result.error || 'click_by_text failed',
+                        exit_code: 1,
+                        recoverable: true
+                    };
+
                 case 'workspace.scroll':
                     // Support both "direction" style and raw deltaY style
                     let deltaY = 0;

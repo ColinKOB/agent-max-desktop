@@ -730,6 +730,155 @@ class WorkspaceManager {
   }
 
   /**
+   * Click on element by visible text content
+   * More robust than CSS selectors for dynamic pages like Amazon
+   */
+  async clickByText(searchText, options = {}) {
+    if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
+
+    const { exact = false, index = 0 } = options;
+
+    try {
+      const result = await this.executeScript(`
+        (function() {
+          const searchText = '${searchText.replace(/'/g, "\\'")}';
+          const exact = ${exact};
+          const targetIndex = ${index};
+          const searchLower = searchText.toLowerCase();
+
+          // Strategy 1: Find clickable elements (a, button) that contain the text anywhere inside
+          const clickables = document.querySelectorAll('a, button, [role="button"], [role="link"], [onclick], input[type="submit"], input[type="button"]');
+          const matches = [];
+          const seen = new Set();
+
+          clickables.forEach(el => {
+            const rect = el.getBoundingClientRect();
+            // Element must be visible and reasonably sized
+            if (rect.width < 10 || rect.height < 10) return;
+            if (rect.top < 0 || rect.left < 0) return;
+            if (rect.top > window.innerHeight || rect.left > window.innerWidth) return;
+
+            // Get ALL text inside this clickable element (including nested spans)
+            const text = (el.innerText || el.textContent || el.value || el.getAttribute('aria-label') || '').trim();
+
+            // Check for match
+            const isMatch = exact ? text === searchText : text.toLowerCase().includes(searchLower);
+            if (isMatch) {
+              // Avoid duplicate matches at same position
+              const key = Math.round(rect.left) + ',' + Math.round(rect.top);
+              if (seen.has(key)) return;
+              seen.add(key);
+
+              matches.push({
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2,
+                width: rect.width,
+                height: rect.height,
+                text: text.slice(0, 150),
+                tag: el.tagName.toLowerCase(),
+                href: el.href || null
+              });
+            }
+          });
+
+          // Strategy 2: If no clickable matches, find ANY element with text and look for clickable ancestor
+          if (matches.length === 0) {
+            const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+            let node;
+            while (node = walker.nextNode()) {
+              const text = node.textContent.trim();
+              if (!text) continue;
+              const isMatch = exact ? text === searchText : text.toLowerCase().includes(searchLower);
+              if (!isMatch) continue;
+
+              // Found matching text, look for clickable ancestor
+              let el = node.parentElement;
+              while (el && el !== document.body) {
+                const tag = el.tagName.toLowerCase();
+                const isClickable = tag === 'a' || tag === 'button' ||
+                                   el.getAttribute('role') === 'button' ||
+                                   el.getAttribute('role') === 'link' ||
+                                   el.onclick || el.getAttribute('onclick');
+                if (isClickable) {
+                  const rect = el.getBoundingClientRect();
+                  if (rect.width > 10 && rect.height > 10) {
+                    const key = Math.round(rect.left) + ',' + Math.round(rect.top);
+                    if (!seen.has(key)) {
+                      seen.add(key);
+                      matches.push({
+                        x: rect.left + rect.width / 2,
+                        y: rect.top + rect.height / 2,
+                        width: rect.width,
+                        height: rect.height,
+                        text: text.slice(0, 150),
+                        tag: tag,
+                        href: el.href || null,
+                        foundVia: 'ancestor'
+                      });
+                    }
+                  }
+                  break;
+                }
+                el = el.parentElement;
+              }
+            }
+          }
+
+          // Sort by position (top-left first) for consistent ordering
+          matches.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+
+          if (matches.length === 0) {
+            // Debug: count how many times the text appears at all
+            const allText = document.body.innerText || '';
+            const occurrences = (allText.toLowerCase().match(new RegExp(searchLower, 'g')) || []).length;
+            return {
+              found: false,
+              error: 'No clickable element found with text: ' + searchText +
+                     ' (text appears ' + occurrences + ' times on page but not in clickable elements)'
+            };
+          }
+
+          if (targetIndex >= matches.length) {
+            return { found: false, error: 'Index ' + targetIndex + ' out of range, only ' + matches.length + ' matches found' };
+          }
+
+          return {
+            found: true,
+            x: matches[targetIndex].x,
+            y: matches[targetIndex].y,
+            matchedText: matches[targetIndex].text,
+            tag: matches[targetIndex].tag,
+            href: matches[targetIndex].href,
+            totalMatches: matches.length
+          };
+        })()
+      `);
+
+      if (!result.success) {
+        this.logActivity('click_by_text', { searchText }, 'error', result.error);
+        return { success: false, error: result.error };
+      }
+
+      if (!result.result.found) {
+        this.logActivity('click_by_text', { searchText }, 'error', result.result.error);
+        return { success: false, error: result.result.error };
+      }
+
+      this.logActivity('click_by_text', {
+        searchText,
+        matchedText: result.result.matchedText,
+        tag: result.result.tag,
+        totalMatches: result.result.totalMatches
+      });
+
+      return this.clickAt(result.result.x, result.result.y);
+    } catch (e) {
+      this.logActivity('click_by_text', { searchText }, 'error', e.message);
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
    * Type into element by CSS selector
    */
   async typeIntoElement(selector, text, options = {}) {
