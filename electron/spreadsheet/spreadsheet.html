@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:;">
+  <title>Max's Spreadsheet</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #1a1a2e;
+    }
+
+    /* Max's Spreadsheet Header */
+    #max-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 38px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      -webkit-app-region: drag;
+      user-select: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    #max-header .logo {
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 8px;
+      font-weight: bold;
+      font-size: 12px;
+      color: #764ba2;
+    }
+
+    #max-header .title {
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    #max-header .subtitle {
+      color: rgba(255,255,255,0.8);
+      font-size: 11px;
+      margin-left: 8px;
+    }
+
+    #max-header .file-name {
+      position: absolute;
+      right: 80px;
+      color: rgba(255,255,255,0.9);
+      font-size: 11px;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #max-header .modified-indicator {
+      color: #ffd700;
+      margin-left: 4px;
+    }
+
+    /* Formula Bar */
+    #formula-bar {
+      position: fixed;
+      top: 38px;
+      left: 0;
+      right: 0;
+      height: 32px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      z-index: 999;
+      gap: 8px;
+    }
+
+    #formula-bar .cell-ref {
+      min-width: 60px;
+      padding: 4px 10px;
+      background: white;
+      border: 1px solid #d0d0d0;
+      border-radius: 4px;
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: #333;
+      text-align: center;
+    }
+
+    #formula-bar .fx-icon {
+      font-style: italic;
+      font-weight: bold;
+      color: #666;
+      font-size: 14px;
+      padding: 0 4px;
+    }
+
+    #formula-bar .formula-input {
+      flex: 1;
+      padding: 4px 10px;
+      background: white;
+      border: 1px solid #d0d0d0;
+      border-radius: 4px;
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 12px;
+      color: #333;
+      outline: none;
+    }
+
+    #formula-bar .formula-input:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+    }
+
+    #formula-bar .formula-input::placeholder {
+      color: #999;
+    }
+
+    /* Spreadsheet container */
+    #spreadsheet-container {
+      position: fixed;
+      top: 70px; /* 38px header + 32px formula bar */
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: white;
+    }
+
+    /* Loading state */
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #666;
+    }
+
+    #loading .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #764ba2;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* FortuneSheet overrides */
+    .fortune-sheet-container {
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div id="max-header">
+    <div class="logo">M</div>
+    <span class="title">Max's Spreadsheet</span>
+    <span class="subtitle">Excel-like Editor</span>
+    <span class="file-name" id="file-name">Untitled</span>
+  </div>
+
+  <!-- Formula Bar -->
+  <div id="formula-bar">
+    <div class="cell-ref" id="cell-ref">A1</div>
+    <span class="fx-icon">fx</span>
+    <input type="text" class="formula-input" id="formula-input" placeholder="Enter value or formula (e.g., =SUM(A1:A10))">
+  </div>
+
+  <!-- Spreadsheet Container -->
+  <div id="spreadsheet-container">
+    <div id="loading">
+      <div class="spinner"></div>
+      <div>Loading spreadsheet...</div>
+    </div>
+    <div id="fortune-sheet"></div>
+  </div>
+
+  <script type="module">
+    // FortuneSheet will be loaded dynamically
+    // For now, we'll create a basic spreadsheet implementation
+    // that can be enhanced with FortuneSheet later
+
+    let spreadsheetData = [{
+      name: 'Sheet1',
+      celldata: [],
+      row: 100,
+      column: 26,
+      config: {}
+    }];
+
+    let currentSheet = 'Sheet1';
+    let isModified = false;
+    let fortuneSheetInstance = null;
+    let selectedCell = { row: 0, col: 0 }; // Track currently selected cell
+
+    // Initialize the spreadsheet
+    async function initSpreadsheet() {
+      console.log('[Spreadsheet] Initializing...');
+
+      try {
+        // Try to dynamically import FortuneSheet
+        // Note: This requires the package to be bundled properly
+        // For now, we'll use a fallback grid implementation
+        await initFallbackGrid();
+      } catch (e) {
+        console.error('[Spreadsheet] Failed to load FortuneSheet:', e);
+        await initFallbackGrid();
+      }
+
+      // Initialize formula bar
+      initFormulaBar();
+
+      // Set initial formula bar state for A1
+      updateFormulaBar(0, 0);
+
+      // Hide loading indicator
+      document.getElementById('loading').style.display = 'none';
+    }
+
+    // Fallback grid implementation (basic but functional)
+    async function initFallbackGrid() {
+      const container = document.getElementById('fortune-sheet');
+      container.innerHTML = '';
+
+      // Create a simple grid
+      const grid = document.createElement('div');
+      grid.id = 'simple-grid';
+      grid.style.cssText = `
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background: white;
+        font-family: Arial, sans-serif;
+        font-size: 13px;
+      `;
+
+      // Create table
+      const table = document.createElement('table');
+      table.style.cssText = `
+        border-collapse: collapse;
+        min-width: 100%;
+      `;
+
+      // Create header row (A, B, C, ...)
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+
+      // Empty corner cell
+      const cornerCell = document.createElement('th');
+      cornerCell.style.cssText = `
+        width: 50px;
+        min-width: 50px;
+        background: #f5f5f5;
+        border: 1px solid #e0e0e0;
+        position: sticky;
+        top: 0;
+        left: 0;
+        z-index: 3;
+      `;
+      headerRow.appendChild(cornerCell);
+
+      // Column headers
+      for (let c = 0; c < 26; c++) {
+        const th = document.createElement('th');
+        th.textContent = String.fromCharCode(65 + c);
+        th.style.cssText = `
+          width: 100px;
+          min-width: 100px;
+          background: #f5f5f5;
+          border: 1px solid #e0e0e0;
+          padding: 4px 8px;
+          font-weight: 500;
+          position: sticky;
+          top: 0;
+          z-index: 2;
+        `;
+        headerRow.appendChild(th);
+      }
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      // Create body with 100 rows
+      const tbody = document.createElement('tbody');
+      for (let r = 0; r < 100; r++) {
+        const row = document.createElement('tr');
+
+        // Row number
+        const rowHeader = document.createElement('td');
+        rowHeader.textContent = r + 1;
+        rowHeader.style.cssText = `
+          background: #f5f5f5;
+          border: 1px solid #e0e0e0;
+          padding: 4px 8px;
+          text-align: center;
+          font-weight: 500;
+          position: sticky;
+          left: 0;
+          z-index: 1;
+        `;
+        row.appendChild(rowHeader);
+
+        // Cells
+        for (let c = 0; c < 26; c++) {
+          const cell = document.createElement('td');
+          cell.contentEditable = true;
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+          cell.style.cssText = `
+            border: 1px solid #e0e0e0;
+            padding: 4px 8px;
+            min-width: 100px;
+            outline: none;
+          `;
+
+          // Handle cell selection and editing
+          cell.addEventListener('focus', () => {
+            selectedCell = { row: r, col: c };
+            cell.style.background = '#e8f0fe';
+            cell.style.outline = '2px solid #667eea';
+            updateFormulaBar(r, c);
+          });
+
+          cell.addEventListener('blur', () => {
+            const value = cell.textContent;
+            setCellDataInternal(currentSheet, r, c, value);
+            updateFileModified(true);
+            cell.style.background = '';
+            cell.style.outline = '';
+          });
+
+          // Handle keydown for formula bar sync
+          cell.addEventListener('input', () => {
+            // Sync cell content to formula bar as user types
+            document.getElementById('formula-input').value = cell.textContent;
+          });
+
+          // Load existing data
+          const cellData = getCellDataInternal(currentSheet, r, c);
+          if (cellData) {
+            cell.textContent = cellData.v?.v || cellData.v || '';
+          }
+
+          row.appendChild(cell);
+        }
+
+        tbody.appendChild(row);
+      }
+      table.appendChild(tbody);
+      grid.appendChild(table);
+      container.appendChild(grid);
+
+      console.log('[Spreadsheet] Fallback grid initialized');
+    }
+
+    // Internal cell data functions
+    function getCellDataInternal(sheetName, row, col) {
+      const sheet = spreadsheetData.find(s => s.name === sheetName);
+      if (!sheet || !sheet.celldata) return null;
+      return sheet.celldata.find(c => c.r === row && c.c === col);
+    }
+
+    function setCellDataInternal(sheetName, row, col, value) {
+      const sheet = spreadsheetData.find(s => s.name === sheetName);
+      if (!sheet) return;
+
+      if (!sheet.celldata) sheet.celldata = [];
+
+      const existingIndex = sheet.celldata.findIndex(c => c.r === row && c.c === col);
+      const cellData = {
+        r: row,
+        c: col,
+        v: typeof value === 'object' ? value : { v: value }
+      };
+
+      if (existingIndex >= 0) {
+        sheet.celldata[existingIndex] = cellData;
+      } else {
+        sheet.celldata.push(cellData);
+      }
+    }
+
+    function updateFileModified(modified) {
+      isModified = modified;
+      const indicator = document.querySelector('.modified-indicator');
+      if (indicator) {
+        indicator.style.display = modified ? 'inline' : 'none';
+      } else if (modified) {
+        const fileName = document.getElementById('file-name');
+        const span = document.createElement('span');
+        span.className = 'modified-indicator';
+        span.textContent = '*';
+        fileName.appendChild(span);
+      }
+    }
+
+    // Update the formula bar when a cell is selected
+    function updateFormulaBar(row, col) {
+      const cellRef = document.getElementById('cell-ref');
+      const formulaInput = document.getElementById('formula-input');
+
+      // Convert row/col to A1 notation
+      const colLetter = String.fromCharCode(65 + col);
+      const rowNumber = row + 1;
+      cellRef.textContent = `${colLetter}${rowNumber}`;
+
+      // Get the cell data - show formula if present, otherwise show value
+      const cellData = getCellDataInternal(currentSheet, row, col);
+      if (cellData?.v?.f) {
+        // Cell has a formula - show the formula
+        formulaInput.value = cellData.v.f;
+      } else if (cellData?.v?.v != null) {
+        // Cell has a value object
+        formulaInput.value = cellData.v.v;
+      } else if (cellData?.v != null) {
+        // Cell has a direct value
+        formulaInput.value = cellData.v;
+      } else {
+        // Empty cell
+        formulaInput.value = '';
+      }
+    }
+
+    // Initialize formula bar event handlers
+    function initFormulaBar() {
+      const formulaInput = document.getElementById('formula-input');
+
+      // Handle Enter key in formula bar
+      formulaInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          applyFormulaBarValue();
+          // Move focus back to the cell
+          const cell = document.querySelector(`td[data-row="${selectedCell.row}"][data-col="${selectedCell.col}"]`);
+          if (cell) cell.focus();
+        } else if (e.key === 'Escape') {
+          // Cancel editing and restore original value
+          updateFormulaBar(selectedCell.row, selectedCell.col);
+          const cell = document.querySelector(`td[data-row="${selectedCell.row}"][data-col="${selectedCell.col}"]`);
+          if (cell) cell.focus();
+        }
+      });
+
+      // Handle blur - apply value when focus leaves formula bar
+      formulaInput.addEventListener('blur', () => {
+        // Only apply if the value changed
+        const currentValue = formulaInput.value;
+        const cellData = getCellDataInternal(currentSheet, selectedCell.row, selectedCell.col);
+        const existingValue = cellData?.v?.f || cellData?.v?.v || cellData?.v || '';
+
+        if (currentValue !== existingValue.toString()) {
+          applyFormulaBarValue();
+        }
+      });
+    }
+
+    // Apply the formula bar value to the selected cell
+    function applyFormulaBarValue() {
+      const formulaInput = document.getElementById('formula-input');
+      const value = formulaInput.value;
+      const { row, col } = selectedCell;
+
+      if (value.startsWith('=')) {
+        // It's a formula
+        window.setCellFormula(currentSheet, row, col, value);
+      } else {
+        // It's a regular value
+        window.setCellValue(currentSheet, row, col, value);
+      }
+
+      // Update the cell display
+      const cell = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+      if (cell) {
+        const cellData = getCellDataInternal(currentSheet, row, col);
+        cell.textContent = cellData?.v?.v ?? cellData?.v ?? value;
+      }
+    }
+
+    // Expose functions to the preload script
+    window.getSpreadsheetData = () => spreadsheetData;
+
+    window.setSpreadsheetData = (data) => {
+      spreadsheetData = data;
+      // Re-render the grid with new data
+      initFallbackGrid();
+    };
+
+    window.getCellValue = (sheet, row, col) => {
+      const cellData = getCellDataInternal(sheet, row, col);
+      if (!cellData) return { value: null, formula: null };
+      return {
+        value: cellData.v?.v ?? cellData.v,
+        formula: cellData.v?.f || null
+      };
+    };
+
+    window.setCellValue = (sheet, row, col, value) => {
+      setCellDataInternal(sheet, row, col, value);
+      updateFileModified(true);
+
+      // Update the DOM
+      const cell = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+      if (cell) {
+        cell.textContent = value;
+      }
+    };
+
+    window.getRangeValues = (sheet, startRow, startCol, endRow, endCol) => {
+      const result = [];
+      for (let r = startRow; r <= endRow; r++) {
+        const row = [];
+        for (let c = startCol; c <= endCol; c++) {
+          const cellData = getCellDataInternal(sheet, r, c);
+          row.push(cellData?.v?.v ?? cellData?.v ?? null);
+        }
+        result.push(row);
+      }
+      return result;
+    };
+
+    window.setRangeValues = (sheet, startRow, startCol, data) => {
+      for (let r = 0; r < data.length; r++) {
+        for (let c = 0; c < data[r].length; c++) {
+          setCellDataInternal(sheet, startRow + r, startCol + c, data[r][c]);
+
+          // Update the DOM
+          const cell = document.querySelector(`td[data-row="${startRow + r}"][data-col="${startCol + c}"]`);
+          if (cell) {
+            cell.textContent = data[r][c];
+          }
+        }
+      }
+      updateFileModified(true);
+    };
+
+    window.setCellFormula = (sheet, row, col, formula) => {
+      const sheetData = spreadsheetData.find(s => s.name === sheet);
+      if (!sheetData) return;
+
+      if (!sheetData.celldata) sheetData.celldata = [];
+
+      const existingIndex = sheetData.celldata.findIndex(c => c.r === row && c.c === col);
+      const cellData = {
+        r: row,
+        c: col,
+        v: { f: formula, v: evaluateFormula(formula, sheet) }
+      };
+
+      if (existingIndex >= 0) {
+        sheetData.celldata[existingIndex] = cellData;
+      } else {
+        sheetData.celldata.push(cellData);
+      }
+
+      // Update the DOM
+      const cell = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+      if (cell) {
+        cell.textContent = cellData.v.v;
+      }
+
+      updateFileModified(true);
+    };
+
+    window.getCellFormula = (sheet, row, col) => {
+      const cellData = getCellDataInternal(sheet, row, col);
+      return cellData?.v?.f || null;
+    };
+
+    window.formatCells = (sheet, startRow, startCol, endRow, endCol, format) => {
+      // Apply formatting to cells
+      for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+          const cell = document.querySelector(`td[data-row="${r}"][data-col="${c}"]`);
+          if (cell) {
+            if (format.bold) cell.style.fontWeight = 'bold';
+            if (format.italic) cell.style.fontStyle = 'italic';
+            if (format.color) cell.style.color = format.color;
+            if (format.background) cell.style.background = format.background;
+            if (format.align) cell.style.textAlign = format.align;
+          }
+        }
+      }
+      updateFileModified(true);
+    };
+
+    window.getSheetNames = () => {
+      return spreadsheetData.map(s => s.name);
+    };
+
+    window.addSheet = (name) => {
+      spreadsheetData.push({
+        name: name,
+        celldata: [],
+        row: 100,
+        column: 26,
+        config: {}
+      });
+      updateFileModified(true);
+    };
+
+    window.deleteSheet = (name) => {
+      const index = spreadsheetData.findIndex(s => s.name === name);
+      if (index > 0) { // Don't delete the first sheet
+        spreadsheetData.splice(index, 1);
+        updateFileModified(true);
+      }
+    };
+
+    window.getSheetData = (sheetName) => {
+      return spreadsheetData.find(s => s.name === sheetName);
+    };
+
+    // Simple formula evaluator (basic math only)
+    function evaluateFormula(formula, sheetName) {
+      if (!formula || !formula.startsWith('=')) return formula;
+
+      const expr = formula.substring(1).toUpperCase();
+
+      try {
+        // Handle SUM
+        if (expr.startsWith('SUM(')) {
+          const range = expr.match(/SUM\(([A-Z]+\d+):([A-Z]+\d+)\)/);
+          if (range) {
+            return evaluateSUM(sheetName, range[1], range[2]);
+          }
+        }
+
+        // Handle AVERAGE
+        if (expr.startsWith('AVERAGE(')) {
+          const range = expr.match(/AVERAGE\(([A-Z]+\d+):([A-Z]+\d+)\)/);
+          if (range) {
+            return evaluateAVERAGE(sheetName, range[1], range[2]);
+          }
+        }
+
+        // Handle COUNT
+        if (expr.startsWith('COUNT(')) {
+          const range = expr.match(/COUNT\(([A-Z]+\d+):([A-Z]+\d+)\)/);
+          if (range) {
+            return evaluateCOUNT(sheetName, range[1], range[2]);
+          }
+        }
+
+        // Handle MIN
+        if (expr.startsWith('MIN(')) {
+          const range = expr.match(/MIN\(([A-Z]+\d+):([A-Z]+\d+)\)/);
+          if (range) {
+            return evaluateMIN(sheetName, range[1], range[2]);
+          }
+        }
+
+        // Handle MAX
+        if (expr.startsWith('MAX(')) {
+          const range = expr.match(/MAX\(([A-Z]+\d+):([A-Z]+\d+)\)/);
+          if (range) {
+            return evaluateMAX(sheetName, range[1], range[2]);
+          }
+        }
+
+        // Handle simple cell reference
+        const cellRef = expr.match(/^([A-Z]+)(\d+)$/);
+        if (cellRef) {
+          const col = cellRef[1].charCodeAt(0) - 65;
+          const row = parseInt(cellRef[2]) - 1;
+          const cellData = getCellDataInternal(sheetName, row, col);
+          return cellData?.v?.v ?? cellData?.v ?? 0;
+        }
+
+        // Try to evaluate as math expression
+        // Replace cell references with values
+        let mathExpr = expr.replace(/([A-Z]+)(\d+)/g, (match, col, row) => {
+          const c = col.charCodeAt(0) - 65;
+          const r = parseInt(row) - 1;
+          const cellData = getCellDataInternal(sheetName, r, c);
+          return cellData?.v?.v ?? cellData?.v ?? 0;
+        });
+
+        // Safe eval for basic math
+        return Function('"use strict"; return (' + mathExpr + ')')();
+      } catch (e) {
+        console.error('[Formula] Error evaluating:', formula, e);
+        return '#ERROR!';
+      }
+    }
+
+    function evaluateSUM(sheetName, start, end) {
+      const startCol = start.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
+      const startRow = parseInt(start.match(/\d+/)[0]) - 1;
+      const endCol = end.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
+      const endRow = parseInt(end.match(/\d+/)[0]) - 1;
+
+      let sum = 0;
+      for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+          const cellData = getCellDataInternal(sheetName, r, c);
+          const value = parseFloat(cellData?.v?.v ?? cellData?.v ?? 0);
+          if (!isNaN(value)) sum += value;
+        }
+      }
+      return sum;
+    }
+
+    function evaluateAVERAGE(sheetName, start, end) {
+      const startCol = start.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
+      const startRow = parseInt(start.match(/\d+/)[0]) - 1;
+      const endCol = end.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
+      const endRow = parseInt(end.match(/\d+/)[0]) - 1;
+
+      let sum = 0;
+      let count = 0;
+      for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+          const cellData = getCellDataInternal(sheetName, r, c);
+          const value = parseFloat(cellData?.v?.v ?? cellData?.v ?? 0);
+          if (!isNaN(value)) {
+            sum += value;
+            count++;
+          }
+        }
+      }
+      return count > 0 ? sum / count : 0;
+    }
+
+    function evaluateCOUNT(sheetName, start, end) {
+      const startCol = start.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
+      const startRow = parseInt(start.match(/\d+/)[0]) - 1;
+      const endCol = end.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
+      const endRow = parseInt(end.match(/\d+/)[0]) - 1;
+
+      let count = 0;
+      for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+          const cellData = getCellDataInternal(sheetName, r, c);
+          if (cellData?.v?.v != null || cellData?.v != null) {
+            count++;
+          }
+        }
+      }
+      return count;
+    }
+
+    function evaluateMIN(sheetName, start, end) {
+      const startCol = start.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
+      const startRow = parseInt(start.match(/\d+/)[0]) - 1;
+      const endCol = end.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
+      const endRow = parseInt(end.match(/\d+/)[0]) - 1;
+
+      let min = Infinity;
+      for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+          const cellData = getCellDataInternal(sheetName, r, c);
+          const value = parseFloat(cellData?.v?.v ?? cellData?.v);
+          if (!isNaN(value) && value < min) min = value;
+        }
+      }
+      return min === Infinity ? 0 : min;
+    }
+
+    function evaluateMAX(sheetName, start, end) {
+      const startCol = start.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
+      const startRow = parseInt(start.match(/\d+/)[0]) - 1;
+      const endCol = end.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
+      const endRow = parseInt(end.match(/\d+/)[0]) - 1;
+
+      let max = -Infinity;
+      for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+          const cellData = getCellDataInternal(sheetName, r, c);
+          const value = parseFloat(cellData?.v?.v ?? cellData?.v);
+          if (!isNaN(value) && value > max) max = value;
+        }
+      }
+      return max === -Infinity ? 0 : max;
+    }
+
+    // File operations (stub - actual implementation in main process)
+    window.openFile = async (filePath) => {
+      // This will be handled by the main process via IPC
+      console.log('[Spreadsheet] Opening file:', filePath);
+      return { success: false, error: 'Use IPC for file operations' };
+    };
+
+    window.saveFile = async (filePath, data) => {
+      console.log('[Spreadsheet] Saving file:', filePath);
+      return { success: false, error: 'Use IPC for file operations' };
+    };
+
+    window.exportAs = async (format, filePath, data) => {
+      console.log('[Spreadsheet] Exporting as:', format, filePath);
+      return { success: false, error: 'Use IPC for file operations' };
+    };
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', initSpreadsheet);
+  </script>
+</body>
+</html>

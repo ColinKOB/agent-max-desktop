@@ -120,6 +120,8 @@
     }
   },
   "dependencies": {
+    "@fortune-sheet/formula-parser": "^0.2.13",
+    "@fortune-sheet/react": "^1.0.4",
     "@stripe/react-stripe-js": "^5.2.0",
     "@stripe/stripe-js": "^8.1.0",
     "@supabase/supabase-js": "^2.76.0",
@@ -151,6 +153,7 @@
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^2.1.0",
     "uuid": "^13.0.0",
+    "xlsx": "^0.18.5",
     "zustand": "^4.4.7"
   },
   "devDependencies": {

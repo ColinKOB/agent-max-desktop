@@ -75,6 +75,7 @@ const { DevicePairing } = require('./devicePairing.cjs');
 const telemetry = require('../telemetry/telemetry.cjs');
 const { executeMacOSTool, isMacOSTool, isMacOS } = require('../autonomous/macosAppleScript.cjs');
 const workspaceApiServer = require('../autonomous/workspaceApiServer.cjs');
+const spreadsheetApiServer = require('../spreadsheet/spreadsheetApiServer.cjs');
 
 // Virtual Display Workspace (legacy - native Swift module)
 // NOTE: The native CGVirtualDisplay approach is deprecated.
@@ -94,6 +95,9 @@ try {
 
 // NEW: BrowserWindow-based workspace manager
 const { workspaceManager } = require('../workspace/workspaceManager.cjs');
+
+// Spreadsheet manager (Excel-like spreadsheet window)
+const { spreadsheetManager } = require('../spreadsheet/spreadsheetManager.cjs');
 
 // Phase 2: Pull-based executor
 const { 
@@ -460,6 +464,10 @@ app.whenReady().then(async () => {
   // NOTE: Now uses BrowserWindow-based workspace (workspaceManager), not native module
   workspaceApiServer.startServer(mainWindow);
   console.log('✓ Workspace API server started on port 3847');
+
+  // Start the spreadsheet API server for spreadsheet operations
+  spreadsheetApiServer.startServer(mainWindow);
+  console.log('✓ Spreadsheet API server started on port 3848');
   
   // NOTE: Hands on Desktop client DISABLED by default
   // This was causing unexpected background execution of commands without user requests.
@@ -493,6 +501,9 @@ app.on('before-quit', async () => {
 
   // Stop workspace API server
   workspaceApiServer.stopServer();
+
+  // Stop spreadsheet API server
+  spreadsheetApiServer.stopServer();
 
   // Cleanup executor (Phase 2)
   cleanupOnQuit();
@@ -1705,4 +1716,117 @@ ipcMain.handle('workspace:get-sessions', () => {
 // Clear activity log
 ipcMain.handle('workspace:clear-activity-log', () => {
   return workspaceManager.clearActivityLog();
+});
+
+// ===========================================
+// Spreadsheet IPC Handlers
+// ===========================================
+
+// Check if spreadsheet is active
+ipcMain.handle('spreadsheet:is-active', () => {
+  return spreadsheetManager.getIsActive();
+});
+
+// Get spreadsheet status
+ipcMain.handle('spreadsheet:get-status', () => {
+  return spreadsheetManager.getStatus();
+});
+
+// Create spreadsheet window
+ipcMain.handle('spreadsheet:create', async (_event, { width = 1280, height = 800 } = {}) => {
+  try {
+    const result = await spreadsheetManager.create(width, height);
+    return result;
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Destroy spreadsheet window
+ipcMain.handle('spreadsheet:destroy', async () => {
+  try {
+    const result = spreadsheetManager.destroy();
+    return result;
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Minimize spreadsheet
+ipcMain.handle('spreadsheet:minimize', () => {
+  return spreadsheetManager.minimize();
+});
+
+// Restore spreadsheet
+ipcMain.handle('spreadsheet:restore', () => {
+  return spreadsheetManager.restore();
+});
+
+// Capture frame
+ipcMain.handle('spreadsheet:capture-frame', async () => {
+  try {
+    return await spreadsheetManager.captureFrame();
+  } catch (error) {
+    return null;
+  }
+});
+
+// Read cell
+ipcMain.handle('spreadsheet:read-cell', async (_event, { sheet, cell }) => {
+  return await spreadsheetManager.readCell(sheet, cell);
+});
+
+// Write cell
+ipcMain.handle('spreadsheet:write-cell', async (_event, { sheet, cell, value }) => {
+  return await spreadsheetManager.writeCell(sheet, cell, value);
+});
+
+// Read range
+ipcMain.handle('spreadsheet:read-range', async (_event, { sheet, range }) => {
+  return await spreadsheetManager.readRange(sheet, range);
+});
+
+// Write range
+ipcMain.handle('spreadsheet:write-range', async (_event, { sheet, startCell, data }) => {
+  return await spreadsheetManager.writeRange(sheet, startCell, data);
+});
+
+// Set formula
+ipcMain.handle('spreadsheet:set-formula', async (_event, { sheet, cell, formula }) => {
+  return await spreadsheetManager.setFormula(sheet, cell, formula);
+});
+
+// Get formula
+ipcMain.handle('spreadsheet:get-formula', async (_event, { sheet, cell }) => {
+  return await spreadsheetManager.getFormula(sheet, cell);
+});
+
+// Get sheets
+ipcMain.handle('spreadsheet:get-sheets', async () => {
+  return await spreadsheetManager.getSheetNames();
+});
+
+// Add sheet
+ipcMain.handle('spreadsheet:add-sheet', async (_event, { name }) => {
+  return await spreadsheetManager.addSheet(name);
+});
+
+// Delete sheet
+ipcMain.handle('spreadsheet:delete-sheet', async (_event, { name }) => {
+  return await spreadsheetManager.deleteSheet(name);
+});
+
+// Open file
+ipcMain.handle('spreadsheet:open-file', async (_event, { path }) => {
+  return await spreadsheetManager.openFile(path);
+});
+
+// Save file
+ipcMain.handle('spreadsheet:save-file', async (_event, { path }) => {
+  return await spreadsheetManager.saveFile(path);
+});
+
+// Export file
+ipcMain.handle('spreadsheet:export', async (_event, { format, path }) => {
+  return await spreadsheetManager.exportAs(format, path);
 });

@@ -480,3 +480,93 @@ contextBridge.exposeInMainWorld('workspace', {
     DOWN: 'Down',
   }
 });
+
+// ===========================================
+// Spreadsheet API
+// ===========================================
+// Excel-like spreadsheet for data manipulation and analysis
+// The AI controls a separate Electron BrowserWindow, user sees it via PiP
+contextBridge.exposeInMainWorld('spreadsheet', {
+  // Check if spreadsheet is active
+  isActive: () => ipcRenderer.invoke('spreadsheet:is-active'),
+
+  // Get current spreadsheet status
+  getStatus: () => ipcRenderer.invoke('spreadsheet:get-status'),
+
+  // Create the spreadsheet window
+  create: (width = 1280, height = 800) =>
+    ipcRenderer.invoke('spreadsheet:create', { width, height }),
+
+  // Destroy the spreadsheet window
+  destroy: () => ipcRenderer.invoke('spreadsheet:destroy'),
+
+  // Minimize the spreadsheet
+  minimize: () => ipcRenderer.invoke('spreadsheet:minimize'),
+
+  // Restore the spreadsheet
+  restore: () => ipcRenderer.invoke('spreadsheet:restore'),
+
+  // Capture current frame as base64 PNG
+  captureFrame: () => ipcRenderer.invoke('spreadsheet:capture-frame'),
+
+  // ===========================================
+  // Cell Operations
+  // ===========================================
+
+  readCell: (sheet, cell) =>
+    ipcRenderer.invoke('spreadsheet:read-cell', { sheet, cell }),
+
+  writeCell: (sheet, cell, value) =>
+    ipcRenderer.invoke('spreadsheet:write-cell', { sheet, cell, value }),
+
+  readRange: (sheet, range) =>
+    ipcRenderer.invoke('spreadsheet:read-range', { sheet, range }),
+
+  writeRange: (sheet, startCell, data) =>
+    ipcRenderer.invoke('spreadsheet:write-range', { sheet, startCell, data }),
+
+  // ===========================================
+  // Formula Operations
+  // ===========================================
+
+  setFormula: (sheet, cell, formula) =>
+    ipcRenderer.invoke('spreadsheet:set-formula', { sheet, cell, formula }),
+
+  getFormula: (sheet, cell) =>
+    ipcRenderer.invoke('spreadsheet:get-formula', { sheet, cell }),
+
+  // ===========================================
+  // Sheet Management
+  // ===========================================
+
+  getSheets: () => ipcRenderer.invoke('spreadsheet:get-sheets'),
+
+  addSheet: (name) => ipcRenderer.invoke('spreadsheet:add-sheet', { name }),
+
+  deleteSheet: (name) => ipcRenderer.invoke('spreadsheet:delete-sheet', { name }),
+
+  // ===========================================
+  // File Operations
+  // ===========================================
+
+  openFile: (path) => ipcRenderer.invoke('spreadsheet:open-file', { path }),
+
+  saveFile: (path) => ipcRenderer.invoke('spreadsheet:save-file', { path }),
+
+  exportFile: (format, path) =>
+    ipcRenderer.invoke('spreadsheet:export', { format, path }),
+
+  // ===========================================
+  // Frame streaming for PiP viewer
+  // ===========================================
+
+  onFrame: (callback) => {
+    ipcRenderer.on('spreadsheet:frame', (_event, frame) => {
+      try { callback(frame); } catch (e) { console.error('[Spreadsheet] Frame callback error:', e); }
+    });
+  },
+
+  removeFrameListener: () => {
+    ipcRenderer.removeAllListeners('spreadsheet:frame');
+  }
+});
