@@ -749,6 +749,9 @@ class PullExecutor {
         } else if (tool.startsWith('workspace.')) {
             // Workspace tools for isolated AI browser
             return await this.executeWorkspaceTool(tool, args);
+        } else if (tool.startsWith('spreadsheet.')) {
+            // Spreadsheet tools for Excel-like data manipulation
+            return await this.executeSpreadsheetTool(tool, args);
         } else {
             return {
                 success: false,
@@ -1271,6 +1274,100 @@ class PullExecutor {
             return {
                 success: false,
                 error: e.message,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * Execute spreadsheet tools via HTTP API
+     * Routes to the spreadsheet API server on port 3848
+     */
+    async executeSpreadsheetTool(tool, args) {
+        const http = require('http');
+
+        console.log(`[PullExecutor] Executing spreadsheet tool: ${tool}`);
+
+        // Map tool names to API endpoints
+        const toolToEndpoint = {
+            'spreadsheet.create': '/spreadsheet/create',
+            'spreadsheet.destroy': '/spreadsheet/destroy',
+            'spreadsheet.open': '/spreadsheet/open',
+            'spreadsheet.save': '/spreadsheet/save',
+            'spreadsheet.read_cell': '/spreadsheet/read-cell',
+            'spreadsheet.write_cell': '/spreadsheet/write-cell',
+            'spreadsheet.read_range': '/spreadsheet/read-range',
+            'spreadsheet.write_range': '/spreadsheet/write-range',
+            'spreadsheet.set_formula': '/spreadsheet/set-formula',
+            'spreadsheet.format_cells': '/spreadsheet/format-cells',
+            'spreadsheet.analyze': '/spreadsheet/analyze',
+            'spreadsheet.export': '/spreadsheet/export'
+        };
+
+        const endpoint = toolToEndpoint[tool];
+        if (!endpoint) {
+            return {
+                success: false,
+                error: `Unknown spreadsheet tool: ${tool}`,
+                exit_code: 1
+            };
+        }
+
+        try {
+            const result = await new Promise((resolve, reject) => {
+                const postData = JSON.stringify(args || {});
+
+                const options = {
+                    hostname: '127.0.0.1',
+                    port: 3848,
+                    path: endpoint,
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Content-Length': Buffer.byteLength(postData)
+                    }
+                };
+
+                const req = http.request(options, (res) => {
+                    let data = '';
+                    res.on('data', chunk => data += chunk);
+                    res.on('end', () => {
+                        try {
+                            const json = JSON.parse(data);
+                            resolve(json);
+                        } catch (e) {
+                            resolve({ success: false, error: 'Invalid JSON response' });
+                        }
+                    });
+                });
+
+                req.on('error', (e) => {
+                    reject(e);
+                });
+
+                req.write(postData);
+                req.end();
+            });
+
+            if (result.success) {
+                return {
+                    success: true,
+                    stdout: result.message || result.value || JSON.stringify(result.data || result),
+                    stderr: '',
+                    exit_code: 0
+                };
+            } else {
+                return {
+                    success: false,
+                    error: result.error || 'Spreadsheet operation failed',
+                    exit_code: 1
+                };
+            }
+        } catch (e) {
+            console.error(`[PullExecutor] Spreadsheet tool error:`, e);
+            return {
+                success: false,
+                error: `Spreadsheet API error: ${e.message}`,
                 exit_code: 1
             };
         }
