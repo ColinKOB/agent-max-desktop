@@ -6,6 +6,52 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:;">
   <title>Max's Spreadsheet</title>
   <style>
+    /* ==========================================
+       Max Brand Design System Variables
+       Matching Agent Max Desktop App Styling
+       ========================================== */
+    :root {
+      /* Max Brand Colors - Orange/Amber Accent */
+      --max-accent: #f59e0b;
+      --max-accent-light: #fbbf24;
+      --max-accent-dark: #d97706;
+      --max-accent-glow: rgba(245, 158, 11, 0.4);
+      --max-accent-subtle: rgba(245, 158, 11, 0.15);
+
+      /* Background Colors - Matte Grey Theme */
+      --max-bg-dark: #18181b;
+      --max-bg-surface: rgba(30, 30, 35, 0.98);
+      --max-bg-header: linear-gradient(135deg, rgba(38, 38, 42, 0.98) 0%, rgba(45, 40, 35, 0.98) 100%);
+      --max-bg-formula: #fafafa;
+
+      /* Text Colors */
+      --max-text-primary: rgba(255, 255, 255, 0.95);
+      --max-text-secondary: rgba(255, 255, 255, 0.7);
+      --max-text-muted: rgba(255, 255, 255, 0.5);
+      --max-text-dark: #1f2937;
+
+      /* Borders */
+      --max-border: rgba(255, 255, 255, 0.08);
+      --max-border-accent: rgba(245, 158, 11, 0.3);
+      --max-border-light: #e5e7eb;
+
+      /* Status Colors */
+      --max-success: #22c55e;
+      --max-warning: #f59e0b;
+      --max-error: #ef4444;
+
+      /* Spacing */
+      --max-radius-sm: 6px;
+      --max-radius-md: 8px;
+      --max-radius-lg: 12px;
+
+      /* Shadows */
+      --max-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+      --max-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+      --max-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
+      --max-shadow-glow: 0 0 20px var(--max-accent-glow);
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -16,157 +62,350 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background: #1a1a2e;
+      /* Same font stack as Agent Max app */
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Inter", "Helvetica Neue", Arial, sans-serif;
+      background: var(--max-bg-dark);
+      color: var(--max-text-primary);
     }
 
-    /* Max's Spreadsheet Header */
+    /* ==========================================
+       Max's Spreadsheet Header - Refined Branding
+       ========================================== */
     #max-header {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
-      height: 38px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      height: 40px;
+      background: var(--max-bg-header);
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: space-between;
+      padding: 0 16px;
       z-index: 1000;
       -webkit-app-region: drag;
       user-select: none;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      border-bottom: 1px solid var(--max-border-accent);
+      box-shadow: var(--max-shadow-md);
+    }
+
+    #max-header .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
     #max-header .logo {
-      width: 20px;
-      height: 20px;
-      background: white;
-      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      background: linear-gradient(135deg, var(--max-accent) 0%, var(--max-accent-dark) 100%);
+      border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-right: 8px;
-      font-weight: bold;
-      font-size: 12px;
-      color: #764ba2;
+      font-weight: 700;
+      font-size: 13px;
+      color: white;
+      box-shadow: 0 2px 8px var(--max-accent-glow);
+    }
+
+    #max-header .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
     }
 
     #max-header .title {
-      color: white;
+      color: var(--max-accent);
       font-size: 13px;
       font-weight: 600;
       letter-spacing: 0.3px;
+      text-shadow: 0 0 12px var(--max-accent-glow);
     }
 
     #max-header .subtitle {
-      color: rgba(255,255,255,0.8);
-      font-size: 11px;
-      margin-left: 8px;
+      color: var(--max-text-muted);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+    }
+
+    #max-header .header-center {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     #max-header .file-name {
-      position: absolute;
-      right: 80px;
-      color: rgba(255,255,255,0.9);
-      font-size: 11px;
+      color: var(--max-text-secondary);
+      font-size: 12px;
+      font-weight: 500;
       max-width: 200px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      padding: 4px 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: var(--max-radius-sm);
+      border: 1px solid var(--max-border);
     }
 
     #max-header .modified-indicator {
-      color: #ffd700;
-      margin-left: 4px;
+      color: var(--max-accent);
+      font-size: 10px;
+      font-weight: 600;
+      margin-left: 6px;
+      padding: 2px 6px;
+      background: var(--max-accent-subtle);
+      border-radius: 4px;
     }
 
-    /* Formula Bar */
-    #formula-bar {
-      position: fixed;
-      top: 38px;
-      left: 0;
-      right: 0;
-      height: 32px;
-      background: #f8f9fa;
-      border-bottom: 1px solid #e0e0e0;
+    #max-header .header-right {
       display: flex;
       align-items: center;
-      padding: 0 8px;
+      gap: 12px;
+    }
+
+    #max-header .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--max-text-muted);
+    }
+
+    #max-header .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--max-success);
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+      animation: pulse-status 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-status {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(0.9); }
+    }
+
+    /* ==========================================
+       Toolbar - Quick Actions
+       ========================================== */
+    #toolbar {
+      position: fixed;
+      top: 40px;
+      left: 0;
+      right: 0;
+      height: 36px;
+      background: var(--max-bg-surface);
+      border-bottom: 1px solid var(--max-border);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
       z-index: 999;
-      gap: 8px;
+      gap: 4px;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 0 8px;
+      border-right: 1px solid var(--max-border);
+    }
+
+    .toolbar-group:last-child {
+      border-right: none;
+    }
+
+    .toolbar-btn {
+      -webkit-app-region: no-drag;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: transparent;
+      border: none;
+      border-radius: var(--max-radius-sm);
+      color: var(--max-text-secondary);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .toolbar-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--max-text-primary);
+    }
+
+    .toolbar-btn:active {
+      background: var(--max-accent-subtle);
+      color: var(--max-accent);
+    }
+
+    .toolbar-btn.disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .toolbar-separator {
+      width: 1px;
+      height: 20px;
+      background: var(--max-border);
+      margin: 0 4px;
+    }
+
+    /* ==========================================
+       Formula Bar - Enhanced
+       ========================================== */
+    #formula-bar {
+      position: fixed;
+      top: 76px;
+      left: 0;
+      right: 0;
+      height: 34px;
+      background: var(--max-bg-formula);
+      border-bottom: 1px solid var(--max-border-light);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      z-index: 998;
+      gap: 10px;
     }
 
     #formula-bar .cell-ref {
-      min-width: 60px;
-      padding: 4px 10px;
+      min-width: 70px;
+      padding: 5px 12px;
       background: white;
-      border: 1px solid #d0d0d0;
-      border-radius: 4px;
-      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      border: 1px solid var(--max-border-light);
+      border-radius: var(--max-radius-sm);
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, monospace;
       font-size: 12px;
       font-weight: 600;
-      color: #333;
+      color: var(--max-text-dark);
       text-align: center;
+      box-shadow: var(--max-shadow-sm);
     }
 
     #formula-bar .fx-icon {
       font-style: italic;
-      font-weight: bold;
-      color: #666;
+      font-weight: 700;
+      color: var(--max-accent-dark);
       font-size: 14px;
       padding: 0 4px;
     }
 
     #formula-bar .formula-input {
       flex: 1;
-      padding: 4px 10px;
+      padding: 5px 12px;
       background: white;
-      border: 1px solid #d0d0d0;
-      border-radius: 4px;
-      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      border: 1px solid var(--max-border-light);
+      border-radius: var(--max-radius-sm);
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, monospace;
       font-size: 12px;
-      color: #333;
+      color: var(--max-text-dark);
       outline: none;
+      box-shadow: var(--max-shadow-sm);
+      transition: all 0.15s ease;
     }
 
     #formula-bar .formula-input:focus {
-      border-color: #667eea;
-      box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+      border-color: var(--max-accent);
+      box-shadow: 0 0 0 3px var(--max-accent-subtle);
     }
 
     #formula-bar .formula-input::placeholder {
-      color: #999;
+      color: #9ca3af;
     }
 
-    /* Spreadsheet container */
+    /* ==========================================
+       Spreadsheet Container
+       ========================================== */
     #spreadsheet-container {
       position: fixed;
-      top: 70px; /* 38px header + 32px formula bar */
+      top: 110px; /* 40px header + 36px toolbar + 34px formula bar */
       left: 0;
       right: 0;
-      bottom: 0;
+      bottom: 24px; /* Leave room for status bar */
       background: white;
       overflow: auto;
     }
 
-    /* Loading state */
+    /* ==========================================
+       Status Bar - Bottom
+       ========================================== */
+    #status-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 24px;
+      background: var(--max-bg-surface);
+      border-top: 1px solid var(--max-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 11px;
+      color: var(--max-text-muted);
+      z-index: 997;
+    }
+
+    #status-bar .status-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    #status-bar .status-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    #status-bar .status-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    #status-bar .status-item.clickable {
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: background 0.15s ease;
+    }
+
+    #status-bar .status-item.clickable:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* ==========================================
+       Loading State
+       ========================================== */
     #loading {
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
       text-align: center;
-      color: #666;
+      color: var(--max-text-secondary);
     }
 
     #loading .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid #764ba2;
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top: 3px solid var(--max-accent);
       border-radius: 50%;
-      animation: spin 1s linear infinite;
+      animation: spin 0.8s linear infinite;
       margin: 0 auto 16px;
+    }
+
+    #loading .loading-text {
+      font-size: 13px;
+      font-weight: 500;
     }
 
     @keyframes spin {
@@ -174,26 +413,88 @@
       100% { transform: rotate(360deg); }
     }
 
-    /* FortuneSheet overrides */
+    /* ==========================================
+       FortuneSheet Overrides
+       ========================================== */
     .fortune-sheet-container {
       width: 100% !important;
       height: 100% !important;
     }
+
+    /* ==========================================
+       Tooltip Styles
+       ========================================== */
+    .max-tooltip {
+      position: absolute;
+      background: var(--max-bg-surface);
+      color: var(--max-text-primary);
+      padding: 6px 10px;
+      border-radius: var(--max-radius-sm);
+      font-size: 11px;
+      font-weight: 500;
+      box-shadow: var(--max-shadow-lg);
+      border: 1px solid var(--max-border-accent);
+      pointer-events: none;
+      z-index: 10000;
+      white-space: nowrap;
+    }
+
+    .max-tooltip .shortcut {
+      color: var(--max-text-muted);
+      margin-left: 8px;
+      font-family: ui-monospace, monospace;
+    }
   </style>
 </head>
 <body>
-  <!-- Header -->
+  <!-- Header - Max Branding -->
   <div id="max-header">
-    <div class="logo">M</div>
-    <span class="title">Max's Spreadsheet</span>
-    <span class="subtitle">Excel-like Editor</span>
-    <span class="file-name" id="file-name">Untitled</span>
+    <div class="header-left">
+      <div class="logo">M</div>
+      <div class="brand">
+        <span class="title">Max's Spreadsheet</span>
+        <span class="subtitle">AI-Powered Excel Editor</span>
+      </div>
+    </div>
+    <div class="header-center">
+      <span class="file-name" id="file-name">Untitled</span>
+      <span class="modified-indicator" id="modified-indicator" style="display: none;">Modified</span>
+    </div>
+    <div class="header-right">
+      <div class="status-indicator">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Ready</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toolbar - Quick Actions -->
+  <div id="toolbar">
+    <div class="toolbar-group">
+      <button class="toolbar-btn" id="btn-undo" title="Undo (⌘Z)">↩</button>
+      <button class="toolbar-btn" id="btn-redo" title="Redo (⌘⇧Z)">↪</button>
+    </div>
+    <div class="toolbar-group">
+      <button class="toolbar-btn" id="btn-cut" title="Cut (⌘X)">✂</button>
+      <button class="toolbar-btn" id="btn-copy" title="Copy (⌘C)">⧉</button>
+      <button class="toolbar-btn" id="btn-paste" title="Paste (⌘V)">📋</button>
+    </div>
+    <div class="toolbar-group">
+      <button class="toolbar-btn" id="btn-bold" title="Bold (⌘B)">𝐁</button>
+      <button class="toolbar-btn" id="btn-italic" title="Italic (⌘I)">𝐼</button>
+    </div>
+    <div class="toolbar-group">
+      <button class="toolbar-btn" id="btn-insert-row" title="Insert Row">+↓</button>
+      <button class="toolbar-btn" id="btn-insert-col" title="Insert Column">+→</button>
+      <button class="toolbar-btn" id="btn-delete-row" title="Delete Row">−↓</button>
+      <button class="toolbar-btn" id="btn-delete-col" title="Delete Column">−→</button>
+    </div>
   </div>
 
   <!-- Formula Bar -->
   <div id="formula-bar">
     <div class="cell-ref" id="cell-ref">A1</div>
-    <span class="fx-icon">fx</span>
+    <span class="fx-icon">ƒx</span>
     <input type="text" class="formula-input" id="formula-input" placeholder="Enter value or formula (e.g., =SUM(A1:A10))">
   </div>
 
@@ -204,6 +505,29 @@
       <div>Loading spreadsheet...</div>
     </div>
     <div id="fortune-sheet"></div>
+  </div>
+
+  <!-- Status Bar -->
+  <div id="status-bar">
+    <div class="status-left">
+      <div class="status-item" id="cell-count-status">
+        <span>Cells: </span><span id="cell-count">0</span>
+      </div>
+      <div class="status-item" id="selection-status">
+        <span>Selection: </span><span id="selection-info">A1</span>
+      </div>
+    </div>
+    <div class="status-right">
+      <div class="status-item" id="undo-status">
+        <span id="undo-count">0</span><span> undo</span>
+      </div>
+      <div class="status-item" id="sheet-status">
+        <span>Sheet: </span><span id="current-sheet-name">Sheet1</span>
+      </div>
+      <div class="status-item clickable" id="zoom-status" title="Click to reset zoom">
+        <span id="zoom-level">100%</span>
+      </div>
+    </div>
   </div>
 
   <script type="module">
@@ -244,8 +568,109 @@
       // Set initial formula bar state for A1
       updateFormulaBar(0, 0);
 
+      // Initialize toolbar buttons
+      initToolbarButtons();
+
+      // Initialize status bar updates
+      initStatusBar();
+
       // Hide loading indicator
       document.getElementById('loading').style.display = 'none';
+    }
+
+    // Initialize toolbar button click handlers
+    function initToolbarButtons() {
+      // Undo/Redo
+      document.getElementById('btn-undo')?.addEventListener('click', () => {
+        if (window.undo) window.undo();
+        updateStatusBar();
+      });
+      document.getElementById('btn-redo')?.addEventListener('click', () => {
+        if (window.redo) window.redo();
+        updateStatusBar();
+      });
+
+      // Clipboard operations
+      document.getElementById('btn-cut')?.addEventListener('click', () => {
+        if (window.cutSelectedCells) window.cutSelectedCells();
+      });
+      document.getElementById('btn-copy')?.addEventListener('click', () => {
+        if (window.copySelectedCells) window.copySelectedCells();
+      });
+      document.getElementById('btn-paste')?.addEventListener('click', () => {
+        if (window.pasteCells) window.pasteCells();
+        updateStatusBar();
+      });
+
+      // Bold/Italic (placeholder for future formatting)
+      document.getElementById('btn-bold')?.addEventListener('click', () => {
+        console.log('[Toolbar] Bold clicked - formatting coming soon');
+      });
+      document.getElementById('btn-italic')?.addEventListener('click', () => {
+        console.log('[Toolbar] Italic clicked - formatting coming soon');
+      });
+
+      // Insert/Delete operations
+      document.getElementById('btn-insert-row')?.addEventListener('click', () => {
+        if (window.insertRows) window.insertRows(selectedCell.row, 1);
+        updateStatusBar();
+      });
+      document.getElementById('btn-insert-col')?.addEventListener('click', () => {
+        if (window.insertColumns) window.insertColumns(selectedCell.col, 1);
+        updateStatusBar();
+      });
+      document.getElementById('btn-delete-row')?.addEventListener('click', () => {
+        if (window.deleteRows) window.deleteRows(selectedCell.row, 1);
+        updateStatusBar();
+      });
+      document.getElementById('btn-delete-col')?.addEventListener('click', () => {
+        if (window.deleteColumns) window.deleteColumns(selectedCell.col, 1);
+        updateStatusBar();
+      });
+
+      console.log('[Toolbar] Button handlers initialized');
+    }
+
+    // Initialize status bar
+    function initStatusBar() {
+      updateStatusBar();
+      // Update status bar periodically
+      setInterval(updateStatusBar, 2000);
+    }
+
+    // Update status bar with current state
+    function updateStatusBar() {
+      try {
+        // Get cell count
+        const sheet = spreadsheetData.find(s => s.name === currentSheet);
+        const cellCount = sheet?.celldata?.length || 0;
+        const cellCountEl = document.getElementById('cell-count');
+        if (cellCountEl) cellCountEl.textContent = cellCount;
+
+        // Get selection info
+        const selectionEl = document.getElementById('selection-info');
+        if (selectionEl && selectedCell) {
+          const cellRef = String.fromCharCode(65 + selectedCell.col) + (selectedCell.row + 1);
+          selectionEl.textContent = cellRef;
+        }
+
+        // Get undo count
+        const undoStatus = window.getUndoRedoStatus ? window.getUndoRedoStatus() : { undoCount: 0 };
+        const undoCountEl = document.getElementById('undo-count');
+        if (undoCountEl) undoCountEl.textContent = undoStatus.undoCount || 0;
+
+        // Update undo/redo button states
+        const undoBtn = document.getElementById('btn-undo');
+        const redoBtn = document.getElementById('btn-redo');
+        if (undoBtn) undoBtn.classList.toggle('disabled', !undoStatus.canUndo);
+        if (redoBtn) redoBtn.classList.toggle('disabled', !undoStatus.canRedo);
+
+        // Update sheet name
+        const sheetNameEl = document.getElementById('current-sheet-name');
+        if (sheetNameEl) sheetNameEl.textContent = currentSheet;
+      } catch (e) {
+        console.error('[StatusBar] Update error:', e);
+      }
     }
 
     // Fallback grid implementation (basic but functional)
@@ -2872,15 +3297,16 @@
       contextMenu.id = 'context-menu';
       contextMenu.style.cssText = `
         position: fixed;
-        background: white;
-        border: 1px solid #ccc;
-        border-radius: 6px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        padding: 4px 0;
+        background: rgba(30, 30, 35, 0.98);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.3), 0 0 20px rgba(245, 158, 11, 0.1);
+        padding: 6px 0;
         z-index: 10000;
         display: none;
-        min-width: 160px;
+        min-width: 180px;
         font-size: 13px;
+        backdrop-filter: blur(12px);
       `;
 
       const menuItems = [
@@ -2902,7 +3328,7 @@
       menuItems.forEach(item => {
         if (item.divider) {
           const divider = document.createElement('div');
-          divider.style.cssText = 'height: 1px; background: #e0e0e0; margin: 4px 0;';
+          divider.style.cssText = 'height: 1px; background: rgba(255,255,255,0.08); margin: 6px 0;';
           contextMenu.appendChild(divider);
         } else {
           const menuItem = document.createElement('div');
@@ -2912,16 +3338,20 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            color: rgba(255,255,255,0.9);
+            transition: all 0.15s ease;
           `;
           menuItem.innerHTML = `
             <span>${item.label}</span>
-            ${item.shortcut ? `<span style="color: #999; font-size: 11px; margin-left: 20px;">${item.shortcut}</span>` : ''}
+            ${item.shortcut ? `<span style="color: rgba(255,255,255,0.4); font-size: 11px; margin-left: 20px; font-family: ui-monospace, monospace;">${item.shortcut}</span>` : ''}
           `;
           menuItem.addEventListener('mouseenter', () => {
-            menuItem.style.background = '#f0f0f0';
+            menuItem.style.background = 'rgba(245, 158, 11, 0.15)';
+            menuItem.style.color = '#f59e0b';
           });
           menuItem.addEventListener('mouseleave', () => {
             menuItem.style.background = '';
+            menuItem.style.color = 'rgba(255,255,255,0.9)';
           });
           menuItem.addEventListener('click', () => {
             item.action();
