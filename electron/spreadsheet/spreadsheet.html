@@ -646,6 +646,21 @@
       const expr = formula.substring(1).toUpperCase();
 
       try {
+        // Handle ROUND function - ROUND(expression, decimals)
+        if (expr.startsWith('ROUND(')) {
+          const match = expr.match(/ROUND\((.+),\s*(\d+)\)$/);
+          if (match) {
+            const innerExpr = match[1];
+            const decimals = parseInt(match[2]);
+            // Recursively evaluate the inner expression
+            const value = evaluateFormula('=' + innerExpr, sheetName);
+            if (typeof value === 'number' && !isNaN(value)) {
+              return Math.round(value * Math.pow(10, decimals)) / Math.pow(10, decimals);
+            }
+            return value;
+          }
+        }
+
         // Handle SUM
         if (expr.startsWith('SUM(')) {
           const range = expr.match(/SUM\(([A-Z]+\d+):([A-Z]+\d+)\)/);
@@ -683,6 +698,17 @@
           const range = expr.match(/MAX\(([A-Z]+\d+):([A-Z]+\d+)\)/);
           if (range) {
             return evaluateMAX(sheetName, range[1], range[2]);
+          }
+        }
+
+        // Handle IF function - IF(condition, true_value, false_value)
+        if (expr.startsWith('IF(')) {
+          const match = expr.match(/IF\(([^,]+),([^,]+),([^)]+)\)/);
+          if (match) {
+            const condition = evaluateFormula('=' + match[1].trim(), sheetName);
+            const trueVal = evaluateFormula('=' + match[2].trim(), sheetName);
+            const falseVal = evaluateFormula('=' + match[3].trim(), sheetName);
+            return condition ? trueVal : falseVal;
           }
         }
 
