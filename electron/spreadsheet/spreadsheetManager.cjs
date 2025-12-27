@@ -910,6 +910,214 @@ class SpreadsheetManager {
     return this.currentFile;
   }
 
+  // ===========================================================================
+  // Undo/Redo Operations
+  // ===========================================================================
+
+  /**
+   * Undo the last operation
+   */
+  async undo() {
+    if (!this.getIsActive()) return { success: false, error: 'Spreadsheet not active' };
+
+    try {
+      const result = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        window.undo ? window.undo() : { success: false, error: 'Undo not available' }
+      `);
+
+      if (result.success) {
+        this.logActivity('undo', { actionType: result.actionType });
+      }
+      return result;
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Redo the last undone operation
+   */
+  async redo() {
+    if (!this.getIsActive()) return { success: false, error: 'Spreadsheet not active' };
+
+    try {
+      const result = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        window.redo ? window.redo() : { success: false, error: 'Redo not available' }
+      `);
+
+      if (result.success) {
+        this.logActivity('redo', { actionType: result.actionType });
+      }
+      return result;
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Get undo/redo stack status
+   */
+  async getUndoRedoStatus() {
+    if (!this.getIsActive()) return { success: false, error: 'Spreadsheet not active' };
+
+    try {
+      const result = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        window.getUndoRedoStatus ? window.getUndoRedoStatus() : { canUndo: false, canRedo: false, undoCount: 0, redoCount: 0 }
+      `);
+      return { success: true, ...result };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  // ===========================================================================
+  // Row/Column Operations
+  // ===========================================================================
+
+  /**
+   * Delete rows from the spreadsheet
+   */
+  async deleteRows(startRow, count = 1) {
+    if (!this.getIsActive()) return { success: false, error: 'Spreadsheet not active' };
+
+    try {
+      const result = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        window.deleteRows ? window.deleteRows(${startRow}, ${count}) : { success: false, error: 'Delete rows not available' }
+      `);
+
+      if (result.success) {
+        if (this.currentFile) this.currentFile.modified = true;
+        this.logActivity('delete_rows', { startRow, count });
+      }
+      return result;
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Insert rows into the spreadsheet
+   */
+  async insertRows(atRow, count = 1) {
+    if (!this.getIsActive()) return { success: false, error: 'Spreadsheet not active' };
+
+    try {
+      const result = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        window.insertRows ? window.insertRows(${atRow}, ${count}) : { success: false, error: 'Insert rows not available' }
+      `);
+
+      if (result.success) {
+        if (this.currentFile) this.currentFile.modified = true;
+        this.logActivity('insert_rows', { atRow, count });
+      }
+      return result;
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Delete columns from the spreadsheet
+   */
+  async deleteColumns(startCol, count = 1) {
+    if (!this.getIsActive()) return { success: false, error: 'Spreadsheet not active' };
+
+    try {
+      const result = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        window.deleteColumns ? window.deleteColumns(${startCol}, ${count}) : { success: false, error: 'Delete columns not available' }
+      `);
+
+      if (result.success) {
+        if (this.currentFile) this.currentFile.modified = true;
+        this.logActivity('delete_columns', { startCol, count });
+      }
+      return result;
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Insert columns into the spreadsheet
+   */
+  async insertColumns(atCol, count = 1) {
+    if (!this.getIsActive()) return { success: false, error: 'Spreadsheet not active' };
+
+    try {
+      const result = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        window.insertColumns ? window.insertColumns(${atCol}, ${count}) : { success: false, error: 'Insert columns not available' }
+      `);
+
+      if (result.success) {
+        if (this.currentFile) this.currentFile.modified = true;
+        this.logActivity('insert_columns', { atCol, count });
+      }
+      return result;
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Clear cells in a range (without deleting rows/columns)
+   */
+  async clearCells(startRow, startCol, endRow, endCol) {
+    if (!this.getIsActive()) return { success: false, error: 'Spreadsheet not active' };
+
+    try {
+      const result = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        window.clearCells ? window.clearCells(${startRow}, ${startCol}, ${endRow}, ${endCol}) : { success: false, error: 'Clear cells not available' }
+      `);
+
+      if (result.success) {
+        if (this.currentFile) this.currentFile.modified = true;
+        this.logActivity('clear_cells', { startRow, startCol, endRow, endCol });
+      }
+      return result;
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  // ===========================================================================
+  // Enhanced Status for AI
+  // ===========================================================================
+
+  /**
+   * Get enhanced status with detailed information for AI context
+   */
+  async getEnhancedStatus() {
+    if (!this.getIsActive()) {
+      return { success: false, error: 'Spreadsheet not active', active: false };
+    }
+
+    try {
+      const result = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        window.getEnhancedStatus ? window.getEnhancedStatus() : null
+      `);
+
+      if (result) {
+        return {
+          success: true,
+          active: true,
+          file: this.currentFile,
+          sessionId: this.currentSessionId,
+          ...result
+        };
+      }
+
+      // Fallback to basic status
+      return {
+        success: true,
+        active: true,
+        file: this.currentFile,
+        sessionId: this.currentSessionId
+      };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
   async getFormulaDebug() {
     if (!this.getIsActive()) return { success: false, error: 'Spreadsheet not active' };
 

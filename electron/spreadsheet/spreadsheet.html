@@ -2339,6 +2339,713 @@
       return { success: false, error: 'Use IPC for file operations' };
     };
 
+    // ============================================================
+    // UNDO/REDO SYSTEM
+    // ============================================================
+    const undoStack = [];
+    const redoStack = [];
+    const MAX_UNDO_STACK = 100;
+
+    // Create a snapshot of current state for undo
+    function createUndoSnapshot(actionType, details) {
+      const snapshot = {
+        timestamp: Date.now(),
+        actionType,
+        details,
+        data: JSON.parse(JSON.stringify(spreadsheetData))
+      };
+
+      undoStack.push(snapshot);
+      if (undoStack.length > MAX_UNDO_STACK) {
+        undoStack.shift();
+      }
+
+      // Clear redo stack when new action is performed
+      redoStack.length = 0;
+
+      console.log(`[Undo] Saved: ${actionType}`, details);
+    }
+
+    // Undo last action
+    window.undo = function() {
+      if (undoStack.length === 0) {
+        console.log('[Undo] Nothing to undo');
+        return false;
+      }
+
+      // Save current state to redo stack
+      redoStack.push({
+        timestamp: Date.now(),
+        actionType: 'redo_point',
+        data: JSON.parse(JSON.stringify(spreadsheetData))
+      });
+
+      // Restore previous state
+      const snapshot = undoStack.pop();
+      spreadsheetData = snapshot.data;
+
+      // Re-render the grid
+      initFallbackGrid();
+      updateFileModified(true);
+
+      console.log(`[Undo] Restored: ${snapshot.actionType}`);
+      return true;
+    };
+
+    // Redo last undone action
+    window.redo = function() {
+      if (redoStack.length === 0) {
+        console.log('[Redo] Nothing to redo');
+        return false;
+      }
+
+      // Save current state to undo stack
+      undoStack.push({
+        timestamp: Date.now(),
+        actionType: 'undo_point',
+        data: JSON.parse(JSON.stringify(spreadsheetData))
+      });
+
+      // Restore redo state
+      const snapshot = redoStack.pop();
+      spreadsheetData = snapshot.data;
+
+      // Re-render the grid
+      initFallbackGrid();
+      updateFileModified(true);
+
+      console.log('[Redo] Restored state');
+      return true;
+    };
+
+    // Get undo/redo status
+    window.getUndoRedoStatus = function() {
+      return {
+        canUndo: undoStack.length > 0,
+        canRedo: redoStack.length > 0,
+        undoCount: undoStack.length,
+        redoCount: redoStack.length,
+        lastAction: undoStack.length > 0 ? undoStack[undoStack.length - 1].actionType : null
+      };
+    };
+
+    // Wrap existing functions to support undo
+    const originalSetCellValue = window.setCellValue;
+    window.setCellValue = (sheet, row, col, value) => {
+      createUndoSnapshot('setCellValue', { sheet, row, col, value });
+      return originalSetCellValue(sheet, row, col, value);
+    };
+
+    const originalSetCellFormula = window.setCellFormula;
+    window.setCellFormula = (sheet, row, col, formula) => {
+      createUndoSnapshot('setCellFormula', { sheet, row, col, formula });
+      return originalSetCellFormula(sheet, row, col, formula);
+    };
+
+    const originalSetRangeValues = window.setRangeValues;
+    window.setRangeValues = (sheet, startRow, startCol, data) => {
+      createUndoSnapshot('setRangeValues', { sheet, startRow, startCol, rows: data.length, cols: data[0]?.length });
+      return originalSetRangeValues(sheet, startRow, startCol, data);
+    };
+
+    // ============================================================
+    // CLIPBOARD SYSTEM (Copy/Paste/Cut)
+    // ============================================================
+    let clipboard = {
+      data: null,
+      startRow: 0,
+      startCol: 0,
+      endRow: 0,
+      endCol: 0,
+      isCut: false
+    };
+
+    // Selection tracking
+    let selection = {
+      startRow: 0,
+      startCol: 0,
+      endRow: 0,
+      endCol: 0,
+      isSelecting: false
+    };
+
+    // Copy selected cells
+    window.copySelection = function() {
+      const { startRow, startCol, endRow, endCol } = getSelectionBounds();
+      const data = [];
+
+      for (let r = startRow; r <= endRow; r++) {
+        const row = [];
+        for (let c = startCol; c <= endCol; c++) {
+          const cellData = getCellDataInternal(currentSheet, r, c);
+          row.push({
+            value: cellData?.v?.v ?? cellData?.v ?? '',
+            formula: cellData?.v?.f || null
+          });
+        }
+        data.push(row);
+      }
+
+      clipboard = {
+        data,
+        startRow,
+        startCol,
+        endRow,
+        endCol,
+        isCut: false
+      };
+
+      console.log(`[Clipboard] Copied ${data.length}x${data[0]?.length || 0} cells`);
+      return true;
+    };
+
+    // Cut selected cells
+    window.cutSelection = function() {
+      window.copySelection();
+      clipboard.isCut = true;
+
+      // Highlight cut cells with dashed border
+      highlightCutCells();
+
+      console.log('[Clipboard] Cut cells marked');
+      return true;
+    };
+
+    // Paste at current selection
+    window.pasteSelection = function() {
+      if (!clipboard.data || clipboard.data.length === 0) {
+        console.log('[Clipboard] Nothing to paste');
+        return false;
+      }
+
+      createUndoSnapshot('paste', {
+        targetRow: selectedCell.row,
+        targetCol: selectedCell.col,
+        rows: clipboard.data.length,
+        cols: clipboard.data[0]?.length
+      });
+
+      const startRow = selectedCell.row;
+      const startCol = selectedCell.col;
+
+      for (let r = 0; r < clipboard.data.length; r++) {
+        for (let c = 0; c < clipboard.data[r].length; c++) {
+          const cellInfo = clipboard.data[r][c];
+          const targetRow = startRow + r;
+          const targetCol = startCol + c;
+
+          if (cellInfo.formula) {
+            // Adjust formula references for paste location
+            const adjustedFormula = adjustFormulaReferences(
+              cellInfo.formula,
+              r - clipboard.startRow,
+              c - clipboard.startCol,
+              targetRow - clipboard.startRow,
+              targetCol - clipboard.startCol
+            );
+            originalSetCellFormula(currentSheet, targetRow, targetCol, adjustedFormula);
+          } else {
+            originalSetCellValue(currentSheet, targetRow, targetCol, cellInfo.value);
+          }
+        }
+      }
+
+      // If it was a cut operation, clear the source cells
+      if (clipboard.isCut) {
+        for (let r = clipboard.startRow; r <= clipboard.endRow; r++) {
+          for (let c = clipboard.startCol; c <= clipboard.endCol; c++) {
+            originalSetCellValue(currentSheet, r, c, '');
+          }
+        }
+        clipboard.isCut = false;
+        clearCutHighlight();
+      }
+
+      updateFileModified(true);
+      console.log(`[Clipboard] Pasted ${clipboard.data.length}x${clipboard.data[0]?.length || 0} cells`);
+      return true;
+    };
+
+    // Adjust formula references when pasting
+    function adjustFormulaReferences(formula, srcRowOffset, srcColOffset, destRowOffset, destColOffset) {
+      // Simple relative reference adjustment
+      // TODO: Handle absolute references ($A$1)
+      return formula.replace(/([A-Z]+)(\d+)/g, (match, col, row) => {
+        const colNum = col.split('').reduce((acc, c) => acc * 26 + c.charCodeAt(0) - 64, 0) - 1;
+        const rowNum = parseInt(row) - 1;
+
+        const newCol = colNum + (destColOffset - srcColOffset);
+        const newRow = rowNum + (destRowOffset - srcRowOffset);
+
+        if (newCol < 0 || newRow < 0) return match; // Keep original if out of bounds
+
+        const newColLetter = String.fromCharCode(65 + (newCol % 26));
+        return `${newColLetter}${newRow + 1}`;
+      });
+    }
+
+    function getSelectionBounds() {
+      // For now, just use selected cell as single selection
+      return {
+        startRow: selectedCell.row,
+        startCol: selectedCell.col,
+        endRow: selectedCell.row,
+        endCol: selectedCell.col
+      };
+    }
+
+    function highlightCutCells() {
+      for (let r = clipboard.startRow; r <= clipboard.endRow; r++) {
+        for (let c = clipboard.startCol; c <= clipboard.endCol; c++) {
+          const cell = document.querySelector(`td[data-row="${r}"][data-col="${c}"]`);
+          if (cell) {
+            cell.style.border = '2px dashed #667eea';
+          }
+        }
+      }
+    }
+
+    function clearCutHighlight() {
+      for (let r = clipboard.startRow; r <= clipboard.endRow; r++) {
+        for (let c = clipboard.startCol; c <= clipboard.endCol; c++) {
+          const cell = document.querySelector(`td[data-row="${r}"][data-col="${c}"]`);
+          if (cell) {
+            cell.style.border = '1px solid #e0e0e0';
+          }
+        }
+      }
+    }
+
+    // ============================================================
+    // DELETE/INSERT ROWS AND COLUMNS
+    // ============================================================
+
+    // Delete rows
+    window.deleteRows = function(startRow, count = 1) {
+      createUndoSnapshot('deleteRows', { startRow, count });
+
+      const sheet = spreadsheetData.find(s => s.name === currentSheet);
+      if (!sheet || !sheet.celldata) return false;
+
+      // Remove cells in the deleted rows
+      sheet.celldata = sheet.celldata.filter(c => c.r < startRow || c.r >= startRow + count);
+
+      // Shift remaining cells up
+      sheet.celldata.forEach(c => {
+        if (c.r >= startRow + count) {
+          c.r -= count;
+        }
+      });
+
+      initFallbackGrid();
+      updateFileModified(true);
+      console.log(`[Spreadsheet] Deleted ${count} row(s) starting at ${startRow + 1}`);
+      return true;
+    };
+
+    // Insert rows
+    window.insertRows = function(atRow, count = 1) {
+      createUndoSnapshot('insertRows', { atRow, count });
+
+      const sheet = spreadsheetData.find(s => s.name === currentSheet);
+      if (!sheet) return false;
+      if (!sheet.celldata) sheet.celldata = [];
+
+      // Shift existing cells down
+      sheet.celldata.forEach(c => {
+        if (c.r >= atRow) {
+          c.r += count;
+        }
+      });
+
+      initFallbackGrid();
+      updateFileModified(true);
+      console.log(`[Spreadsheet] Inserted ${count} row(s) at ${atRow + 1}`);
+      return true;
+    };
+
+    // Delete columns
+    window.deleteColumns = function(startCol, count = 1) {
+      createUndoSnapshot('deleteColumns', { startCol, count });
+
+      const sheet = spreadsheetData.find(s => s.name === currentSheet);
+      if (!sheet || !sheet.celldata) return false;
+
+      // Remove cells in the deleted columns
+      sheet.celldata = sheet.celldata.filter(c => c.c < startCol || c.c >= startCol + count);
+
+      // Shift remaining cells left
+      sheet.celldata.forEach(c => {
+        if (c.c >= startCol + count) {
+          c.c -= count;
+        }
+      });
+
+      initFallbackGrid();
+      updateFileModified(true);
+      console.log(`[Spreadsheet] Deleted ${count} column(s) starting at ${String.fromCharCode(65 + startCol)}`);
+      return true;
+    };
+
+    // Insert columns
+    window.insertColumns = function(atCol, count = 1) {
+      createUndoSnapshot('insertColumns', { atCol, count });
+
+      const sheet = spreadsheetData.find(s => s.name === currentSheet);
+      if (!sheet) return false;
+      if (!sheet.celldata) sheet.celldata = [];
+
+      // Shift existing cells right
+      sheet.celldata.forEach(c => {
+        if (c.c >= atCol) {
+          c.c += count;
+        }
+      });
+
+      initFallbackGrid();
+      updateFileModified(true);
+      console.log(`[Spreadsheet] Inserted ${count} column(s) at ${String.fromCharCode(65 + atCol)}`);
+      return true;
+    };
+
+    // Clear cell contents (without deleting)
+    window.clearCells = function(startRow, startCol, endRow, endCol) {
+      createUndoSnapshot('clearCells', { startRow, startCol, endRow, endCol });
+
+      for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+          originalSetCellValue(currentSheet, r, c, '');
+        }
+      }
+
+      updateFileModified(true);
+      console.log(`[Spreadsheet] Cleared cells ${String.fromCharCode(65 + startCol)}${startRow + 1}:${String.fromCharCode(65 + endCol)}${endRow + 1}`);
+      return true;
+    };
+
+    // ============================================================
+    // KEYBOARD SHORTCUTS
+    // ============================================================
+    document.addEventListener('keydown', (e) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+      // Don't intercept if typing in formula bar
+      if (document.activeElement === document.getElementById('formula-input')) {
+        // Only handle Escape in formula bar
+        if (e.key === 'Escape') {
+          updateFormulaBar(selectedCell.row, selectedCell.col);
+          const cell = document.querySelector(`td[data-row="${selectedCell.row}"][data-col="${selectedCell.col}"]`);
+          if (cell) cell.focus();
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + Z = Undo
+      if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        window.undo();
+        return;
+      }
+
+      // Ctrl/Cmd + Y or Ctrl/Cmd + Shift + Z = Redo
+      if ((cmdOrCtrl && e.key === 'y') || (cmdOrCtrl && e.key === 'z' && e.shiftKey)) {
+        e.preventDefault();
+        window.redo();
+        return;
+      }
+
+      // Ctrl/Cmd + C = Copy
+      if (cmdOrCtrl && e.key === 'c') {
+        e.preventDefault();
+        window.copySelection();
+        return;
+      }
+
+      // Ctrl/Cmd + X = Cut
+      if (cmdOrCtrl && e.key === 'x') {
+        e.preventDefault();
+        window.cutSelection();
+        return;
+      }
+
+      // Ctrl/Cmd + V = Paste
+      if (cmdOrCtrl && e.key === 'v') {
+        e.preventDefault();
+        window.pasteSelection();
+        return;
+      }
+
+      // Ctrl/Cmd + S = Save (trigger IPC)
+      if (cmdOrCtrl && e.key === 's') {
+        e.preventDefault();
+        if (window.spreadsheetAPI?.save) {
+          window.spreadsheetAPI.save();
+        }
+        console.log('[Spreadsheet] Save triggered');
+        return;
+      }
+
+      // Delete or Backspace = Clear cell contents
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Only if a cell is focused, not editing
+        const activeCell = document.activeElement;
+        if (activeCell?.dataset?.row !== undefined) {
+          // Check if we're at the start of editing (empty or just focused)
+          const isEditing = activeCell.textContent.length > 0 &&
+                           window.getSelection().toString() !== activeCell.textContent;
+
+          if (!isEditing || e.key === 'Delete') {
+            e.preventDefault();
+            window.clearCells(selectedCell.row, selectedCell.col, selectedCell.row, selectedCell.col);
+            activeCell.textContent = '';
+          }
+        }
+        return;
+      }
+
+      // Arrow keys for navigation
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        const activeCell = document.activeElement;
+        if (activeCell?.dataset?.row !== undefined) {
+          // Only navigate if not editing cell content
+          const isEditing = window.getSelection().toString() !== activeCell.textContent;
+          if (!isEditing || cmdOrCtrl) {
+            e.preventDefault();
+            let newRow = selectedCell.row;
+            let newCol = selectedCell.col;
+
+            switch (e.key) {
+              case 'ArrowUp': newRow = Math.max(0, newRow - 1); break;
+              case 'ArrowDown': newRow = Math.min(99, newRow + 1); break;
+              case 'ArrowLeft': newCol = Math.max(0, newCol - 1); break;
+              case 'ArrowRight': newCol = Math.min(25, newCol + 1); break;
+            }
+
+            const nextCell = document.querySelector(`td[data-row="${newRow}"][data-col="${newCol}"]`);
+            if (nextCell) {
+              nextCell.focus();
+            }
+          }
+        }
+        return;
+      }
+
+      // Tab = Move right, Shift+Tab = Move left
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        let newCol = e.shiftKey
+          ? Math.max(0, selectedCell.col - 1)
+          : Math.min(25, selectedCell.col + 1);
+
+        const nextCell = document.querySelector(`td[data-row="${selectedCell.row}"][data-col="${newCol}"]`);
+        if (nextCell) {
+          nextCell.focus();
+        }
+        return;
+      }
+
+      // Enter = Move down (after editing)
+      if (e.key === 'Enter' && !e.shiftKey) {
+        const activeCell = document.activeElement;
+        if (activeCell?.dataset?.row !== undefined) {
+          e.preventDefault();
+          const newRow = Math.min(99, selectedCell.row + 1);
+          const nextCell = document.querySelector(`td[data-row="${newRow}"][data-col="${selectedCell.col}"]`);
+          if (nextCell) {
+            nextCell.focus();
+          }
+        }
+        return;
+      }
+    });
+
+    // ============================================================
+    // CONTEXT MENU (Right-Click)
+    // ============================================================
+    let contextMenu = null;
+
+    function createContextMenu() {
+      if (contextMenu) return contextMenu;
+
+      contextMenu = document.createElement('div');
+      contextMenu.id = 'context-menu';
+      contextMenu.style.cssText = `
+        position: fixed;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        padding: 4px 0;
+        z-index: 10000;
+        display: none;
+        min-width: 160px;
+        font-size: 13px;
+      `;
+
+      const menuItems = [
+        { label: 'Cut', shortcut: '⌘X', action: () => window.cutSelection() },
+        { label: 'Copy', shortcut: '⌘C', action: () => window.copySelection() },
+        { label: 'Paste', shortcut: '⌘V', action: () => window.pasteSelection() },
+        { divider: true },
+        { label: 'Clear Contents', shortcut: 'Del', action: () => window.clearCells(selectedCell.row, selectedCell.col, selectedCell.row, selectedCell.col) },
+        { divider: true },
+        { label: 'Insert Row Above', action: () => window.insertRows(selectedCell.row, 1) },
+        { label: 'Insert Row Below', action: () => window.insertRows(selectedCell.row + 1, 1) },
+        { label: 'Delete Row', action: () => window.deleteRows(selectedCell.row, 1) },
+        { divider: true },
+        { label: 'Insert Column Left', action: () => window.insertColumns(selectedCell.col, 1) },
+        { label: 'Insert Column Right', action: () => window.insertColumns(selectedCell.col + 1, 1) },
+        { label: 'Delete Column', action: () => window.deleteColumns(selectedCell.col, 1) },
+      ];
+
+      menuItems.forEach(item => {
+        if (item.divider) {
+          const divider = document.createElement('div');
+          divider.style.cssText = 'height: 1px; background: #e0e0e0; margin: 4px 0;';
+          contextMenu.appendChild(divider);
+        } else {
+          const menuItem = document.createElement('div');
+          menuItem.style.cssText = `
+            padding: 8px 16px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          `;
+          menuItem.innerHTML = `
+            <span>${item.label}</span>
+            ${item.shortcut ? `<span style="color: #999; font-size: 11px; margin-left: 20px;">${item.shortcut}</span>` : ''}
+          `;
+          menuItem.addEventListener('mouseenter', () => {
+            menuItem.style.background = '#f0f0f0';
+          });
+          menuItem.addEventListener('mouseleave', () => {
+            menuItem.style.background = '';
+          });
+          menuItem.addEventListener('click', () => {
+            item.action();
+            hideContextMenu();
+          });
+          contextMenu.appendChild(menuItem);
+        }
+      });
+
+      document.body.appendChild(contextMenu);
+      return contextMenu;
+    }
+
+    function showContextMenu(x, y) {
+      const menu = createContextMenu();
+      menu.style.display = 'block';
+      menu.style.left = `${x}px`;
+      menu.style.top = `${y}px`;
+
+      // Adjust if off-screen
+      const rect = menu.getBoundingClientRect();
+      if (rect.right > window.innerWidth) {
+        menu.style.left = `${window.innerWidth - rect.width - 10}px`;
+      }
+      if (rect.bottom > window.innerHeight) {
+        menu.style.top = `${window.innerHeight - rect.height - 10}px`;
+      }
+    }
+
+    function hideContextMenu() {
+      if (contextMenu) {
+        contextMenu.style.display = 'none';
+      }
+    }
+
+    // Right-click handler
+    document.addEventListener('contextmenu', (e) => {
+      const cell = e.target.closest('td[data-row]');
+      if (cell) {
+        e.preventDefault();
+        selectedCell.row = parseInt(cell.dataset.row);
+        selectedCell.col = parseInt(cell.dataset.col);
+        cell.focus();
+        showContextMenu(e.clientX, e.clientY);
+      }
+    });
+
+    // Hide context menu on click elsewhere
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#context-menu')) {
+        hideContextMenu();
+      }
+    });
+
+    // Hide context menu on scroll
+    document.getElementById('spreadsheet-container').addEventListener('scroll', hideContextMenu);
+
+    // ============================================================
+    // AI-FRIENDLY STATUS & ERROR FEEDBACK
+    // ============================================================
+
+    // Enhanced status with more context for AI
+    window.getEnhancedStatus = function() {
+      const sheet = spreadsheetData.find(s => s.name === currentSheet);
+      const cellCount = sheet?.celldata?.length || 0;
+
+      // Count non-empty cells per column
+      const columnStats = {};
+      if (sheet?.celldata) {
+        sheet.celldata.forEach(c => {
+          const colLetter = String.fromCharCode(65 + c.c);
+          columnStats[colLetter] = (columnStats[colLetter] || 0) + 1;
+        });
+      }
+
+      // Find data bounds
+      let maxRow = 0, maxCol = 0;
+      if (sheet?.celldata) {
+        sheet.celldata.forEach(c => {
+          maxRow = Math.max(maxRow, c.r);
+          maxCol = Math.max(maxCol, c.c);
+        });
+      }
+
+      return {
+        currentSheet,
+        totalSheets: spreadsheetData.length,
+        sheetNames: spreadsheetData.map(s => s.name),
+        isModified,
+        cellCount,
+        dataBounds: {
+          rows: maxRow + 1,
+          cols: maxCol + 1,
+          lastCell: `${String.fromCharCode(65 + maxCol)}${maxRow + 1}`
+        },
+        columnStats,
+        selectedCell: {
+          ref: `${String.fromCharCode(65 + selectedCell.col)}${selectedCell.row + 1}`,
+          row: selectedCell.row,
+          col: selectedCell.col
+        },
+        undoRedoStatus: window.getUndoRedoStatus(),
+        hasClipboard: clipboard.data !== null && clipboard.data.length > 0,
+        lastError: window._lastFormulaError || null
+      };
+    };
+
+    // Get last operation result with details
+    window.getLastOperationResult = function() {
+      return {
+        success: !window._lastFormulaError,
+        error: window._lastFormulaError || null,
+        lastAction: undoStack.length > 0 ? undoStack[undoStack.length - 1] : null
+      };
+    };
+
+    // Clear error state
+    window.clearErrorState = function() {
+      window._lastFormulaError = null;
+      window._formulaDebug = null;
+    };
+
+    console.log('[Spreadsheet] Enhanced features loaded: Undo/Redo, Clipboard, Insert/Delete, Shortcuts, Context Menu');
+
     // Initialize on load
     document.addEventListener('DOMContentLoaded', initSpreadsheet);
   </script>

@@ -339,6 +339,89 @@ async function handleRequest(req, res) {
     }
 
     // =========================================================================
+    // Undo/Redo Operations
+    // =========================================================================
+
+    if (pathname === '/spreadsheet/undo' && req.method === 'POST') {
+      const result = await spreadsheetManager.undo();
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/spreadsheet/redo' && req.method === 'POST') {
+      const result = await spreadsheetManager.redo();
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/spreadsheet/undo-redo-status' && req.method === 'GET') {
+      const result = await spreadsheetManager.getUndoRedoStatus();
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    // =========================================================================
+    // Row/Column Operations
+    // =========================================================================
+
+    if (pathname === '/spreadsheet/delete-rows' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (body.startRow === undefined) {
+        return sendJson(res, 400, { success: false, error: 'startRow required' });
+      }
+      const count = body.count || 1;
+      const result = await spreadsheetManager.deleteRows(body.startRow, count);
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/spreadsheet/insert-rows' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (body.atRow === undefined) {
+        return sendJson(res, 400, { success: false, error: 'atRow required' });
+      }
+      const count = body.count || 1;
+      const result = await spreadsheetManager.insertRows(body.atRow, count);
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/spreadsheet/delete-columns' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (body.startCol === undefined) {
+        return sendJson(res, 400, { success: false, error: 'startCol required' });
+      }
+      const count = body.count || 1;
+      const result = await spreadsheetManager.deleteColumns(body.startCol, count);
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/spreadsheet/insert-columns' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (body.atCol === undefined) {
+        return sendJson(res, 400, { success: false, error: 'atCol required' });
+      }
+      const count = body.count || 1;
+      const result = await spreadsheetManager.insertColumns(body.atCol, count);
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/spreadsheet/clear-cells' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (body.startRow === undefined || body.startCol === undefined) {
+        return sendJson(res, 400, { success: false, error: 'startRow and startCol required' });
+      }
+      const endRow = body.endRow !== undefined ? body.endRow : body.startRow;
+      const endCol = body.endCol !== undefined ? body.endCol : body.startCol;
+      const result = await spreadsheetManager.clearCells(body.startRow, body.startCol, endRow, endCol);
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    // =========================================================================
+    // Enhanced Status
+    // =========================================================================
+
+    if (pathname === '/spreadsheet/enhanced-status' && req.method === 'GET') {
+      const result = await spreadsheetManager.getEnhancedStatus();
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    // =========================================================================
     // Cloud Sync (Supabase)
     // =========================================================================
 
