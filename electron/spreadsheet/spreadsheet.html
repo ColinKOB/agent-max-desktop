@@ -639,193 +639,1255 @@
       return spreadsheetData.find(s => s.name === sheetName);
     };
 
-    // Simple formula evaluator (basic math only)
+    // ============================================================
+    // COMPREHENSIVE EXCEL FORMULA EVALUATOR
+    // Supports 50+ Excel functions
+    // ============================================================
+
+    // Helper: Parse cell reference (e.g., "A1" -> {col: 0, row: 0})
+    function parseCellRef(ref) {
+      const match = ref.match(/^([A-Z]+)(\d+)$/);
+      if (!match) return null;
+      let col = 0;
+      for (let i = 0; i < match[1].length; i++) {
+        col = col * 26 + (match[1].charCodeAt(i) - 64);
+      }
+      return { col: col - 1, row: parseInt(match[2]) - 1 };
+    }
+
+    // Helper: Get cell value by reference string
+    function getCellByRef(sheetName, ref) {
+      const parsed = parseCellRef(ref);
+      if (!parsed) return 0;
+      const cellData = getCellDataInternal(sheetName, parsed.row, parsed.col);
+      const val = cellData?.v?.v ?? cellData?.v;
+      return val;
+    }
+
+    // Helper: Get numeric value from cell
+    function getNumericValue(sheetName, ref) {
+      const val = getCellByRef(sheetName, ref);
+      const num = parseFloat(val);
+      return isNaN(num) ? 0 : num;
+    }
+
+    // Helper: Get range values as flat array
+    function getRangeValuesFlat(sheetName, start, end) {
+      const s = parseCellRef(start);
+      const e = parseCellRef(end);
+      if (!s || !e) return [];
+      const values = [];
+      for (let r = s.row; r <= e.row; r++) {
+        for (let c = s.col; c <= e.col; c++) {
+          const cellData = getCellDataInternal(sheetName, r, c);
+          values.push(cellData?.v?.v ?? cellData?.v);
+        }
+      }
+      return values;
+    }
+
+    // Helper: Get numeric values from range
+    function getNumericRange(sheetName, start, end) {
+      return getRangeValuesFlat(sheetName, start, end)
+        .map(v => parseFloat(v))
+        .filter(v => !isNaN(v));
+    }
+
+    // Helper: Parse function arguments (handles nested functions)
+    function parseArgs(argsStr) {
+      const args = [];
+      let depth = 0;
+      let current = '';
+      for (let i = 0; i < argsStr.length; i++) {
+        const ch = argsStr[i];
+        if (ch === '(') depth++;
+        else if (ch === ')') depth--;
+        else if (ch === ',' && depth === 0) {
+          args.push(current.trim());
+          current = '';
+          continue;
+        }
+        current += ch;
+      }
+      if (current.trim()) args.push(current.trim());
+      return args;
+    }
+
+    // Helper: Check if value matches criteria (for COUNTIF, SUMIF, etc.)
+    function matchesCriteria(value, criteria) {
+      if (typeof criteria === 'string') {
+        // Handle comparison operators
+        if (criteria.startsWith('>=')) return parseFloat(value) >= parseFloat(criteria.slice(2));
+        if (criteria.startsWith('<=')) return parseFloat(value) <= parseFloat(criteria.slice(2));
+        if (criteria.startsWith('<>')) return value != criteria.slice(2);
+        if (criteria.startsWith('>')) return parseFloat(value) > parseFloat(criteria.slice(1));
+        if (criteria.startsWith('<')) return parseFloat(value) < parseFloat(criteria.slice(1));
+        if (criteria.startsWith('=')) return value == criteria.slice(1);
+        // Wildcard support
+        if (criteria.includes('*') || criteria.includes('?')) {
+          const regex = new RegExp('^' + criteria.replace(/\*/g, '.*').replace(/\?/g, '.') + '$', 'i');
+          return regex.test(String(value));
+        }
+        return String(value).toLowerCase() === String(criteria).toLowerCase();
+      }
+      return value == criteria;
+    }
+
+    // Main formula evaluator
     function evaluateFormula(formula, sheetName) {
       if (!formula || !formula.startsWith('=')) return formula;
 
-      const expr = formula.substring(1).toUpperCase();
+      let expr = formula.substring(1);
+      const exprUpper = expr.toUpperCase();
 
       try {
-        // Handle ROUND function - ROUND(expression, decimals)
-        if (expr.startsWith('ROUND(')) {
-          const match = expr.match(/ROUND\((.+),\s*(\d+)\)$/);
-          if (match) {
-            const innerExpr = match[1];
-            const decimals = parseInt(match[2]);
-            // Recursively evaluate the inner expression
-            const value = evaluateFormula('=' + innerExpr, sheetName);
-            if (typeof value === 'number' && !isNaN(value)) {
-              return Math.round(value * Math.pow(10, decimals)) / Math.pow(10, decimals);
+        // Extract function name and arguments
+        const funcMatch = exprUpper.match(/^([A-Z_]+)\((.*)\)$/s);
+
+        if (funcMatch) {
+          const funcName = funcMatch[1];
+          const argsStr = funcMatch[2];
+          const args = parseArgs(argsStr);
+
+          // ==================== MATH FUNCTIONS ====================
+
+          // SUM - Add numbers
+          if (funcName === 'SUM') {
+            let total = 0;
+            for (const arg of args) {
+              if (arg.includes(':')) {
+                const [start, end] = arg.split(':');
+                total += getNumericRange(sheetName, start, end).reduce((a, b) => a + b, 0);
+              } else if (parseCellRef(arg)) {
+                total += getNumericValue(sheetName, arg);
+              } else {
+                total += parseFloat(evaluateFormula('=' + arg, sheetName)) || 0;
+              }
             }
-            return value;
+            return total;
           }
-        }
 
-        // Handle SUM
-        if (expr.startsWith('SUM(')) {
-          const range = expr.match(/SUM\(([A-Z]+\d+):([A-Z]+\d+)\)/);
-          if (range) {
-            return evaluateSUM(sheetName, range[1], range[2]);
+          // AVERAGE - Average of numbers
+          if (funcName === 'AVERAGE') {
+            let values = [];
+            for (const arg of args) {
+              if (arg.includes(':')) {
+                const [start, end] = arg.split(':');
+                values = values.concat(getNumericRange(sheetName, start, end));
+              } else if (parseCellRef(arg)) {
+                const v = getNumericValue(sheetName, arg);
+                if (!isNaN(v)) values.push(v);
+              } else {
+                const v = parseFloat(evaluateFormula('=' + arg, sheetName));
+                if (!isNaN(v)) values.push(v);
+              }
+            }
+            return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
           }
-        }
 
-        // Handle AVERAGE
-        if (expr.startsWith('AVERAGE(')) {
-          const range = expr.match(/AVERAGE\(([A-Z]+\d+):([A-Z]+\d+)\)/);
-          if (range) {
-            return evaluateAVERAGE(sheetName, range[1], range[2]);
+          // COUNT - Count numbers
+          if (funcName === 'COUNT') {
+            let count = 0;
+            for (const arg of args) {
+              if (arg.includes(':')) {
+                const [start, end] = arg.split(':');
+                count += getNumericRange(sheetName, start, end).length;
+              } else if (parseCellRef(arg)) {
+                if (!isNaN(getNumericValue(sheetName, arg))) count++;
+              }
+            }
+            return count;
           }
-        }
 
-        // Handle COUNT
-        if (expr.startsWith('COUNT(')) {
-          const range = expr.match(/COUNT\(([A-Z]+\d+):([A-Z]+\d+)\)/);
-          if (range) {
-            return evaluateCOUNT(sheetName, range[1], range[2]);
+          // COUNTA - Count non-empty cells
+          if (funcName === 'COUNTA') {
+            let count = 0;
+            for (const arg of args) {
+              if (arg.includes(':')) {
+                const [start, end] = arg.split(':');
+                count += getRangeValuesFlat(sheetName, start, end).filter(v => v != null && v !== '').length;
+              } else if (parseCellRef(arg)) {
+                const v = getCellByRef(sheetName, arg);
+                if (v != null && v !== '') count++;
+              }
+            }
+            return count;
           }
-        }
 
-        // Handle MIN
-        if (expr.startsWith('MIN(')) {
-          const range = expr.match(/MIN\(([A-Z]+\d+):([A-Z]+\d+)\)/);
-          if (range) {
-            return evaluateMIN(sheetName, range[1], range[2]);
+          // COUNTBLANK - Count empty cells
+          if (funcName === 'COUNTBLANK') {
+            const [start, end] = args[0].split(':');
+            return getRangeValuesFlat(sheetName, start, end).filter(v => v == null || v === '').length;
           }
-        }
 
-        // Handle MAX
-        if (expr.startsWith('MAX(')) {
-          const range = expr.match(/MAX\(([A-Z]+\d+):([A-Z]+\d+)\)/);
-          if (range) {
-            return evaluateMAX(sheetName, range[1], range[2]);
+          // MIN - Minimum value
+          if (funcName === 'MIN') {
+            let values = [];
+            for (const arg of args) {
+              if (arg.includes(':')) {
+                const [start, end] = arg.split(':');
+                values = values.concat(getNumericRange(sheetName, start, end));
+              } else if (parseCellRef(arg)) {
+                values.push(getNumericValue(sheetName, arg));
+              } else {
+                values.push(parseFloat(evaluateFormula('=' + arg, sheetName)) || 0);
+              }
+            }
+            return values.length > 0 ? Math.min(...values) : 0;
           }
-        }
 
-        // Handle IF function - IF(condition, true_value, false_value)
-        if (expr.startsWith('IF(')) {
-          const match = expr.match(/IF\(([^,]+),([^,]+),([^)]+)\)/);
-          if (match) {
-            const condition = evaluateFormula('=' + match[1].trim(), sheetName);
-            const trueVal = evaluateFormula('=' + match[2].trim(), sheetName);
-            const falseVal = evaluateFormula('=' + match[3].trim(), sheetName);
+          // MAX - Maximum value
+          if (funcName === 'MAX') {
+            let values = [];
+            for (const arg of args) {
+              if (arg.includes(':')) {
+                const [start, end] = arg.split(':');
+                values = values.concat(getNumericRange(sheetName, start, end));
+              } else if (parseCellRef(arg)) {
+                values.push(getNumericValue(sheetName, arg));
+              } else {
+                values.push(parseFloat(evaluateFormula('=' + arg, sheetName)) || 0);
+              }
+            }
+            return values.length > 0 ? Math.max(...values) : 0;
+          }
+
+          // ABS - Absolute value
+          if (funcName === 'ABS') {
+            return Math.abs(parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0);
+          }
+
+          // SQRT - Square root
+          if (funcName === 'SQRT') {
+            const val = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            return val >= 0 ? Math.sqrt(val) : '#NUM!';
+          }
+
+          // POWER - Power function
+          if (funcName === 'POWER') {
+            const base = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            const exp = parseFloat(evaluateFormula('=' + args[1], sheetName)) || 0;
+            return Math.pow(base, exp);
+          }
+
+          // MOD - Modulo
+          if (funcName === 'MOD') {
+            const num = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            const divisor = parseFloat(evaluateFormula('=' + args[1], sheetName)) || 1;
+            return num % divisor;
+          }
+
+          // ROUND - Round to decimal places
+          if (funcName === 'ROUND') {
+            const num = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            const decimals = parseInt(args[1]) || 0;
+            const factor = Math.pow(10, decimals);
+            return Math.round(num * factor) / factor;
+          }
+
+          // ROUNDUP - Round up
+          if (funcName === 'ROUNDUP') {
+            const num = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            const decimals = parseInt(args[1]) || 0;
+            const factor = Math.pow(10, decimals);
+            return Math.ceil(num * factor) / factor;
+          }
+
+          // ROUNDDOWN - Round down
+          if (funcName === 'ROUNDDOWN') {
+            const num = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            const decimals = parseInt(args[1]) || 0;
+            const factor = Math.pow(10, decimals);
+            return Math.floor(num * factor) / factor;
+          }
+
+          // CEILING - Round up to multiple
+          if (funcName === 'CEILING') {
+            const num = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            const sig = parseFloat(args[1]) || 1;
+            return Math.ceil(num / sig) * sig;
+          }
+
+          // FLOOR - Round down to multiple
+          if (funcName === 'FLOOR') {
+            const num = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            const sig = parseFloat(args[1]) || 1;
+            return Math.floor(num / sig) * sig;
+          }
+
+          // INT - Round down to integer
+          if (funcName === 'INT') {
+            return Math.floor(parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0);
+          }
+
+          // TRUNC - Truncate to integer or decimal places
+          if (funcName === 'TRUNC') {
+            const num = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            const decimals = parseInt(args[1]) || 0;
+            const factor = Math.pow(10, decimals);
+            return Math.trunc(num * factor) / factor;
+          }
+
+          // SIGN - Sign of number (-1, 0, 1)
+          if (funcName === 'SIGN') {
+            const num = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            return num > 0 ? 1 : num < 0 ? -1 : 0;
+          }
+
+          // PI - Pi constant
+          if (funcName === 'PI') {
+            return Math.PI;
+          }
+
+          // EXP - e^x
+          if (funcName === 'EXP') {
+            return Math.exp(parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0);
+          }
+
+          // LN - Natural log
+          if (funcName === 'LN') {
+            const val = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            return val > 0 ? Math.log(val) : '#NUM!';
+          }
+
+          // LOG - Logarithm (base 10 default)
+          if (funcName === 'LOG') {
+            const num = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            const base = args[1] ? parseFloat(args[1]) : 10;
+            return num > 0 ? Math.log(num) / Math.log(base) : '#NUM!';
+          }
+
+          // LOG10 - Base 10 logarithm
+          if (funcName === 'LOG10') {
+            const val = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            return val > 0 ? Math.log10(val) : '#NUM!';
+          }
+
+          // RAND - Random number 0-1
+          if (funcName === 'RAND') {
+            return Math.random();
+          }
+
+          // RANDBETWEEN - Random integer between
+          if (funcName === 'RANDBETWEEN') {
+            const min = parseInt(args[0]) || 0;
+            const max = parseInt(args[1]) || 100;
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+          }
+
+          // PRODUCT - Multiply all values
+          if (funcName === 'PRODUCT') {
+            let product = 1;
+            for (const arg of args) {
+              if (arg.includes(':')) {
+                const [start, end] = arg.split(':');
+                getNumericRange(sheetName, start, end).forEach(v => product *= v);
+              } else {
+                product *= parseFloat(evaluateFormula('=' + arg, sheetName)) || 0;
+              }
+            }
+            return product;
+          }
+
+          // SUMPRODUCT - Sum of products
+          if (funcName === 'SUMPRODUCT') {
+            const arrays = args.map(arg => {
+              if (arg.includes(':')) {
+                const [start, end] = arg.split(':');
+                return getNumericRange(sheetName, start, end);
+              }
+              return [parseFloat(evaluateFormula('=' + arg, sheetName)) || 0];
+            });
+            const len = Math.min(...arrays.map(a => a.length));
+            let sum = 0;
+            for (let i = 0; i < len; i++) {
+              let product = 1;
+              arrays.forEach(arr => product *= arr[i] || 0);
+              sum += product;
+            }
+            return sum;
+          }
+
+          // MEDIAN - Median value
+          if (funcName === 'MEDIAN') {
+            let values = [];
+            for (const arg of args) {
+              if (arg.includes(':')) {
+                const [start, end] = arg.split(':');
+                values = values.concat(getNumericRange(sheetName, start, end));
+              } else {
+                values.push(parseFloat(evaluateFormula('=' + arg, sheetName)) || 0);
+              }
+            }
+            values.sort((a, b) => a - b);
+            const mid = Math.floor(values.length / 2);
+            return values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
+          }
+
+          // MODE - Most frequent value
+          if (funcName === 'MODE') {
+            let values = [];
+            for (const arg of args) {
+              if (arg.includes(':')) {
+                const [start, end] = arg.split(':');
+                values = values.concat(getNumericRange(sheetName, start, end));
+              }
+            }
+            const counts = {};
+            values.forEach(v => counts[v] = (counts[v] || 0) + 1);
+            let mode = values[0], maxCount = 0;
+            for (const [val, count] of Object.entries(counts)) {
+              if (count > maxCount) { mode = parseFloat(val); maxCount = count; }
+            }
+            return mode;
+          }
+
+          // STDEV - Standard deviation (sample)
+          if (funcName === 'STDEV' || funcName === 'STDEV.S') {
+            let values = [];
+            for (const arg of args) {
+              if (arg.includes(':')) {
+                const [start, end] = arg.split(':');
+                values = values.concat(getNumericRange(sheetName, start, end));
+              }
+            }
+            if (values.length < 2) return '#DIV/0!';
+            const mean = values.reduce((a, b) => a + b, 0) / values.length;
+            const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
+            return Math.sqrt(variance);
+          }
+
+          // STDEVP - Standard deviation (population)
+          if (funcName === 'STDEVP' || funcName === 'STDEV.P') {
+            let values = [];
+            for (const arg of args) {
+              if (arg.includes(':')) {
+                const [start, end] = arg.split(':');
+                values = values.concat(getNumericRange(sheetName, start, end));
+              }
+            }
+            if (values.length < 1) return '#DIV/0!';
+            const mean = values.reduce((a, b) => a + b, 0) / values.length;
+            const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
+            return Math.sqrt(variance);
+          }
+
+          // VAR - Variance (sample)
+          if (funcName === 'VAR' || funcName === 'VAR.S') {
+            let values = [];
+            for (const arg of args) {
+              if (arg.includes(':')) {
+                const [start, end] = arg.split(':');
+                values = values.concat(getNumericRange(sheetName, start, end));
+              }
+            }
+            if (values.length < 2) return '#DIV/0!';
+            const mean = values.reduce((a, b) => a + b, 0) / values.length;
+            return values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
+          }
+
+          // LARGE - Kth largest value
+          if (funcName === 'LARGE') {
+            const [start, end] = args[0].split(':');
+            const k = parseInt(evaluateFormula('=' + args[1], sheetName)) || 1;
+            const values = getNumericRange(sheetName, start, end).sort((a, b) => b - a);
+            return k <= values.length ? values[k - 1] : '#NUM!';
+          }
+
+          // SMALL - Kth smallest value
+          if (funcName === 'SMALL') {
+            const [start, end] = args[0].split(':');
+            const k = parseInt(evaluateFormula('=' + args[1], sheetName)) || 1;
+            const values = getNumericRange(sheetName, start, end).sort((a, b) => a - b);
+            return k <= values.length ? values[k - 1] : '#NUM!';
+          }
+
+          // PERCENTILE - Kth percentile
+          if (funcName === 'PERCENTILE') {
+            const [start, end] = args[0].split(':');
+            const k = parseFloat(args[1]) || 0;
+            const values = getNumericRange(sheetName, start, end).sort((a, b) => a - b);
+            const index = k * (values.length - 1);
+            const lower = Math.floor(index);
+            const upper = Math.ceil(index);
+            if (lower === upper) return values[lower];
+            return values[lower] + (values[upper] - values[lower]) * (index - lower);
+          }
+
+          // ==================== LOGICAL FUNCTIONS ====================
+
+          // IF - Conditional
+          if (funcName === 'IF') {
+            const condition = evaluateFormula('=' + args[0], sheetName);
+            const trueVal = args[1] ? evaluateFormula('=' + args[1], sheetName) : true;
+            const falseVal = args[2] ? evaluateFormula('=' + args[2], sheetName) : false;
             return condition ? trueVal : falseVal;
           }
+
+          // IFS - Multiple conditions
+          if (funcName === 'IFS') {
+            for (let i = 0; i < args.length; i += 2) {
+              if (evaluateFormula('=' + args[i], sheetName)) {
+                return evaluateFormula('=' + args[i + 1], sheetName);
+              }
+            }
+            return '#N/A';
+          }
+
+          // IFERROR - Return value if error
+          if (funcName === 'IFERROR') {
+            try {
+              const result = evaluateFormula('=' + args[0], sheetName);
+              if (String(result).startsWith('#')) return evaluateFormula('=' + args[1], sheetName);
+              return result;
+            } catch {
+              return evaluateFormula('=' + args[1], sheetName);
+            }
+          }
+
+          // IFNA - Return value if #N/A
+          if (funcName === 'IFNA') {
+            const result = evaluateFormula('=' + args[0], sheetName);
+            return result === '#N/A' ? evaluateFormula('=' + args[1], sheetName) : result;
+          }
+
+          // AND - All conditions true
+          if (funcName === 'AND') {
+            return args.every(arg => evaluateFormula('=' + arg, sheetName));
+          }
+
+          // OR - Any condition true
+          if (funcName === 'OR') {
+            return args.some(arg => evaluateFormula('=' + arg, sheetName));
+          }
+
+          // NOT - Negate
+          if (funcName === 'NOT') {
+            return !evaluateFormula('=' + args[0], sheetName);
+          }
+
+          // XOR - Exclusive or
+          if (funcName === 'XOR') {
+            const trueCount = args.filter(arg => evaluateFormula('=' + arg, sheetName)).length;
+            return trueCount % 2 === 1;
+          }
+
+          // TRUE/FALSE constants
+          if (funcName === 'TRUE') return true;
+          if (funcName === 'FALSE') return false;
+
+          // SWITCH - Switch/case
+          if (funcName === 'SWITCH') {
+            const value = evaluateFormula('=' + args[0], sheetName);
+            for (let i = 1; i < args.length - 1; i += 2) {
+              if (evaluateFormula('=' + args[i], sheetName) == value) {
+                return evaluateFormula('=' + args[i + 1], sheetName);
+              }
+            }
+            return args.length % 2 === 0 ? evaluateFormula('=' + args[args.length - 1], sheetName) : '#N/A';
+          }
+
+          // ==================== TEXT FUNCTIONS ====================
+
+          // CONCATENATE / CONCAT - Join text
+          if (funcName === 'CONCATENATE' || funcName === 'CONCAT') {
+            return args.map(arg => {
+              if (arg.startsWith('"') && arg.endsWith('"')) return arg.slice(1, -1);
+              return String(evaluateFormula('=' + arg, sheetName));
+            }).join('');
+          }
+
+          // TEXTJOIN - Join with delimiter
+          if (funcName === 'TEXTJOIN') {
+            const delimiter = args[0].replace(/^"|"$/g, '');
+            const ignoreEmpty = args[1].toUpperCase() === 'TRUE';
+            const values = args.slice(2).map(arg => {
+              if (arg.includes(':')) {
+                const [start, end] = arg.split(':');
+                return getRangeValuesFlat(sheetName, start, end);
+              }
+              return [evaluateFormula('=' + arg, sheetName)];
+            }).flat();
+            const filtered = ignoreEmpty ? values.filter(v => v != null && v !== '') : values;
+            return filtered.join(delimiter);
+          }
+
+          // LEFT - Left characters
+          if (funcName === 'LEFT') {
+            const text = String(evaluateFormula('=' + args[0], sheetName));
+            const num = parseInt(args[1]) || 1;
+            return text.substring(0, num);
+          }
+
+          // RIGHT - Right characters
+          if (funcName === 'RIGHT') {
+            const text = String(evaluateFormula('=' + args[0], sheetName));
+            const num = parseInt(args[1]) || 1;
+            return text.substring(text.length - num);
+          }
+
+          // MID - Middle characters
+          if (funcName === 'MID') {
+            const text = String(evaluateFormula('=' + args[0], sheetName));
+            const start = parseInt(args[1]) || 1;
+            const num = parseInt(args[2]) || 1;
+            return text.substring(start - 1, start - 1 + num);
+          }
+
+          // LEN - Length of text
+          if (funcName === 'LEN') {
+            return String(evaluateFormula('=' + args[0], sheetName)).length;
+          }
+
+          // TRIM - Remove extra spaces
+          if (funcName === 'TRIM') {
+            return String(evaluateFormula('=' + args[0], sheetName)).trim().replace(/\s+/g, ' ');
+          }
+
+          // UPPER - Uppercase
+          if (funcName === 'UPPER') {
+            return String(evaluateFormula('=' + args[0], sheetName)).toUpperCase();
+          }
+
+          // LOWER - Lowercase
+          if (funcName === 'LOWER') {
+            return String(evaluateFormula('=' + args[0], sheetName)).toLowerCase();
+          }
+
+          // PROPER - Title case
+          if (funcName === 'PROPER') {
+            return String(evaluateFormula('=' + args[0], sheetName))
+              .toLowerCase()
+              .replace(/\b\w/g, c => c.toUpperCase());
+          }
+
+          // FIND - Find text (case-sensitive)
+          if (funcName === 'FIND') {
+            const findText = args[0].replace(/^"|"$/g, '');
+            const withinText = String(evaluateFormula('=' + args[1], sheetName));
+            const startNum = parseInt(args[2]) || 1;
+            const pos = withinText.indexOf(findText, startNum - 1);
+            return pos >= 0 ? pos + 1 : '#VALUE!';
+          }
+
+          // SEARCH - Find text (case-insensitive)
+          if (funcName === 'SEARCH') {
+            const findText = args[0].replace(/^"|"$/g, '').toLowerCase();
+            const withinText = String(evaluateFormula('=' + args[1], sheetName)).toLowerCase();
+            const startNum = parseInt(args[2]) || 1;
+            const pos = withinText.indexOf(findText, startNum - 1);
+            return pos >= 0 ? pos + 1 : '#VALUE!';
+          }
+
+          // REPLACE - Replace by position
+          if (funcName === 'REPLACE') {
+            const text = String(evaluateFormula('=' + args[0], sheetName));
+            const start = parseInt(args[1]) || 1;
+            const num = parseInt(args[2]) || 0;
+            const newText = args[3].replace(/^"|"$/g, '');
+            return text.substring(0, start - 1) + newText + text.substring(start - 1 + num);
+          }
+
+          // SUBSTITUTE - Replace text
+          if (funcName === 'SUBSTITUTE') {
+            let text = String(evaluateFormula('=' + args[0], sheetName));
+            const oldText = args[1].replace(/^"|"$/g, '');
+            const newText = args[2].replace(/^"|"$/g, '');
+            const instance = args[3] ? parseInt(args[3]) : 0;
+            if (instance === 0) {
+              return text.split(oldText).join(newText);
+            } else {
+              let count = 0;
+              return text.replace(new RegExp(oldText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), match => {
+                count++;
+                return count === instance ? newText : match;
+              });
+            }
+          }
+
+          // REPT - Repeat text
+          if (funcName === 'REPT') {
+            const text = args[0].replace(/^"|"$/g, '');
+            const times = parseInt(args[1]) || 0;
+            return text.repeat(times);
+          }
+
+          // TEXT - Format number as text
+          if (funcName === 'TEXT') {
+            const value = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            const format = args[1].replace(/^"|"$/g, '');
+            // Simple format handling
+            if (format.includes('%')) return (value * 100).toFixed(format.split('.')[1]?.length || 0) + '%';
+            if (format.includes('.')) {
+              const decimals = format.split('.')[1]?.replace(/[^0#]/g, '').length || 0;
+              return value.toFixed(decimals);
+            }
+            return String(value);
+          }
+
+          // VALUE - Convert text to number
+          if (funcName === 'VALUE') {
+            const text = String(evaluateFormula('=' + args[0], sheetName)).replace(/[,$%]/g, '');
+            return parseFloat(text) || '#VALUE!';
+          }
+
+          // EXACT - Compare text (case-sensitive)
+          if (funcName === 'EXACT') {
+            return String(evaluateFormula('=' + args[0], sheetName)) === String(evaluateFormula('=' + args[1], sheetName));
+          }
+
+          // ==================== LOOKUP FUNCTIONS ====================
+
+          // VLOOKUP - Vertical lookup
+          if (funcName === 'VLOOKUP') {
+            const lookupValue = evaluateFormula('=' + args[0], sheetName);
+            const [rangeStart, rangeEnd] = args[1].split(':');
+            const colIndex = parseInt(args[2]) || 1;
+            const exactMatch = args[3] ? args[3].toUpperCase() !== 'TRUE' && args[3] !== '1' : true;
+
+            const startRef = parseCellRef(rangeStart);
+            const endRef = parseCellRef(rangeEnd);
+            if (!startRef || !endRef) return '#REF!';
+
+            for (let r = startRef.row; r <= endRef.row; r++) {
+              const cellData = getCellDataInternal(sheetName, r, startRef.col);
+              const cellVal = cellData?.v?.v ?? cellData?.v;
+
+              if (exactMatch ? cellVal == lookupValue : cellVal <= lookupValue) {
+                if (!exactMatch) {
+                  // For approximate match, find the largest value <= lookupValue
+                  let bestRow = r;
+                  for (let r2 = r + 1; r2 <= endRef.row; r2++) {
+                    const nextData = getCellDataInternal(sheetName, r2, startRef.col);
+                    const nextVal = nextData?.v?.v ?? nextData?.v;
+                    if (nextVal <= lookupValue && nextVal > cellVal) bestRow = r2;
+                    else if (nextVal > lookupValue) break;
+                  }
+                  r = bestRow;
+                }
+                const resultData = getCellDataInternal(sheetName, r, startRef.col + colIndex - 1);
+                return resultData?.v?.v ?? resultData?.v ?? '';
+              }
+            }
+            return '#N/A';
+          }
+
+          // HLOOKUP - Horizontal lookup
+          if (funcName === 'HLOOKUP') {
+            const lookupValue = evaluateFormula('=' + args[0], sheetName);
+            const [rangeStart, rangeEnd] = args[1].split(':');
+            const rowIndex = parseInt(args[2]) || 1;
+            const exactMatch = args[3] ? args[3].toUpperCase() !== 'TRUE' : true;
+
+            const startRef = parseCellRef(rangeStart);
+            const endRef = parseCellRef(rangeEnd);
+            if (!startRef || !endRef) return '#REF!';
+
+            for (let c = startRef.col; c <= endRef.col; c++) {
+              const cellData = getCellDataInternal(sheetName, startRef.row, c);
+              const cellVal = cellData?.v?.v ?? cellData?.v;
+
+              if (exactMatch ? cellVal == lookupValue : true) {
+                const resultData = getCellDataInternal(sheetName, startRef.row + rowIndex - 1, c);
+                return resultData?.v?.v ?? resultData?.v ?? '';
+              }
+            }
+            return '#N/A';
+          }
+
+          // INDEX - Get value at position
+          if (funcName === 'INDEX') {
+            const [rangeStart, rangeEnd] = args[0].split(':');
+            const rowNum = parseInt(evaluateFormula('=' + args[1], sheetName)) || 1;
+            const colNum = args[2] ? parseInt(evaluateFormula('=' + args[2], sheetName)) : 1;
+
+            const startRef = parseCellRef(rangeStart);
+            if (!startRef) return '#REF!';
+
+            const cellData = getCellDataInternal(sheetName, startRef.row + rowNum - 1, startRef.col + colNum - 1);
+            return cellData?.v?.v ?? cellData?.v ?? '';
+          }
+
+          // MATCH - Find position
+          if (funcName === 'MATCH') {
+            const lookupValue = evaluateFormula('=' + args[0], sheetName);
+            const [rangeStart, rangeEnd] = args[1].split(':');
+            const matchType = args[2] ? parseInt(args[2]) : 1;
+
+            const startRef = parseCellRef(rangeStart);
+            const endRef = parseCellRef(rangeEnd);
+            if (!startRef || !endRef) return '#REF!';
+
+            const isRow = startRef.row === endRef.row;
+            const values = [];
+
+            if (isRow) {
+              for (let c = startRef.col; c <= endRef.col; c++) {
+                const cellData = getCellDataInternal(sheetName, startRef.row, c);
+                values.push(cellData?.v?.v ?? cellData?.v);
+              }
+            } else {
+              for (let r = startRef.row; r <= endRef.row; r++) {
+                const cellData = getCellDataInternal(sheetName, r, startRef.col);
+                values.push(cellData?.v?.v ?? cellData?.v);
+              }
+            }
+
+            if (matchType === 0) {
+              // Exact match
+              const idx = values.findIndex(v => v == lookupValue);
+              return idx >= 0 ? idx + 1 : '#N/A';
+            } else if (matchType === 1) {
+              // Largest value <= lookup (assumes sorted ascending)
+              let lastIdx = -1;
+              for (let i = 0; i < values.length; i++) {
+                if (values[i] <= lookupValue) lastIdx = i;
+                else break;
+              }
+              return lastIdx >= 0 ? lastIdx + 1 : '#N/A';
+            } else {
+              // Smallest value >= lookup (assumes sorted descending)
+              let lastIdx = -1;
+              for (let i = 0; i < values.length; i++) {
+                if (values[i] >= lookupValue) lastIdx = i;
+                else break;
+              }
+              return lastIdx >= 0 ? lastIdx + 1 : '#N/A';
+            }
+          }
+
+          // CHOOSE - Choose from list
+          if (funcName === 'CHOOSE') {
+            const index = parseInt(evaluateFormula('=' + args[0], sheetName)) || 0;
+            if (index < 1 || index >= args.length) return '#VALUE!';
+            return evaluateFormula('=' + args[index], sheetName);
+          }
+
+          // LOOKUP - Simple lookup
+          if (funcName === 'LOOKUP') {
+            const lookupValue = evaluateFormula('=' + args[0], sheetName);
+            const [lookStart, lookEnd] = args[1].split(':');
+            const resultRange = args[2] ? args[2].split(':') : null;
+
+            const startRef = parseCellRef(lookStart);
+            const endRef = parseCellRef(lookEnd);
+            if (!startRef || !endRef) return '#REF!';
+
+            const isRow = startRef.row === endRef.row;
+            let foundIdx = -1;
+
+            if (isRow) {
+              for (let c = startRef.col; c <= endRef.col; c++) {
+                const cellData = getCellDataInternal(sheetName, startRef.row, c);
+                const cellVal = cellData?.v?.v ?? cellData?.v;
+                if (cellVal <= lookupValue) foundIdx = c - startRef.col;
+              }
+            } else {
+              for (let r = startRef.row; r <= endRef.row; r++) {
+                const cellData = getCellDataInternal(sheetName, r, startRef.col);
+                const cellVal = cellData?.v?.v ?? cellData?.v;
+                if (cellVal <= lookupValue) foundIdx = r - startRef.row;
+              }
+            }
+
+            if (foundIdx < 0) return '#N/A';
+
+            if (resultRange) {
+              const resultStart = parseCellRef(resultRange[0]);
+              if (!resultStart) return '#REF!';
+              const resultIsRow = resultRange[1] ? parseCellRef(resultRange[0]).row === parseCellRef(resultRange[1]).row : true;
+              if (resultIsRow) {
+                const cellData = getCellDataInternal(sheetName, resultStart.row, resultStart.col + foundIdx);
+                return cellData?.v?.v ?? cellData?.v ?? '';
+              } else {
+                const cellData = getCellDataInternal(sheetName, resultStart.row + foundIdx, resultStart.col);
+                return cellData?.v?.v ?? cellData?.v ?? '';
+              }
+            }
+            return foundIdx + 1;
+          }
+
+          // ==================== CONDITIONAL FUNCTIONS ====================
+
+          // COUNTIF - Count with condition
+          if (funcName === 'COUNTIF') {
+            const [start, end] = args[0].split(':');
+            let criteria = args[1].replace(/^"|"$/g, '');
+            if (parseCellRef(args[1])) criteria = getCellByRef(sheetName, args[1]);
+
+            const values = getRangeValuesFlat(sheetName, start, end);
+            return values.filter(v => matchesCriteria(v, criteria)).length;
+          }
+
+          // COUNTIFS - Count with multiple conditions
+          if (funcName === 'COUNTIFS') {
+            const ranges = [];
+            const criteriaList = [];
+            for (let i = 0; i < args.length; i += 2) {
+              ranges.push(args[i].split(':'));
+              criteriaList.push(args[i + 1].replace(/^"|"$/g, ''));
+            }
+
+            const firstRange = getRangeValuesFlat(sheetName, ranges[0][0], ranges[0][1]);
+            let count = 0;
+
+            for (let i = 0; i < firstRange.length; i++) {
+              let allMatch = true;
+              for (let j = 0; j < ranges.length; j++) {
+                const rangeVals = getRangeValuesFlat(sheetName, ranges[j][0], ranges[j][1]);
+                if (!matchesCriteria(rangeVals[i], criteriaList[j])) {
+                  allMatch = false;
+                  break;
+                }
+              }
+              if (allMatch) count++;
+            }
+            return count;
+          }
+
+          // SUMIF - Sum with condition
+          if (funcName === 'SUMIF') {
+            const [start, end] = args[0].split(':');
+            let criteria = args[1].replace(/^"|"$/g, '');
+            if (parseCellRef(args[1])) criteria = getCellByRef(sheetName, args[1]);
+            const sumRange = args[2] ? args[2].split(':') : [start, end];
+
+            const values = getRangeValuesFlat(sheetName, start, end);
+            const sumValues = getRangeValuesFlat(sheetName, sumRange[0], sumRange[1] || sumRange[0]);
+
+            let sum = 0;
+            for (let i = 0; i < values.length; i++) {
+              if (matchesCriteria(values[i], criteria)) {
+                sum += parseFloat(sumValues[i]) || 0;
+              }
+            }
+            return sum;
+          }
+
+          // SUMIFS - Sum with multiple conditions
+          if (funcName === 'SUMIFS') {
+            const sumRangeParts = args[0].split(':');
+            const sumValues = getRangeValuesFlat(sheetName, sumRangeParts[0], sumRangeParts[1]);
+
+            const ranges = [];
+            const criteriaList = [];
+            for (let i = 1; i < args.length; i += 2) {
+              ranges.push(args[i].split(':'));
+              criteriaList.push(args[i + 1].replace(/^"|"$/g, ''));
+            }
+
+            let sum = 0;
+            for (let i = 0; i < sumValues.length; i++) {
+              let allMatch = true;
+              for (let j = 0; j < ranges.length; j++) {
+                const rangeVals = getRangeValuesFlat(sheetName, ranges[j][0], ranges[j][1]);
+                if (!matchesCriteria(rangeVals[i], criteriaList[j])) {
+                  allMatch = false;
+                  break;
+                }
+              }
+              if (allMatch) sum += parseFloat(sumValues[i]) || 0;
+            }
+            return sum;
+          }
+
+          // AVERAGEIF - Average with condition
+          if (funcName === 'AVERAGEIF') {
+            const [start, end] = args[0].split(':');
+            let criteria = args[1].replace(/^"|"$/g, '');
+            const avgRange = args[2] ? args[2].split(':') : [start, end];
+
+            const values = getRangeValuesFlat(sheetName, start, end);
+            const avgValues = getRangeValuesFlat(sheetName, avgRange[0], avgRange[1] || avgRange[0]);
+
+            let sum = 0, count = 0;
+            for (let i = 0; i < values.length; i++) {
+              if (matchesCriteria(values[i], criteria)) {
+                const num = parseFloat(avgValues[i]);
+                if (!isNaN(num)) { sum += num; count++; }
+              }
+            }
+            return count > 0 ? sum / count : '#DIV/0!';
+          }
+
+          // MAXIFS - Max with conditions
+          if (funcName === 'MAXIFS') {
+            const maxRangeParts = args[0].split(':');
+            const maxValues = getNumericRange(sheetName, maxRangeParts[0], maxRangeParts[1]);
+
+            const ranges = [];
+            const criteriaList = [];
+            for (let i = 1; i < args.length; i += 2) {
+              ranges.push(args[i].split(':'));
+              criteriaList.push(args[i + 1].replace(/^"|"$/g, ''));
+            }
+
+            let max = -Infinity;
+            for (let i = 0; i < maxValues.length; i++) {
+              let allMatch = true;
+              for (let j = 0; j < ranges.length; j++) {
+                const rangeVals = getRangeValuesFlat(sheetName, ranges[j][0], ranges[j][1]);
+                if (!matchesCriteria(rangeVals[i], criteriaList[j])) {
+                  allMatch = false;
+                  break;
+                }
+              }
+              if (allMatch && maxValues[i] > max) max = maxValues[i];
+            }
+            return max === -Infinity ? 0 : max;
+          }
+
+          // MINIFS - Min with conditions
+          if (funcName === 'MINIFS') {
+            const minRangeParts = args[0].split(':');
+            const minValues = getNumericRange(sheetName, minRangeParts[0], minRangeParts[1]);
+
+            const ranges = [];
+            const criteriaList = [];
+            for (let i = 1; i < args.length; i += 2) {
+              ranges.push(args[i].split(':'));
+              criteriaList.push(args[i + 1].replace(/^"|"$/g, ''));
+            }
+
+            let min = Infinity;
+            for (let i = 0; i < minValues.length; i++) {
+              let allMatch = true;
+              for (let j = 0; j < ranges.length; j++) {
+                const rangeVals = getRangeValuesFlat(sheetName, ranges[j][0], ranges[j][1]);
+                if (!matchesCriteria(rangeVals[i], criteriaList[j])) {
+                  allMatch = false;
+                  break;
+                }
+              }
+              if (allMatch && minValues[i] < min) min = minValues[i];
+            }
+            return min === Infinity ? 0 : min;
+          }
+
+          // ==================== DATE FUNCTIONS ====================
+
+          // TODAY - Current date
+          if (funcName === 'TODAY') {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          }
+
+          // NOW - Current date and time
+          if (funcName === 'NOW') {
+            return new Date().toISOString();
+          }
+
+          // DATE - Create date
+          if (funcName === 'DATE') {
+            const year = parseInt(evaluateFormula('=' + args[0], sheetName)) || 2000;
+            const month = parseInt(evaluateFormula('=' + args[1], sheetName)) || 1;
+            const day = parseInt(evaluateFormula('=' + args[2], sheetName)) || 1;
+            return new Date(year, month - 1, day).toISOString().split('T')[0];
+          }
+
+          // YEAR - Extract year
+          if (funcName === 'YEAR') {
+            const dateVal = evaluateFormula('=' + args[0], sheetName);
+            return new Date(dateVal).getFullYear();
+          }
+
+          // MONTH - Extract month
+          if (funcName === 'MONTH') {
+            const dateVal = evaluateFormula('=' + args[0], sheetName);
+            return new Date(dateVal).getMonth() + 1;
+          }
+
+          // DAY - Extract day
+          if (funcName === 'DAY') {
+            const dateVal = evaluateFormula('=' + args[0], sheetName);
+            return new Date(dateVal).getDate();
+          }
+
+          // WEEKDAY - Day of week
+          if (funcName === 'WEEKDAY') {
+            const dateVal = evaluateFormula('=' + args[0], sheetName);
+            const returnType = parseInt(args[1]) || 1;
+            const day = new Date(dateVal).getDay();
+            if (returnType === 1) return day + 1; // Sunday = 1
+            if (returnType === 2) return day === 0 ? 7 : day; // Monday = 1
+            return day; // Sunday = 0
+          }
+
+          // HOUR - Extract hour
+          if (funcName === 'HOUR') {
+            const dateVal = evaluateFormula('=' + args[0], sheetName);
+            return new Date(dateVal).getHours();
+          }
+
+          // MINUTE - Extract minute
+          if (funcName === 'MINUTE') {
+            const dateVal = evaluateFormula('=' + args[0], sheetName);
+            return new Date(dateVal).getMinutes();
+          }
+
+          // SECOND - Extract second
+          if (funcName === 'SECOND') {
+            const dateVal = evaluateFormula('=' + args[0], sheetName);
+            return new Date(dateVal).getSeconds();
+          }
+
+          // DATEDIF - Difference between dates
+          if (funcName === 'DATEDIF') {
+            const startDate = new Date(evaluateFormula('=' + args[0], sheetName));
+            const endDate = new Date(evaluateFormula('=' + args[1], sheetName));
+            const unit = args[2].replace(/^"|"$/g, '').toUpperCase();
+            const diffTime = endDate - startDate;
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+            if (unit === 'D') return diffDays;
+            if (unit === 'M') return Math.floor(diffDays / 30);
+            if (unit === 'Y') return Math.floor(diffDays / 365);
+            return diffDays;
+          }
+
+          // EDATE - Add months to date
+          if (funcName === 'EDATE') {
+            const startDate = new Date(evaluateFormula('=' + args[0], sheetName));
+            const months = parseInt(evaluateFormula('=' + args[1], sheetName)) || 0;
+            startDate.setMonth(startDate.getMonth() + months);
+            return startDate.toISOString().split('T')[0];
+          }
+
+          // EOMONTH - End of month
+          if (funcName === 'EOMONTH') {
+            const startDate = new Date(evaluateFormula('=' + args[0], sheetName));
+            const months = parseInt(evaluateFormula('=' + args[1], sheetName)) || 0;
+            startDate.setMonth(startDate.getMonth() + months + 1, 0);
+            return startDate.toISOString().split('T')[0];
+          }
+
+          // ==================== INFO FUNCTIONS ====================
+
+          // ISBLANK - Check if empty
+          if (funcName === 'ISBLANK') {
+            const val = evaluateFormula('=' + args[0], sheetName);
+            return val == null || val === '';
+          }
+
+          // ISNUMBER - Check if number
+          if (funcName === 'ISNUMBER') {
+            const val = evaluateFormula('=' + args[0], sheetName);
+            return typeof val === 'number' && !isNaN(val);
+          }
+
+          // ISTEXT - Check if text
+          if (funcName === 'ISTEXT') {
+            const val = evaluateFormula('=' + args[0], sheetName);
+            return typeof val === 'string' && isNaN(parseFloat(val));
+          }
+
+          // ISERROR - Check if error
+          if (funcName === 'ISERROR') {
+            const val = evaluateFormula('=' + args[0], sheetName);
+            return String(val).startsWith('#');
+          }
+
+          // ISNA - Check if #N/A
+          if (funcName === 'ISNA') {
+            return evaluateFormula('=' + args[0], sheetName) === '#N/A';
+          }
+
+          // ISEVEN - Check if even
+          if (funcName === 'ISEVEN') {
+            const val = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            return Math.floor(val) % 2 === 0;
+          }
+
+          // ISODD - Check if odd
+          if (funcName === 'ISODD') {
+            const val = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            return Math.floor(val) % 2 !== 0;
+          }
+
+          // TYPE - Return type code
+          if (funcName === 'TYPE') {
+            const val = evaluateFormula('=' + args[0], sheetName);
+            if (typeof val === 'number') return 1;
+            if (typeof val === 'string') return 2;
+            if (typeof val === 'boolean') return 4;
+            if (String(val).startsWith('#')) return 16;
+            return 64; // Array
+          }
+
+          // ROW - Return row number
+          if (funcName === 'ROW') {
+            if (args.length === 0) return selectedCell.row + 1;
+            const ref = parseCellRef(args[0]);
+            return ref ? ref.row + 1 : '#REF!';
+          }
+
+          // COLUMN - Return column number
+          if (funcName === 'COLUMN') {
+            if (args.length === 0) return selectedCell.col + 1;
+            const ref = parseCellRef(args[0]);
+            return ref ? ref.col + 1 : '#REF!';
+          }
+
+          // ROWS - Count rows in range
+          if (funcName === 'ROWS') {
+            const [start, end] = args[0].split(':');
+            const s = parseCellRef(start);
+            const e = parseCellRef(end);
+            return e.row - s.row + 1;
+          }
+
+          // COLUMNS - Count columns in range
+          if (funcName === 'COLUMNS') {
+            const [start, end] = args[0].split(':');
+            const s = parseCellRef(start);
+            const e = parseCellRef(end);
+            return e.col - s.col + 1;
+          }
+
+          // N - Convert to number
+          if (funcName === 'N') {
+            const val = evaluateFormula('=' + args[0], sheetName);
+            if (typeof val === 'number') return val;
+            if (typeof val === 'boolean') return val ? 1 : 0;
+            return 0;
+          }
+
+          // NA - Return #N/A
+          if (funcName === 'NA') {
+            return '#N/A';
+          }
+
+          // Unknown function - try to evaluate as expression
+          console.warn('[Formula] Unknown function:', funcName);
         }
 
         // Handle simple cell reference
-        const cellRef = expr.match(/^([A-Z]+)(\d+)$/);
-        if (cellRef) {
-          const col = cellRef[1].charCodeAt(0) - 65;
-          const row = parseInt(cellRef[2]) - 1;
-          const cellData = getCellDataInternal(sheetName, row, col);
-          return cellData?.v?.v ?? cellData?.v ?? 0;
+        const cellRefMatch = expr.match(/^([A-Z]+)(\d+)$/i);
+        if (cellRefMatch) {
+          return getCellByRef(sheetName, expr.toUpperCase());
         }
 
-        // Try to evaluate as math expression
+        // Handle comparison operators in expressions
+        let mathExpr = expr;
+
         // Replace cell references with values
-        let mathExpr = expr.replace(/([A-Z]+)(\d+)/g, (match, col, row) => {
-          const c = col.charCodeAt(0) - 65;
-          const r = parseInt(row) - 1;
-          const cellData = getCellDataInternal(sheetName, r, c);
-          return cellData?.v?.v ?? cellData?.v ?? 0;
+        mathExpr = mathExpr.replace(/([A-Z]+)(\d+)/gi, (match) => {
+          const val = getCellByRef(sheetName, match.toUpperCase());
+          if (typeof val === 'string' && isNaN(parseFloat(val))) return `"${val}"`;
+          return val ?? 0;
         });
 
-        // Safe eval for basic math
+        // Handle comparison operators
+        mathExpr = mathExpr.replace(/<>/g, '!=').replace(/=/g, '==');
+        // Fix double equals from single equals
+        mathExpr = mathExpr.replace(/====/g, '==').replace(/!===/g, '!=');
+
+        // Safe eval for math/comparison expressions
         return Function('"use strict"; return (' + mathExpr + ')')();
       } catch (e) {
         console.error('[Formula] Error evaluating:', formula, e);
         return '#ERROR!';
       }
-    }
-
-    function evaluateSUM(sheetName, start, end) {
-      const startCol = start.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
-      const startRow = parseInt(start.match(/\d+/)[0]) - 1;
-      const endCol = end.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
-      const endRow = parseInt(end.match(/\d+/)[0]) - 1;
-
-      let sum = 0;
-      for (let r = startRow; r <= endRow; r++) {
-        for (let c = startCol; c <= endCol; c++) {
-          const cellData = getCellDataInternal(sheetName, r, c);
-          const value = parseFloat(cellData?.v?.v ?? cellData?.v ?? 0);
-          if (!isNaN(value)) sum += value;
-        }
-      }
-      return sum;
-    }
-
-    function evaluateAVERAGE(sheetName, start, end) {
-      const startCol = start.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
-      const startRow = parseInt(start.match(/\d+/)[0]) - 1;
-      const endCol = end.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
-      const endRow = parseInt(end.match(/\d+/)[0]) - 1;
-
-      let sum = 0;
-      let count = 0;
-      for (let r = startRow; r <= endRow; r++) {
-        for (let c = startCol; c <= endCol; c++) {
-          const cellData = getCellDataInternal(sheetName, r, c);
-          const value = parseFloat(cellData?.v?.v ?? cellData?.v ?? 0);
-          if (!isNaN(value)) {
-            sum += value;
-            count++;
-          }
-        }
-      }
-      return count > 0 ? sum / count : 0;
-    }
-
-    function evaluateCOUNT(sheetName, start, end) {
-      const startCol = start.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
-      const startRow = parseInt(start.match(/\d+/)[0]) - 1;
-      const endCol = end.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
-      const endRow = parseInt(end.match(/\d+/)[0]) - 1;
-
-      let count = 0;
-      for (let r = startRow; r <= endRow; r++) {
-        for (let c = startCol; c <= endCol; c++) {
-          const cellData = getCellDataInternal(sheetName, r, c);
-          if (cellData?.v?.v != null || cellData?.v != null) {
-            count++;
-          }
-        }
-      }
-      return count;
-    }
-
-    function evaluateMIN(sheetName, start, end) {
-      const startCol = start.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
-      const startRow = parseInt(start.match(/\d+/)[0]) - 1;
-      const endCol = end.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
-      const endRow = parseInt(end.match(/\d+/)[0]) - 1;
-
-      let min = Infinity;
-      for (let r = startRow; r <= endRow; r++) {
-        for (let c = startCol; c <= endCol; c++) {
-          const cellData = getCellDataInternal(sheetName, r, c);
-          const value = parseFloat(cellData?.v?.v ?? cellData?.v);
-          if (!isNaN(value) && value < min) min = value;
-        }
-      }
-      return min === Infinity ? 0 : min;
-    }
-
-    function evaluateMAX(sheetName, start, end) {
-      const startCol = start.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
-      const startRow = parseInt(start.match(/\d+/)[0]) - 1;
-      const endCol = end.match(/[A-Z]+/)[0].charCodeAt(0) - 65;
-      const endRow = parseInt(end.match(/\d+/)[0]) - 1;
-
-      let max = -Infinity;
-      for (let r = startRow; r <= endRow; r++) {
-        for (let c = startCol; c <= endCol; c++) {
-          const cellData = getCellDataInternal(sheetName, r, c);
-          const value = parseFloat(cellData?.v?.v ?? cellData?.v);
-          if (!isNaN(value) && value > max) max = value;
-        }
-      }
-      return max === -Infinity ? 0 : max;
     }
 
     // File operations (stub - actual implementation in main process)
