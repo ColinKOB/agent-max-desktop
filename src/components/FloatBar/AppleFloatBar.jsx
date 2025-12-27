@@ -31,6 +31,8 @@ import {
   Square,
   Mail,
   Monitor,
+  Globe,
+  Table2,
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import {
@@ -466,6 +468,11 @@ export default function AppleFloatBar({
 
   // Max's Monitor workspace state
   const [workspaceActive, setWorkspaceActive] = useState(false);
+  const [spreadsheetActive, setSpreadsheetActive] = useState(false);
+  const [monitorMenuOpen, setMonitorMenuOpen] = useState(false);
+  const monitorBtnRef = useRef(null);
+  const monitorMenuRef = useRef(null);
+  const [monitorMenuReady, setMonitorMenuReady] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false); // Track drag-and-drop state
   const dragCounterRef = useRef(0); // Counter to handle nested drag events
   const fileInputRef = useRef(null);
@@ -4945,6 +4952,79 @@ export default function AppleFloatBar({
     return () => clearInterval(interval);
   }, []);
 
+  // Check spreadsheet status periodically
+  useEffect(() => {
+    const checkSpreadsheet = async () => {
+      try {
+        const status = await window.spreadsheet?.getStatus?.();
+        setSpreadsheetActive(status?.active ?? false);
+      } catch {
+        setSpreadsheetActive(false);
+      }
+    };
+    checkSpreadsheet();
+    const interval = setInterval(checkSpreadsheet, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Handle launching spreadsheet
+  const handleLaunchSpreadsheet = useCallback(async () => {
+    try {
+      // Check if spreadsheet is already active
+      const status = await window.spreadsheet?.getStatus?.();
+      if (status?.active) {
+        toast.success("Max's Spreadsheet is already open!");
+        setMonitorMenuOpen(false);
+        return;
+      }
+
+      // Launch the spreadsheet
+      const result = await window.spreadsheet?.create?.();
+      if (result?.success) {
+        setSpreadsheetActive(true);
+        toast.success("Max's Spreadsheet launched! Ask Max to help with your data.");
+        setMonitorMenuOpen(false);
+      } else {
+        toast.error("Failed to launch Max's Spreadsheet");
+      }
+    } catch (err) {
+      console.error('[Spreadsheet] Launch error:', err);
+      toast.error("Failed to launch Max's Spreadsheet");
+    }
+  }, []);
+
+  // Toggle monitor menu dropdown
+  const handleMonitorMenu = useCallback(() => {
+    setMonitorMenuOpen((prev) => !prev);
+  }, []);
+
+  // Animate monitor menu open/close
+  useEffect(() => {
+    if (monitorMenuOpen) {
+      const id = requestAnimationFrame(() => setMonitorMenuReady(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setMonitorMenuReady(false);
+    }
+  }, [monitorMenuOpen]);
+
+  // Click outside to close monitor menu
+  useEffect(() => {
+    if (!monitorMenuOpen) return;
+    const onDown = (e) => {
+      if (monitorMenuRef.current?.contains(e.target) || monitorBtnRef.current?.contains(e.target)) return;
+      setMonitorMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [monitorMenuOpen]);
+
+  // Handle launching workspace from menu
+  const handleLaunchWorkspaceFromMenu = useCallback(async () => {
+    setMonitorMenuOpen(false);
+    await handleLaunchWorkspace();
+  }, [handleLaunchWorkspace]);
+
   // Tools overlay state for permission selection
   const [toolMenuOpen, setToolMenuOpen] = useState(false);
   const toolBtnRef = useRef(null);
@@ -5588,17 +5668,111 @@ export default function AppleFloatBar({
               userId={currentUser?.id || localStorage.getItem('user_id')}
               variant="tool"
             />
-            <button
-              className="apple-tool-btn"
-              onClick={handleLaunchWorkspace}
-              title={workspaceActive ? "Max's Monitor is active" : "Launch Max's Monitor"}
-              style={{
-                background: workspaceActive ? 'rgba(245, 158, 11, 0.2)' : undefined,
-                borderColor: workspaceActive ? 'rgba(245, 158, 11, 0.4)' : undefined,
-              }}
-            >
-              <Monitor size={16} style={{ color: workspaceActive ? '#f59e0b' : undefined }} />
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                ref={monitorBtnRef}
+                className="apple-tool-btn"
+                onClick={handleMonitorMenu}
+                title="Max's Tools"
+                style={{
+                  background: (workspaceActive || spreadsheetActive || monitorMenuOpen) ? 'rgba(245, 158, 11, 0.2)' : undefined,
+                  borderColor: (workspaceActive || spreadsheetActive || monitorMenuOpen) ? 'rgba(245, 158, 11, 0.4)' : undefined,
+                }}
+              >
+                <Monitor size={16} style={{ color: (workspaceActive || spreadsheetActive || monitorMenuOpen) ? '#f59e0b' : undefined }} />
+              </button>
+              {/* Monitor Tools Dropdown Menu */}
+              {monitorMenuOpen && (
+                <div
+                  ref={monitorMenuRef}
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    minWidth: '140px',
+                    background: 'linear-gradient(135deg, rgba(18,20,24,0.95), rgba(24,26,30,0.92))',
+                    backdropFilter: 'saturate(120%) blur(18px)',
+                    WebkitBackdropFilter: 'saturate(120%) blur(18px)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: '10px',
+                    boxShadow: '0 12px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)',
+                    overflow: 'hidden',
+                    zIndex: 100,
+                    transform: monitorMenuReady ? 'translateY(0) scale(1)' : 'translateY(-6px) scale(0.96)',
+                    opacity: monitorMenuReady ? 1 : 0,
+                    transition: 'opacity 150ms ease-out, transform 200ms cubic-bezier(.22,.61,.36,1)',
+                  }}
+                >
+                  {/* Web Browser Option */}
+                  <button
+                    onClick={handleLaunchWorkspaceFromMenu}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      width: '100%',
+                      padding: '10px 14px',
+                      background: workspaceActive ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+                      border: 'none',
+                      borderBottom: '1px solid rgba(255,255,255,0.08)',
+                      color: workspaceActive ? '#f59e0b' : 'rgba(255,255,255,0.85)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      textAlign: 'left',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!workspaceActive) {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                        e.currentTarget.style.color = 'white';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = workspaceActive ? 'rgba(245, 158, 11, 0.15)' : 'transparent';
+                      e.currentTarget.style.color = workspaceActive ? '#f59e0b' : 'rgba(255,255,255,0.85)';
+                    }}
+                  >
+                    <Globe size={16} />
+                    <span style={{ fontSize: '13px', fontWeight: 500 }}>Web</span>
+                    {workspaceActive && (
+                      <span style={{ marginLeft: 'auto', width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px rgba(34, 197, 94, 0.5)' }} />
+                    )}
+                  </button>
+                  {/* Spreadsheet Option */}
+                  <button
+                    onClick={handleLaunchSpreadsheet}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      width: '100%',
+                      padding: '10px 14px',
+                      background: spreadsheetActive ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+                      border: 'none',
+                      color: spreadsheetActive ? '#f59e0b' : 'rgba(255,255,255,0.85)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      textAlign: 'left',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!spreadsheetActive) {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                        e.currentTarget.style.color = 'white';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = spreadsheetActive ? 'rgba(245, 158, 11, 0.15)' : 'transparent';
+                      e.currentTarget.style.color = spreadsheetActive ? '#f59e0b' : 'rgba(255,255,255,0.85)';
+                    }}
+                  >
+                    <Table2 size={16} />
+                    <span style={{ fontSize: '13px', fontWeight: 500 }}>Spreadsheet</span>
+                    {spreadsheetActive && (
+                      <span style={{ marginLeft: 'auto', width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px rgba(34, 197, 94, 0.5)' }} />
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
             <button className="apple-tool-btn" onClick={handleSettings} title="Settings">
               <Settings size={16} />
             </button>
