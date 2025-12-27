@@ -332,6 +332,12 @@ async function handleRequest(req, res) {
       return sendJson(res, 200, result);
     }
 
+    // Debug endpoint for formula errors
+    if (pathname === '/spreadsheet/formula-debug' && req.method === 'GET') {
+      const result = await spreadsheetManager.getFormulaDebug();
+      return sendJson(res, 200, result);
+    }
+
     // =========================================================================
     // Cloud Sync (Supabase)
     // =========================================================================

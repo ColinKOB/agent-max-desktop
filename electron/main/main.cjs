@@ -1732,6 +1732,11 @@ ipcMain.handle('spreadsheet:get-status', () => {
   return spreadsheetManager.getStatus();
 });
 
+// Get detailed spreadsheet status (for AI context)
+ipcMain.handle('spreadsheet:get-detailed-status', async () => {
+  return spreadsheetManager.getDetailedStatus();
+});
+
 // Create spreadsheet window
 ipcMain.handle('spreadsheet:create', async (_event, { width = 1280, height = 800 } = {}) => {
   try {

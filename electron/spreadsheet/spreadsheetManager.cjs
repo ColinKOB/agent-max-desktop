@@ -814,8 +814,113 @@ class SpreadsheetManager {
     };
   }
 
+  /**
+   * Get detailed status with data summary for AI context
+   * This gives the AI enough info to understand what's in the spreadsheet
+   */
+  async getDetailedStatus() {
+    if (!this.getIsActive()) {
+      return { active: false };
+    }
+
+    try {
+      // Get sheet data summary from the renderer
+      const summary = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        (function() {
+          const data = window.getSpreadsheetData ? window.getSpreadsheetData() : [];
+          const sheets = [];
+
+          for (const sheet of data) {
+            const sheetInfo = {
+              name: sheet.name,
+              rowCount: 0,
+              colCount: 0,
+              headers: [],
+              sampleData: [],
+              hasFormulas: false
+            };
+
+            if (sheet.celldata && sheet.celldata.length > 0) {
+              // Find bounds
+              let maxRow = 0, maxCol = 0;
+              const headerRow = [];
+              const formulas = [];
+
+              for (const cell of sheet.celldata) {
+                if (cell.r > maxRow) maxRow = cell.r;
+                if (cell.c > maxCol) maxCol = cell.c;
+
+                // Get header row (row 0)
+                if (cell.r === 0) {
+                  const val = cell.v?.v ?? cell.v ?? '';
+                  headerRow[cell.c] = String(val);
+                }
+
+                // Check for formulas
+                if (cell.v?.f) {
+                  sheetInfo.hasFormulas = true;
+                }
+              }
+
+              sheetInfo.rowCount = maxRow + 1;
+              sheetInfo.colCount = maxCol + 1;
+              sheetInfo.headers = headerRow.filter(h => h); // Remove empty
+
+              // Get sample data from first few rows (excluding header)
+              for (let r = 1; r <= Math.min(3, maxRow); r++) {
+                const rowData = [];
+                for (let c = 0; c <= Math.min(5, maxCol); c++) {
+                  const cell = sheet.celldata.find(cd => cd.r === r && cd.c === c);
+                  const val = cell?.v?.v ?? cell?.v ?? '';
+                  rowData.push(String(val).substring(0, 30)); // Truncate long values
+                }
+                sheetInfo.sampleData.push(rowData);
+              }
+            }
+
+            sheets.push(sheetInfo);
+          }
+
+          return sheets;
+        })()
+      `);
+
+      return {
+        active: true,
+        windowId: this.getWindowId(),
+        isMinimized: this.isMinimized,
+        file: this.currentFile,
+        sessionId: this.currentSessionId,
+        sheets: summary
+      };
+    } catch (e) {
+      console.error('[Spreadsheet] Error getting detailed status:', e);
+      return {
+        active: true,
+        windowId: this.getWindowId(),
+        isMinimized: this.isMinimized,
+        file: this.currentFile,
+        sessionId: this.currentSessionId,
+        error: e.message
+      };
+    }
+  }
+
   getCurrentFile() {
     return this.currentFile;
+  }
+
+  async getFormulaDebug() {
+    if (!this.getIsActive()) return { success: false, error: 'Spreadsheet not active' };
+
+    try {
+      const result = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        window._formulaDebug || window._lastFormulaError || null
+      `);
+      return { success: true, debug: result };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
   }
 }
 

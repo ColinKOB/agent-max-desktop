@@ -493,6 +493,9 @@ contextBridge.exposeInMainWorld('spreadsheet', {
   // Get current spreadsheet status
   getStatus: () => ipcRenderer.invoke('spreadsheet:get-status'),
 
+  // Get detailed status with data summary (for AI context)
+  getDetailedStatus: () => ipcRenderer.invoke('spreadsheet:get-detailed-status'),
+
   // Create the spreadsheet window
   create: (width = 1280, height = 800) =>
     ipcRenderer.invoke('spreadsheet:create', { width, height }),

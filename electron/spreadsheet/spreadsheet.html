@@ -146,6 +146,7 @@
       right: 0;
       bottom: 0;
       background: white;
+      overflow: auto;
     }
 
     /* Loading state */
@@ -256,9 +257,8 @@
       const grid = document.createElement('div');
       grid.id = 'simple-grid';
       grid.style.cssText = `
-        width: 100%;
-        height: 100%;
-        overflow: auto;
+        width: fit-content;
+        min-width: 100%;
         background: white;
         font-family: Arial, sans-serif;
         font-size: 13px;
@@ -342,9 +342,13 @@
             outline: none;
           `;
 
+          // Track if user is actively editing the cell
+          let cellWasEdited = false;
+
           // Handle cell selection and editing
           cell.addEventListener('focus', () => {
             selectedCell = { row: r, col: c };
+            cellWasEdited = false; // Reset edit flag on focus
             cell.style.background = '#e8f0fe';
             cell.style.outline = '2px solid #667eea';
             updateFormulaBar(r, c);
@@ -352,14 +356,35 @@
 
           cell.addEventListener('blur', () => {
             const value = cell.textContent;
-            setCellDataInternal(currentSheet, r, c, value);
-            updateFileModified(true);
+            const existingData = getCellDataInternal(currentSheet, r, c);
+
+            // If user edited the cell directly, check if they typed a formula or plain value
+            if (cellWasEdited) {
+              if (value.startsWith('=')) {
+                // User typed a formula - use setCellFormula to properly store it
+                window.setCellFormula(currentSheet, r, c, value);
+              } else {
+                // User typed a plain value - replace any existing formula
+                setCellDataInternal(currentSheet, r, c, value);
+                updateFileModified(true);
+              }
+            } else if (existingData?.v?.f) {
+              // Cell wasn't edited and has a formula - preserve it and recalculate
+              const recalculated = evaluateFormula(existingData.v.f, currentSheet);
+              if (recalculated !== existingData.v.v) {
+                existingData.v.v = recalculated;
+              }
+            }
+            // If not edited and no formula, nothing to do - value is already saved
+
             cell.style.background = '';
             cell.style.outline = '';
           });
 
-          // Handle keydown for formula bar sync
+          // Handle input for formula bar sync
           cell.addEventListener('input', () => {
+            // Mark that user is actively editing this cell
+            cellWasEdited = true;
             // Sync cell content to formula bar as user types
             document.getElementById('formula-input').value = cell.textContent;
           });
@@ -569,10 +594,24 @@
       if (!sheetData.celldata) sheetData.celldata = [];
 
       const existingIndex = sheetData.celldata.findIndex(c => c.r === row && c.c === col);
+
+      // Debug: store formula evaluation result
+      let evalResult;
+      try {
+        evalResult = evaluateFormula(formula, sheet);
+      } catch (e) {
+        evalResult = '#ERROR!';
+        window._formulaDebug = { formula, error: e.message, stack: e.stack };
+      }
+      if (evalResult === '#ERROR!' && window._lastFormulaError) {
+        // Store for debugging
+        window._formulaDebug = window._lastFormulaError;
+      }
+
       const cellData = {
         r: row,
         c: col,
-        v: { f: formula, v: evaluateFormula(formula, sheet) }
+        v: { f: formula, v: evalResult }
       };
 
       if (existingIndex >= 0) {
@@ -733,20 +772,45 @@
       return value == criteria;
     }
 
+    // Helper: Evaluate a value that could be a number, cell ref, or nested formula
+    function evalValue(val, sheetName) {
+      if (val === undefined || val === null || val === '') return 0;
+      const trimmed = String(val).trim();
+      // Check if it's a quoted string
+      if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+        return trimmed.slice(1, -1);
+      }
+      // Check if it's a pure number (no operators or letters except E for scientific notation)
+      if (/^-?\d+\.?\d*([eE][+-]?\d+)?$/.test(trimmed)) {
+        return parseFloat(trimmed);
+      }
+      // Otherwise evaluate as formula/reference (handles expressions like 0.05/12)
+      return evaluateFormula('=' + trimmed, sheetName);
+    }
+
     // Main formula evaluator
     function evaluateFormula(formula, sheetName) {
       if (!formula || !formula.startsWith('=')) return formula;
 
-      let expr = formula.substring(1);
+      let expr = formula.substring(1).trim();
+
+      // Handle pure number after = (must be ONLY digits, decimal, and optional scientific notation)
+      if (/^-?\d+\.?\d*([eE][+-]?\d+)?$/.test(expr)) {
+        return parseFloat(expr);
+      }
+
       const exprUpper = expr.toUpperCase();
 
       try {
-        // Extract function name and arguments
-        const funcMatch = exprUpper.match(/^([A-Z_]+)\((.*)\)$/s);
+        // Extract function name and arguments (include digits for LOG10, etc.)
+        const funcMatch = exprUpper.match(/^([A-Z_][A-Z_0-9]*)\((.*)\)$/s);
+        // Also match original expr to preserve case in arguments
+        const funcMatchOriginal = expr.match(/^([A-Za-z_][A-Za-z_0-9]*)\((.*)\)$/s);
 
         if (funcMatch) {
           const funcName = funcMatch[1];
-          const argsStr = funcMatch[2];
+          // Use original case args for text functions, uppercase for cell refs
+          const argsStr = funcMatchOriginal ? funcMatchOriginal[2] : funcMatch[2];
           const args = parseArgs(argsStr);
 
           // ==================== MATH FUNCTIONS ====================
@@ -859,28 +923,28 @@
 
           // SQRT - Square root
           if (funcName === 'SQRT') {
-            const val = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
+            const val = parseFloat(evalValue(args[0], sheetName)) || 0;
             return val >= 0 ? Math.sqrt(val) : '#NUM!';
           }
 
           // POWER - Power function
           if (funcName === 'POWER') {
-            const base = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
-            const exp = parseFloat(evaluateFormula('=' + args[1], sheetName)) || 0;
+            const base = parseFloat(evalValue(args[0], sheetName)) || 0;
+            const exp = parseFloat(evalValue(args[1], sheetName)) || 0;
             return Math.pow(base, exp);
           }
 
           // MOD - Modulo
           if (funcName === 'MOD') {
-            const num = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
-            const divisor = parseFloat(evaluateFormula('=' + args[1], sheetName)) || 1;
+            const num = parseFloat(evalValue(args[0], sheetName)) || 0;
+            const divisor = parseFloat(evalValue(args[1], sheetName)) || 1;
             return num % divisor;
           }
 
           // ROUND - Round to decimal places
           if (funcName === 'ROUND') {
-            const num = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
-            const decimals = parseInt(args[1]) || 0;
+            const num = parseFloat(evalValue(args[0], sheetName)) || 0;
+            const decimals = parseInt(evalValue(args[1], sheetName)) || 0;
             const factor = Math.pow(10, decimals);
             return Math.round(num * factor) / factor;
           }
@@ -959,8 +1023,202 @@
 
           // LOG10 - Base 10 logarithm
           if (funcName === 'LOG10') {
-            const val = parseFloat(evaluateFormula('=' + args[0], sheetName)) || 0;
-            return val > 0 ? Math.log10(val) : '#NUM!';
+            const val = parseFloat(evalValue(args[0], sheetName));
+            if (isNaN(val) || val <= 0) return '#NUM!';
+            return Math.log10(val);
+          }
+
+          // ==================== TRIGONOMETRIC FUNCTIONS ====================
+
+          // SIN - Sine (radians)
+          if (funcName === 'SIN') {
+            const val = parseFloat(evalValue(args[0], sheetName));
+            return Math.sin(val);
+          }
+
+          // COS - Cosine (radians)
+          if (funcName === 'COS') {
+            const val = parseFloat(evalValue(args[0], sheetName));
+            return Math.cos(val);
+          }
+
+          // TAN - Tangent (radians)
+          if (funcName === 'TAN') {
+            const val = parseFloat(evalValue(args[0], sheetName));
+            return Math.tan(val);
+          }
+
+          // ASIN - Arcsine
+          if (funcName === 'ASIN') {
+            const val = parseFloat(evalValue(args[0], sheetName));
+            if (val < -1 || val > 1) return '#NUM!';
+            return Math.asin(val);
+          }
+
+          // ACOS - Arccosine
+          if (funcName === 'ACOS') {
+            const val = parseFloat(evalValue(args[0], sheetName));
+            if (val < -1 || val > 1) return '#NUM!';
+            return Math.acos(val);
+          }
+
+          // ATAN - Arctangent
+          if (funcName === 'ATAN') {
+            const val = parseFloat(evalValue(args[0], sheetName));
+            return Math.atan(val);
+          }
+
+          // ATAN2 - Arctangent of x/y
+          if (funcName === 'ATAN2') {
+            const y = parseFloat(evalValue(args[0], sheetName));
+            const x = parseFloat(evalValue(args[1], sheetName));
+            return Math.atan2(y, x);
+          }
+
+          // SINH - Hyperbolic sine
+          if (funcName === 'SINH') {
+            const val = parseFloat(evalValue(args[0], sheetName));
+            return Math.sinh(val);
+          }
+
+          // COSH - Hyperbolic cosine
+          if (funcName === 'COSH') {
+            const val = parseFloat(evalValue(args[0], sheetName));
+            return Math.cosh(val);
+          }
+
+          // TANH - Hyperbolic tangent
+          if (funcName === 'TANH') {
+            const val = parseFloat(evalValue(args[0], sheetName));
+            return Math.tanh(val);
+          }
+
+          // RADIANS - Convert degrees to radians
+          if (funcName === 'RADIANS') {
+            const deg = parseFloat(evalValue(args[0], sheetName));
+            return deg * Math.PI / 180;
+          }
+
+          // DEGREES - Convert radians to degrees
+          if (funcName === 'DEGREES') {
+            const rad = parseFloat(evalValue(args[0], sheetName));
+            return rad * 180 / Math.PI;
+          }
+
+          // ==================== FINANCIAL FUNCTIONS ====================
+
+          // PMT - Payment for a loan
+          if (funcName === 'PMT') {
+            const rate = parseFloat(evalValue(args[0], sheetName));
+            const nper = parseFloat(evalValue(args[1], sheetName));
+            const pv = parseFloat(evalValue(args[2], sheetName));
+            const fv = args[3] ? parseFloat(evalValue(args[3], sheetName)) : 0;
+            const type = args[4] ? parseFloat(evalValue(args[4], sheetName)) : 0;
+
+            if (rate === 0) return -(pv + fv) / nper;
+            const pvif = Math.pow(1 + rate, nper);
+            return -(rate * (pv * pvif + fv)) / (pvif - 1) / (1 + rate * type);
+          }
+
+          // FV - Future value
+          if (funcName === 'FV') {
+            const rate = parseFloat(evalValue(args[0], sheetName));
+            const nper = parseFloat(evalValue(args[1], sheetName));
+            const pmt = parseFloat(evalValue(args[2], sheetName)) || 0;
+            const pv = parseFloat(evalValue(args[3], sheetName)) || 0;
+            const type = args[4] ? parseFloat(evalValue(args[4], sheetName)) : 0;
+
+            if (rate === 0) return -(pv + pmt * nper);
+            const pvif = Math.pow(1 + rate, nper);
+            return -(pv * pvif + pmt * (1 + rate * type) * (pvif - 1) / rate);
+          }
+
+          // PV - Present value
+          if (funcName === 'PV') {
+            const rate = parseFloat(evalValue(args[0], sheetName));
+            const nper = parseFloat(evalValue(args[1], sheetName));
+            const pmt = parseFloat(evalValue(args[2], sheetName)) || 0;
+            const fv = parseFloat(evalValue(args[3], sheetName)) || 0;
+            const type = args[4] ? parseFloat(evalValue(args[4], sheetName)) : 0;
+
+            if (rate === 0) return -(fv + pmt * nper);
+            const pvif = Math.pow(1 + rate, nper);
+            return -(fv + pmt * (1 + rate * type) * (pvif - 1) / rate) / pvif;
+          }
+
+          // NPV - Net present value
+          if (funcName === 'NPV') {
+            const rate = parseFloat(evalValue(args[0], sheetName));
+            let npv = 0;
+            for (let i = 1; i < args.length; i++) {
+              const arg = args[i];
+              if (arg.includes(':')) {
+                const [start, end] = arg.split(':');
+                const vals = getNumericRange(sheetName, start, end);
+                vals.forEach((v, idx) => {
+                  npv += v / Math.pow(1 + rate, i + idx);
+                });
+              } else {
+                const val = parseFloat(evalValue(arg, sheetName)) || 0;
+                npv += val / Math.pow(1 + rate, i);
+              }
+            }
+            return npv;
+          }
+
+          // IRR - Internal rate of return (simplified Newton-Raphson)
+          if (funcName === 'IRR') {
+            const values = [];
+            for (const arg of args) {
+              if (arg.includes(':')) {
+                const [start, end] = arg.split(':');
+                values.push(...getNumericRange(sheetName, start, end));
+              } else {
+                values.push(parseFloat(evalValue(arg, sheetName)) || 0);
+              }
+            }
+
+            let guess = 0.1;
+            for (let iter = 0; iter < 100; iter++) {
+              let npv = 0, dnpv = 0;
+              for (let i = 0; i < values.length; i++) {
+                npv += values[i] / Math.pow(1 + guess, i);
+                dnpv -= i * values[i] / Math.pow(1 + guess, i + 1);
+              }
+              if (Math.abs(npv) < 1e-10) return guess;
+              guess = guess - npv / dnpv;
+            }
+            return '#NUM!';
+          }
+
+          // NPER - Number of periods
+          if (funcName === 'NPER') {
+            const rate = parseFloat(evalValue(args[0], sheetName));
+            const pmt = parseFloat(evalValue(args[1], sheetName));
+            const pv = parseFloat(evalValue(args[2], sheetName));
+            const fv = args[3] ? parseFloat(evalValue(args[3], sheetName)) : 0;
+            const type = args[4] ? parseFloat(evalValue(args[4], sheetName)) : 0;
+
+            if (rate === 0) return -(pv + fv) / pmt;
+            return Math.log((pmt * (1 + rate * type) - fv * rate) / (pv * rate + pmt * (1 + rate * type))) / Math.log(1 + rate);
+          }
+
+          // RATE - Interest rate (simplified Newton-Raphson)
+          if (funcName === 'RATE') {
+            const nper = parseFloat(evalValue(args[0], sheetName));
+            const pmt = parseFloat(evalValue(args[1], sheetName));
+            const pv = parseFloat(evalValue(args[2], sheetName));
+            const fv = args[3] ? parseFloat(evalValue(args[3], sheetName)) : 0;
+
+            let guess = 0.1;
+            for (let iter = 0; iter < 100; iter++) {
+              const pvif = Math.pow(1 + guess, nper);
+              const y = pv * pvif + pmt * (pvif - 1) / guess + fv;
+              const dy = pv * nper * Math.pow(1 + guess, nper - 1) + pmt * (nper * Math.pow(1 + guess, nper - 1) * guess - (pvif - 1)) / (guess * guess);
+              if (Math.abs(y) < 1e-10) return guess;
+              guess = guess - y / dy;
+            }
+            return '#NUM!';
           }
 
           // RAND - Random number 0-1
@@ -1119,8 +1377,23 @@
           // IF - Conditional
           if (funcName === 'IF') {
             const condition = evaluateFormula('=' + args[0], sheetName);
-            const trueVal = args[1] ? evaluateFormula('=' + args[1], sheetName) : true;
-            const falseVal = args[2] ? evaluateFormula('=' + args[2], sheetName) : false;
+            // Handle quoted strings directly
+            let trueVal = true;
+            let falseVal = false;
+            if (args[1]) {
+              if (args[1].startsWith('"') && args[1].endsWith('"')) {
+                trueVal = args[1].slice(1, -1);
+              } else {
+                trueVal = evaluateFormula('=' + args[1], sheetName);
+              }
+            }
+            if (args[2]) {
+              if (args[2].startsWith('"') && args[2].endsWith('"')) {
+                falseVal = args[2].slice(1, -1);
+              } else {
+                falseVal = evaluateFormula('=' + args[2], sheetName);
+              }
+            }
             return condition ? trueVal : falseVal;
           }
 
@@ -1241,7 +1514,7 @@
 
           // TRIM - Remove extra spaces
           if (funcName === 'TRIM') {
-            return String(evaluateFormula('=' + args[0], sheetName)).trim().replace(/\s+/g, ' ');
+            return String(evalValue(args[0], sheetName)).trim().replace(/\s+/g, ' ');
           }
 
           // UPPER - Uppercase
@@ -1307,8 +1580,8 @@
 
           // REPT - Repeat text
           if (funcName === 'REPT') {
-            const text = args[0].replace(/^"|"$/g, '');
-            const times = parseInt(args[1]) || 0;
+            const text = String(evalValue(args[0], sheetName));
+            const times = parseInt(evalValue(args[1], sheetName)) || 0;
             return text.repeat(times);
           }
 
@@ -1398,11 +1671,29 @@
           // INDEX - Get value at position
           if (funcName === 'INDEX') {
             const [rangeStart, rangeEnd] = args[0].split(':');
-            const rowNum = parseInt(evaluateFormula('=' + args[1], sheetName)) || 1;
-            const colNum = args[2] ? parseInt(evaluateFormula('=' + args[2], sheetName)) : 1;
-
             const startRef = parseCellRef(rangeStart);
+            const endRef = rangeEnd ? parseCellRef(rangeEnd) : startRef;
             if (!startRef) return '#REF!';
+
+            // Determine if range is 1D horizontal (same row), 1D vertical (same col), or 2D
+            const isHorizontal = startRef.row === endRef.row;
+            const isVertical = startRef.col === endRef.col;
+
+            let rowNum, colNum;
+            if (args.length === 2 && (isHorizontal || isVertical)) {
+              // Single number for 1D range - use as column for horizontal, row for vertical
+              const idx = parseInt(evalValue(args[1], sheetName)) || 1;
+              if (isHorizontal) {
+                rowNum = 1;
+                colNum = idx;
+              } else {
+                rowNum = idx;
+                colNum = 1;
+              }
+            } else {
+              rowNum = parseInt(evalValue(args[1], sheetName)) || 1;
+              colNum = args[2] ? parseInt(evalValue(args[2], sheetName)) : 1;
+            }
 
             const cellData = getCellDataInternal(sheetName, startRef.row + rowNum - 1, startRef.col + colNum - 1);
             return cellData?.v?.v ?? cellData?.v ?? '';
@@ -1867,25 +2158,166 @@
           return getCellByRef(sheetName, expr.toUpperCase());
         }
 
-        // Handle comparison operators in expressions
-        let mathExpr = expr;
+        // Safe expression evaluator - no eval/Function required
+        // Supports: +, -, *, /, ^, %, (), comparisons (=, <, >, <=, >=, <>)
+        function safeEval(expr, sheetName) {
+          // Replace cell references with values
+          let processed = expr.replace(/([A-Z]+)(\d+)/gi, (match) => {
+            const val = getCellByRef(sheetName, match.toUpperCase());
+            if (typeof val === 'string' && isNaN(parseFloat(val))) {
+              return JSON.stringify(val);
+            }
+            return val ?? 0;
+          });
 
-        // Replace cell references with values
-        mathExpr = mathExpr.replace(/([A-Z]+)(\d+)/gi, (match) => {
-          const val = getCellByRef(sheetName, match.toUpperCase());
-          if (typeof val === 'string' && isNaN(parseFloat(val))) return `"${val}"`;
-          return val ?? 0;
-        });
+          // Tokenize the expression
+          const tokens = [];
+          let i = 0;
+          while (i < processed.length) {
+            const ch = processed[i];
 
-        // Handle comparison operators
-        mathExpr = mathExpr.replace(/<>/g, '!=').replace(/=/g, '==');
-        // Fix double equals from single equals
-        mathExpr = mathExpr.replace(/====/g, '==').replace(/!===/g, '!=');
+            // Skip whitespace
+            if (/\s/.test(ch)) { i++; continue; }
 
-        // Safe eval for math/comparison expressions
-        return Function('"use strict"; return (' + mathExpr + ')')();
+            // Number (including decimals and negative)
+            if (/[\d.]/.test(ch) || (ch === '-' && (tokens.length === 0 || ['(', '+', '-', '*', '/', '^', '%', '<', '>', '='].includes(tokens[tokens.length - 1])))) {
+              let num = '';
+              if (ch === '-') { num = '-'; i++; }
+              while (i < processed.length && /[\d.eE+-]/.test(processed[i])) {
+                // Handle scientific notation carefully
+                if ((processed[i] === '+' || processed[i] === '-') && !/[eE]/.test(num[num.length - 1])) break;
+                num += processed[i++];
+              }
+              tokens.push(parseFloat(num));
+              continue;
+            }
+
+            // String literal
+            if (ch === '"') {
+              let str = '';
+              i++; // skip opening quote
+              while (i < processed.length && processed[i] !== '"') {
+                if (processed[i] === '\\' && i + 1 < processed.length) {
+                  i++; str += processed[i++];
+                } else {
+                  str += processed[i++];
+                }
+              }
+              i++; // skip closing quote
+              tokens.push(str);
+              continue;
+            }
+
+            // Operators
+            if (ch === '<' && processed[i+1] === '>') { tokens.push('<>'); i += 2; continue; }
+            if (ch === '<' && processed[i+1] === '=') { tokens.push('<='); i += 2; continue; }
+            if (ch === '>' && processed[i+1] === '=') { tokens.push('>='); i += 2; continue; }
+            if (/[+\-*\/^%()<>=]/.test(ch)) { tokens.push(ch); i++; continue; }
+
+            // TRUE/FALSE
+            if (processed.substring(i, i+4).toUpperCase() === 'TRUE') {
+              tokens.push(true); i += 4; continue;
+            }
+            if (processed.substring(i, i+5).toUpperCase() === 'FALSE') {
+              tokens.push(false); i += 5; continue;
+            }
+
+            // Unknown character - error
+            throw new Error('Unexpected character: ' + ch);
+          }
+
+          // Simple recursive descent parser
+          let pos = 0;
+
+          function parseExpr() { return parseComparison(); }
+
+          function parseComparison() {
+            let left = parseAddSub();
+            while (pos < tokens.length && ['=', '<', '>', '<=', '>=', '<>'].includes(tokens[pos])) {
+              const op = tokens[pos++];
+              const right = parseAddSub();
+              switch (op) {
+                case '=': left = left === right; break;
+                case '<': left = left < right; break;
+                case '>': left = left > right; break;
+                case '<=': left = left <= right; break;
+                case '>=': left = left >= right; break;
+                case '<>': left = left !== right; break;
+              }
+            }
+            return left;
+          }
+
+          function parseAddSub() {
+            let left = parseMulDiv();
+            while (pos < tokens.length && (tokens[pos] === '+' || tokens[pos] === '-')) {
+              const op = tokens[pos++];
+              const right = parseMulDiv();
+              left = op === '+' ? left + right : left - right;
+            }
+            return left;
+          }
+
+          function parseMulDiv() {
+            let left = parsePower();
+            while (pos < tokens.length && (tokens[pos] === '*' || tokens[pos] === '/' || tokens[pos] === '%')) {
+              const op = tokens[pos++];
+              const right = parsePower();
+              if (op === '*') left = left * right;
+              else if (op === '/') left = right !== 0 ? left / right : '#DIV/0!';
+              else left = left % right;
+            }
+            return left;
+          }
+
+          function parsePower() {
+            let left = parseUnary();
+            while (pos < tokens.length && tokens[pos] === '^') {
+              pos++;
+              const right = parseUnary();
+              left = Math.pow(left, right);
+            }
+            return left;
+          }
+
+          function parseUnary() {
+            if (tokens[pos] === '-') {
+              pos++;
+              return -parseUnary();
+            }
+            if (tokens[pos] === '+') {
+              pos++;
+              return parseUnary();
+            }
+            return parsePrimary();
+          }
+
+          function parsePrimary() {
+            if (tokens[pos] === '(') {
+              pos++; // skip (
+              const val = parseExpr();
+              if (tokens[pos] === ')') pos++; // skip )
+              return val;
+            }
+            return tokens[pos++];
+          }
+
+          return parseExpr();
+        }
+
+        // Use safe expression evaluator
+        try {
+          const result = safeEval(expr, sheetName);
+          return result;
+        } catch (evalError) {
+          console.error('[Formula] Eval error for:', expr, evalError);
+          window._lastFormulaError = { expr, error: evalError.message };
+          return '#ERROR!';
+        }
       } catch (e) {
         console.error('[Formula] Error evaluating:', formula, e);
+        // Store the error in a global for debugging
+        window._lastFormulaError = { formula, error: e.message, stack: e.stack };
         return '#ERROR!';
       }
     }

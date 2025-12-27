@@ -207,7 +207,37 @@ class PullAutonomousService {
             logger.warn('[PullAutonomous] Could not get browser_mode', e);
         }
 
-        // Merge userId, screenshot, google_user_email, and browser_mode into context
+        // ACTIVE TOOLS CONTEXT: Get status of currently open tools (spreadsheet, workspace, etc.)
+        // This tells the AI what tools are currently active so it can understand context like "update this"
+        let activeTools = {};
+        try {
+            // Check spreadsheet status
+            if (window.spreadsheet?.getDetailedStatus) {
+                const spreadsheetStatus = await window.spreadsheet.getDetailedStatus();
+                if (spreadsheetStatus?.active) {
+                    activeTools.spreadsheet = spreadsheetStatus;
+                    logger.info('[PullAutonomous] Active spreadsheet detected', {
+                        file: spreadsheetStatus.file?.name,
+                        sheets: spreadsheetStatus.sheets?.length
+                    });
+                }
+            }
+
+            // Check workspace/browser status
+            if (window.workspace?.getStatus) {
+                const workspaceStatus = await window.workspace.getStatus();
+                if (workspaceStatus?.active) {
+                    activeTools.workspace = workspaceStatus;
+                    logger.info('[PullAutonomous] Active workspace detected', {
+                        url: workspaceStatus.currentUrl
+                    });
+                }
+            }
+        } catch (e) {
+            logger.warn('[PullAutonomous] Could not get active tools status (non-fatal)', e?.message || e);
+        }
+
+        // Merge userId, screenshot, google_user_email, browser_mode, and active_tools into context
         const enrichedContext = {
             ...context,
             userId: userId || context?.userId,
@@ -216,9 +246,14 @@ class PullAutonomousService {
             // Include google_user_email for Gmail/Calendar integration
             google_user_email: googleUserEmail || context?.google_user_email,
             // Include browser_mode for tool filtering (workspace_only, safari_only, both)
-            browser_mode: browserMode
+            browser_mode: browserMode,
+            // Include active tools for context awareness (spreadsheet, workspace, etc.)
+            active_tools: Object.keys(activeTools).length > 0 ? activeTools : null
         };
         logger.info('[PullAutonomous] Browser mode:', browserMode);
+        if (Object.keys(activeTools).length > 0) {
+            logger.info('[PullAutonomous] Active tools:', Object.keys(activeTools));
+        }
         
         // Use main process IPC for stable network calls with automatic retry
         // This avoids ERR_NETWORK_CHANGED errors from renderer process
