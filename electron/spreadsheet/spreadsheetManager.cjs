@@ -704,22 +704,77 @@ class SpreadsheetManager {
     try {
       await this.getData(); // Refresh data from renderer
 
-      const result = await this.spreadsheetWindow.webContents.executeJavaScript(`
-        window.saveFile(${JSON.stringify(savePath)}, ${JSON.stringify(this.spreadsheetData)})
-      `);
+      // Convert spreadsheet data to xlsx format and save in main process
+      const XLSX = require('xlsx');
 
-      if (result.success) {
-        this.currentFile = {
-          path: savePath,
-          name: path.basename(savePath),
-          type: 'local',
-          modified: false
-        };
-        this.logActivity('save_file', { path: savePath });
+      // Create a new workbook
+      const wb = XLSX.utils.book_new();
+
+      // Process each sheet
+      for (const sheetName of Object.keys(this.spreadsheetData)) {
+        const sheetData = this.spreadsheetData[sheetName];
+
+        // Convert our cell data to a 2D array for xlsx
+        const rows = [];
+        const maxRow = Math.max(...Object.keys(sheetData).map(k => parseInt(k.match(/\d+/)?.[0] || 0)));
+        const maxCol = Math.max(...Object.keys(sheetData).map(k => {
+          const col = k.match(/^[A-Z]+/)?.[0] || 'A';
+          return col.split('').reduce((acc, c, i) => acc + (c.charCodeAt(0) - 64) * Math.pow(26, col.length - 1 - i), 0);
+        }));
+
+        for (let r = 1; r <= maxRow; r++) {
+          const row = [];
+          for (let c = 1; c <= maxCol; c++) {
+            const colLetter = String.fromCharCode(64 + c);
+            const cellRef = `${colLetter}${r}`;
+            const cellData = sheetData[cellRef];
+
+            if (cellData) {
+              // If it has a formula, use formula; otherwise use value
+              if (cellData.f) {
+                row.push({ f: cellData.f, v: cellData.v });
+              } else {
+                row.push(cellData.v !== undefined ? cellData.v : '');
+              }
+            } else {
+              row.push('');
+            }
+          }
+          rows.push(row);
+        }
+
+        // Create worksheet from array
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+
+        // Add formulas back to worksheet
+        for (const [cellRef, cellData] of Object.entries(sheetData)) {
+          if (cellData && cellData.f) {
+            if (!ws[cellRef]) ws[cellRef] = {};
+            ws[cellRef].f = cellData.f;
+          }
+        }
+
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
       }
 
-      return result;
+      // Determine format from file extension
+      const ext = path.extname(savePath).toLowerCase();
+      const bookType = ext === '.csv' ? 'csv' : 'xlsx';
+
+      // Write the file
+      XLSX.writeFile(wb, savePath, { bookType });
+
+      this.currentFile = {
+        path: savePath,
+        name: path.basename(savePath),
+        type: 'local',
+        modified: false
+      };
+      this.logActivity('save_file', { path: savePath });
+
+      return { success: true, message: `Saved to ${savePath}` };
     } catch (e) {
+      console.error('[Spreadsheet] Save error:', e);
       return { success: false, error: e.message };
     }
   }
