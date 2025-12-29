@@ -1156,13 +1156,27 @@ class PullExecutor {
                         limit: args.limit || 10
                     });
                     if (result.success && result.products) {
-                        let output = `Found ${result.products.length} products:\n`;
+                        // Create both human-readable and structured output
+                        let output = `Found ${result.products.length} products:\n\n`;
                         result.products.forEach((p, i) => {
-                            output += `${i + 1}. ${p.name}`;
-                            if (p.price) output += ` - ${p.price}`;
-                            if (p.rating) output += ` (${p.rating})`;
+                            output += `${i + 1}. **${p.name}**\n`;
+                            if (p.price) output += `   Price: ${p.price}\n`;
+                            if (p.rating) output += `   Rating: ${p.rating}\n`;
+                            if (p.href) output += `   URL: ${p.href}\n`;
                             output += '\n';
                         });
+                        output += '\n---\nSTRUCTURED_DATA:\n';
+                        output += JSON.stringify({
+                            type: 'product_list',
+                            count: result.products.length,
+                            products: result.products.map(p => ({
+                                name: p.name,
+                                price: p.price,
+                                rating: p.rating,
+                                url: p.href,
+                                image: p.image
+                            }))
+                        }, null, 2);
                         return {
                             success: true,
                             stdout: output,
@@ -1284,6 +1298,52 @@ class PullExecutor {
                         return {
                             success: false,
                             error: `Screenshot error: ${screenshotError.message}`,
+                            exit_code: 1
+                        };
+                    }
+
+                case 'workspace.extract_products':
+                    // AI-powered product extraction - combines screenshot + text analysis
+                    // More robust than get_product_links for unusual page layouts
+                    try {
+                        // Get both structured links and page text
+                        const extractResult = await workspaceManager.getProductLinks({
+                            limit: args.limit || 10
+                        });
+                        const textResult = await workspaceManager.getText();
+
+                        let output = '';
+                        if (extractResult.success && extractResult.products && extractResult.products.length > 0) {
+                            output = `Found ${extractResult.products.length} products (structured extraction):\n\n`;
+                            output += JSON.stringify({
+                                type: 'extracted_products',
+                                method: 'structured',
+                                count: extractResult.products.length,
+                                products: extractResult.products.map(p => ({
+                                    name: p.name,
+                                    price: p.price,
+                                    rating: p.rating,
+                                    url: p.href,
+                                    image: p.image
+                                }))
+                            }, null, 2);
+                        } else {
+                            // Fallback to text-based hint for AI to parse
+                            output = 'No structured products found. Page text for analysis:\n\n';
+                            output += (textResult.text || textResult.output || '').slice(0, 3000);
+                            output += '\n\n(Use workspace.screenshot for visual analysis if needed)';
+                        }
+
+                        return {
+                            success: true,
+                            stdout: output,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    } catch (extractError) {
+                        return {
+                            success: false,
+                            error: `Product extraction error: ${extractError.message}`,
                             exit_code: 1
                         };
                     }
