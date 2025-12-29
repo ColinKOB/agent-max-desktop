@@ -1489,7 +1489,14 @@ class WorkspaceManager {
           if (matches.length === 0) {
             // Debug: count how many times the text appears at all
             const allText = document.body.innerText || '';
-            const occurrences = (allText.toLowerCase().match(new RegExp(searchLower.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&'), 'g')) || []).length;
+            // Count simple substring occurrences (safer than regex in template literal)
+            let occurrences = 0;
+            let pos = 0;
+            const lowerText = allText.toLowerCase();
+            while ((pos = lowerText.indexOf(searchLower, pos)) !== -1) {
+              occurrences++;
+              pos += searchLower.length;
+            }
 
             // ENHANCED ERROR: Collect available clickable elements for AI recovery
             const visibleClickables = [];
