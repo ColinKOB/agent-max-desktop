@@ -46,6 +46,235 @@ class WorkspaceManager {
     this.headerHeight = 94;     // Header (38) + Tab bar (34) + Status bar (22) = 94px total chrome
     this.topChromeHeight = 72;  // Header (38) + Tab bar (34) - content starts here
     this.bottomChromeHeight = 22; // Status bar at bottom
+
+    // Session persistence
+    this.persistenceDir = null;
+    this.sessionDataPath = null;
+  }
+
+  // ===========================================================================
+  // Session Persistence - Save and restore browser state (cookies, cart, etc.)
+  // ===========================================================================
+
+  /**
+   * Initialize session persistence directory
+   */
+  async initPersistence() {
+    const { app } = require('electron');
+    const fs = require('fs').promises;
+
+    this.persistenceDir = path.join(app.getPath('userData'), 'workspace-sessions');
+    this.sessionDataPath = path.join(this.persistenceDir, 'session-data.json');
+
+    try {
+      await fs.mkdir(this.persistenceDir, { recursive: true });
+    } catch (e) {
+      console.error('[Workspace] Failed to create persistence dir:', e);
+    }
+  }
+
+  /**
+   * Save session data (cookies, localStorage keys, cart state)
+   */
+  async saveSession(sessionName = 'default') {
+    if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
+
+    try {
+      const view = this.getActiveView();
+      if (!view) return { success: false, error: 'No active tab' };
+
+      const session = view.webContents.session;
+
+      // Get cookies for common shopping sites
+      const shoppingSites = [
+        'amazon.com', 'target.com', 'walmart.com', 'bestbuy.com',
+        'ebay.com', 'etsy.com', 'google.com'
+      ];
+
+      let allCookies = [];
+      for (const site of shoppingSites) {
+        try {
+          const cookies = await session.cookies.get({ domain: site });
+          allCookies = allCookies.concat(cookies);
+        } catch (e) {
+          // Site cookies not found, that's ok
+        }
+      }
+
+      // Also get cookies for current domain
+      const currentUrl = view.webContents.getURL();
+      if (currentUrl) {
+        try {
+          const url = new URL(currentUrl);
+          const currentCookies = await session.cookies.get({ domain: url.hostname });
+          allCookies = allCookies.concat(currentCookies);
+        } catch (e) {
+          // Ignore
+        }
+      }
+
+      // Get cart count if on a shopping site
+      let cartState = null;
+      try {
+        cartState = await this.getCartCount();
+      } catch (e) {
+        // Ignore
+      }
+
+      // Get open tabs
+      const tabsState = [];
+      for (const [tabId, tab] of this.tabs) {
+        tabsState.push({
+          tabId,
+          url: tab.view.webContents.getURL(),
+          title: tab.title
+        });
+      }
+
+      const sessionData = {
+        name: sessionName,
+        savedAt: new Date().toISOString(),
+        cookies: allCookies,
+        cartState,
+        tabs: tabsState,
+        activeTabId: this.activeTabId
+      };
+
+      // Save to file
+      await this.initPersistence();
+      const fs = require('fs').promises;
+      const allSessions = await this.loadAllSessions();
+      allSessions[sessionName] = sessionData;
+      await fs.writeFile(this.sessionDataPath, JSON.stringify(allSessions, null, 2));
+
+      this.logActivity('session_save', { sessionName, cookieCount: allCookies.length });
+
+      return {
+        success: true,
+        sessionName,
+        cookieCount: allCookies.length,
+        tabCount: tabsState.length
+      };
+    } catch (e) {
+      console.error('[Workspace] Save session error:', e);
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Load all saved sessions
+   */
+  async loadAllSessions() {
+    await this.initPersistence();
+    const fs = require('fs').promises;
+
+    try {
+      const data = await fs.readFile(this.sessionDataPath, 'utf8');
+      return JSON.parse(data);
+    } catch (e) {
+      return {};
+    }
+  }
+
+  /**
+   * Restore a saved session (cookies, tabs)
+   */
+  async restoreSession(sessionName = 'default') {
+    if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
+
+    try {
+      const allSessions = await this.loadAllSessions();
+      const sessionData = allSessions[sessionName];
+
+      if (!sessionData) {
+        return { success: false, error: `Session '${sessionName}' not found` };
+      }
+
+      const view = this.getActiveView();
+      if (!view) return { success: false, error: 'No active tab' };
+
+      const session = view.webContents.session;
+
+      // Restore cookies
+      let restoredCookies = 0;
+      for (const cookie of sessionData.cookies || []) {
+        try {
+          // Reconstruct URL from cookie
+          const protocol = cookie.secure ? 'https' : 'http';
+          const domain = cookie.domain.startsWith('.') ? cookie.domain.slice(1) : cookie.domain;
+          const url = `${protocol}://${domain}${cookie.path || '/'}`;
+
+          await session.cookies.set({
+            url,
+            name: cookie.name,
+            value: cookie.value,
+            domain: cookie.domain,
+            path: cookie.path,
+            secure: cookie.secure,
+            httpOnly: cookie.httpOnly,
+            expirationDate: cookie.expirationDate
+          });
+          restoredCookies++;
+        } catch (e) {
+          // Some cookies may fail, that's ok
+        }
+      }
+
+      // Restore tabs if there were saved tabs
+      if (sessionData.tabs && sessionData.tabs.length > 0) {
+        // Navigate first tab to first saved URL
+        const firstTab = sessionData.tabs[0];
+        if (firstTab && firstTab.url) {
+          await this.navigate(firstTab.url);
+        }
+      }
+
+      this.logActivity('session_restore', { sessionName, restoredCookies });
+
+      return {
+        success: true,
+        sessionName,
+        restoredCookies,
+        savedAt: sessionData.savedAt
+      };
+    } catch (e) {
+      console.error('[Workspace] Restore session error:', e);
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * List available saved sessions
+   */
+  async listSessions() {
+    const allSessions = await this.loadAllSessions();
+    return {
+      success: true,
+      sessions: Object.keys(allSessions).map(name => ({
+        name,
+        savedAt: allSessions[name].savedAt,
+        cookieCount: allSessions[name].cookies?.length || 0,
+        tabCount: allSessions[name].tabs?.length || 0
+      }))
+    };
+  }
+
+  /**
+   * Delete a saved session
+   */
+  async deleteSession(sessionName) {
+    await this.initPersistence();
+    const fs = require('fs').promises;
+
+    const allSessions = await this.loadAllSessions();
+    if (!allSessions[sessionName]) {
+      return { success: false, error: `Session '${sessionName}' not found` };
+    }
+
+    delete allSessions[sessionName];
+    await fs.writeFile(this.sessionDataPath, JSON.stringify(allSessions, null, 2));
+
+    return { success: true, sessionName };
   }
 
   // ===========================================================================

@@ -1348,6 +1348,66 @@ class PullExecutor {
                         };
                     }
 
+                case 'workspace.save_session':
+                    // Save browser session (cookies, cart, tabs) for later
+                    try {
+                        const saveResult = await workspaceManager.saveSession(args.name || 'default');
+                        if (saveResult.success) {
+                            return {
+                                success: true,
+                                stdout: `Session '${saveResult.sessionName}' saved. ${saveResult.cookieCount} cookies, ${saveResult.tabCount} tabs preserved.`,
+                                stderr: '',
+                                exit_code: 0
+                            };
+                        }
+                        return { success: false, error: saveResult.error, exit_code: 1 };
+                    } catch (e) {
+                        return { success: false, error: e.message, exit_code: 1 };
+                    }
+
+                case 'workspace.restore_session':
+                    // Restore a previously saved session
+                    try {
+                        const restoreResult = await workspaceManager.restoreSession(args.name || 'default');
+                        if (restoreResult.success) {
+                            return {
+                                success: true,
+                                stdout: `Session '${restoreResult.sessionName}' restored. ${restoreResult.restoredCookies} cookies loaded. Originally saved: ${restoreResult.savedAt}`,
+                                stderr: '',
+                                exit_code: 0
+                            };
+                        }
+                        return { success: false, error: restoreResult.error, exit_code: 1 };
+                    } catch (e) {
+                        return { success: false, error: e.message, exit_code: 1 };
+                    }
+
+                case 'workspace.list_sessions':
+                    // List all saved sessions
+                    try {
+                        const listResult = await workspaceManager.listSessions();
+                        if (listResult.sessions.length === 0) {
+                            return {
+                                success: true,
+                                stdout: 'No saved sessions found.',
+                                stderr: '',
+                                exit_code: 0
+                            };
+                        }
+                        let output = `Found ${listResult.sessions.length} saved sessions:\n\n`;
+                        listResult.sessions.forEach((s, i) => {
+                            output += `${i + 1}. "${s.name}" - saved ${s.savedAt} (${s.cookieCount} cookies, ${s.tabCount} tabs)\n`;
+                        });
+                        return {
+                            success: true,
+                            stdout: output,
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    } catch (e) {
+                        return { success: false, error: e.message, exit_code: 1 };
+                    }
+
                 default:
                     return {
                         success: false,
