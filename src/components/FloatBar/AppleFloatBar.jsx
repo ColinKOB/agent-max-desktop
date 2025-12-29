@@ -6468,24 +6468,21 @@ export default function AppleFloatBar({
             <div
               style={{
                 display: 'flex',
-                gap: 10,
-                alignItems: 'flex-start',
-                padding: '10px 12px',
-                borderRadius: 10,
+                gap: 8,
+                alignItems: 'center',
+                padding: '6px 10px',
+                borderRadius: 8,
                 border: '1px solid rgba(248,113,113,0.3)',
                 background: 'rgba(248,113,113,0.08)',
                 color: '#fecaca',
-                marginBottom: 12,
+                marginBottom: 8,
+                fontSize: '0.8rem',
               }}
             >
-              <Lightbulb size={16} style={{ flexShrink: 0, marginTop: 2 }} />
-              <div style={{ fontSize: '0.85rem', lineHeight: 1.4 }}>
-                <strong style={{ display: 'block', marginBottom: 2 }}>
-                  Desktop helper is offline
-                </strong>
-                File steps will stall until the helper reconnects. Reopen the Agent Max desktop app
-                and grant Desktop permissions so Auto Mode can write locally.
-              </div>
+              <WifiOff size={14} style={{ flexShrink: 0 }} />
+              <span style={{ flex: 1 }}>
+                <strong>Offline</strong> — Reopen desktop app for local steps
+              </span>
             </div>
           )}
 
