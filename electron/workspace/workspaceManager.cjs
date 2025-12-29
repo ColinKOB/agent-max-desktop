@@ -12,7 +12,7 @@
  * - Click, type, scroll actions via coordinates or selectors
  */
 
-const { BrowserWindow, screen, desktopCapturer, ipcMain } = require('electron');
+const { BrowserWindow, BrowserView, screen, desktopCapturer, ipcMain } = require('electron');
 const path = require('path');
 const crypto = require('crypto');
 
@@ -38,6 +38,14 @@ class WorkspaceManager {
     this.activityLog = [];
     this.currentSessionId = null;
     this.maxLogEntries = 1000;  // Keep last 1000 entries
+
+    // Multi-tab support
+    this.tabs = new Map();      // tabId -> { view: BrowserView, url: string, title: string, createdAt: Date }
+    this.activeTabId = null;    // Currently active tab ID
+    this.nextTabId = 1;         // Auto-incrementing tab ID
+    this.headerHeight = 108;    // Header (48) + Tab bar (36) + Status bar (24) = 108px total chrome
+    this.topChromeHeight = 84;  // Header (48) + Tab bar (36) - content starts here
+    this.bottomChromeHeight = 24; // Status bar at bottom
   }
 
   // ===========================================================================
@@ -145,8 +153,7 @@ class WorkspaceManager {
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
 
-    // Create the workspace window with Max's Computer branding
-    // Using hiddenInset titleBarStyle for custom look on macOS
+    // Create the workspace window with AI Browser branding
     this.workspaceWindow = new BrowserWindow({
       width: this.width,
       height: this.height,
@@ -155,42 +162,26 @@ class WorkspaceManager {
       show: false, // Start hidden, show when ready
       frame: true,
       titleBarStyle: 'hiddenInset', // Allows custom title bar overlay
-      trafficLightPosition: { x: 12, y: 12 }, // Position traffic lights
-      title: "Max's Computer",
+      trafficLightPosition: { x: 12, y: 14 }, // Position traffic lights in header
+      title: "AI Browser",
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        sandbox: true,
+        sandbox: false, // Need false to use preload for IPC
         webSecurity: true,
-        // Enable features needed for web browsing
-        allowRunningInsecureContent: false,
-        experimentalFeatures: false,
-        // Preload script for workspace-specific functionality
-        preload: path.join(__dirname, 'workspacePreload.cjs')
+        preload: path.join(__dirname, 'workspaceShellPreload.cjs')
       },
-      // Show in taskbar so user knows it's Max's window
       skipTaskbar: false,
-      // Distinctive purple/blue background for Max branding
       backgroundColor: '#1a1a2e'
     });
 
-    // Set user agent to standard Chrome
-    this.workspaceWindow.webContents.setUserAgent(
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    );
+    // Load the shell HTML (header + tab bar)
+    await this.workspaceWindow.loadFile(path.join(__dirname, 'workspaceShell.html'));
 
     // Handle window events
     this.workspaceWindow.on('closed', () => {
       this.cleanup();
     });
-
-    // Inject "Max's Computer" branding header after each page load
-    this.workspaceWindow.webContents.on('did-finish-load', () => {
-      this.injectBrandingHeader();
-    });
-
-    // Load a start page
-    await this.workspaceWindow.loadURL('https://www.google.com');
 
     // Show the window
     this.workspaceWindow.show();
@@ -201,13 +192,21 @@ class WorkspaceManager {
     this.currentSessionId = uuidv4();
     this.logActivity('session_start', { width, height });
 
+    // Handle window resize to update tab bounds
+    this.workspaceWindow.on('resize', () => {
+      this.updateActiveTabBounds();
+    });
+
+    // Create the first tab (loads Google by default)
+    await this.createTab('https://www.google.com');
+
     // NOTE: Frame capture disabled for performance
     // The 10 FPS capture was causing significant slowdown
     // Re-enable with this.startFrameCapture(2) if PiP viewer is needed
     // this.startFrameCapture();
 
     console.log('[Workspace] Created workspace window:', this.workspaceWindow.id);
-    return { success: true, windowId: this.workspaceWindow.id };
+    return { success: true, windowId: this.workspaceWindow.id, activeTabId: this.activeTabId };
   }
 
   /**
@@ -277,6 +276,301 @@ class WorkspaceManager {
     this.lastFrame = null;
     this.isActive = false;
     this.isMinimized = false;
+
+    // Cleanup all tabs
+    for (const [tabId, tabInfo] of this.tabs) {
+      try {
+        if (this.workspaceWindow && !this.workspaceWindow.isDestroyed()) {
+          this.workspaceWindow.removeBrowserView(tabInfo.view);
+        }
+        tabInfo.view.webContents.destroy();
+      } catch (e) {
+        // View might already be destroyed
+      }
+    }
+    this.tabs.clear();
+    this.activeTabId = null;
+    this.nextTabId = 1;
+  }
+
+  // ===========================================================================
+  // Tab Management
+  // ===========================================================================
+
+  /**
+   * Calculate bounds for a BrowserView (accounts for header, tab bar, status bar)
+   */
+  getViewBounds() {
+    if (!this.workspaceWindow || this.workspaceWindow.isDestroyed()) {
+      return { x: 0, y: 84, width: 1280, height: 600 };
+    }
+    const bounds = this.workspaceWindow.getBounds();
+    return {
+      x: 0,
+      y: this.topChromeHeight,  // Below header + tab bar
+      width: bounds.width,
+      height: bounds.height - this.topChromeHeight - this.bottomChromeHeight  // Above status bar
+    };
+  }
+
+  /**
+   * Update the active tab's bounds (called on window resize)
+   */
+  updateActiveTabBounds() {
+    if (this.activeTabId && this.tabs.has(this.activeTabId)) {
+      const viewBounds = this.getViewBounds();
+      this.tabs.get(this.activeTabId).view.setBounds(viewBounds);
+    }
+  }
+
+  /**
+   * Send tab list update to the shell UI
+   */
+  notifyTabsChanged() {
+    if (!this.workspaceWindow || this.workspaceWindow.isDestroyed()) return;
+
+    const tabList = [];
+    for (const [tabId, tabInfo] of this.tabs) {
+      tabList.push({
+        tabId,
+        url: tabInfo.url,
+        title: tabInfo.title,
+        isActive: tabId === this.activeTabId
+      });
+    }
+
+    // Send to renderer
+    this.workspaceWindow.webContents.send('tabs-update', tabList, this.activeTabId);
+  }
+
+  /**
+   * Create a new tab and navigate to URL
+   * Returns the new tab ID
+   */
+  async createTab(url = 'https://www.google.com') {
+    if (!this.getIsActive()) {
+      return { success: false, error: 'Workspace not active' };
+    }
+
+    try {
+      const tabId = this.nextTabId++;
+
+      // Create a BrowserView for this tab
+      const view = new BrowserView({
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          sandbox: true,
+          webSecurity: true,
+          allowRunningInsecureContent: false,
+          experimentalFeatures: false,
+          preload: path.join(__dirname, 'workspacePreload.cjs')
+        }
+      });
+
+      // Set user agent
+      view.webContents.setUserAgent(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      );
+
+      // Calculate bounds (account for header, tab bar, status bar)
+      view.setBounds(this.getViewBounds());
+
+      // Ensure protocol is present
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+      }
+
+      // Store tab info
+      const tabInfo = {
+        view,
+        url,
+        title: 'New Tab',
+        createdAt: new Date(),
+        favicon: null
+      };
+      this.tabs.set(tabId, tabInfo);
+
+      // Track title changes and notify shell
+      view.webContents.on('page-title-updated', (event, title) => {
+        tabInfo.title = title;
+        this.notifyTabsChanged();
+      });
+
+      // Track URL changes and notify shell
+      view.webContents.on('did-navigate', (event, newUrl) => {
+        tabInfo.url = newUrl;
+        this.notifyTabsChanged();
+      });
+
+      view.webContents.on('did-navigate-in-page', (event, newUrl) => {
+        tabInfo.url = newUrl;
+        this.notifyTabsChanged();
+      });
+
+      // Load URL
+      await view.webContents.loadURL(url);
+      tabInfo.title = view.webContents.getTitle() || 'New Tab';
+
+      // If this is the first tab or explicitly requested, activate it
+      if (this.tabs.size === 1 || !this.activeTabId) {
+        this.switchTab(tabId);
+      } else {
+        // Just notify - don't switch
+        this.notifyTabsChanged();
+      }
+
+      this.logActivity('tab_create', { tabId, url });
+      console.log(`[Workspace] Created tab ${tabId}: ${url}`);
+
+      return {
+        success: true,
+        tabId,
+        url,
+        title: tabInfo.title,
+        totalTabs: this.tabs.size
+      };
+    } catch (e) {
+      this.logActivity('tab_create', { url }, 'error', e.message);
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Close a tab by ID
+   */
+  closeTab(tabId) {
+    if (!this.tabs.has(tabId)) {
+      return { success: false, error: `Tab ${tabId} not found` };
+    }
+
+    const tabInfo = this.tabs.get(tabId);
+
+    try {
+      // Remove from window and destroy
+      if (this.workspaceWindow && !this.workspaceWindow.isDestroyed()) {
+        this.workspaceWindow.removeBrowserView(tabInfo.view);
+      }
+      tabInfo.view.webContents.destroy();
+    } catch (e) {
+      console.error(`[Workspace] Error closing tab ${tabId}:`, e);
+    }
+
+    this.tabs.delete(tabId);
+    this.logActivity('tab_close', { tabId });
+    console.log(`[Workspace] Closed tab ${tabId}`);
+
+    // If we closed the active tab, switch to another
+    if (this.activeTabId === tabId) {
+      this.activeTabId = null;
+      const remainingTabs = Array.from(this.tabs.keys());
+      if (remainingTabs.length > 0) {
+        this.switchTab(remainingTabs[remainingTabs.length - 1]); // Switch to last tab
+      }
+    }
+
+    // Notify shell of tab change
+    this.notifyTabsChanged();
+
+    return {
+      success: true,
+      tabId,
+      remainingTabs: this.tabs.size
+    };
+  }
+
+  /**
+   * Switch to a different tab
+   */
+  switchTab(tabId) {
+    if (!this.tabs.has(tabId)) {
+      return { success: false, error: `Tab ${tabId} not found` };
+    }
+
+    if (!this.workspaceWindow || this.workspaceWindow.isDestroyed()) {
+      return { success: false, error: 'Workspace window not available' };
+    }
+
+    // Hide the current active view
+    if (this.activeTabId !== null && this.tabs.has(this.activeTabId)) {
+      const currentView = this.tabs.get(this.activeTabId).view;
+      this.workspaceWindow.removeBrowserView(currentView);
+    }
+
+    // Show the new tab's view
+    const newTabInfo = this.tabs.get(tabId);
+    this.workspaceWindow.addBrowserView(newTabInfo.view);
+
+    // Update bounds (account for header, tab bar, status bar)
+    newTabInfo.view.setBounds(this.getViewBounds());
+
+    this.activeTabId = tabId;
+    this.logActivity('tab_switch', { tabId });
+    console.log(`[Workspace] Switched to tab ${tabId}`);
+
+    // Notify shell of tab change
+    this.notifyTabsChanged();
+
+    return {
+      success: true,
+      tabId,
+      url: newTabInfo.url,
+      title: newTabInfo.title
+    };
+  }
+
+  /**
+   * List all open tabs
+   */
+  listTabs() {
+    const tabList = [];
+    for (const [tabId, tabInfo] of this.tabs) {
+      tabList.push({
+        tabId,
+        url: tabInfo.url,
+        title: tabInfo.title,
+        isActive: tabId === this.activeTabId,
+        createdAt: tabInfo.createdAt.toISOString()
+      });
+    }
+    return {
+      success: true,
+      tabs: tabList,
+      activeTabId: this.activeTabId,
+      totalTabs: this.tabs.size
+    };
+  }
+
+  /**
+   * Get info about a specific tab
+   */
+  getTabInfo(tabId) {
+    if (!this.tabs.has(tabId)) {
+      return { success: false, error: `Tab ${tabId} not found` };
+    }
+
+    const tabInfo = this.tabs.get(tabId);
+    return {
+      success: true,
+      tabId,
+      url: tabInfo.url,
+      title: tabInfo.title,
+      isActive: tabId === this.activeTabId,
+      createdAt: tabInfo.createdAt.toISOString(),
+      canGoBack: tabInfo.view.webContents.canGoBack(),
+      canGoForward: tabInfo.view.webContents.canGoForward()
+    };
+  }
+
+  /**
+   * Get the active tab's webContents (used by other methods)
+   */
+  getActiveWebContents() {
+    if (!this.activeTabId || !this.tabs.has(this.activeTabId)) {
+      // Fallback to main window's webContents if no tabs
+      return this.workspaceWindow?.webContents || null;
+    }
+    return this.tabs.get(this.activeTabId).view.webContents;
   }
 
   /**
@@ -286,12 +580,15 @@ class WorkspaceManager {
   injectBrandingHeader() {
     if (!this.getIsActive()) return;
 
+    const webContents = this.getActiveWebContents();
+    if (!webContents) return;
+
     const brandingCSS = `
       #max-computer-header {
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
+        top: 5px;
+        left: 5px;
+        right: 5px;
         height: 38px;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         display: flex;
@@ -302,6 +599,7 @@ class WorkspaceManager {
         box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         -webkit-app-region: drag;
         user-select: none;
+        border-radius: 8px 8px 0 0;
       }
       #max-computer-header .max-logo {
         width: 20px;
@@ -328,8 +626,14 @@ class WorkspaceManager {
         margin-left: 8px;
       }
       body {
-        margin-top: 38px !important;
+        margin-top: 48px !important; /* 5px padding + 38px header + 5px spacing */
+        padding: 5px !important;
         padding-top: 0 !important;
+      }
+      html {
+        padding: 5px !important;
+        padding-top: 0 !important;
+        background: #1a1a2e !important;
       }
     `;
 
@@ -342,8 +646,8 @@ class WorkspaceManager {
     `;
 
     // Inject the branding
-    this.workspaceWindow.webContents.insertCSS(brandingCSS).catch(() => {});
-    this.workspaceWindow.webContents.executeJavaScript(`
+    webContents.insertCSS(brandingCSS).catch(() => {});
+    webContents.executeJavaScript(`
       if (!document.getElementById('max-computer-header')) {
         document.body.insertAdjacentHTML('afterbegin', \`${brandingHTML.replace(/`/g, '\\`')}\`);
       }
@@ -377,7 +681,10 @@ class WorkspaceManager {
       if (!this.getIsActive()) return;
 
       try {
-        const image = await this.workspaceWindow.webContents.capturePage();
+        const webContents = this.getActiveWebContents();
+        if (!webContents) return;
+
+        const image = await webContents.capturePage();
         this.lastFrame = image.toDataURL();
 
         // Notify listeners
@@ -408,13 +715,16 @@ class WorkspaceManager {
   }
 
   /**
-   * Capture current frame immediately
+   * Capture current frame immediately (from active tab)
    */
   async captureFrame() {
     if (!this.getIsActive()) return null;
 
     try {
-      const image = await this.workspaceWindow.webContents.capturePage();
+      const webContents = this.getActiveWebContents();
+      if (!webContents) return null;
+
+      const image = await webContents.capturePage();
       this.lastFrame = image.toDataURL();
       return this.lastFrame;
     } catch (e) {
@@ -442,9 +752,9 @@ class WorkspaceManager {
   // ===========================================================================
 
   /**
-   * Navigate to a URL
+   * Navigate to a URL (in active tab)
    */
-  async navigateTo(url) {
+  async navigateTo(url, tabId = null) {
     if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
 
     try {
@@ -453,9 +763,18 @@ class WorkspaceManager {
         url = 'https://' + url;
       }
 
-      await this.workspaceWindow.loadURL(url);
-      this.logActivity('navigate', { url });
-      return { success: true, url };
+      // Use specified tab or active tab
+      const targetTabId = tabId || this.activeTabId;
+      if (!targetTabId || !this.tabs.has(targetTabId)) {
+        return { success: false, error: 'No active tab' };
+      }
+
+      const tabInfo = this.tabs.get(targetTabId);
+      await tabInfo.view.webContents.loadURL(url);
+      tabInfo.url = url;
+
+      this.logActivity('navigate', { url, tabId: targetTabId });
+      return { success: true, url, tabId: targetTabId };
     } catch (e) {
       this.logActivity('navigate', { url }, 'error', e.message);
       return { success: false, error: e.message };
@@ -465,13 +784,19 @@ class WorkspaceManager {
   /**
    * Go back in history
    */
-  async goBack() {
+  async goBack(tabId = null) {
     if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
 
-    if (this.workspaceWindow.webContents.canGoBack()) {
-      this.workspaceWindow.webContents.goBack();
-      this.logActivity('back', {});
-      return { success: true };
+    const targetTabId = tabId || this.activeTabId;
+    if (!targetTabId || !this.tabs.has(targetTabId)) {
+      return { success: false, error: 'No active tab' };
+    }
+
+    const webContents = this.tabs.get(targetTabId).view.webContents;
+    if (webContents.canGoBack()) {
+      webContents.goBack();
+      this.logActivity('back', { tabId: targetTabId });
+      return { success: true, tabId: targetTabId };
     }
     return { success: false, error: 'Cannot go back' };
   }
@@ -479,13 +804,19 @@ class WorkspaceManager {
   /**
    * Go forward in history
    */
-  async goForward() {
+  async goForward(tabId = null) {
     if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
 
-    if (this.workspaceWindow.webContents.canGoForward()) {
-      this.workspaceWindow.webContents.goForward();
-      this.logActivity('forward', {});
-      return { success: true };
+    const targetTabId = tabId || this.activeTabId;
+    if (!targetTabId || !this.tabs.has(targetTabId)) {
+      return { success: false, error: 'No active tab' };
+    }
+
+    const webContents = this.tabs.get(targetTabId).view.webContents;
+    if (webContents.canGoForward()) {
+      webContents.goForward();
+      this.logActivity('forward', { tabId: targetTabId });
+      return { success: true, tabId: targetTabId };
     }
     return { success: false, error: 'Cannot go forward' };
   }
@@ -493,27 +824,43 @@ class WorkspaceManager {
   /**
    * Reload the page
    */
-  async reload() {
+  async reload(tabId = null) {
     if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
 
-    this.workspaceWindow.webContents.reload();
-    return { success: true };
+    const targetTabId = tabId || this.activeTabId;
+    if (!targetTabId || !this.tabs.has(targetTabId)) {
+      return { success: false, error: 'No active tab' };
+    }
+
+    this.tabs.get(targetTabId).view.webContents.reload();
+    this.logActivity('reload', { tabId: targetTabId });
+    return { success: true, tabId: targetTabId };
   }
 
   /**
-   * Get current URL
+   * Get current URL (of active tab)
    */
-  getCurrentUrl() {
+  getCurrentUrl(tabId = null) {
     if (!this.getIsActive()) return null;
-    return this.workspaceWindow.webContents.getURL();
+
+    const targetTabId = tabId || this.activeTabId;
+    if (!targetTabId || !this.tabs.has(targetTabId)) {
+      return null;
+    }
+    return this.tabs.get(targetTabId).view.webContents.getURL();
   }
 
   /**
-   * Get page title
+   * Get page title (of active tab)
    */
-  getPageTitle() {
+  getPageTitle(tabId = null) {
     if (!this.getIsActive()) return null;
-    return this.workspaceWindow.webContents.getTitle();
+
+    const targetTabId = tabId || this.activeTabId;
+    if (!targetTabId || !this.tabs.has(targetTabId)) {
+      return null;
+    }
+    return this.tabs.get(targetTabId).view.webContents.getTitle();
   }
 
   // ===========================================================================
@@ -529,8 +876,9 @@ class WorkspaceManager {
     const { button = 'left', clickCount = 1 } = options;
 
     try {
-      // Send mouse events to the webContents
-      const webContents = this.workspaceWindow.webContents;
+      // Send mouse events to the active tab's webContents
+      const webContents = this.getActiveWebContents();
+      if (!webContents) return { success: false, error: 'No active tab' };
 
       // Move mouse to position
       webContents.sendInputEvent({
@@ -589,7 +937,8 @@ class WorkspaceManager {
     if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
 
     try {
-      const webContents = this.workspaceWindow.webContents;
+      const webContents = this.getActiveWebContents();
+      if (!webContents) return { success: false, error: 'No active tab' };
 
       // Type each character
       for (const char of text) {
@@ -618,7 +967,8 @@ class WorkspaceManager {
     if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
 
     try {
-      const webContents = this.workspaceWindow.webContents;
+      const webContents = this.getActiveWebContents();
+      if (!webContents) return { success: false, error: 'No active tab' };
 
       // Build modifiers array
       const mods = [];
@@ -657,7 +1007,8 @@ class WorkspaceManager {
     if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
 
     try {
-      const webContents = this.workspaceWindow.webContents;
+      const webContents = this.getActiveWebContents();
+      if (!webContents) return { success: false, error: 'No active tab' };
 
       // Default to center of window if no position specified
       const scrollX = x !== null ? x : Math.round(this.width / 2);
@@ -689,7 +1040,10 @@ class WorkspaceManager {
     if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
 
     try {
-      const result = await this.workspaceWindow.webContents.executeJavaScript(script);
+      const webContents = this.getActiveWebContents();
+      if (!webContents) return { success: false, error: 'No active tab' };
+
+      const result = await webContents.executeJavaScript(script);
       return { success: true, result };
     } catch (e) {
       return { success: false, error: e.message };
@@ -1040,6 +1394,7 @@ class WorkspaceManager {
   /**
    * Get product links from search results page
    * Returns structured data about products
+   * Supports Amazon, Best Buy, Walmart, Target, and generic product pages
    */
   async getProductLinks(options = {}) {
     if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
@@ -1050,38 +1405,205 @@ class WorkspaceManager {
       const result = await this.executeScript(`
         (function() {
           const products = [];
+          const seen = new Set(); // Dedupe by href
+          const hostname = window.location.hostname;
 
-          // Amazon product cards
-          document.querySelectorAll('[data-component-type="s-search-result"]').forEach((card, i) => {
-            if (i >= ${limit}) return;
-            const link = card.querySelector('h2 a');
-            const priceWhole = card.querySelector('.a-price-whole');
-            const priceFraction = card.querySelector('.a-price-fraction');
-            const rating = card.querySelector('[data-cy="reviews-ratings-count"]');
+          // Helper to add product if valid
+          function addProduct(name, href, price, rating, image) {
+            if (!name || !href || seen.has(href)) return;
+            if (name.length < 5) return; // Skip tiny names
+            seen.add(href);
+            products.push({
+              name: name.trim().slice(0, 200),
+              href: href,
+              price: price || null,
+              rating: rating || null,
+              image: image || null,
+              index: products.length
+            });
+          }
 
-            if (link) {
-              products.push({
-                name: link.innerText.trim().slice(0, 150),
-                href: link.href,
-                price: priceWhole ? '$' + priceWhole.innerText + (priceFraction ? priceFraction.innerText : '') : null,
-                rating: rating ? rating.innerText : null,
-                index: i
+          // ============ AMAZON ============
+          if (hostname.includes('amazon')) {
+            // Method 1: Standard search result cards
+            document.querySelectorAll('[data-component-type="s-search-result"]').forEach((card) => {
+              if (products.length >= ${limit}) return;
+
+              // Get title - prefer h2 which contains the product name
+              const titleEl = card.querySelector('h2 a, h2 span, [data-cy="title-recipe"] a');
+              const titleLink = card.querySelector('h2 a');
+
+              // Get price
+              const priceSpan = card.querySelector('.a-price .a-offscreen');
+              const priceWhole = card.querySelector('.a-price-whole');
+              const priceFraction = card.querySelector('.a-price-fraction');
+
+              // Get rating info
+              const ratingEl = card.querySelector('.a-icon-star-small, .a-icon-star');
+              const ratingText = ratingEl ? ratingEl.className.match(/a-star-small-(\\d)/)?.[1] || ratingEl.className.match(/a-star-(\\d)/)?.[1] : null;
+              const reviewCount = card.querySelector('[aria-label*="stars"], .a-size-base.s-underline-text');
+
+              // Get image
+              const img = card.querySelector('img.s-image');
+
+              let price = null;
+              if (priceSpan) {
+                price = priceSpan.innerText;
+              } else if (priceWhole) {
+                price = '$' + priceWhole.innerText.replace(/[^0-9]/g, '') + (priceFraction ? '.' + priceFraction.innerText : '');
+              }
+
+              // Get product name from title element
+              let productName = '';
+              if (titleEl) {
+                productName = titleEl.innerText || titleEl.getAttribute('aria-label') || '';
+              }
+
+              // Get the actual product link (not review link)
+              let productHref = '';
+              if (titleLink && titleLink.href && titleLink.href.includes('/dp/')) {
+                productHref = titleLink.href;
+              } else {
+                // Fallback: find any /dp/ link in the card
+                const dpLink = card.querySelector('a[href*="/dp/"]');
+                if (dpLink) productHref = dpLink.href;
+              }
+
+              if (productName && productName.length > 10 && productHref) {
+                addProduct(
+                  productName,
+                  productHref,
+                  price,
+                  ratingText ? ratingText + '/5' + (reviewCount?.innerText ? ' (' + reviewCount.innerText + ')' : '') : null,
+                  img ? img.src : null
+                );
+              }
+            });
+
+            // Method 2: Fallback - find product links by /dp/ pattern
+            if (products.length < 3) {
+              document.querySelectorAll('a[href*="/dp/"]').forEach((link) => {
+                if (products.length >= ${limit}) return;
+                const card = link.closest('[data-asin], .s-result-item, .sg-col-inner');
+                // Get name from various sources, prefer longer text
+                let name = link.getAttribute('aria-label') || link.title || '';
+                if (!name || name.length < 15) {
+                  // Try to find title in parent card
+                  const titleEl = card?.querySelector('h2, .a-text-normal, [data-cy="title-recipe"]');
+                  if (titleEl) name = titleEl.innerText;
+                }
+                if (!name || name.length < 15) {
+                  name = link.innerText;
+                }
+                // Skip review count links and sponsored labels
+                if (name && name.length > 15 && !name.match(/^\\(\\d+[\\d,\\.KkMm]*\\)$/) && !name.includes('Sponsored')) {
+                  const priceEl = card?.querySelector('.a-price .a-offscreen, .a-price-whole');
+                  addProduct(name, link.href, priceEl?.innerText, null, null);
+                }
               });
             }
-          });
 
-          // If no Amazon results, try generic product links
-          if (products.length === 0) {
-            document.querySelectorAll('a[href*="/dp/"], a[href*="/product/"], a[href*="/p/"]').forEach((link, i) => {
-              if (i >= ${limit}) return;
-              const rect = link.getBoundingClientRect();
-              if (rect.width > 50 && rect.height > 20) {
-                products.push({
-                  name: link.innerText.trim().slice(0, 150),
-                  href: link.href,
-                  index: i
-                });
+            // Method 3: Grid-style results (different Amazon layout)
+            if (products.length < 3) {
+              document.querySelectorAll('.s-main-slot .s-result-item').forEach((item) => {
+                if (products.length >= ${limit}) return;
+                const link = item.querySelector('a.a-link-normal');
+                const title = item.querySelector('h2, .a-text-normal');
+                const price = item.querySelector('.a-price .a-offscreen');
+                if (link && title) {
+                  addProduct(title.innerText, link.href, price?.innerText, null, null);
+                }
+              });
+            }
+          }
+
+          // ============ BEST BUY ============
+          else if (hostname.includes('bestbuy')) {
+            document.querySelectorAll('.sku-item, [data-sku-id], .list-item').forEach((item) => {
+              if (products.length >= ${limit}) return;
+              const link = item.querySelector('a.image-link, a[href*="/site/"]');
+              const title = item.querySelector('.sku-title a, .sku-header a, h4.sku-title');
+              const price = item.querySelector('[data-testid="customer-price"] span, .priceView-customer-price span');
+              const rating = item.querySelector('.c-ratings-reviews-v4, .c-ratings-reviews');
+
+              if (title && link) {
+                addProduct(
+                  title.innerText,
+                  link.href.startsWith('/') ? 'https://www.bestbuy.com' + link.href : link.href,
+                  price?.innerText,
+                  rating?.innerText,
+                  null
+                );
               }
+            });
+
+            // Fallback for Best Buy
+            if (products.length < 3) {
+              document.querySelectorAll('h4.sku-title a, .sku-header a').forEach((link) => {
+                if (products.length >= ${limit}) return;
+                const item = link.closest('.sku-item, .list-item, [class*="product"]');
+                const price = item?.querySelector('[data-testid="customer-price"], .priceView-customer-price');
+                addProduct(link.innerText, link.href, price?.innerText, null, null);
+              });
+            }
+          }
+
+          // ============ WALMART ============
+          else if (hostname.includes('walmart')) {
+            document.querySelectorAll('[data-item-id], [data-testid="list-view"]').forEach((item) => {
+              if (products.length >= ${limit}) return;
+              const link = item.querySelector('a[href*="/ip/"]');
+              const title = item.querySelector('[data-automation-id="product-title"], span[data-automation-id="name"]');
+              const price = item.querySelector('[data-automation-id="product-price"], [itemprop="price"]');
+
+              if (link && title) {
+                addProduct(title.innerText, link.href, price?.innerText, null, null);
+              }
+            });
+          }
+
+          // ============ TARGET ============
+          else if (hostname.includes('target')) {
+            document.querySelectorAll('[data-test="product-grid"] > div, [data-test="@web/ProductCard"]').forEach((item) => {
+              if (products.length >= ${limit}) return;
+              const link = item.querySelector('a[href*="/p/"]');
+              const title = item.querySelector('[data-test="product-title"], a[data-test="product-title"]');
+              const price = item.querySelector('[data-test="current-price"]');
+
+              if (link && title) {
+                addProduct(title.innerText, link.href, price?.innerText, null, null);
+              }
+            });
+          }
+
+          // ============ GENERIC FALLBACK ============
+          if (products.length < 3) {
+            // Look for common product patterns
+            const productSelectors = [
+              'a[href*="/product/"]',
+              'a[href*="/products/"]',
+              'a[href*="/item/"]',
+              'a[href*="/p/"]',
+              'a[href*="/dp/"]',
+              '.product-card a',
+              '.product-item a',
+              '[class*="product"] a',
+              '[class*="Product"] a'
+            ];
+
+            productSelectors.forEach(selector => {
+              if (products.length >= ${limit}) return;
+              document.querySelectorAll(selector).forEach((link) => {
+                if (products.length >= ${limit}) return;
+                const rect = link.getBoundingClientRect();
+                // Only visible links with reasonable size
+                if (rect.width > 50 && rect.height > 20 && rect.top < window.innerHeight * 2) {
+                  const name = link.innerText || link.getAttribute('aria-label') || link.title;
+                  if (name && name.length > 10) {
+                    addProduct(name, link.href, null, null, null);
+                  }
+                }
+              });
             });
           }
 
@@ -1108,6 +1630,9 @@ class WorkspaceManager {
     const { clearFirst = true, pressEnter = false } = options;
 
     try {
+      const webContents = this.getActiveWebContents();
+      if (!webContents) return { success: false, error: 'No active tab' };
+
       // Click the element first to focus it
       const clickResult = await this.clickElement(selector);
       if (!clickResult.success) return clickResult;
@@ -1117,7 +1642,6 @@ class WorkspaceManager {
 
       // Clear existing content first (select all + delete)
       if (clearFirst) {
-        const webContents = this.workspaceWindow.webContents;
         // Select all (Cmd+A on macOS)
         webContents.sendInputEvent({ type: 'keyDown', keyCode: 'a', modifiers: ['meta'] });
         webContents.sendInputEvent({ type: 'keyUp', keyCode: 'a', modifiers: ['meta'] });
@@ -1136,7 +1660,6 @@ class WorkspaceManager {
       // Press Enter to submit if requested
       if (pressEnter) {
         await new Promise(resolve => setTimeout(resolve, 50));
-        const webContents = this.workspaceWindow.webContents;
         webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
         webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
         this.logActivity('pressEnter', { afterTyping: true });

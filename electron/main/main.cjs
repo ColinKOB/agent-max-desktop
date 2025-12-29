@@ -76,6 +76,7 @@ const telemetry = require('../telemetry/telemetry.cjs');
 const { executeMacOSTool, isMacOSTool, isMacOS } = require('../autonomous/macosAppleScript.cjs');
 const workspaceApiServer = require('../autonomous/workspaceApiServer.cjs');
 const spreadsheetApiServer = require('../spreadsheet/spreadsheetApiServer.cjs');
+const notesApiServer = require('../notes/notesApiServer.cjs');
 
 // Virtual Display Workspace (legacy - native Swift module)
 // NOTE: The native CGVirtualDisplay approach is deprecated.
@@ -98,6 +99,9 @@ const { workspaceManager } = require('../workspace/workspaceManager.cjs');
 
 // Spreadsheet manager (Excel-like spreadsheet window)
 const { spreadsheetManager } = require('../spreadsheet/spreadsheetManager.cjs');
+
+// Notes manager (AI-powered note-taking app)
+const { notesManager } = require('../notes/notesManager.cjs');
 
 // Phase 2: Pull-based executor
 const { 
@@ -468,7 +472,12 @@ app.whenReady().then(async () => {
   // Start the spreadsheet API server for spreadsheet operations
   spreadsheetApiServer.startServer(mainWindow);
   console.log('✓ Spreadsheet API server started on port 3848');
-  
+
+  // Start the notes API server for note-taking operations
+  notesApiServer.startNotesApiServer();
+  notesManager.initStorage(app.getPath('userData'));
+  console.log('✓ Notes API server started on port 3849');
+
   // NOTE: Hands on Desktop client DISABLED by default
   // This was causing unexpected background execution of commands without user requests.
   // The client polls the backend for "pending requests" and executes them automatically,
@@ -504,6 +513,9 @@ app.on('before-quit', async () => {
 
   // Stop spreadsheet API server
   spreadsheetApiServer.stopServer();
+
+  // Stop notes API server
+  notesApiServer.stopNotesApiServer();
 
   // Cleanup executor (Phase 2)
   cleanupOnQuit();
@@ -1719,6 +1731,25 @@ ipcMain.handle('workspace:clear-activity-log', () => {
 });
 
 // ===========================================
+// Workspace Shell Tab IPC Handlers (for shell UI)
+// ===========================================
+
+// Create tab from shell UI
+ipcMain.handle('workspace-shell-create-tab', async (_event, url) => {
+  return workspaceManager.createTab(url || 'https://www.google.com');
+});
+
+// Close tab from shell UI
+ipcMain.handle('workspace-shell-close-tab', async (_event, tabId) => {
+  return workspaceManager.closeTab(tabId);
+});
+
+// Switch tab from shell UI
+ipcMain.handle('workspace-shell-switch-tab', async (_event, tabId) => {
+  return workspaceManager.switchTab(tabId);
+});
+
+// ===========================================
 // Spreadsheet IPC Handlers
 // ===========================================
 
@@ -1834,4 +1865,128 @@ ipcMain.handle('spreadsheet:save-file', async (_event, { path }) => {
 // Export file
 ipcMain.handle('spreadsheet:export', async (_event, { format, path }) => {
   return await spreadsheetManager.exportAs(format, path);
+});
+
+// ===========================================
+// Notes IPC Handlers
+// ===========================================
+
+ipcMain.handle('notes:is-active', () => {
+  return notesManager.isActive;
+});
+
+ipcMain.handle('notes:get-status', () => {
+  return notesManager.getStatus();
+});
+
+ipcMain.handle('notes:get-detailed-status', () => {
+  return notesManager.getDetailedStatus();
+});
+
+ipcMain.handle('notes:create', async () => {
+  return await notesManager.create();
+});
+
+ipcMain.handle('notes:destroy', () => {
+  return notesManager.destroy();
+});
+
+ipcMain.handle('notes:capture-frame', () => {
+  return notesManager.getFrame();
+});
+
+// Note CRUD operations
+ipcMain.handle('notes-create-note', (_event, { title, content, folderId, tags }) => {
+  return notesManager.createNote(title, content, folderId, tags);
+});
+
+ipcMain.handle('notes-update-note', (_event, { noteId, updates }) => {
+  return notesManager.updateNote(noteId, updates);
+});
+
+ipcMain.handle('notes-delete-note', (_event, { noteId }) => {
+  return notesManager.deleteNote(noteId);
+});
+
+ipcMain.handle('notes-get-note', (_event, { noteId }) => {
+  return notesManager.getNote(noteId);
+});
+
+ipcMain.handle('notes-get-notes', (_event, options) => {
+  const notes = notesManager.getNotes(options || {});
+  return { notes, folders: notesManager.folders, tags: notesManager.getAllTags() };
+});
+
+ipcMain.handle('notes-search', (_event, { query }) => {
+  return notesManager.searchNotes(query);
+});
+
+// Folder operations
+ipcMain.handle('notes-create-folder', (_event, { name, icon }) => {
+  return notesManager.createFolder(name, icon);
+});
+
+ipcMain.handle('notes-delete-folder', (_event, { folderId }) => {
+  return notesManager.deleteFolder(folderId);
+});
+
+// Linking and tags
+ipcMain.handle('notes-link', (_event, { noteId1, noteId2 }) => {
+  return notesManager.linkNotes(noteId1, noteId2);
+});
+
+ipcMain.handle('notes-get-tags', () => {
+  return notesManager.getAllTags();
+});
+
+// Export/Import
+ipcMain.handle('notes-export', (_event, { format, noteIds }) => {
+  return notesManager.exportNotes(format, noteIds);
+});
+
+ipcMain.handle('notes-import', (_event, { data }) => {
+  return notesManager.importNotes(data);
+});
+
+// Quick actions
+ipcMain.handle('notes-quick-today', () => {
+  const today = new Date().toISOString().split('T')[0];
+  const todayTitle = `Daily Note - ${today}`;
+
+  let note = notesManager.notes.find(n => n.title === todayTitle);
+  if (!note) {
+    note = notesManager.createNote(
+      todayTitle,
+      `# ${today}\n\n## Tasks\n- [ ] \n\n## Notes\n\n## Ideas\n\n`,
+      'default',
+      ['daily']
+    );
+  }
+
+  notesManager.currentNoteId = note.id;
+  notesManager.syncToWindow();
+  return note;
+});
+
+ipcMain.handle('notes-quick-scratch', () => {
+  return notesManager.createNote(
+    `Scratch - ${new Date().toLocaleTimeString()}`,
+    '',
+    'default',
+    ['scratch']
+  );
+});
+
+ipcMain.handle('notes-set-current', (_event, { noteId }) => {
+  notesManager.currentNoteId = noteId;
+  notesManager.syncToWindow();
+  return { success: true };
+});
+
+ipcMain.handle('notes-status', () => {
+  return notesManager.getStatus();
+});
+
+ipcMain.handle('notes-detailed-status', () => {
+  return notesManager.getDetailedStatus();
 });
