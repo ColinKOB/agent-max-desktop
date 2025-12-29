@@ -54,7 +54,7 @@
 .apple-drag-strip { height: 6px; -webkit-app-region: drag; }
 .apple-toolbar, .apple-tool-btn, .apple-input-area, .apple-input, .apple-send-btn { -webkit-app-region: no-drag; }
 
-.apple-toolbar { display: flex; justify-content: flex-end; gap: 6px; padding: 0 4px 0; position: relative; z-index: 1; flex-shrink: 0; }
+.apple-toolbar { display: flex; justify-content: flex-end; gap: 6px; padding: 0 4px 0; position: relative; z-index: 10; flex-shrink: 0; }
 .apple-tool-btn { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.9); display:flex; align-items:center; justify-content:center; cursor:pointer; transition: all 0.15s ease; }
 .apple-tool-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.25); transform: translateY(-1px); color: white; }
 
@@ -104,15 +104,14 @@
   border-radius: 999px;
 }
 
-/* In the empty-state greeting, avoid showing a scrollable region but
-   let the messages section keep its normal flex sizing */
+/* In the empty-state greeting, allow shrinking when input grows */
 .apple-messages-empty {
   overflow-y: hidden;
   padding-top: 6px;
   padding-bottom: 4px;
-  min-height: 28px; /* slim band for single-line greeting */
-  height: auto;     /* override height: 0 for empty state */
-  flex: 0 0 auto;   /* don't stretch; just wrap greeting content */
+  min-height: 0; /* allow shrinking to 0 */
+  height: auto;
+  flex: 1 1 auto; /* CAN shrink when input area grows */
   justify-content: center; /* center the greeting vertically */
 }
 
@@ -484,6 +483,17 @@
 }
 
 @keyframes expandIn { from { opacity:0; transform: scale(0.95) translateY(-10px);} to { opacity:1; transform: scale(1) translateY(0);} }
+
+@keyframes toolsOverlayFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
+}
 @keyframes messageIn { from { opacity:0; transform: translateY(10px);} to { opacity:1; transform: translateY(0);} }
 
 .apple-message-thinking { align-self: flex-start; display: flex; align-items: center; gap: 6px; margin: 0; padding: 0; }
@@ -577,6 +587,8 @@
   margin: 6px 0 4px;
   user-select: none;
   pointer-events: none;
+  position: relative;
+  z-index: 1; /* Keep below portal dropdowns (z-index: 99999) */
 }
 
 .apple-empty-greeting-main {
@@ -825,3 +837,160 @@
   color: rgba(255, 255, 255, 0.5);
   font-weight: 400;
 }
+
+/* Tools Overlay - shown when Monitor button is clicked */
+.tools-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26, 26, 31, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: inherit;
+  animation: toolsOverlayFadeIn 0.2s ease-out;
+  cursor: pointer;
+}
+
+@keyframes toolsOverlayFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+}
+
+.tools-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  cursor: default;
+  pointer-events: auto;
+  animation: toolsContentBounce 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toolsContentBounce {
+  from {
+    opacity: 0;
+    transform: scale(0.85) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.tools-overlay-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.3px;
+}
+
+.tools-overlay-grid {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.tools-overlay-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.2s ease;
+  position: relative;
+  min-width: 72px;
+}
+
+.tools-overlay-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.tools-overlay-item.active {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.tools-overlay-item.active:hover {
+  background: rgba(245, 158, 11, 0.25);
+}
+
+.tools-overlay-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(172, 116, 51, 0.2) 0%, rgba(138, 90, 40, 0.1) 100%);
+  border: 1px solid rgba(172, 116, 51, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 200, 120, 0.9);
+  transition: all 0.2s ease;
+  pointer-events: none;
+}
+
+.tools-overlay-item:hover .tools-overlay-icon {
+  background: linear-gradient(135deg, rgba(172, 116, 51, 0.3) 0%, rgba(138, 90, 40, 0.2) 100%);
+  border-color: rgba(172, 116, 51, 0.5);
+  box-shadow: 0 0 20px rgba(172, 116, 51, 0.2);
+}
+
+.tools-overlay-item.active .tools-overlay-icon {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.15) 100%);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #f59e0b;
+}
+
+.tools-overlay-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+
+.tools-overlay-item.active .tools-overlay-label {
+  color: #f59e0b;
+}
+
+.tools-overlay-status {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+  animation: statusPulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes statusPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+

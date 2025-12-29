@@ -66,6 +66,7 @@
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Inter", "Helvetica Neue", Arial, sans-serif;
       background: var(--max-bg-dark);
       color: var(--max-text-primary);
+      padding: 5px;
     }
 
     /* ==========================================
@@ -73,20 +74,21 @@
        ========================================== */
     #max-header {
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
+      top: 5px;
+      left: 5px;
+      right: 5px;
       height: 40px;
       background: var(--max-bg-header);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 16px;
+      padding: 0 16px 0 78px; /* Left padding for macOS traffic lights */
       z-index: 1000;
       -webkit-app-region: drag;
       user-select: none;
       border-bottom: 1px solid var(--max-border-accent);
       box-shadow: var(--max-shadow-md);
+      border-radius: 8px 8px 0 0;
     }
 
     #max-header .header-left {
@@ -189,21 +191,100 @@
     }
 
     /* ==========================================
-       Toolbar - Quick Actions
+       Ribbon Tabs - Excel-like Tab Navigation
+       ========================================== */
+    #ribbon-tabs {
+      position: fixed;
+      top: 45px; /* 5px padding + 40px header */
+      left: 5px;
+      right: 5px;
+      height: 32px;
+      background: #f8f9fa;
+      display: flex;
+      align-items: flex-end;
+      padding: 0 12px;
+      z-index: 1000;
+      gap: 0;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .ribbon-tab {
+      -webkit-app-region: no-drag;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 400;
+      color: #444;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      position: relative;
+      transition: color 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .ribbon-tab:hover {
+      color: #1a1a1a;
+    }
+
+    .ribbon-tab.active {
+      color: #1a1a1a;
+      font-weight: 500;
+    }
+
+    .ribbon-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 8px;
+      right: 8px;
+      height: 3px;
+      background: #217346;
+      border-radius: 2px 2px 0 0;
+    }
+
+    /* ==========================================
+       Toolbar - Excel-like Quick Actions
        ========================================== */
     #toolbar {
       position: fixed;
-      top: 40px;
-      left: 0;
-      right: 0;
-      height: 36px;
-      background: var(--max-bg-surface);
-      border-bottom: 1px solid var(--max-border);
+      top: 77px; /* 5px padding + 40px header + 32px ribbon tabs */
+      left: 5px;
+      right: 5px;
+      height: 48px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e0e0e0;
       display: flex;
       align-items: center;
       padding: 0 12px;
       z-index: 999;
       gap: 4px;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    /* Toolbar sections for different ribbon tabs */
+    .toolbar-section {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      width: 100%;
+    }
+
+    .toolbar-section.active {
+      display: flex;
+    }
+
+    #toolbar::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    #toolbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #toolbar::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 2px;
     }
 
     .toolbar-group {
@@ -211,11 +292,22 @@
       align-items: center;
       gap: 2px;
       padding: 0 8px;
-      border-right: 1px solid var(--max-border);
+      border-right: 1px solid #e0e0e0;
+      flex-shrink: 0;
     }
 
     .toolbar-group:last-child {
       border-right: none;
+    }
+
+    /* Group label for ribbon sections */
+    .toolbar-group-label {
+      font-size: 10px;
+      color: #666;
+      text-align: center;
+      padding-top: 2px;
+      border-top: 1px solid #e0e0e0;
+      margin-top: 2px;
     }
 
     .toolbar-btn {
@@ -223,25 +315,31 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      height: 28px;
+      width: 32px;
+      height: 32px;
       background: transparent;
-      border: none;
-      border-radius: var(--max-radius-sm);
-      color: var(--max-text-secondary);
+      border: 1px solid transparent;
+      border-radius: 4px;
+      color: #444;
       font-size: 14px;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.12s ease;
     }
 
     .toolbar-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: var(--max-text-primary);
+      background: #e8e8e8;
+      border-color: #d0d0d0;
+      color: #1a1a1a;
     }
 
     .toolbar-btn:active {
-      background: var(--max-accent-subtle);
-      color: var(--max-accent);
+      background: #d8d8d8;
+    }
+
+    .toolbar-btn.active {
+      background: #dbeafe;
+      border-color: #93c5fd;
+      color: #1d4ed8;
     }
 
     .toolbar-btn.disabled {
@@ -249,11 +347,145 @@
       cursor: not-allowed;
     }
 
+    .toolbar-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
     .toolbar-separator {
       width: 1px;
-      height: 20px;
-      background: var(--max-border);
-      margin: 0 4px;
+      height: 24px;
+      background: #e0e0e0;
+      margin: 0 6px;
+    }
+
+    /* Toolbar Select Dropdowns */
+    .toolbar-select {
+      -webkit-app-region: no-drag;
+      height: 28px;
+      padding: 0 24px 0 10px;
+      background: #fff;
+      border: 1px solid #d0d0d0;
+      border-radius: 4px;
+      color: #333;
+      font-size: 12px;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 6px center;
+      min-width: 100px;
+    }
+
+    .toolbar-select:hover {
+      border-color: #217346;
+    }
+
+    .toolbar-select:focus {
+      outline: none;
+      border-color: #217346;
+      box-shadow: 0 0 0 2px rgba(33, 115, 70, 0.15);
+    }
+
+    .toolbar-select option {
+      background: #fff;
+      color: #333;
+    }
+
+    .toolbar-select-sm {
+      min-width: 60px;
+      padding-right: 20px;
+    }
+
+    /* Color Picker Buttons */
+    .toolbar-color-btn {
+      -webkit-app-region: no-drag;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      color: #444;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .toolbar-color-btn:hover {
+      background: #e8e8e8;
+      border-color: #d0d0d0;
+      color: #1a1a1a;
+    }
+
+    .toolbar-color-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .color-indicator {
+      width: 16px;
+      height: 3px;
+      border-radius: 1px;
+      margin-top: 2px;
+    }
+
+    .hidden-color-picker {
+      position: absolute;
+      width: 0;
+      height: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Dropdown Menus */
+    .toolbar-dropdown {
+      position: relative;
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      background: #fff;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+      min-width: 150px;
+      display: none;
+      overflow: hidden;
+    }
+
+    .toolbar-dropdown.open .dropdown-menu {
+      display: block;
+    }
+
+    .dropdown-item {
+      display: block;
+      width: 100%;
+      padding: 8px 12px;
+      background: transparent;
+      border: none;
+      color: #333;
+      font-size: 12px;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.1s ease;
+    }
+
+    .dropdown-item:hover {
+      background: #e8f4ec;
+      color: #1a1a1a;
+    }
+
+    .dropdown-item:active {
+      background: #d1e9db;
+      color: #217346;
     }
 
     /* ==========================================
@@ -261,12 +493,12 @@
        ========================================== */
     #formula-bar {
       position: fixed;
-      top: 76px;
-      left: 0;
-      right: 0;
-      height: 34px;
-      background: var(--max-bg-formula);
-      border-bottom: 1px solid var(--max-border-light);
+      top: 125px; /* 5px padding + 40px header + 32px ribbon tabs + 48px toolbar */
+      left: 5px;
+      right: 5px;
+      height: 30px;
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
       display: flex;
       align-items: center;
       padding: 0 12px;
@@ -320,16 +552,854 @@
     }
 
     /* ==========================================
+       Column/Row Resize Handles
+       ========================================== */
+    /* Make header cells position relative for resize handles */
+    #simple-grid th,
+    #simple-grid td[data-row] {
+      position: relative;
+    }
+
+    .col-resize-handle {
+      position: absolute;
+      right: -3px;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      cursor: col-resize;
+      background: transparent;
+      z-index: 10;
+      transition: background 0.1s ease;
+    }
+
+    .col-resize-handle:hover,
+    .col-resize-handle.active {
+      background: var(--max-accent);
+    }
+
+    .row-resize-handle {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -3px;
+      height: 6px;
+      cursor: row-resize;
+      background: transparent;
+      z-index: 10;
+      transition: background 0.1s ease;
+    }
+
+    .row-resize-handle:hover,
+    .row-resize-handle.active {
+      background: var(--max-accent);
+    }
+
+    .resize-line {
+      position: fixed;
+      background: var(--max-accent);
+      z-index: 9999;
+      pointer-events: none;
+    }
+
+    .resize-line-col {
+      width: 2px;
+      top: 0;
+      bottom: 0;
+    }
+
+    .resize-line-row {
+      height: 2px;
+      left: 0;
+      right: 0;
+    }
+
+    /* ==========================================
+       Auto-Fill Handle
+       ========================================== */
+    .cell-fill-handle {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: var(--max-accent);
+      border: 1px solid white;
+      cursor: crosshair;
+      z-index: 20;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    .cell-fill-preview {
+      position: absolute;
+      border: 2px dashed var(--max-accent);
+      background: var(--max-accent-subtle);
+      pointer-events: none;
+      z-index: 15;
+    }
+
+    .cell-selected {
+      background: #e8f0fe !important;
+      position: relative;
+    }
+
+    .cell-in-selection {
+      background: rgba(102, 126, 234, 0.12) !important;
+    }
+
+    /* Multi-cell selection highlighting */
+    td.selected {
+      background: rgba(102, 126, 234, 0.12) !important;
+    }
+
+    /* Selection border overlay - wraps around all selected cells */
+    .selection-border {
+      position: absolute;
+      border: 2px solid #667eea;
+      pointer-events: none;
+      z-index: 100;
+      box-sizing: border-box;
+    }
+
+    /* Fill handle - small square at bottom-right of selection */
+    .selection-fill-handle {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: #667eea;
+      border: 1px solid white;
+      cursor: crosshair;
+      z-index: 101;
+      pointer-events: auto;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    .selection-fill-handle:hover {
+      background: #5a6fd6;
+      transform: scale(1.2);
+    }
+
+    /* Fill preview while dragging */
+    .fill-preview-overlay {
+      position: absolute;
+      border: 2px dashed #667eea;
+      background: rgba(102, 126, 234, 0.1);
+      pointer-events: none;
+      z-index: 99;
+    }
+
+    /* Cut cells indicator */
+    td.cut-cell {
+      outline: 2px dashed var(--max-accent) !important;
+      outline-offset: -2px;
+    }
+
+    /* Column header selected */
+    th.selected {
+      background: rgba(245, 158, 11, 0.3) !important;
+      color: #000;
+    }
+
+    /* Row header selected */
+    td.row-header-selected {
+      background: rgba(245, 158, 11, 0.3) !important;
+      color: #000;
+    }
+
+    /* Header hover effect */
+    th[data-col]:hover,
+    td[data-row]:not([data-col]):hover {
+      background: #e8e8e8 !important;
+      cursor: pointer;
+    }
+
+    .cell-merged {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .cell-hidden-by-merge {
+      display: none !important;
+    }
+
+    /* ==========================================
+       Chart Modal & Container
+       ========================================== */
+    .chart-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .chart-modal.open {
+      display: flex;
+    }
+
+    .chart-modal-content {
+      background: white;
+      border-radius: var(--max-radius-lg);
+      box-shadow: var(--max-shadow-lg);
+      width: 90%;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: var(--max-bg-header);
+      border-bottom: 1px solid var(--max-border);
+    }
+
+    .chart-modal-header h3 {
+      color: var(--max-text-primary);
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .chart-modal-close {
+      background: transparent;
+      border: none;
+      color: var(--max-text-secondary);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0 8px;
+    }
+
+    .chart-modal-close:hover {
+      color: var(--max-text-primary);
+    }
+
+    .chart-modal-body {
+      padding: 20px;
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      gap: 24px;
+    }
+
+    .chart-config {
+      flex: 0 0 280px;
+    }
+
+    .chart-preview {
+      flex: 1;
+    }
+
+    .config-section {
+      margin-bottom: 16px;
+    }
+
+    .config-section label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--max-text-dark);
+      margin-bottom: 6px;
+    }
+
+    .config-input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--max-border-light);
+      border-radius: var(--max-radius-sm);
+      font-size: 13px;
+    }
+
+    .config-input:focus {
+      outline: none;
+      border-color: var(--max-accent);
+    }
+
+    .config-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .config-section.half {
+      flex: 1;
+    }
+
+    .chart-type-options {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chart-type-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 10px 12px;
+      background: #f5f5f5;
+      border: 2px solid transparent;
+      border-radius: var(--max-radius-md);
+      cursor: pointer;
+      color: var(--max-text-dark);
+      transition: all 0.15s ease;
+    }
+
+    .chart-type-btn:hover {
+      background: #e0e0e0;
+    }
+
+    .chart-type-btn.active {
+      border-color: var(--max-accent);
+      background: var(--max-accent-subtle);
+    }
+
+    .chart-type-btn span {
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .chart-btn {
+      padding: 8px 20px;
+      border-radius: var(--max-radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: none;
+    }
+
+    .chart-btn.primary {
+      background: var(--max-accent);
+      color: white;
+    }
+
+    .chart-btn.primary:hover {
+      background: var(--max-accent-dark);
+    }
+
+    .chart-btn.secondary {
+      background: #e0e0e0;
+      color: var(--max-text-dark);
+    }
+
+    .chart-btn.secondary:hover {
+      background: #d0d0d0;
+    }
+
+    .chart-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .chart-option {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .chart-option label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--max-text-dark);
+    }
+
+    .chart-option input,
+    .chart-option select {
+      padding: 8px 12px;
+      border: 1px solid var(--max-border-light);
+      border-radius: var(--max-radius-sm);
+      font-size: 13px;
+    }
+
+    .chart-canvas-container {
+      background: #fafafa;
+      border: 1px solid var(--max-border-light);
+      border-radius: var(--max-radius-md);
+      padding: 20px;
+      min-height: 400px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chart-canvas-container canvas {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    .chart-modal-footer {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      padding: 16px 20px;
+      border-top: 1px solid var(--max-border-light);
+    }
+
+    .chart-btn {
+      padding: 8px 20px;
+      border-radius: var(--max-radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .chart-btn-primary {
+      background: var(--max-accent);
+      color: white;
+      border: none;
+    }
+
+    .chart-btn-primary:hover {
+      background: var(--max-accent-dark);
+    }
+
+    .chart-btn-secondary {
+      background: transparent;
+      color: var(--max-text-dark);
+      border: 1px solid var(--max-border-light);
+    }
+
+    .chart-btn-secondary:hover {
+      background: #f5f5f5;
+    }
+
+    /* Embedded charts in spreadsheet */
+    .embedded-chart {
+      position: absolute;
+      background: white;
+      border: 2px solid var(--max-accent);
+      border-radius: var(--max-radius-md);
+      box-shadow: var(--max-shadow-md);
+      resize: both;
+      overflow: hidden;
+      min-width: 200px;
+      min-height: 150px;
+    }
+
+    .embedded-chart-header {
+      background: var(--max-bg-header);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: move;
+    }
+
+    .embedded-chart-title {
+      color: var(--max-text-primary);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .embedded-chart-close {
+      background: transparent;
+      border: none;
+      color: var(--max-text-secondary);
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .embedded-chart-body {
+      padding: 10px;
+      height: calc(100% - 40px);
+    }
+
+    /* Find & Replace Modal */
+    .find-modal {
+      position: fixed;
+      top: 100px;
+      right: 20px;
+      background: white;
+      border-radius: var(--max-radius-lg);
+      box-shadow: var(--max-shadow-lg);
+      width: 350px;
+      z-index: 1500;
+      display: none;
+    }
+
+    .find-modal.open {
+      display: block;
+    }
+
+    .find-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--max-bg-header);
+      border-radius: var(--max-radius-lg) var(--max-radius-lg) 0 0;
+    }
+
+    .find-modal-header h4 {
+      color: var(--max-text-primary);
+      font-size: 14px;
+      margin: 0;
+    }
+
+    .find-modal-header span {
+      color: var(--max-text-primary);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .find-modal-close {
+      background: transparent;
+      border: none;
+      color: var(--max-text-secondary);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+
+    .find-modal-close:hover {
+      color: var(--max-text-primary);
+    }
+
+    .find-modal-body {
+      padding: 16px;
+    }
+
+    .find-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .find-row label {
+      width: 60px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--max-text-dark);
+    }
+
+    .find-row input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid var(--max-border-light);
+      border-radius: var(--max-radius-sm);
+      font-size: 13px;
+    }
+
+    .find-row input:focus {
+      outline: none;
+      border-color: var(--max-accent);
+    }
+
+    .find-options {
+      display: flex;
+      gap: 16px;
+      margin: 12px 0;
+    }
+
+    .find-options label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--max-text-dark);
+      cursor: pointer;
+    }
+
+    .find-options input[type="checkbox"] {
+      accent-color: var(--max-accent);
+    }
+
+    .find-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .find-input-group label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--max-text-dark);
+    }
+
+    .find-input-group input {
+      padding: 8px 12px;
+      border: 1px solid var(--max-border-light);
+      border-radius: var(--max-radius-sm);
+      font-size: 13px;
+    }
+
+    .find-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .find-btn {
+      padding: 6px 12px;
+      border-radius: var(--max-radius-sm);
+      font-size: 12px;
+      cursor: pointer;
+      border: 1px solid var(--max-border-light);
+      background: white;
+    }
+
+    .find-btn:hover {
+      background: #f5f5f5;
+    }
+
+    .find-btn-primary {
+      background: var(--max-accent);
+      color: white;
+      border: none;
+    }
+
+    .find-btn-primary:hover {
+      background: var(--max-accent-dark);
+    }
+
+    .find-results {
+      font-size: 12px;
+      color: var(--max-text-muted);
+      margin-top: 12px;
+      text-align: center;
+      padding: 8px;
+      background: #f5f5f5;
+      border-radius: var(--max-radius-sm);
+    }
+
+    /* Find highlight */
+    .find-highlight {
+      background: #ffeb3b !important;
+      outline: 2px solid #ffc107 !important;
+    }
+
+    /* Filter Dropdown in headers */
+    .filter-dropdown {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .filter-dropdown-btn {
+      background: transparent;
+      border: none;
+      font-size: 10px;
+      color: #666;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 2px;
+    }
+
+    .filter-dropdown-btn:hover {
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    .filter-dropdown-menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: var(--max-radius-sm);
+      box-shadow: var(--max-shadow-md);
+      padding: 8px;
+      z-index: 100;
+      min-width: 150px;
+    }
+
+    .filter-dropdown.open .filter-dropdown-menu {
+      display: block;
+    }
+
+    .filter-input {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #ddd;
+      border-radius: var(--max-radius-sm);
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .filter-apply-btn,
+    .filter-clear-btn {
+      padding: 4px 8px;
+      border: none;
+      border-radius: var(--max-radius-sm);
+      font-size: 11px;
+      cursor: pointer;
+      margin-right: 4px;
+    }
+
+    .filter-apply-btn {
+      background: var(--max-accent);
+      color: white;
+    }
+
+    .filter-clear-btn {
+      background: #e0e0e0;
+      color: #333;
+    }
+
+    /* ==========================================
        Spreadsheet Container
        ========================================== */
     #spreadsheet-container {
       position: fixed;
-      top: 110px; /* 40px header + 36px toolbar + 34px formula bar */
-      left: 0;
-      right: 0;
-      bottom: 24px; /* Leave room for status bar */
+      top: 155px; /* 5px padding + 40px header + 32px ribbon tabs + 48px toolbar + 30px formula bar */
+      left: 5px;
+      right: 5px;
+      bottom: 53px; /* 5px padding + 24px status bar + 24px sheet tabs */
       background: white;
+      color: #000000; /* Black text for spreadsheet cells */
       overflow: auto;
+    }
+
+    /* Ensure all table text is black */
+    #spreadsheet-container table,
+    #spreadsheet-container th,
+    #spreadsheet-container td {
+      color: #000000;
+    }
+
+    /* ==========================================
+       Sheet Tabs - Excel-like Tab Bar
+       ========================================== */
+    #sheet-tabs {
+      position: fixed;
+      bottom: 29px; /* 5px padding + 24px status bar */
+      left: 5px;
+      right: 5px;
+      height: 24px;
+      background: #f0f0f0;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      padding: 0 4px;
+      z-index: 997;
+      gap: 2px;
+      overflow-x: auto;
+    }
+
+    #sheet-tabs::-webkit-scrollbar {
+      height: 3px;
+    }
+
+    #sheet-tabs::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 2px;
+    }
+
+    .sheet-tab-nav {
+      display: flex;
+      gap: 2px;
+      margin-right: 4px;
+      flex-shrink: 0;
+    }
+
+    .sheet-tab-nav button {
+      width: 22px;
+      height: 20px;
+      background: transparent;
+      border: none;
+      border-radius: 3px;
+      color: #666;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+
+    .sheet-tab-nav button:hover {
+      background: #e0e0e0;
+      color: #333;
+    }
+
+    .sheet-tabs-container {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex: 1;
+      overflow-x: auto;
+    }
+
+    .sheet-tab {
+      padding: 4px 12px;
+      background: #e8e8e8;
+      border: 1px solid #d0d0d0;
+      border-bottom: none;
+      border-radius: 4px 4px 0 0;
+      color: #666;
+      font-size: 11px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sheet-tab:hover {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .sheet-tab.active {
+      background: white;
+      color: #1a1a1a;
+      border-color: #d0d0d0;
+      font-weight: 500;
+    }
+
+    .sheet-tab .tab-close {
+      width: 14px;
+      height: 14px;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      opacity: 0;
+      transition: opacity 0.1s ease;
+    }
+
+    .sheet-tab:hover .tab-close {
+      opacity: 0.5;
+    }
+
+    .sheet-tab .tab-close:hover {
+      opacity: 1;
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    .add-sheet-btn {
+      width: 22px;
+      height: 20px;
+      background: transparent;
+      border: 1px dashed var(--max-border);
+      border-radius: 4px;
+      color: var(--max-text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      margin-left: 4px;
+      flex-shrink: 0;
+    }
+
+    .add-sheet-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--max-accent);
+      color: var(--max-accent);
     }
 
     /* ==========================================
@@ -337,9 +1407,9 @@
        ========================================== */
     #status-bar {
       position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      bottom: 5px;
+      left: 5px;
+      right: 5px;
       height: 24px;
       background: var(--max-bg-surface);
       border-top: 1px solid var(--max-border);
@@ -350,6 +1420,7 @@
       font-size: 11px;
       color: var(--max-text-muted);
       z-index: 997;
+      border-radius: 0 0 8px 8px;
     }
 
     #status-bar .status-left {
@@ -468,27 +1539,397 @@
     </div>
   </div>
 
-  <!-- Toolbar - Quick Actions -->
+  <!-- Ribbon Tabs - Excel-like Navigation -->
+  <div id="ribbon-tabs">
+    <button class="ribbon-tab" data-tab="file">File</button>
+    <button class="ribbon-tab active" data-tab="home">Home</button>
+    <button class="ribbon-tab" data-tab="insert">Insert</button>
+    <button class="ribbon-tab" data-tab="page-layout">Page Layout</button>
+    <button class="ribbon-tab" data-tab="formulas">Formulas</button>
+    <button class="ribbon-tab" data-tab="data">Data</button>
+  </div>
+
+  <!-- Toolbar - Excel-like Quick Actions -->
   <div id="toolbar">
-    <div class="toolbar-group">
-      <button class="toolbar-btn" id="btn-undo" title="Undo (⌘Z)">↩</button>
-      <button class="toolbar-btn" id="btn-redo" title="Redo (⌘⇧Z)">↪</button>
+    <!-- HOME TAB CONTENT (default) -->
+    <div class="toolbar-section active" id="toolbar-home">
+      <!-- Undo/Redo -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-undo" title="Undo (⌘Z)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg>
+        </button>
+        <button class="toolbar-btn" id="btn-redo" title="Redo (⌘⇧Z)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3l3 2.7"/></svg>
+        </button>
+      </div>
+
+      <!-- Font Family & Size -->
+      <div class="toolbar-group">
+        <select class="toolbar-select" id="font-family" title="Font Family">
+          <option value="Arial">Arial</option>
+          <option value="Helvetica">Helvetica</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Courier New">Courier New</option>
+          <option value="Verdana">Verdana</option>
+          <option value="Trebuchet MS">Trebuchet MS</option>
+          <option value="Comic Sans MS">Comic Sans MS</option>
+        </select>
+        <select class="toolbar-select toolbar-select-sm" id="font-size" title="Font Size">
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+          <option value="11">11</option>
+          <option value="12" selected>12</option>
+          <option value="14">14</option>
+          <option value="16">16</option>
+          <option value="18">18</option>
+          <option value="20">20</option>
+          <option value="24">24</option>
+          <option value="28">28</option>
+          <option value="36">36</option>
+          <option value="48">48</option>
+          <option value="72">72</option>
+        </select>
+      </div>
+
+      <!-- Text Formatting -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn toolbar-toggle" id="btn-bold" title="Bold (⌘B)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"/></svg>
+        </button>
+        <button class="toolbar-btn toolbar-toggle" id="btn-italic" title="Italic (⌘I)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/></svg>
+        </button>
+        <button class="toolbar-btn toolbar-toggle" id="btn-underline" title="Underline (⌘U)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"/></svg>
+        </button>
+        <button class="toolbar-btn toolbar-toggle" id="btn-strikethrough" title="Strikethrough">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 19h4v-3h-4v3zM5 4v3h5v3h4V7h5V4H5zM3 14h18v-2H3v2z"/></svg>
+        </button>
+      </div>
+
+      <!-- Colors -->
+      <div class="toolbar-group">
+        <div class="toolbar-color-btn" id="text-color-btn" title="Text Color">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11 2L5.5 16h2.25l1.12-3h6.25l1.12 3h2.25L13 2h-2zm-1.38 9L12 4.67 14.38 11H9.62z"/></svg>
+          <div class="color-indicator" id="text-color-indicator" style="background: #000000;"></div>
+          <input type="color" id="text-color-picker" value="#000000" class="hidden-color-picker">
+        </div>
+        <div class="toolbar-color-btn" id="fill-color-btn" title="Fill Color">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15c-.59.59-.59 1.54 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12zM5.21 10L10 5.21 14.79 10H5.21zM19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5z"/></svg>
+          <div class="color-indicator" id="fill-color-indicator" style="background: transparent; border: 1px dashed #666;"></div>
+          <input type="color" id="fill-color-picker" value="#ffffff" class="hidden-color-picker">
+        </div>
+      </div>
+
+      <!-- Borders -->
+      <div class="toolbar-group">
+        <div class="toolbar-dropdown" id="border-dropdown">
+          <button class="toolbar-btn" id="btn-borders" title="Borders">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3v18h18V3H3zm8 16H5v-6h6v6zm0-8H5V5h6v6zm8 8h-6v-6h6v6zm0-8h-6V5h6v6z"/></svg>
+          </button>
+          <div class="dropdown-menu" id="border-menu">
+            <button class="dropdown-item" data-border="all">All Borders</button>
+            <button class="dropdown-item" data-border="outer">Outside Borders</button>
+            <button class="dropdown-item" data-border="inner">Inside Borders</button>
+            <button class="dropdown-item" data-border="top">Top Border</button>
+          <button class="dropdown-item" data-border="bottom">Bottom Border</button>
+          <button class="dropdown-item" data-border="left">Left Border</button>
+          <button class="dropdown-item" data-border="right">Right Border</button>
+          <button class="dropdown-item" data-border="none">No Border</button>
+        </div>
+      </div>
+      </div>
+
+      <!-- Alignment -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn toolbar-toggle" id="btn-align-left" title="Align Left">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15 15H3v2h12v-2zm0-8H3v2h12V7zM3 13h18v-2H3v2zm0 8h18v-2H3v2zM3 3v2h18V3H3z"/></svg>
+      </button>
+      <button class="toolbar-btn toolbar-toggle" id="btn-align-center" title="Align Center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 15v2h10v-2H7zm-4 6h18v-2H3v2zm0-8h18v-2H3v2zm4-6v2h10V7H7zM3 3v2h18V3H3z"/></svg>
+      </button>
+      <button class="toolbar-btn toolbar-toggle" id="btn-align-right" title="Align Right">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 21h18v-2H3v2zm6-4h12v-2H9v2zm-6-4h18v-2H3v2zm6-4h12V7H9v2zM3 3v2h18V3H3z"/></svg>
+      </button>
+      <div class="toolbar-separator"></div>
+      <button class="toolbar-btn toolbar-toggle" id="btn-valign-top" title="Align Top">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 11h3v10h2V11h3l-4-4-4 4zM4 3v2h16V3H4z"/></svg>
+      </button>
+      <button class="toolbar-btn toolbar-toggle" id="btn-valign-middle" title="Align Middle">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 19h3v4h2v-4h3l-4-4-4 4zm8-14h-3V1h-2v4H8l4 4 4-4zM4 11v2h16v-2H4z"/></svg>
+      </button>
+      <button class="toolbar-btn toolbar-toggle" id="btn-valign-bottom" title="Align Bottom">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16 13h-3V3h-2v10H8l4 4 4-4zM4 19v2h16v-2H4z"/></svg>
+      </button>
+      </div>
+
+      <!-- Text Wrap & Merge -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn toolbar-toggle" id="btn-wrap" title="Text Wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3 3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg>
+        </button>
+        <button class="toolbar-btn" id="btn-merge" title="Merge Cells">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3v18h18V3H3zm16 16H5V5h14v14zM8 7h8v2H8V7zm0 4h8v2H8v-2zm0 4h5v2H8v-2z"/></svg>
+        </button>
+      </div>
+
+      <!-- Number Format -->
+      <div class="toolbar-group">
+        <select class="toolbar-select" id="number-format" title="Number Format">
+          <option value="general">General</option>
+          <option value="number">Number</option>
+          <option value="currency">Currency ($)</option>
+          <option value="accounting">Accounting</option>
+          <option value="percentage">Percentage</option>
+          <option value="scientific">Scientific</option>
+          <option value="date-short">Date (Short)</option>
+          <option value="date-long">Date (Long)</option>
+          <option value="time">Time</option>
+          <option value="text">Text</option>
+        </select>
+        <button class="toolbar-btn" id="btn-decimal-increase" title="Increase Decimal">
+          <span style="font-size: 11px; font-weight: 600;">.0→.00</span>
+        </button>
+        <button class="toolbar-btn" id="btn-decimal-decrease" title="Decrease Decimal">
+          <span style="font-size: 11px; font-weight: 600;">.00→.0</span>
+        </button>
+      </div>
+
+      <!-- Insert/Delete -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-insert-row" title="Insert Row Above">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
+        </button>
+        <button class="toolbar-btn" id="btn-delete-row" title="Delete Row">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13H5V11H19V13Z"/></svg>
+        </button>
+      </div>
+
+      <!-- Freeze Panes -->
+      <div class="toolbar-group">
+        <div class="toolbar-dropdown" id="freeze-dropdown">
+          <button class="toolbar-btn" id="btn-freeze" title="Freeze Panes">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10z"/><path d="M4 8h16v2H4z" fill="var(--max-accent)"/><path d="M4 8h4v10H4z" fill="var(--max-accent)" opacity="0.5"/></svg>
+          </button>
+          <div class="dropdown-menu" id="freeze-menu">
+            <button class="dropdown-item" data-freeze="row">Freeze Top Row</button>
+            <button class="dropdown-item" data-freeze="col">Freeze First Column</button>
+            <button class="dropdown-item" data-freeze="both">Freeze Row & Column</button>
+            <button class="dropdown-item" data-freeze="none">Unfreeze</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="toolbar-group">
+        <div class="toolbar-dropdown" id="chart-dropdown">
+          <button class="toolbar-btn" id="btn-chart" title="Insert Chart">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="12" width="4" height="8" rx="1"/><rect x="10" y="8" width="4" height="12" rx="1"/><rect x="16" y="4" width="4" height="16" rx="1"/></svg>
+          </button>
+          <div class="dropdown-menu" id="chart-menu">
+            <button class="dropdown-item" data-chart="bar">📊 Bar Chart</button>
+            <button class="dropdown-item" data-chart="line">📈 Line Chart</button>
+            <button class="dropdown-item" data-chart="pie">🥧 Pie Chart</button>
+            <button class="dropdown-item" data-chart="scatter">⚬ Scatter Plot</button>
+            <button class="dropdown-item" data-chart="area">📉 Area Chart</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sort & Filter -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-sort-asc" title="Sort A-Z">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z"/></svg>
+        </button>
+        <button class="toolbar-btn" id="btn-sort-desc" title="Sort Z-A">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h6v2H3V6zm0 12v-2h18v2H3zm0-7h12v2H3v-2z"/></svg>
+        </button>
+        <button class="toolbar-btn" id="btn-filter" title="Filter">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4.25 5.61C6.27 8.2 10 13 10 13v6c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-6s3.73-4.8 5.75-7.39c.5-.65.03-1.61-.79-1.61H5.04c-.82 0-1.29.96-.79 1.61z"/></svg>
+        </button>
+      </div>
+
+      <!-- Find & Replace -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-find" title="Find & Replace (Ctrl+F)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        </button>
+      </div>
     </div>
-    <div class="toolbar-group">
-      <button class="toolbar-btn" id="btn-cut" title="Cut (⌘X)">✂</button>
-      <button class="toolbar-btn" id="btn-copy" title="Copy (⌘C)">⧉</button>
-      <button class="toolbar-btn" id="btn-paste" title="Paste (⌘V)">📋</button>
+    <!-- END HOME TAB -->
+
+    <!-- FILE TAB CONTENT -->
+    <div class="toolbar-section" id="toolbar-file">
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-new-file" title="New Spreadsheet">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 14h-3v3h-2v-3H8v-2h3v-3h2v3h3v2zm-3-7V3.5L18.5 9H13z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">New</span>
+      </div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-open-file" title="Open File">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Open</span>
+      </div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-save-file" title="Save File">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Save</span>
+      </div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-export-xlsx" title="Export as Excel">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Export</span>
+      </div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-print" title="Print">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Print</span>
+      </div>
     </div>
-    <div class="toolbar-group">
-      <button class="toolbar-btn" id="btn-bold" title="Bold (⌘B)">𝐁</button>
-      <button class="toolbar-btn" id="btn-italic" title="Italic (⌘I)">𝐼</button>
+    <!-- END FILE TAB -->
+
+    <!-- INSERT TAB CONTENT -->
+    <div class="toolbar-section" id="toolbar-insert">
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-insert-row-tab" title="Insert Row">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 15h4v4h2v-4h4v-2H10V9H8v4H4v2zm11-2h6v-2h-6v2zm0 4h6v-2h-6v2zm0-8h6V7h-6v2z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Row</span>
+      </div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-insert-col-tab" title="Insert Column">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11 2v4H7v2h4v4h2V8h4V6h-4V2h-2zm-2 9H4v2h5v-2zm0 4H4v2h5v-2zm0 4H4v2h5v-2zm4-8h5v2h-5v-2zm0 4h5v2h-5v-2zm0 4h5v2h-5v-2z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Column</span>
+      </div>
+      <div class="toolbar-separator"></div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-insert-chart-tab" title="Insert Chart">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Chart</span>
+      </div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-insert-image" title="Insert Image">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Image</span>
+      </div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-insert-link" title="Insert Link">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Link</span>
+      </div>
     </div>
-    <div class="toolbar-group">
-      <button class="toolbar-btn" id="btn-insert-row" title="Insert Row">+↓</button>
-      <button class="toolbar-btn" id="btn-insert-col" title="Insert Column">+→</button>
-      <button class="toolbar-btn" id="btn-delete-row" title="Delete Row">−↓</button>
-      <button class="toolbar-btn" id="btn-delete-col" title="Delete Column">−→</button>
+    <!-- END INSERT TAB -->
+
+    <!-- PAGE LAYOUT TAB CONTENT -->
+    <div class="toolbar-section" id="toolbar-page-layout">
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-page-orientation" title="Page Orientation">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7.5 21H2V9h5.5v12zm7.25-18h-5.5v18h5.5V3zM22 11h-5.5v10H22V11z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Orientation</span>
+      </div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-page-margins" title="Page Margins">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5v14h18V5H3zm16 12H5V7h14v10z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Margins</span>
+      </div>
+      <div class="toolbar-separator"></div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-grid-lines" title="Show/Hide Gridlines">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM8 20H4v-4h4v4zm0-6H4v-4h4v4zm0-6H4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Gridlines</span>
+      </div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-print-area" title="Set Print Area">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Print Area</span>
+      </div>
     </div>
+    <!-- END PAGE LAYOUT TAB -->
+
+    <!-- FORMULAS TAB CONTENT -->
+    <div class="toolbar-section" id="toolbar-formulas">
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-insert-function" title="Insert Function">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 4H6v2l6.5 6L6 18v2h12v-3h-7l5-5-5-5h7z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Insert Function</span>
+      </div>
+      <div class="toolbar-separator"></div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-autosum" title="AutoSum">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 17h-7l5-5-5-5h7V4H6v2.5l6.5 5.5-6.5 5.5V20h12z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">AutoSum</span>
+      </div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-formula-average" title="Average">Avg</button>
+        <button class="toolbar-btn" id="btn-formula-count" title="Count">Cnt</button>
+        <button class="toolbar-btn" id="btn-formula-max" title="Max">Max</button>
+        <button class="toolbar-btn" id="btn-formula-min" title="Min">Min</button>
+      </div>
+      <div class="toolbar-separator"></div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-show-formulas" title="Show Formulas">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Show Formulas</span>
+      </div>
+    </div>
+    <!-- END FORMULAS TAB -->
+
+    <!-- DATA TAB CONTENT -->
+    <div class="toolbar-section" id="toolbar-data">
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-sort-asc-tab" title="Sort A-Z">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z"/></svg>
+        </button>
+        <button class="toolbar-btn" id="btn-sort-desc-tab" title="Sort Z-A">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h6v2H3V6zm0 12v-2h18v2H3zm0-7h12v2H3v-2z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Sort</span>
+      </div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-filter-tab" title="Filter">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.25 5.61C6.27 8.2 10 13 10 13v6c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-6s3.73-4.8 5.75-7.39c.5-.65.03-1.61-.79-1.61H5.04c-.82 0-1.29.96-.79 1.61z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Filter</span>
+      </div>
+      <div class="toolbar-separator"></div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-text-to-columns" title="Text to Columns">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Text to Columns</span>
+      </div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-remove-duplicates" title="Remove Duplicates">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Remove Duplicates</span>
+      </div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-data-validation" title="Data Validation">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </button>
+        <span style="font-size: 12px; color: #444; padding: 0 8px;">Validation</span>
+      </div>
+    </div>
+    <!-- END DATA TAB -->
   </div>
 
   <!-- Formula Bar -->
@@ -505,6 +1946,23 @@
       <div>Loading spreadsheet...</div>
     </div>
     <div id="fortune-sheet"></div>
+  </div>
+
+  <!-- Sheet Tabs - Excel-like -->
+  <div id="sheet-tabs">
+    <div class="sheet-tab-nav">
+      <button id="nav-first" title="First Sheet">⏮</button>
+      <button id="nav-prev" title="Previous Sheet">◀</button>
+      <button id="nav-next" title="Next Sheet">▶</button>
+      <button id="nav-last" title="Last Sheet">⏭</button>
+    </div>
+    <div class="sheet-tabs-container" id="sheet-tabs-container">
+      <div class="sheet-tab active" data-sheet="Sheet1">
+        <span class="tab-name">Sheet1</span>
+        <span class="tab-close">×</span>
+      </div>
+    </div>
+    <button class="add-sheet-btn" id="add-sheet-btn" title="Add Sheet">+</button>
   </div>
 
   <!-- Status Bar -->
@@ -530,6 +1988,102 @@
     </div>
   </div>
 
+  <!-- Chart Modal -->
+  <div class="chart-modal" id="chart-modal">
+    <div class="chart-modal-content">
+      <div class="chart-modal-header">
+        <h3>Insert Chart</h3>
+        <button class="chart-modal-close" id="chart-modal-close">&times;</button>
+      </div>
+      <div class="chart-modal-body">
+        <div class="chart-config">
+          <div class="config-section">
+            <label>Chart Type</label>
+            <div class="chart-type-options">
+              <button class="chart-type-btn active" data-type="bar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="12" width="4" height="8" rx="1"/><rect x="10" y="8" width="4" height="12" rx="1"/><rect x="16" y="4" width="4" height="16" rx="1"/></svg>
+                <span>Bar</span>
+              </button>
+              <button class="chart-type-btn" data-type="line">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4,16 8,12 12,14 16,8 20,10"/></svg>
+                <span>Line</span>
+              </button>
+              <button class="chart-type-btn" data-type="pie">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8v8l6.93 4.01C16.74 17.89 14.52 20 12 20z"/></svg>
+                <span>Pie</span>
+              </button>
+              <button class="chart-type-btn" data-type="scatter">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="14" r="2"/><circle cx="10" cy="8" r="2"/><circle cx="14" cy="12" r="2"/><circle cx="18" cy="6" r="2"/></svg>
+                <span>Scatter</span>
+              </button>
+              <button class="chart-type-btn" data-type="area">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" opacity="0.5"><polygon points="4,20 4,14 8,10 12,12 16,6 20,8 20,20"/></svg>
+                <span>Area</span>
+              </button>
+            </div>
+          </div>
+          <div class="config-section">
+            <label>Data Range</label>
+            <input type="text" id="chart-data-range" class="config-input" placeholder="e.g., A1:D10" value="">
+          </div>
+          <div class="config-section">
+            <label>Chart Title</label>
+            <input type="text" id="chart-title" class="config-input" placeholder="Enter chart title">
+          </div>
+          <div class="config-row">
+            <div class="config-section half">
+              <label>X-Axis Label</label>
+              <input type="text" id="chart-x-label" class="config-input" placeholder="X-Axis">
+            </div>
+            <div class="config-section half">
+              <label>Y-Axis Label</label>
+              <input type="text" id="chart-y-label" class="config-input" placeholder="Y-Axis">
+            </div>
+          </div>
+          <div class="config-section">
+            <label><input type="checkbox" id="chart-legend" checked> Show Legend</label>
+          </div>
+        </div>
+        <div class="chart-preview">
+          <div class="chart-canvas-container">
+            <canvas id="chart-preview-canvas" width="400" height="300"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="chart-modal-footer">
+        <button class="chart-btn secondary" id="chart-cancel">Cancel</button>
+        <button class="chart-btn primary" id="chart-insert">Insert Chart</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Find & Replace Modal -->
+  <div class="find-modal" id="find-modal">
+    <div class="find-modal-header">
+      <span>Find & Replace</span>
+      <button class="find-modal-close" id="find-modal-close">&times;</button>
+    </div>
+    <div class="find-modal-body">
+      <div class="find-row">
+        <label>Find:</label>
+        <input type="text" id="find-input" placeholder="Search...">
+        <button class="find-btn" id="find-prev" title="Find Previous">▲</button>
+        <button class="find-btn" id="find-next" title="Find Next">▼</button>
+      </div>
+      <div class="find-row">
+        <label>Replace:</label>
+        <input type="text" id="replace-input" placeholder="Replace with...">
+        <button class="find-btn" id="replace-one">Replace</button>
+        <button class="find-btn" id="replace-all">All</button>
+      </div>
+      <div class="find-options">
+        <label><input type="checkbox" id="find-case-sensitive"> Case sensitive</label>
+        <label><input type="checkbox" id="find-whole-cell"> Whole cell</label>
+      </div>
+      <div class="find-results" id="find-results">0 of 0</div>
+    </div>
+  </div>
+
   <script type="module">
     // FortuneSheet will be loaded dynamically
     // For now, we'll create a basic spreadsheet implementation
@@ -547,6 +2101,8 @@
     let isModified = false;
     let fortuneSheetInstance = null;
     let selectedCell = { row: 0, col: 0 }; // Track currently selected cell
+    let selectionRange = null; // Track multi-cell selection: {startRow, startCol, endRow, endCol}
+    let mergedCells = {}; // Track merged cells per sheet: {sheetName: [{startRow, startCol, endRow, endCol}]}
 
     // Initialize the spreadsheet
     async function initSpreadsheet() {
@@ -568,14 +2124,116 @@
       // Set initial formula bar state for A1
       updateFormulaBar(0, 0);
 
+      // Initialize ribbon tabs
+      initRibbonTabs();
+
       // Initialize toolbar buttons
       initToolbarButtons();
+
+      // Initialize sheet tabs
+      initSheetTabs();
 
       // Initialize status bar updates
       initStatusBar();
 
       // Hide loading indicator
       document.getElementById('loading').style.display = 'none';
+    }
+
+    // Cell formatting state
+    let cellFormats = {}; // Store formats by "sheetName_row_col" key
+
+    function getCellFormatKey(sheet, row, col) {
+      return `${sheet}_${row}_${col}`;
+    }
+
+    function getCellFormat(sheet, row, col) {
+      return cellFormats[getCellFormatKey(sheet, row, col)] || {};
+    }
+
+    function setCellFormat(sheet, row, col, format) {
+      const key = getCellFormatKey(sheet, row, col);
+      cellFormats[key] = { ...getCellFormat(sheet, row, col), ...format };
+      applyCellFormatToDOM(row, col, cellFormats[key]);
+      updateFileModified(true);
+    }
+
+    function applyCellFormatToDOM(row, col, format) {
+      const cell = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+      if (!cell) return;
+
+      if (format.fontFamily) cell.style.fontFamily = format.fontFamily;
+      if (format.fontSize) cell.style.fontSize = format.fontSize + 'px';
+      if (format.bold !== undefined) cell.style.fontWeight = format.bold ? 'bold' : 'normal';
+      if (format.italic !== undefined) cell.style.fontStyle = format.italic ? 'italic' : 'normal';
+      if (format.underline !== undefined) cell.style.textDecoration = format.underline ? 'underline' : (format.strikethrough ? 'line-through' : 'none');
+      if (format.strikethrough !== undefined) cell.style.textDecoration = format.strikethrough ? 'line-through' : (format.underline ? 'underline' : 'none');
+      if (format.textColor) cell.style.color = format.textColor;
+      if (format.fillColor) cell.style.backgroundColor = format.fillColor;
+      if (format.textAlign) cell.style.textAlign = format.textAlign;
+      if (format.verticalAlign) cell.style.verticalAlign = format.verticalAlign;
+      if (format.wrap !== undefined) cell.style.whiteSpace = format.wrap ? 'pre-wrap' : 'nowrap';
+      if (format.border) applyBorderToCell(cell, format.border);
+    }
+
+    function applyBorderToCell(cell, borderType) {
+      const borderStyle = '1px solid #000';
+      cell.style.border = '';
+      switch (borderType) {
+        case 'all': cell.style.border = borderStyle; break;
+        case 'outer': cell.style.border = borderStyle; break;
+        case 'top': cell.style.borderTop = borderStyle; break;
+        case 'bottom': cell.style.borderBottom = borderStyle; break;
+        case 'left': cell.style.borderLeft = borderStyle; break;
+        case 'right': cell.style.borderRight = borderStyle; break;
+        case 'none': cell.style.border = '1px solid #e0e0e0'; break;
+      }
+    }
+
+    // Number formatting functions
+    function formatNumber(value, format, decimals = 2) {
+      const num = parseFloat(value);
+      if (isNaN(num)) return value;
+
+      switch (format) {
+        case 'number': return num.toFixed(decimals);
+        case 'currency': return '$' + num.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        case 'accounting': return num < 0 ? '($' + Math.abs(num).toFixed(decimals) + ')' : '$' + num.toFixed(decimals);
+        case 'percentage': return (num * 100).toFixed(decimals) + '%';
+        case 'scientific': return num.toExponential(decimals);
+        case 'date-short': return new Date(num).toLocaleDateString();
+        case 'date-long': return new Date(num).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        case 'time': return new Date(num).toLocaleTimeString();
+        default: return value;
+      }
+    }
+
+    // Initialize ribbon tabs
+    function initRibbonTabs() {
+      const tabs = document.querySelectorAll('.ribbon-tab');
+      const sections = document.querySelectorAll('.toolbar-section');
+
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const tabName = tab.dataset.tab;
+
+          // Update active tab
+          tabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+
+          // Show corresponding toolbar section
+          sections.forEach(section => {
+            section.classList.remove('active');
+            if (section.id === `toolbar-${tabName}`) {
+              section.classList.add('active');
+            }
+          });
+
+          console.log('[Ribbon] Switched to tab:', tabName);
+        });
+      });
+
+      console.log('[Ribbon] Tabs initialized');
     }
 
     // Initialize toolbar button click handlers
@@ -590,45 +2248,1776 @@
         updateStatusBar();
       });
 
-      // Clipboard operations
-      document.getElementById('btn-cut')?.addEventListener('click', () => {
-        if (window.cutSelectedCells) window.cutSelectedCells();
-      });
-      document.getElementById('btn-copy')?.addEventListener('click', () => {
-        if (window.copySelectedCells) window.copySelectedCells();
-      });
-      document.getElementById('btn-paste')?.addEventListener('click', () => {
-        if (window.pasteCells) window.pasteCells();
-        updateStatusBar();
+      // Font Family
+      document.getElementById('font-family')?.addEventListener('change', (e) => {
+        setCellFormat(currentSheet, selectedCell.row, selectedCell.col, { fontFamily: e.target.value });
       });
 
-      // Bold/Italic (placeholder for future formatting)
-      document.getElementById('btn-bold')?.addEventListener('click', () => {
-        console.log('[Toolbar] Bold clicked - formatting coming soon');
+      // Font Size
+      document.getElementById('font-size')?.addEventListener('change', (e) => {
+        setCellFormat(currentSheet, selectedCell.row, selectedCell.col, { fontSize: parseInt(e.target.value) });
       });
-      document.getElementById('btn-italic')?.addEventListener('click', () => {
-        console.log('[Toolbar] Italic clicked - formatting coming soon');
+
+      // Text formatting toggles
+      const toggleFormat = (btnId, formatKey) => {
+        document.getElementById(btnId)?.addEventListener('click', (e) => {
+          const btn = e.currentTarget;
+          const isActive = btn.classList.toggle('active');
+          setCellFormat(currentSheet, selectedCell.row, selectedCell.col, { [formatKey]: isActive });
+        });
+      };
+
+      toggleFormat('btn-bold', 'bold');
+      toggleFormat('btn-italic', 'italic');
+      toggleFormat('btn-underline', 'underline');
+      toggleFormat('btn-strikethrough', 'strikethrough');
+      toggleFormat('btn-wrap', 'wrap');
+
+      // Text Color
+      document.getElementById('text-color-btn')?.addEventListener('click', () => {
+        document.getElementById('text-color-picker').click();
+      });
+      document.getElementById('text-color-picker')?.addEventListener('input', (e) => {
+        document.getElementById('text-color-indicator').style.background = e.target.value;
+        setCellFormat(currentSheet, selectedCell.row, selectedCell.col, { textColor: e.target.value });
+      });
+
+      // Fill Color
+      document.getElementById('fill-color-btn')?.addEventListener('click', () => {
+        document.getElementById('fill-color-picker').click();
+      });
+      document.getElementById('fill-color-picker')?.addEventListener('input', (e) => {
+        document.getElementById('fill-color-indicator').style.background = e.target.value;
+        document.getElementById('fill-color-indicator').style.border = 'none';
+        setCellFormat(currentSheet, selectedCell.row, selectedCell.col, { fillColor: e.target.value });
+      });
+
+      // Borders dropdown
+      initDropdown('border-dropdown', 'btn-borders', 'border-menu');
+      document.querySelectorAll('#border-menu .dropdown-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const borderType = item.dataset.border;
+          setCellFormat(currentSheet, selectedCell.row, selectedCell.col, { border: borderType });
+          closeAllDropdowns();
+        });
+      });
+
+      // Alignment buttons
+      const alignBtns = ['btn-align-left', 'btn-align-center', 'btn-align-right'];
+      alignBtns.forEach(btnId => {
+        document.getElementById(btnId)?.addEventListener('click', (e) => {
+          alignBtns.forEach(id => document.getElementById(id)?.classList.remove('active'));
+          e.currentTarget.classList.add('active');
+          const align = btnId.replace('btn-align-', '');
+          setCellFormat(currentSheet, selectedCell.row, selectedCell.col, { textAlign: align });
+        });
+      });
+
+      const valignBtns = ['btn-valign-top', 'btn-valign-middle', 'btn-valign-bottom'];
+      valignBtns.forEach(btnId => {
+        document.getElementById(btnId)?.addEventListener('click', (e) => {
+          valignBtns.forEach(id => document.getElementById(id)?.classList.remove('active'));
+          e.currentTarget.classList.add('active');
+          const valign = btnId.replace('btn-valign-', '');
+          setCellFormat(currentSheet, selectedCell.row, selectedCell.col, { verticalAlign: valign });
+        });
+      });
+
+      // Number Format
+      document.getElementById('number-format')?.addEventListener('change', (e) => {
+        const format = e.target.value;
+        const cellData = getCellDataInternal(currentSheet, selectedCell.row, selectedCell.col);
+        const value = cellData?.v?.v ?? cellData?.v ?? '';
+        const formattedValue = formatNumber(value, format);
+
+        const cell = document.querySelector(`td[data-row="${selectedCell.row}"][data-col="${selectedCell.col}"]`);
+        if (cell) cell.textContent = formattedValue;
+        setCellFormat(currentSheet, selectedCell.row, selectedCell.col, { numberFormat: format });
+      });
+
+      // Decimal buttons
+      let currentDecimals = 2;
+      document.getElementById('btn-decimal-increase')?.addEventListener('click', () => {
+        currentDecimals = Math.min(currentDecimals + 1, 10);
+        const format = document.getElementById('number-format')?.value || 'number';
+        const cellData = getCellDataInternal(currentSheet, selectedCell.row, selectedCell.col);
+        const value = cellData?.v?.v ?? cellData?.v ?? '';
+        const cell = document.querySelector(`td[data-row="${selectedCell.row}"][data-col="${selectedCell.col}"]`);
+        if (cell) cell.textContent = formatNumber(value, format, currentDecimals);
+      });
+
+      document.getElementById('btn-decimal-decrease')?.addEventListener('click', () => {
+        currentDecimals = Math.max(currentDecimals - 1, 0);
+        const format = document.getElementById('number-format')?.value || 'number';
+        const cellData = getCellDataInternal(currentSheet, selectedCell.row, selectedCell.col);
+        const value = cellData?.v?.v ?? cellData?.v ?? '';
+        const cell = document.querySelector(`td[data-row="${selectedCell.row}"][data-col="${selectedCell.col}"]`);
+        if (cell) cell.textContent = formatNumber(value, format, currentDecimals);
+      });
+
+      // Merge cells (toggle merge/unmerge)
+      document.getElementById('btn-merge')?.addEventListener('click', () => {
+        // Check if current cell is already merged
+        if (mergedCells[currentSheet]) {
+          const existingMerge = mergedCells[currentSheet].find(m =>
+            selectedCell.row >= m.startRow && selectedCell.row <= m.endRow &&
+            selectedCell.col >= m.startCol && selectedCell.col <= m.endCol
+          );
+          if (existingMerge) {
+            // Unmerge
+            unmergeCells(currentSheet, selectedCell.row, selectedCell.col);
+            return;
+          }
+        }
+
+        // Otherwise, try to merge
+        if (!selectionRange || (selectionRange.startRow === selectionRange.endRow && selectionRange.startCol === selectionRange.endCol)) {
+          console.log('[Merge] No multi-cell selection - select multiple cells first');
+          alert('Select multiple cells to merge:\n1. Click on a cell\n2. Shift+Click on another cell\n3. Click Merge button');
+          return;
+        }
+        mergeCells(currentSheet, selectionRange.startRow, selectionRange.startCol, selectionRange.endRow, selectionRange.endCol);
       });
 
       // Insert/Delete operations
       document.getElementById('btn-insert-row')?.addEventListener('click', () => {
         if (window.insertRows) window.insertRows(selectedCell.row, 1);
-        updateStatusBar();
-      });
-      document.getElementById('btn-insert-col')?.addEventListener('click', () => {
-        if (window.insertColumns) window.insertColumns(selectedCell.col, 1);
-        updateStatusBar();
-      });
-      document.getElementById('btn-delete-row')?.addEventListener('click', () => {
-        if (window.deleteRows) window.deleteRows(selectedCell.row, 1);
-        updateStatusBar();
-      });
-      document.getElementById('btn-delete-col')?.addEventListener('click', () => {
-        if (window.deleteColumns) window.deleteColumns(selectedCell.col, 1);
+        else insertRowAtPosition(selectedCell.row);
         updateStatusBar();
       });
 
+      document.getElementById('btn-delete-row')?.addEventListener('click', () => {
+        if (window.deleteRows) window.deleteRows(selectedCell.row, 1);
+        else deleteRowAtPosition(selectedCell.row);
+        updateStatusBar();
+      });
+
+      // Freeze panes dropdown
+      initDropdown('freeze-dropdown', 'btn-freeze', 'freeze-menu');
+      document.querySelectorAll('#freeze-menu .dropdown-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const freezeType = item.dataset.freeze;
+          applyFreezePanes(freezeType);
+          closeAllDropdowns();
+        });
+      });
+
+      // Chart dropdown
+      initDropdown('chart-dropdown', 'btn-chart', 'chart-menu');
+      document.querySelectorAll('#chart-menu .dropdown-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const chartType = item.dataset.chart;
+          openChartModal(chartType);
+          closeAllDropdowns();
+        });
+      });
+
+      // Sort buttons
+      document.getElementById('btn-sort-asc')?.addEventListener('click', () => {
+        sortSelection('asc');
+      });
+      document.getElementById('btn-sort-desc')?.addEventListener('click', () => {
+        sortSelection('desc');
+      });
+
+      // Filter button
+      document.getElementById('btn-filter')?.addEventListener('click', () => {
+        toggleFilter();
+      });
+
+      // Find & Replace button
+      document.getElementById('btn-find')?.addEventListener('click', () => {
+        toggleFindModal();
+      });
+
+      // Chart modal buttons
+      document.getElementById('chart-modal-close')?.addEventListener('click', closeChartModal);
+      document.getElementById('chart-cancel')?.addEventListener('click', closeChartModal);
+      document.getElementById('chart-insert')?.addEventListener('click', insertChart);
+
+      // Chart type selection
+      document.querySelectorAll('.chart-type-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentChartType = btn.dataset.type;
+          updateChartPreview();
+        });
+      });
+
+      // Chart config changes trigger preview update
+      document.getElementById('chart-data-range')?.addEventListener('input', updateChartPreview);
+      document.getElementById('chart-title')?.addEventListener('input', updateChartPreview);
+      document.getElementById('chart-legend')?.addEventListener('change', updateChartPreview);
+
+      // Find modal handlers
+      document.getElementById('find-modal-close')?.addEventListener('click', closeFindModal);
+      document.getElementById('find-next')?.addEventListener('click', () => findNext());
+      document.getElementById('find-prev')?.addEventListener('click', () => findPrev());
+      document.getElementById('replace-one')?.addEventListener('click', replaceOne);
+      document.getElementById('replace-all')?.addEventListener('click', replaceAll);
+      document.getElementById('find-input')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') findNext();
+        if (e.key === 'Escape') closeFindModal();
+      });
+
+      // ==========================================
+      // FILE TAB HANDLERS
+      // ==========================================
+      document.getElementById('btn-new-file')?.addEventListener('click', () => {
+        if (isModified && !confirm('You have unsaved changes. Create new spreadsheet anyway?')) return;
+        createNewSpreadsheet();
+      });
+
+      document.getElementById('btn-open-file')?.addEventListener('click', () => {
+        if (isModified && !confirm('You have unsaved changes. Open another file anyway?')) return;
+        openFileDialog();
+      });
+
+      document.getElementById('btn-save-file')?.addEventListener('click', () => {
+        saveSpreadsheet();
+      });
+
+      document.getElementById('btn-export-xlsx')?.addEventListener('click', () => {
+        exportToExcel();
+      });
+
+      document.getElementById('btn-print')?.addEventListener('click', () => {
+        printSpreadsheet();
+      });
+
+      // ==========================================
+      // INSERT TAB HANDLERS
+      // ==========================================
+      document.getElementById('btn-insert-row-tab')?.addEventListener('click', () => {
+        if (window.insertRows) window.insertRows(selectedCell.row, 1);
+        else insertRowAtPosition(selectedCell.row);
+        updateStatusBar();
+      });
+
+      document.getElementById('btn-insert-col-tab')?.addEventListener('click', () => {
+        insertColumnAtPosition(selectedCell.col);
+        updateStatusBar();
+      });
+
+      document.getElementById('btn-insert-chart-tab')?.addEventListener('click', () => {
+        openChartModal('bar');
+      });
+
+      document.getElementById('btn-insert-image')?.addEventListener('click', () => {
+        insertImage();
+      });
+
+      document.getElementById('btn-insert-link')?.addEventListener('click', () => {
+        insertLink();
+      });
+
+      // ==========================================
+      // PAGE LAYOUT TAB HANDLERS
+      // ==========================================
+      document.getElementById('btn-page-orientation')?.addEventListener('click', () => {
+        const current = pageSettings.orientation;
+        const newOrientation = current === 'portrait' ? 'landscape' : 'portrait';
+        setPageOrientation(newOrientation);
+        alert(`Page orientation set to: ${newOrientation}`);
+      });
+
+      document.getElementById('btn-page-margins')?.addEventListener('click', () => {
+        const margins = ['normal', 'narrow', 'wide'];
+        const currentIndex = margins.indexOf(pageSettings.margins);
+        const nextIndex = (currentIndex + 1) % margins.length;
+        setPageMargins(margins[nextIndex]);
+        alert(`Page margins set to: ${margins[nextIndex]}`);
+      });
+
+      document.getElementById('btn-grid-lines')?.addEventListener('click', (e) => {
+        const btn = e.currentTarget;
+        const isActive = btn.classList.toggle('active');
+        toggleGridlines(!isActive); // Toggle opposite of current state
+      });
+
+      // btn-print-area is already handled above
+
+      // ==========================================
+      // FORMULAS TAB HANDLERS
+      // ==========================================
+      document.getElementById('btn-insert-function')?.addEventListener('click', () => {
+        openFunctionWizard();
+      });
+
+      document.getElementById('btn-autosum')?.addEventListener('click', () => {
+        insertAutoFormula('sum');
+      });
+
+      document.getElementById('btn-formula-average')?.addEventListener('click', () => {
+        insertAutoFormula('average');
+      });
+
+      document.getElementById('btn-formula-count')?.addEventListener('click', () => {
+        insertAutoFormula('count');
+      });
+
+      document.getElementById('btn-formula-max')?.addEventListener('click', () => {
+        insertAutoFormula('max');
+      });
+
+      document.getElementById('btn-formula-min')?.addEventListener('click', () => {
+        insertAutoFormula('min');
+      });
+
+      document.getElementById('btn-show-formulas')?.addEventListener('click', (e) => {
+        const btn = e.currentTarget;
+        const isActive = btn.classList.toggle('active');
+        toggleShowFormulas(isActive);
+      });
+
+      // ==========================================
+      // DATA TAB HANDLERS
+      // ==========================================
+      document.getElementById('btn-sort-asc-tab')?.addEventListener('click', () => {
+        sortSelection('asc');
+      });
+
+      document.getElementById('btn-sort-desc-tab')?.addEventListener('click', () => {
+        sortSelection('desc');
+      });
+
+      document.getElementById('btn-filter-tab')?.addEventListener('click', () => {
+        toggleFilter();
+      });
+
+      document.getElementById('btn-remove-duplicates')?.addEventListener('click', () => {
+        removeDuplicates();
+      });
+
+      document.getElementById('btn-data-validation')?.addEventListener('click', () => {
+        openDataValidationDialog();
+      });
+
+      document.getElementById('btn-text-to-columns')?.addEventListener('click', () => {
+        openTextToColumnsWizard();
+      });
+
+      // Close dropdowns when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.toolbar-dropdown')) {
+          closeAllDropdowns();
+        }
+      });
+
       console.log('[Toolbar] Button handlers initialized');
+    }
+
+    // Dropdown helper functions
+    function initDropdown(dropdownId, btnId, menuId) {
+      document.getElementById(btnId)?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const dropdown = document.getElementById(dropdownId);
+        const wasOpen = dropdown.classList.contains('open');
+        closeAllDropdowns();
+        if (!wasOpen) dropdown.classList.add('open');
+      });
+    }
+
+    function closeAllDropdowns() {
+      document.querySelectorAll('.toolbar-dropdown').forEach(d => d.classList.remove('open'));
+    }
+
+    // Freeze panes implementation
+    function applyFreezePanes(type) {
+      const container = document.getElementById('spreadsheet-container');
+      const table = container.querySelector('table');
+      if (!table) return;
+
+      // Reset all freeze styles
+      table.querySelectorAll('th, td').forEach(cell => {
+        cell.style.position = '';
+        cell.style.top = '';
+        cell.style.left = '';
+        cell.style.zIndex = '';
+      });
+
+      if (type === 'none') return;
+
+      if (type === 'row' || type === 'both') {
+        // Freeze first row
+        table.querySelectorAll('thead th').forEach(th => {
+          th.style.position = 'sticky';
+          th.style.top = '0';
+          th.style.zIndex = '2';
+        });
+      }
+
+      if (type === 'col' || type === 'both') {
+        // Freeze first column (row headers)
+        table.querySelectorAll('tr td:first-child, tr th:first-child').forEach((cell, i) => {
+          cell.style.position = 'sticky';
+          cell.style.left = '0';
+          cell.style.zIndex = i === 0 ? '3' : '1';
+        });
+      }
+
+      console.log('[Toolbar] Applied freeze panes:', type);
+    }
+
+    // ==========================================
+    // Chart System
+    // ==========================================
+    let currentChartType = 'bar';
+    let embeddedCharts = []; // Store embedded chart info
+    const chartColors = ['#f59e0b', '#3b82f6', '#22c55e', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+
+    function openChartModal(chartType = 'bar') {
+      currentChartType = chartType;
+      document.querySelectorAll('.chart-type-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.type === chartType);
+      });
+
+      // Pre-populate data range from selection
+      if (selectionRange) {
+        const startCol = String.fromCharCode(65 + Math.min(selectionRange.startCol, selectionRange.endCol));
+        const endCol = String.fromCharCode(65 + Math.max(selectionRange.startCol, selectionRange.endCol));
+        const startRow = Math.min(selectionRange.startRow, selectionRange.endRow) + 1;
+        const endRow = Math.max(selectionRange.startRow, selectionRange.endRow) + 1;
+        document.getElementById('chart-data-range').value = `${startCol}${startRow}:${endCol}${endRow}`;
+      } else {
+        document.getElementById('chart-data-range').value = 'A1:D5';
+      }
+
+      document.getElementById('chart-modal').classList.add('open');
+      updateChartPreview();
+    }
+
+    function closeChartModal() {
+      document.getElementById('chart-modal').classList.remove('open');
+    }
+
+    function parseRange(rangeStr) {
+      const match = rangeStr.match(/([A-Z]+)(\d+):([A-Z]+)(\d+)/i);
+      if (!match) return null;
+
+      const startCol = match[1].toUpperCase().charCodeAt(0) - 65;
+      const startRow = parseInt(match[2]) - 1;
+      const endCol = match[3].toUpperCase().charCodeAt(0) - 65;
+      const endRow = parseInt(match[4]) - 1;
+
+      return { startCol, startRow, endCol, endRow };
+    }
+
+    function getDataFromRange(rangeStr) {
+      const range = parseRange(rangeStr);
+      if (!range) return { labels: [], datasets: [] };
+
+      const sheet = spreadsheetData.find(s => s.name === currentSheet);
+      if (!sheet) return { labels: [], datasets: [] };
+
+      const data = [];
+      for (let r = range.startRow; r <= range.endRow; r++) {
+        const row = [];
+        for (let c = range.startCol; c <= range.endCol; c++) {
+          const cellData = sheet.celldata.find(cell => cell.r === r && cell.c === c);
+          row.push(cellData?.v?.v ?? cellData?.v ?? '');
+        }
+        data.push(row);
+      }
+
+      // Assume first row is labels, first column is series names
+      const labels = data[0].slice(1);
+      const datasets = data.slice(1).map((row, i) => ({
+        label: row[0] || `Series ${i + 1}`,
+        data: row.slice(1).map(v => parseFloat(v) || 0),
+        color: chartColors[i % chartColors.length]
+      }));
+
+      return { labels, datasets };
+    }
+
+    function updateChartPreview() {
+      const canvas = document.getElementById('chart-preview-canvas');
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      const rangeStr = document.getElementById('chart-data-range').value;
+      const title = document.getElementById('chart-title').value;
+      const showLegend = document.getElementById('chart-legend').checked;
+
+      const { labels, datasets } = getDataFromRange(rangeStr);
+      drawChart(ctx, canvas.width, canvas.height, currentChartType, labels, datasets, title, showLegend);
+    }
+
+    function drawChart(ctx, width, height, type, labels, datasets, title, showLegend) {
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+
+      if (!datasets.length || !labels.length) {
+        ctx.fillStyle = '#999';
+        ctx.font = '14px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('No data to display', width / 2, height / 2);
+        ctx.fillText('Select a data range', width / 2, height / 2 + 20);
+        return;
+      }
+
+      const padding = { top: 40, right: 20, bottom: 60, left: 60 };
+      if (showLegend) padding.right += 100;
+      if (title) padding.top += 20;
+
+      const chartWidth = width - padding.left - padding.right;
+      const chartHeight = height - padding.top - padding.bottom;
+
+      // Draw title
+      if (title) {
+        ctx.fillStyle = '#1f2937';
+        ctx.font = 'bold 16px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(title, width / 2, 25);
+      }
+
+      // Get data range
+      let allValues = datasets.flatMap(d => d.data);
+      const maxVal = Math.max(...allValues, 0) * 1.1;
+      const minVal = Math.min(...allValues, 0);
+
+      switch (type) {
+        case 'bar':
+          drawBarChart(ctx, padding, chartWidth, chartHeight, labels, datasets, maxVal);
+          break;
+        case 'line':
+          drawLineChart(ctx, padding, chartWidth, chartHeight, labels, datasets, maxVal, minVal);
+          break;
+        case 'pie':
+          drawPieChart(ctx, width, height, padding, datasets);
+          break;
+        case 'scatter':
+          drawScatterChart(ctx, padding, chartWidth, chartHeight, labels, datasets, maxVal, minVal);
+          break;
+        case 'area':
+          drawAreaChart(ctx, padding, chartWidth, chartHeight, labels, datasets, maxVal, minVal);
+          break;
+      }
+
+      // Draw legend
+      if (showLegend && type !== 'pie') {
+        drawLegend(ctx, width - padding.right + 10, padding.top, datasets);
+      }
+
+      // Draw axes (except for pie)
+      if (type !== 'pie') {
+        drawAxes(ctx, padding, chartWidth, chartHeight, labels, maxVal);
+      }
+    }
+
+    function drawBarChart(ctx, padding, chartWidth, chartHeight, labels, datasets, maxVal) {
+      const groupWidth = chartWidth / labels.length;
+      const barWidth = (groupWidth * 0.8) / datasets.length;
+      const barGap = groupWidth * 0.1;
+
+      datasets.forEach((dataset, di) => {
+        ctx.fillStyle = dataset.color;
+        dataset.data.forEach((value, i) => {
+          const barHeight = (value / maxVal) * chartHeight;
+          const x = padding.left + i * groupWidth + barGap + di * barWidth;
+          const y = padding.top + chartHeight - barHeight;
+          ctx.fillRect(x, y, barWidth - 2, barHeight);
+        });
+      });
+    }
+
+    function drawLineChart(ctx, padding, chartWidth, chartHeight, labels, datasets, maxVal, minVal) {
+      const range = maxVal - minVal;
+      const pointGap = chartWidth / (labels.length - 1 || 1);
+
+      datasets.forEach(dataset => {
+        ctx.beginPath();
+        ctx.strokeStyle = dataset.color;
+        ctx.lineWidth = 2;
+
+        dataset.data.forEach((value, i) => {
+          const x = padding.left + i * pointGap;
+          const y = padding.top + chartHeight - ((value - minVal) / range) * chartHeight;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Draw points
+        ctx.fillStyle = dataset.color;
+        dataset.data.forEach((value, i) => {
+          const x = padding.left + i * pointGap;
+          const y = padding.top + chartHeight - ((value - minVal) / range) * chartHeight;
+          ctx.beginPath();
+          ctx.arc(x, y, 4, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      });
+    }
+
+    function drawAreaChart(ctx, padding, chartWidth, chartHeight, labels, datasets, maxVal, minVal) {
+      const range = maxVal - minVal;
+      const pointGap = chartWidth / (labels.length - 1 || 1);
+
+      datasets.forEach(dataset => {
+        ctx.beginPath();
+        ctx.fillStyle = dataset.color + '40'; // Add transparency
+        ctx.strokeStyle = dataset.color;
+        ctx.lineWidth = 2;
+
+        // Start from bottom left
+        ctx.moveTo(padding.left, padding.top + chartHeight);
+
+        dataset.data.forEach((value, i) => {
+          const x = padding.left + i * pointGap;
+          const y = padding.top + chartHeight - ((value - minVal) / range) * chartHeight;
+          ctx.lineTo(x, y);
+        });
+
+        // Close path back to bottom
+        ctx.lineTo(padding.left + (dataset.data.length - 1) * pointGap, padding.top + chartHeight);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      });
+    }
+
+    function drawPieChart(ctx, width, height, padding, datasets) {
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const radius = Math.min(width, height) / 2 - 60;
+
+      // Sum all first series data points
+      const data = datasets[0]?.data || [];
+      const total = data.reduce((a, b) => a + b, 0);
+      if (total === 0) return;
+
+      let startAngle = -Math.PI / 2;
+      data.forEach((value, i) => {
+        const sliceAngle = (value / total) * Math.PI * 2;
+
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
+        ctx.closePath();
+        ctx.fillStyle = chartColors[i % chartColors.length];
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw label
+        const labelAngle = startAngle + sliceAngle / 2;
+        const labelRadius = radius * 0.7;
+        const labelX = centerX + Math.cos(labelAngle) * labelRadius;
+        const labelY = centerY + Math.sin(labelAngle) * labelRadius;
+        const percent = Math.round((value / total) * 100);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${percent}%`, labelX, labelY);
+
+        startAngle += sliceAngle;
+      });
+    }
+
+    function drawScatterChart(ctx, padding, chartWidth, chartHeight, labels, datasets, maxVal, minVal) {
+      const range = maxVal - minVal || 1;
+
+      datasets.forEach(dataset => {
+        ctx.fillStyle = dataset.color;
+        dataset.data.forEach((value, i) => {
+          const x = padding.left + (i / (dataset.data.length - 1 || 1)) * chartWidth;
+          const y = padding.top + chartHeight - ((value - minVal) / range) * chartHeight;
+          ctx.beginPath();
+          ctx.arc(x, y, 6, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      });
+    }
+
+    function drawAxes(ctx, padding, chartWidth, chartHeight, labels, maxVal) {
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+
+      // Y-axis
+      ctx.beginPath();
+      ctx.moveTo(padding.left, padding.top);
+      ctx.lineTo(padding.left, padding.top + chartHeight);
+      ctx.stroke();
+
+      // X-axis
+      ctx.beginPath();
+      ctx.moveTo(padding.left, padding.top + chartHeight);
+      ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
+      ctx.stroke();
+
+      // Y-axis labels
+      ctx.fillStyle = '#6b7280';
+      ctx.font = '11px system-ui';
+      ctx.textAlign = 'right';
+      for (let i = 0; i <= 5; i++) {
+        const y = padding.top + chartHeight - (i / 5) * chartHeight;
+        const value = (maxVal * i / 5).toFixed(0);
+        ctx.fillText(value, padding.left - 8, y + 4);
+
+        // Grid line
+        ctx.strokeStyle = '#f3f4f6';
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(padding.left + chartWidth, y);
+        ctx.stroke();
+      }
+
+      // X-axis labels
+      ctx.fillStyle = '#6b7280';
+      ctx.textAlign = 'center';
+      const labelGap = chartWidth / labels.length;
+      labels.forEach((label, i) => {
+        const x = padding.left + i * labelGap + labelGap / 2;
+        ctx.fillText(String(label).substring(0, 10), x, padding.top + chartHeight + 20);
+      });
+    }
+
+    function drawLegend(ctx, x, y, datasets) {
+      ctx.font = '11px system-ui';
+      ctx.textAlign = 'left';
+
+      datasets.forEach((dataset, i) => {
+        const itemY = y + i * 20;
+        ctx.fillStyle = dataset.color;
+        ctx.fillRect(x, itemY, 12, 12);
+        ctx.fillStyle = '#374151';
+        ctx.fillText(String(dataset.label).substring(0, 15), x + 18, itemY + 10);
+      });
+    }
+
+    function insertChart() {
+      const rangeStr = document.getElementById('chart-data-range').value;
+      const title = document.getElementById('chart-title').value;
+      const showLegend = document.getElementById('chart-legend').checked;
+      const xLabel = document.getElementById('chart-x-label').value;
+      const yLabel = document.getElementById('chart-y-label').value;
+
+      const { labels, datasets } = getDataFromRange(rangeStr);
+
+      // Create embedded chart
+      const chartId = 'chart-' + Date.now();
+      const container = document.getElementById('spreadsheet-container');
+
+      const chartDiv = document.createElement('div');
+      chartDiv.className = 'embedded-chart';
+      chartDiv.id = chartId;
+      chartDiv.style.left = '100px';
+      chartDiv.style.top = '100px';
+      chartDiv.style.width = '450px';
+      chartDiv.style.height = '350px';
+
+      chartDiv.innerHTML = `
+        <div class="embedded-chart-header">
+          <span class="embedded-chart-title">${title || 'Chart'}</span>
+          <button class="embedded-chart-close" onclick="removeChart('${chartId}')">&times;</button>
+        </div>
+        <div class="embedded-chart-body">
+          <canvas id="${chartId}-canvas" width="430" height="290"></canvas>
+        </div>
+      `;
+
+      container.appendChild(chartDiv);
+
+      // Make draggable
+      makeDraggable(chartDiv, chartDiv.querySelector('.embedded-chart-header'));
+
+      // Draw chart
+      const canvas = document.getElementById(chartId + '-canvas');
+      const ctx = canvas.getContext('2d');
+      drawChart(ctx, canvas.width, canvas.height, currentChartType, labels, datasets, title, showLegend);
+
+      // Store chart info
+      embeddedCharts.push({
+        id: chartId,
+        type: currentChartType,
+        dataRange: rangeStr,
+        title,
+        showLegend,
+        xLabel,
+        yLabel
+      });
+
+      closeChartModal();
+      updateFileModified(true);
+      console.log('[Chart] Inserted chart:', chartId);
+    }
+
+    window.removeChart = function(chartId) {
+      const chart = document.getElementById(chartId);
+      if (chart) chart.remove();
+      embeddedCharts = embeddedCharts.filter(c => c.id !== chartId);
+      updateFileModified(true);
+    };
+
+    function makeDraggable(element, handle) {
+      let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+      handle.onmousedown = dragMouseDown;
+
+      function dragMouseDown(e) {
+        e.preventDefault();
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = closeDragElement;
+        document.onmousemove = elementDrag;
+      }
+
+      function elementDrag(e) {
+        e.preventDefault();
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        element.style.top = (element.offsetTop - pos2) + "px";
+        element.style.left = (element.offsetLeft - pos1) + "px";
+      }
+
+      function closeDragElement() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+      }
+    }
+
+    // ==========================================
+    // Sort & Filter System
+    // ==========================================
+    let filterActive = false;
+    let filterDropdowns = [];
+
+    function sortSelection(direction) {
+      const sheet = spreadsheetData.find(s => s.name === currentSheet);
+      if (!sheet) return;
+
+      let startRow, endRow, sortCol;
+
+      if (selectionRange) {
+        startRow = Math.min(selectionRange.startRow, selectionRange.endRow);
+        endRow = Math.max(selectionRange.startRow, selectionRange.endRow);
+        sortCol = Math.min(selectionRange.startCol, selectionRange.endCol);
+      } else {
+        // Sort entire column from selected cell
+        sortCol = selectedCell.col;
+        startRow = 0;
+        endRow = 99;
+      }
+
+      // Get all cells in sort range
+      const cellsInRange = sheet.celldata.filter(c => c.c === sortCol && c.r >= startRow && c.r <= endRow);
+      if (cellsInRange.length === 0) return;
+
+      // Sort the cells
+      cellsInRange.sort((a, b) => {
+        const aVal = a.v?.v ?? a.v ?? '';
+        const bVal = b.v?.v ?? b.v ?? '';
+        const aNum = parseFloat(aVal);
+        const bNum = parseFloat(bVal);
+
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+          return direction === 'asc' ? aNum - bNum : bNum - aNum;
+        }
+        return direction === 'asc' ?
+          String(aVal).localeCompare(String(bVal)) :
+          String(bVal).localeCompare(String(aVal));
+      });
+
+      // Reassign row indices
+      cellsInRange.forEach((cell, i) => {
+        cell.r = startRow + i;
+      });
+
+      // Re-render
+      initFallbackGrid();
+      updateFileModified(true);
+      console.log('[Sort] Sorted column', String.fromCharCode(65 + sortCol), direction);
+    }
+
+    function toggleFilter() {
+      filterActive = !filterActive;
+      const btn = document.getElementById('btn-filter');
+      btn?.classList.toggle('active', filterActive);
+
+      if (filterActive) {
+        addFilterDropdowns();
+      } else {
+        removeFilterDropdowns();
+      }
+    }
+
+    function addFilterDropdowns() {
+      const table = document.querySelector('#simple-grid table');
+      if (!table) return;
+
+      const headerRow = table.querySelector('thead tr');
+      if (!headerRow) return;
+
+      headerRow.querySelectorAll('th').forEach((th, col) => {
+        if (col === 0) return; // Skip row header
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'filter-dropdown';
+        dropdown.innerHTML = `
+          <button class="filter-dropdown-btn" title="Filter">▼</button>
+          <div class="filter-dropdown-menu">
+            <input type="text" placeholder="Filter..." class="filter-input" data-col="${col - 1}">
+            <button class="filter-apply-btn">Apply</button>
+            <button class="filter-clear-btn">Clear</button>
+          </div>
+        `;
+
+        th.style.position = 'relative';
+        th.appendChild(dropdown);
+        filterDropdowns.push(dropdown);
+
+        // Event handlers
+        dropdown.querySelector('.filter-dropdown-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          dropdown.classList.toggle('open');
+        });
+
+        dropdown.querySelector('.filter-apply-btn').addEventListener('click', () => {
+          const input = dropdown.querySelector('.filter-input');
+          applyFilter(col - 1, input.value);
+          dropdown.classList.remove('open');
+        });
+
+        dropdown.querySelector('.filter-clear-btn').addEventListener('click', () => {
+          clearFilter(col - 1);
+          dropdown.classList.remove('open');
+        });
+      });
+    }
+
+    function removeFilterDropdowns() {
+      filterDropdowns.forEach(d => d.remove());
+      filterDropdowns = [];
+      clearAllFilters();
+    }
+
+    function applyFilter(col, value) {
+      const table = document.querySelector('#simple-grid table');
+      if (!table || !value) return;
+
+      const rows = table.querySelectorAll('tbody tr');
+      rows.forEach(row => {
+        const cell = row.querySelector(`td[data-col="${col}"]`);
+        const cellValue = cell?.textContent || '';
+        const matches = cellValue.toLowerCase().includes(value.toLowerCase());
+        row.style.display = matches ? '' : 'none';
+      });
+
+      console.log('[Filter] Applied filter on column', String.fromCharCode(65 + col), ':', value);
+    }
+
+    function clearFilter(col) {
+      const table = document.querySelector('#simple-grid table');
+      if (!table) return;
+
+      const rows = table.querySelectorAll('tbody tr');
+      rows.forEach(row => {
+        row.style.display = '';
+      });
+    }
+
+    function clearAllFilters() {
+      const table = document.querySelector('#simple-grid table');
+      if (!table) return;
+
+      table.querySelectorAll('tbody tr').forEach(row => {
+        row.style.display = '';
+      });
+    }
+
+    // ==========================================
+    // Find & Replace System
+    // ==========================================
+    let findResults = [];
+    let currentFindIndex = -1;
+
+    function toggleFindModal() {
+      const modal = document.getElementById('find-modal');
+      modal.classList.toggle('open');
+      if (modal.classList.contains('open')) {
+        document.getElementById('find-input').focus();
+      }
+    }
+
+    function closeFindModal() {
+      document.getElementById('find-modal').classList.remove('open');
+      clearFindHighlights();
+    }
+
+    function findNext() {
+      const searchTerm = document.getElementById('find-input').value;
+      if (!searchTerm) return;
+
+      const caseSensitive = document.getElementById('find-case-sensitive').checked;
+      const wholeCell = document.getElementById('find-whole-cell').checked;
+
+      if (findResults.length === 0 || currentFindIndex === -1) {
+        performFind(searchTerm, caseSensitive, wholeCell);
+      }
+
+      if (findResults.length === 0) return;
+
+      currentFindIndex = (currentFindIndex + 1) % findResults.length;
+      highlightCurrentResult();
+    }
+
+    function findPrev() {
+      const searchTerm = document.getElementById('find-input').value;
+      if (!searchTerm) return;
+
+      const caseSensitive = document.getElementById('find-case-sensitive').checked;
+      const wholeCell = document.getElementById('find-whole-cell').checked;
+
+      if (findResults.length === 0 || currentFindIndex === -1) {
+        performFind(searchTerm, caseSensitive, wholeCell);
+      }
+
+      if (findResults.length === 0) return;
+
+      currentFindIndex = (currentFindIndex - 1 + findResults.length) % findResults.length;
+      highlightCurrentResult();
+    }
+
+    function performFind(searchTerm, caseSensitive, wholeCell) {
+      clearFindHighlights();
+      findResults = [];
+      currentFindIndex = -1;
+
+      const sheet = spreadsheetData.find(s => s.name === currentSheet);
+      if (!sheet) return;
+
+      const search = caseSensitive ? searchTerm : searchTerm.toLowerCase();
+
+      sheet.celldata.forEach(cell => {
+        let value = String(cell.v?.v ?? cell.v ?? '');
+        if (!caseSensitive) value = value.toLowerCase();
+
+        const matches = wholeCell ? value === search : value.includes(search);
+        if (matches) {
+          findResults.push({ row: cell.r, col: cell.c });
+        }
+      });
+
+      updateFindResultsDisplay();
+
+      if (findResults.length > 0) {
+        currentFindIndex = 0;
+        highlightCurrentResult();
+      }
+    }
+
+    function highlightCurrentResult() {
+      clearFindHighlights();
+
+      if (currentFindIndex < 0 || currentFindIndex >= findResults.length) return;
+
+      const result = findResults[currentFindIndex];
+      const cell = document.querySelector(`td[data-row="${result.row}"][data-col="${result.col}"]`);
+
+      if (cell) {
+        cell.classList.add('find-highlight');
+        cell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        selectCell(result.row, result.col);
+      }
+
+      updateFindResultsDisplay();
+    }
+
+    function clearFindHighlights() {
+      document.querySelectorAll('.find-highlight').forEach(el => {
+        el.classList.remove('find-highlight');
+      });
+    }
+
+    function updateFindResultsDisplay() {
+      const display = document.getElementById('find-results');
+      if (findResults.length === 0) {
+        display.textContent = '0 of 0';
+      } else {
+        display.textContent = `${currentFindIndex + 1} of ${findResults.length}`;
+      }
+    }
+
+    function replaceOne() {
+      if (currentFindIndex < 0 || currentFindIndex >= findResults.length) return;
+
+      const result = findResults[currentFindIndex];
+      const replaceValue = document.getElementById('replace-input')?.value || '';
+
+      setCellDataInternal(currentSheet, result.row, result.col, replaceValue);
+      renderCellValue(result.row, result.col, replaceValue);
+      updateFileModified(true);
+
+      // Remove this result and find next
+      findResults.splice(currentFindIndex, 1);
+      if (findResults.length > 0) {
+        currentFindIndex = currentFindIndex % findResults.length;
+        highlightCurrentResult();
+      } else {
+        currentFindIndex = -1;
+        updateFindResultsDisplay();
+      }
+    }
+
+    function replaceAll(searchTermParam, replaceValueParam, caseSensitiveParam, wholeCellParam) {
+      // Support both direct parameters and DOM element values
+      const searchTerm = searchTermParam !== undefined ? searchTermParam :
+        (document.getElementById('find-input')?.value || '');
+      const replaceValue = replaceValueParam !== undefined ? replaceValueParam :
+        (document.getElementById('replace-input')?.value || '');
+      const caseSensitive = caseSensitiveParam !== undefined ? caseSensitiveParam :
+        (document.getElementById('find-case-sensitive')?.checked || false);
+      const wholeCell = wholeCellParam !== undefined ? wholeCellParam :
+        (document.getElementById('find-whole-cell')?.checked || false);
+
+      if (!searchTerm) return { count: 0 };
+
+      performFind(searchTerm, caseSensitive, wholeCell);
+
+      let count = 0;
+      findResults.forEach(result => {
+        setCellDataInternal(currentSheet, result.row, result.col, replaceValue);
+        renderCellValue(result.row, result.col, replaceValue);
+        count++;
+      });
+
+      findResults = [];
+      currentFindIndex = -1;
+      clearFindHighlights();
+      if (document.getElementById('find-results')) {
+        updateFindResultsDisplay();
+      }
+      updateFileModified(true);
+
+      console.log('[Find] Replaced', count, 'occurrences');
+      return { count };
+    }
+
+    function selectCell(row, col) {
+      selectedCell = { row, col };
+      updateFormulaBar(row, col);
+      updateStatusBar();
+    }
+
+    function renderCellValue(row, col, value) {
+      const cell = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+      if (cell) {
+        cell.textContent = value;
+      }
+    }
+
+    // Insert row helper
+    function insertRowAtPosition(rowIndex) {
+      const sheet = spreadsheetData.find(s => s.name === currentSheet);
+      if (!sheet) return;
+
+      // Shift all cell data down
+      sheet.celldata = sheet.celldata.map(cell => {
+        if (cell.r >= rowIndex) {
+          return { ...cell, r: cell.r + 1 };
+        }
+        return cell;
+      });
+
+      // Re-render grid
+      initFallbackGrid();
+      updateFileModified(true);
+    }
+
+    // Delete row helper
+    function deleteRowAtPosition(rowIndex) {
+      const sheet = spreadsheetData.find(s => s.name === currentSheet);
+      if (!sheet) return;
+
+      // Remove cells in this row and shift others up
+      sheet.celldata = sheet.celldata
+        .filter(cell => cell.r !== rowIndex)
+        .map(cell => {
+          if (cell.r > rowIndex) {
+            return { ...cell, r: cell.r - 1 };
+          }
+          return cell;
+        });
+
+      // Re-render grid
+      initFallbackGrid();
+      updateFileModified(true);
+    }
+
+    // Selection border and fill handle elements
+    let selectionBorderEl = null;
+    let selectionFillHandle = null;
+
+    // Multi-cell selection helper
+    function updateSelectionVisuals() {
+      // Clear previous selection visuals
+      document.querySelectorAll('.cell-in-selection').forEach(cell => {
+        cell.classList.remove('cell-in-selection');
+      });
+
+      // Remove old selection border and fill handle
+      if (selectionBorderEl) {
+        selectionBorderEl.remove();
+        selectionBorderEl = null;
+      }
+      if (selectionFillHandle) {
+        selectionFillHandle.remove();
+        selectionFillHandle = null;
+      }
+
+      if (!selectionRange) return;
+
+      const minRow = Math.min(selectionRange.startRow, selectionRange.endRow);
+      const maxRow = Math.max(selectionRange.startRow, selectionRange.endRow);
+      const minCol = Math.min(selectionRange.startCol, selectionRange.endCol);
+      const maxCol = Math.max(selectionRange.startCol, selectionRange.endCol);
+
+      // Add selection background to all cells in range
+      for (let r = minRow; r <= maxRow; r++) {
+        for (let c = minCol; c <= maxCol; c++) {
+          const cell = document.querySelector(`td[data-row="${r}"][data-col="${c}"]`);
+          if (cell) cell.classList.add('cell-in-selection');
+        }
+      }
+
+      // Create selection border overlay
+      const container = document.getElementById('spreadsheet-container');
+      const firstCell = document.querySelector(`td[data-row="${minRow}"][data-col="${minCol}"]`);
+      const lastCell = document.querySelector(`td[data-row="${maxRow}"][data-col="${maxCol}"]`);
+
+      if (!firstCell || !lastCell || !container) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const firstRect = firstCell.getBoundingClientRect();
+      const lastRect = lastCell.getBoundingClientRect();
+
+      // Calculate selection bounds relative to container
+      const left = firstRect.left - containerRect.left + container.scrollLeft;
+      const top = firstRect.top - containerRect.top + container.scrollTop;
+      const width = lastRect.right - firstRect.left;
+      const height = lastRect.bottom - firstRect.top;
+
+      // Create border element
+      selectionBorderEl = document.createElement('div');
+      selectionBorderEl.className = 'selection-border';
+      selectionBorderEl.style.left = left + 'px';
+      selectionBorderEl.style.top = top + 'px';
+      selectionBorderEl.style.width = width + 'px';
+      selectionBorderEl.style.height = height + 'px';
+      container.appendChild(selectionBorderEl);
+
+      // Create fill handle at bottom-right corner
+      selectionFillHandle = document.createElement('div');
+      selectionFillHandle.className = 'selection-fill-handle';
+      selectionFillHandle.style.left = (left + width - 4) + 'px';
+      selectionFillHandle.style.top = (top + height - 4) + 'px';
+      container.appendChild(selectionFillHandle);
+
+      // Add fill handle drag functionality
+      setupFillHandleDrag(selectionFillHandle, minRow, minCol, maxRow, maxCol);
+    }
+
+    // Fill handle drag functionality
+    let isFillDragging = false;
+    let fillDragStart = null;
+    let fillPreviewEl = null;
+
+    function setupFillHandleDrag(handle, startRow, startCol, endRow, endCol) {
+      handle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        isFillDragging = true;
+        fillDragStart = { startRow, startCol, endRow, endCol };
+
+        const onMouseMove = (e) => {
+          if (!isFillDragging) return;
+
+          // Find which cell we're over
+          const target = document.elementFromPoint(e.clientX, e.clientY);
+          const cell = target?.closest('td[data-row][data-col]');
+          if (!cell) return;
+
+          const targetRow = parseInt(cell.dataset.row);
+          const targetCol = parseInt(cell.dataset.col);
+
+          // Determine fill direction (extend rows or columns)
+          updateFillPreview(fillDragStart, targetRow, targetCol);
+        };
+
+        const onMouseUp = (e) => {
+          if (!isFillDragging) return;
+          isFillDragging = false;
+
+          // Find final target cell
+          const target = document.elementFromPoint(e.clientX, e.clientY);
+          const cell = target?.closest('td[data-row][data-col]');
+
+          if (cell) {
+            const targetRow = parseInt(cell.dataset.row);
+            const targetCol = parseInt(cell.dataset.col);
+            executeFill(fillDragStart, targetRow, targetCol);
+          }
+
+          // Clean up preview
+          if (fillPreviewEl) {
+            fillPreviewEl.remove();
+            fillPreviewEl = null;
+          }
+
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+      });
+    }
+
+    function updateFillPreview(source, targetRow, targetCol) {
+      const container = document.getElementById('spreadsheet-container');
+
+      // Remove old preview
+      if (fillPreviewEl) {
+        fillPreviewEl.remove();
+      }
+
+      // Determine fill direction
+      let fillMinRow, fillMaxRow, fillMinCol, fillMaxCol;
+
+      if (targetRow > source.endRow) {
+        // Filling down
+        fillMinRow = source.endRow + 1;
+        fillMaxRow = targetRow;
+        fillMinCol = source.startCol;
+        fillMaxCol = source.endCol;
+      } else if (targetRow < source.startRow) {
+        // Filling up
+        fillMinRow = targetRow;
+        fillMaxRow = source.startRow - 1;
+        fillMinCol = source.startCol;
+        fillMaxCol = source.endCol;
+      } else if (targetCol > source.endCol) {
+        // Filling right
+        fillMinRow = source.startRow;
+        fillMaxRow = source.endRow;
+        fillMinCol = source.endCol + 1;
+        fillMaxCol = targetCol;
+      } else if (targetCol < source.startCol) {
+        // Filling left
+        fillMinRow = source.startRow;
+        fillMaxRow = source.endRow;
+        fillMinCol = targetCol;
+        fillMaxCol = source.startCol - 1;
+      } else {
+        return; // Target is within source, no fill needed
+      }
+
+      // Get cells for preview bounds
+      const firstCell = document.querySelector(`td[data-row="${fillMinRow}"][data-col="${fillMinCol}"]`);
+      const lastCell = document.querySelector(`td[data-row="${fillMaxRow}"][data-col="${fillMaxCol}"]`);
+
+      if (!firstCell || !lastCell) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const firstRect = firstCell.getBoundingClientRect();
+      const lastRect = lastCell.getBoundingClientRect();
+
+      const left = firstRect.left - containerRect.left + container.scrollLeft;
+      const top = firstRect.top - containerRect.top + container.scrollTop;
+      const width = lastRect.right - firstRect.left;
+      const height = lastRect.bottom - firstRect.top;
+
+      fillPreviewEl = document.createElement('div');
+      fillPreviewEl.className = 'fill-preview-overlay';
+      fillPreviewEl.style.left = left + 'px';
+      fillPreviewEl.style.top = top + 'px';
+      fillPreviewEl.style.width = width + 'px';
+      fillPreviewEl.style.height = height + 'px';
+      container.appendChild(fillPreviewEl);
+    }
+
+    function executeFill(source, targetRow, targetCol) {
+      // Get source data
+      const sourceData = [];
+      for (let r = source.startRow; r <= source.endRow; r++) {
+        const row = [];
+        for (let c = source.startCol; c <= source.endCol; c++) {
+          const cellData = getCellDataInternal(currentSheet, r, c);
+          // Safely extract value - handle empty cells and object values
+          let value = '';
+          if (cellData && cellData.v !== undefined && cellData.v !== null) {
+            if (typeof cellData.v === 'object' && cellData.v.v !== undefined) {
+              value = cellData.v.v;
+            } else if (typeof cellData.v !== 'object') {
+              value = cellData.v;
+            }
+            // If cellData.v is an object without a .v property, leave as empty string
+          }
+          // Ensure value is not an object
+          if (typeof value === 'object') {
+            value = '';
+          }
+          row.push({
+            value: value,
+            formula: cellData?.v?.f || null
+          });
+        }
+        sourceData.push(row);
+      }
+
+      // Determine fill direction and range
+      let fillDown = false, fillUp = false, fillRight = false, fillLeft = false;
+
+      if (targetRow > source.endRow) {
+        fillDown = true;
+      } else if (targetRow < source.startRow) {
+        fillUp = true;
+      } else if (targetCol > source.endCol) {
+        fillRight = true;
+      } else if (targetCol < source.startCol) {
+        fillLeft = true;
+      } else {
+        return; // No fill needed
+      }
+
+      createUndoSnapshot('fill', { source, targetRow, targetCol });
+
+      if (fillDown) {
+        // Fill downwards
+        const rows = source.endRow - source.startRow + 1;
+        for (let r = source.endRow + 1; r <= targetRow; r++) {
+          const sourceRowIndex = (r - source.endRow - 1) % rows;
+          for (let c = source.startCol; c <= source.endCol; c++) {
+            const sourceColIndex = c - source.startCol;
+            const srcData = sourceData[sourceRowIndex][sourceColIndex];
+            fillCell(r, c, srcData, r - source.startRow, 0);
+          }
+        }
+      } else if (fillUp) {
+        // Fill upwards
+        const rows = source.endRow - source.startRow + 1;
+        for (let r = source.startRow - 1; r >= targetRow; r--) {
+          const sourceRowIndex = (source.startRow - 1 - r) % rows;
+          for (let c = source.startCol; c <= source.endCol; c++) {
+            const sourceColIndex = c - source.startCol;
+            const srcData = sourceData[rows - 1 - sourceRowIndex][sourceColIndex];
+            fillCell(r, c, srcData, r - source.endRow, 0);
+          }
+        }
+      } else if (fillRight) {
+        // Fill right
+        const cols = source.endCol - source.startCol + 1;
+        for (let c = source.endCol + 1; c <= targetCol; c++) {
+          const sourceColIndex = (c - source.endCol - 1) % cols;
+          for (let r = source.startRow; r <= source.endRow; r++) {
+            const sourceRowIndex = r - source.startRow;
+            const srcData = sourceData[sourceRowIndex][sourceColIndex];
+            fillCell(r, c, srcData, 0, c - source.startCol);
+          }
+        }
+      } else if (fillLeft) {
+        // Fill left
+        const cols = source.endCol - source.startCol + 1;
+        for (let c = source.startCol - 1; c >= targetCol; c--) {
+          const sourceColIndex = (source.startCol - 1 - c) % cols;
+          for (let r = source.startRow; r <= source.endRow; r++) {
+            const sourceRowIndex = r - source.startRow;
+            const srcData = sourceData[sourceRowIndex][cols - 1 - sourceColIndex];
+            fillCell(r, c, srcData, 0, c - source.endCol);
+          }
+        }
+      }
+
+      // Refresh the grid
+      initFallbackGrid();
+      updateFileModified(true);
+    }
+
+    function fillCell(row, col, srcData, rowOffset, colOffset) {
+      let value = srcData.value;
+      let formula = srcData.formula;
+
+      // Handle empty/null/undefined/object values - just copy empty string
+      if (value === null || value === undefined || value === '' || typeof value === 'object') {
+        setCellDataInternal(currentSheet, row, col, '');
+        return;
+      }
+
+      // Try to detect and extend patterns
+      if (formula) {
+        // Adjust formula references (srcRow/Col offset = 0, destRow/Col offset = actual offset)
+        value = adjustFormulaReferences(formula, 0, 0, rowOffset, colOffset);
+        window.setCellFormula(currentSheet, row, col, value);
+      } else if (typeof value === 'string') {
+        // Check for number at end of string (e.g., "Product 1" -> "Product 2")
+        const match = value.match(/^(.*?)(\d+)$/);
+        if (match) {
+          const prefix = match[1];
+          const num = parseInt(match[2]);
+          const newNum = num + Math.abs(rowOffset || colOffset);
+          value = prefix + newNum;
+        }
+        // Check for dates, weekdays, months
+        value = extendPattern(srcData.value, value, rowOffset || colOffset);
+        setCellDataInternal(currentSheet, row, col, value);
+      } else if (typeof value === 'number') {
+        // For numbers, just copy (pattern detection would need multiple source cells)
+        setCellDataInternal(currentSheet, row, col, value);
+      } else {
+        setCellDataInternal(currentSheet, row, col, value);
+      }
+    }
+
+    function extendPattern(originalValue, currentValue, offset) {
+      // Weekday patterns
+      const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const weekdaysShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+      // Check weekdays
+      let idx = weekdays.indexOf(originalValue);
+      if (idx !== -1) {
+        return weekdays[(idx + offset) % 7];
+      }
+      idx = weekdaysShort.indexOf(originalValue);
+      if (idx !== -1) {
+        return weekdaysShort[(idx + offset) % 7];
+      }
+
+      // Check months
+      idx = months.indexOf(originalValue);
+      if (idx !== -1) {
+        return months[(idx + offset) % 12];
+      }
+      idx = monthsShort.indexOf(originalValue);
+      if (idx !== -1) {
+        return monthsShort[(idx + offset) % 12];
+      }
+
+      // Quarter patterns (Q1, Q2, Q3, Q4)
+      const quarterMatch = originalValue.match(/^Q([1-4])$/i);
+      if (quarterMatch) {
+        const q = parseInt(quarterMatch[1]);
+        const newQ = ((q - 1 + offset) % 4) + 1;
+        return 'Q' + newQ;
+      }
+
+      return currentValue;
+    }
+
+    // Merge cells function
+    function mergeCells(sheetName, startRow, startCol, endRow, endCol) {
+      const minRow = Math.min(startRow, endRow);
+      const maxRow = Math.max(startRow, endRow);
+      const minCol = Math.min(startCol, endCol);
+      const maxCol = Math.max(startCol, endCol);
+
+      // Get the first cell's value
+      const firstCellData = getCellDataInternal(sheetName, minRow, minCol);
+      const firstValue = firstCellData?.v?.v ?? firstCellData?.v ?? '';
+
+      // Get DOM elements
+      const table = document.querySelector('#simple-grid table');
+      const firstCell = table.querySelector(`td[data-row="${minRow}"][data-col="${minCol}"]`);
+
+      if (!firstCell) return;
+
+      // Calculate total width and height
+      let totalWidth = 0;
+      let totalHeight = 0;
+
+      for (let c = minCol; c <= maxCol; c++) {
+        const th = table.querySelector(`th[data-col="${c}"]`);
+        if (th) totalWidth += th.offsetWidth;
+      }
+
+      for (let r = minRow; r <= maxRow; r++) {
+        const row = table.querySelector(`tr[data-row="${r}"]`);
+        if (row) totalHeight += row.offsetHeight;
+      }
+
+      // Set colspan and rowspan on first cell
+      firstCell.colSpan = maxCol - minCol + 1;
+      firstCell.rowSpan = maxRow - minRow + 1;
+      firstCell.classList.add('cell-merged');
+      firstCell.style.width = totalWidth + 'px';
+      firstCell.style.height = totalHeight + 'px';
+
+      // Hide other cells in the merge range
+      for (let r = minRow; r <= maxRow; r++) {
+        for (let c = minCol; c <= maxCol; c++) {
+          if (r === minRow && c === minCol) continue;
+          const cell = table.querySelector(`td[data-row="${r}"][data-col="${c}"]`);
+          if (cell) {
+            cell.classList.add('cell-hidden-by-merge');
+            cell.style.display = 'none';
+          }
+        }
+      }
+
+      // Store merge info
+      if (!mergedCells[sheetName]) mergedCells[sheetName] = [];
+      mergedCells[sheetName].push({ startRow: minRow, startCol: minCol, endRow: maxRow, endCol: maxCol });
+
+      // Clear selection
+      selectionRange = null;
+      updateSelectionVisuals();
+      updateFileModified(true);
+
+      console.log('[Merge] Merged cells:', `${String.fromCharCode(65 + minCol)}${minRow + 1}:${String.fromCharCode(65 + maxCol)}${maxRow + 1}`);
+    }
+
+    // Unmerge cells function
+    function unmergeCells(sheetName, row, col) {
+      if (!mergedCells[sheetName]) return;
+
+      const mergeIndex = mergedCells[sheetName].findIndex(m =>
+        row >= m.startRow && row <= m.endRow && col >= m.startCol && col <= m.endCol
+      );
+
+      if (mergeIndex === -1) return;
+
+      const merge = mergedCells[sheetName][mergeIndex];
+      const table = document.querySelector('#simple-grid table');
+      const firstCell = table.querySelector(`td[data-row="${merge.startRow}"][data-col="${merge.startCol}"]`);
+
+      if (firstCell) {
+        firstCell.colSpan = 1;
+        firstCell.rowSpan = 1;
+        firstCell.classList.remove('cell-merged');
+        firstCell.style.width = '';
+        firstCell.style.height = '';
+      }
+
+      // Show hidden cells
+      for (let r = merge.startRow; r <= merge.endRow; r++) {
+        for (let c = merge.startCol; c <= merge.endCol; c++) {
+          if (r === merge.startRow && c === merge.startCol) continue;
+          const cell = table.querySelector(`td[data-row="${r}"][data-col="${c}"]`);
+          if (cell) {
+            cell.classList.remove('cell-hidden-by-merge');
+            cell.style.display = '';
+          }
+        }
+      }
+
+      mergedCells[sheetName].splice(mergeIndex, 1);
+      updateFileModified(true);
+      console.log('[Merge] Unmerged cells');
+    }
+
+    // Initialize sheet tabs
+    function initSheetTabs() {
+      const tabsContainer = document.getElementById('sheet-tabs-container');
+      const addBtn = document.getElementById('add-sheet-btn');
+
+      // Add new sheet
+      addBtn?.addEventListener('click', () => {
+        const newName = `Sheet${spreadsheetData.length + 1}`;
+        window.addSheet(newName);
+        renderSheetTabs();
+        switchToSheet(newName);
+      });
+
+      // Navigation buttons
+      document.getElementById('nav-first')?.addEventListener('click', () => {
+        if (spreadsheetData.length > 0) switchToSheet(spreadsheetData[0].name);
+      });
+      document.getElementById('nav-prev')?.addEventListener('click', () => {
+        const idx = spreadsheetData.findIndex(s => s.name === currentSheet);
+        if (idx > 0) switchToSheet(spreadsheetData[idx - 1].name);
+      });
+      document.getElementById('nav-next')?.addEventListener('click', () => {
+        const idx = spreadsheetData.findIndex(s => s.name === currentSheet);
+        if (idx < spreadsheetData.length - 1) switchToSheet(spreadsheetData[idx + 1].name);
+      });
+      document.getElementById('nav-last')?.addEventListener('click', () => {
+        if (spreadsheetData.length > 0) switchToSheet(spreadsheetData[spreadsheetData.length - 1].name);
+      });
+
+      renderSheetTabs();
+    }
+
+    function renderSheetTabs() {
+      const container = document.getElementById('sheet-tabs-container');
+      if (!container) return;
+
+      container.innerHTML = spreadsheetData.map(sheet => `
+        <div class="sheet-tab ${sheet.name === currentSheet ? 'active' : ''}" data-sheet="${sheet.name}">
+          <span class="tab-name">${sheet.name}</span>
+          ${spreadsheetData.length > 1 ? '<span class="tab-close">×</span>' : ''}
+        </div>
+      `).join('');
+
+      // Add click handlers
+      container.querySelectorAll('.sheet-tab').forEach(tab => {
+        tab.addEventListener('click', (e) => {
+          if (e.target.classList.contains('tab-close')) {
+            const sheetName = tab.dataset.sheet;
+            if (spreadsheetData.length > 1) {
+              window.deleteSheet(sheetName);
+              if (currentSheet === sheetName) {
+                switchToSheet(spreadsheetData[0].name);
+              }
+              renderSheetTabs();
+            }
+          } else {
+            switchToSheet(tab.dataset.sheet);
+          }
+        });
+
+        // Double-click to rename
+        tab.querySelector('.tab-name')?.addEventListener('dblclick', (e) => {
+          const nameSpan = e.target;
+          const oldName = nameSpan.textContent;
+          nameSpan.contentEditable = true;
+          nameSpan.focus();
+
+          const finishRename = () => {
+            nameSpan.contentEditable = false;
+            const newName = nameSpan.textContent.trim();
+            if (newName && newName !== oldName) {
+              const sheet = spreadsheetData.find(s => s.name === oldName);
+              if (sheet) {
+                sheet.name = newName;
+                if (currentSheet === oldName) currentSheet = newName;
+                renderSheetTabs();
+                updateFileModified(true);
+              }
+            } else {
+              nameSpan.textContent = oldName;
+            }
+          };
+
+          nameSpan.addEventListener('blur', finishRename, { once: true });
+          nameSpan.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              nameSpan.blur();
+            }
+            if (e.key === 'Escape') {
+              nameSpan.textContent = oldName;
+              nameSpan.blur();
+            }
+          });
+        });
+      });
+    }
+
+    function switchToSheet(sheetName) {
+      currentSheet = sheetName;
+      initFallbackGrid();
+      renderSheetTabs();
+      updateStatusBar();
     }
 
     // Initialize status bar
@@ -673,6 +4062,17 @@
       }
     }
 
+    // Drag selection tracking
+    let isDragging = false;
+    let dragStartCell = null;
+
+    // Clear header selection (row/column headers)
+    function clearHeaderSelection() {
+      document.querySelectorAll('th.selected, td.row-header-selected, td.selected').forEach(el => {
+        el.classList.remove('selected', 'row-header-selected');
+      });
+    }
+
     // Fallback grid implementation (basic but functional)
     async function initFallbackGrid() {
       const container = document.getElementById('fortune-sheet');
@@ -714,13 +4114,16 @@
       `;
       headerRow.appendChild(cornerCell);
 
-      // Column headers
+      // Store column widths
+      const columnWidths = new Array(26).fill(100);
+
+      // Column headers with resize handles
       for (let c = 0; c < 26; c++) {
         const th = document.createElement('th');
-        th.textContent = String.fromCharCode(65 + c);
+        th.dataset.col = c;
         th.style.cssText = `
-          width: 100px;
-          min-width: 100px;
+          width: ${columnWidths[c]}px;
+          min-width: 30px;
           background: #f5f5f5;
           border: 1px solid #e0e0e0;
           padding: 4px 8px;
@@ -728,20 +4131,136 @@
           position: sticky;
           top: 0;
           z-index: 2;
+          user-select: none;
         `;
+
+        // Column letter span
+        const colLabel = document.createElement('span');
+        colLabel.textContent = String.fromCharCode(65 + c);
+        th.appendChild(colLabel);
+
+        // Resize handle
+        const resizeHandle = document.createElement('div');
+        resizeHandle.className = 'col-resize-handle';
+        resizeHandle.dataset.col = c;
+        th.style.position = 'sticky';
+        th.style.overflow = 'visible';
+        th.appendChild(resizeHandle);
+
+        // Column resize logic
+        let isResizing = false;
+        let startX = 0;
+        let startWidth = 0;
+        let resizeLine = null;
+
+        // Double-click to auto-fit column width
+        resizeHandle.addEventListener('dblclick', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          // Calculate optimal width based on cell content
+          const cells = table.querySelectorAll(`td[data-col="${c}"]`);
+          let maxWidth = 50; // Minimum width
+
+          cells.forEach(cell => {
+            // Create a temporary span to measure text width
+            const span = document.createElement('span');
+            span.style.cssText = 'visibility: hidden; position: absolute; white-space: nowrap; font-family: inherit; font-size: inherit;';
+            span.textContent = cell.textContent;
+            document.body.appendChild(span);
+            maxWidth = Math.max(maxWidth, span.offsetWidth + 20); // Add padding
+            span.remove();
+          });
+
+          // Also check header
+          maxWidth = Math.max(maxWidth, 50);
+          maxWidth = Math.min(maxWidth, 400); // Max width
+
+          columnWidths[c] = maxWidth;
+          th.style.width = maxWidth + 'px';
+
+          cells.forEach(cell => {
+            cell.style.minWidth = maxWidth + 'px';
+            cell.style.width = maxWidth + 'px';
+          });
+        });
+
+        resizeHandle.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          isResizing = true;
+          startX = e.clientX;
+          startWidth = th.offsetWidth;
+          resizeHandle.classList.add('active');
+
+          // Create resize line
+          resizeLine = document.createElement('div');
+          resizeLine.className = 'resize-line resize-line-col';
+          resizeLine.style.left = e.clientX + 'px';
+          document.body.appendChild(resizeLine);
+
+          const onMouseMove = (e) => {
+            if (!isResizing) return;
+            const newWidth = Math.max(30, startWidth + (e.clientX - startX));
+            resizeLine.style.left = e.clientX + 'px';
+          };
+
+          const onMouseUp = (e) => {
+            if (!isResizing) return;
+            isResizing = false;
+            resizeHandle.classList.remove('active');
+
+            if (resizeLine) {
+              resizeLine.remove();
+              resizeLine = null;
+            }
+
+            const newWidth = Math.max(30, startWidth + (e.clientX - startX));
+            columnWidths[c] = newWidth;
+            th.style.width = newWidth + 'px';
+
+            // Update all cells in this column
+            const cells = table.querySelectorAll(`td[data-col="${c}"]`);
+            cells.forEach(cell => {
+              cell.style.minWidth = newWidth + 'px';
+              cell.style.width = newWidth + 'px';
+            });
+
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+          };
+
+          document.addEventListener('mousemove', onMouseMove);
+          document.addEventListener('mouseup', onMouseUp);
+        });
+
+        // Click to select entire column
+        th.addEventListener('click', (e) => {
+          // Don't select if clicking on resize handle
+          if (e.target.classList.contains('col-resize-handle')) return;
+
+          e.preventDefault();
+          selectColumn(c);
+        });
+
         headerRow.appendChild(th);
       }
       thead.appendChild(headerRow);
       table.appendChild(thead);
 
+      // Store row heights
+      const rowHeights = new Array(100).fill(24);
+
       // Create body with 100 rows
       const tbody = document.createElement('tbody');
       for (let r = 0; r < 100; r++) {
         const row = document.createElement('tr');
+        row.style.height = rowHeights[r] + 'px';
+        row.dataset.row = r;
 
-        // Row number
+        // Row number with resize handle
         const rowHeader = document.createElement('td');
-        rowHeader.textContent = r + 1;
+        rowHeader.dataset.row = r;
         rowHeader.style.cssText = `
           background: #f5f5f5;
           border: 1px solid #e0e0e0;
@@ -751,7 +4270,86 @@
           position: sticky;
           left: 0;
           z-index: 1;
+          user-select: none;
+          height: ${rowHeights[r]}px;
         `;
+
+        // Row number span
+        const rowLabel = document.createElement('span');
+        rowLabel.textContent = r + 1;
+        rowHeader.appendChild(rowLabel);
+
+        // Resize handle for row
+        const rowResizeHandle = document.createElement('div');
+        rowResizeHandle.className = 'row-resize-handle';
+        rowResizeHandle.dataset.row = r;
+        rowHeader.style.position = 'sticky';
+        rowHeader.style.overflow = 'visible';
+        rowHeader.appendChild(rowResizeHandle);
+
+        // Row resize logic
+        let isResizingRow = false;
+        let startY = 0;
+        let startHeight = 0;
+        let rowResizeLine = null;
+
+        rowResizeHandle.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          isResizingRow = true;
+          startY = e.clientY;
+          startHeight = row.offsetHeight;
+          rowResizeHandle.classList.add('active');
+
+          // Create resize line
+          rowResizeLine = document.createElement('div');
+          rowResizeLine.className = 'resize-line resize-line-row';
+          rowResizeLine.style.top = e.clientY + 'px';
+          document.body.appendChild(rowResizeLine);
+
+          const onMouseMove = (e) => {
+            if (!isResizingRow) return;
+            rowResizeLine.style.top = e.clientY + 'px';
+          };
+
+          const onMouseUp = (e) => {
+            if (!isResizingRow) return;
+            isResizingRow = false;
+            rowResizeHandle.classList.remove('active');
+
+            if (rowResizeLine) {
+              rowResizeLine.remove();
+              rowResizeLine = null;
+            }
+
+            const newHeight = Math.max(20, startHeight + (e.clientY - startY));
+            rowHeights[r] = newHeight;
+            row.style.height = newHeight + 'px';
+            rowHeader.style.height = newHeight + 'px';
+
+            // Update all cells in this row
+            const cells = row.querySelectorAll('td');
+            cells.forEach(cell => {
+              cell.style.height = newHeight + 'px';
+            });
+
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+          };
+
+          document.addEventListener('mousemove', onMouseMove);
+          document.addEventListener('mouseup', onMouseUp);
+        });
+
+        // Click to select entire row
+        rowHeader.addEventListener('click', (e) => {
+          // Don't select if clicking on resize handle
+          if (e.target.classList.contains('row-resize-handle')) return;
+
+          e.preventDefault();
+          selectRow(r);
+        });
+
         row.appendChild(rowHeader);
 
         // Cells
@@ -770,12 +4368,84 @@
           // Track if user is actively editing the cell
           let cellWasEdited = false;
 
+          // Handle mousedown for cell selection and drag-select
+          cell.addEventListener('mousedown', (e) => {
+            // Clear any previous row/column header selection
+            clearHeaderSelection();
+
+            // Reset the selection object used for row/column selection
+            selection.startRow = r;
+            selection.startCol = c;
+            selection.endRow = r;
+            selection.endCol = c;
+
+            if (e.shiftKey && selectedCell) {
+              // Extend selection from selectedCell to this cell
+              e.preventDefault();
+              selectionRange = {
+                startRow: selectedCell.row,
+                startCol: selectedCell.col,
+                endRow: r,
+                endCol: c
+              };
+              selection.startRow = selectedCell.row;
+              selection.startCol = selectedCell.col;
+              selection.endRow = r;
+              selection.endCol = c;
+              updateSelectionVisuals();
+              highlightSelection();
+            } else {
+              // Start new selection - prepare for drag
+              selectionRange = {
+                startRow: r,
+                startCol: c,
+                endRow: r,
+                endCol: c
+              };
+              isDragging = true;
+              dragStartCell = { row: r, col: c };
+              updateSelectionVisuals();
+              highlightSelection();
+            }
+          });
+
+          // Handle mouseover for drag selection
+          cell.addEventListener('mouseover', (e) => {
+            if (isDragging && dragStartCell) {
+              // Update selection range as mouse moves
+              selectionRange = {
+                startRow: dragStartCell.row,
+                startCol: dragStartCell.col,
+                endRow: r,
+                endCol: c
+              };
+              selection.startRow = dragStartCell.row;
+              selection.startCol = dragStartCell.col;
+              selection.endRow = r;
+              selection.endCol = c;
+              updateSelectionVisuals();
+              highlightSelection();
+            }
+          });
+
           // Handle cell selection and editing
           cell.addEventListener('focus', () => {
             selectedCell = { row: r, col: c };
             cellWasEdited = false; // Reset edit flag on focus
-            cell.style.background = '#e8f0fe';
-            cell.style.outline = '2px solid #667eea';
+
+            // Only show cell outline if NOT part of a multi-cell selection
+            const isMultiCellSelection = selectionRange &&
+              (selectionRange.startRow !== selectionRange.endRow ||
+               selectionRange.startCol !== selectionRange.endCol);
+
+            if (!isMultiCellSelection) {
+              cell.style.background = '#e8f0fe';
+              cell.style.outline = '2px solid #667eea';
+            } else {
+              // In multi-cell selection, don't show individual cell outline
+              cell.style.background = '';
+              cell.style.outline = 'none';
+            }
             updateFormulaBar(r, c);
           });
 
@@ -829,7 +4499,210 @@
       grid.appendChild(table);
       container.appendChild(grid);
 
-      console.log('[Spreadsheet] Fallback grid initialized');
+      // Global mouseup to stop drag selection
+      document.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          dragStartCell = null;
+        }
+      });
+
+      // Auto-fill handle implementation
+      let fillHandle = null;
+      let isFilling = false;
+      let fillStartCell = null;
+      let fillPreview = null;
+
+      function createFillHandle(cell) {
+        // Remove existing fill handle
+        if (fillHandle) fillHandle.remove();
+
+        fillHandle = document.createElement('div');
+        fillHandle.className = 'cell-fill-handle';
+
+        // Position at bottom-right corner of cell
+        const cellRect = cell.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+
+        fillHandle.style.cssText = `
+          position: absolute;
+          right: -4px;
+          bottom: -4px;
+          width: 8px;
+          height: 8px;
+          background: #667eea;
+          border: 1px solid white;
+          cursor: crosshair;
+          z-index: 20;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        `;
+
+        cell.style.position = 'relative';
+        cell.appendChild(fillHandle);
+
+        fillHandle.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          isFilling = true;
+          fillStartCell = { row: parseInt(cell.dataset.row), col: parseInt(cell.dataset.col) };
+
+          const onFillMouseMove = (e) => {
+            if (!isFilling) return;
+
+            // Find cell under mouse
+            const targetCell = document.elementFromPoint(e.clientX, e.clientY);
+            if (!targetCell || !targetCell.dataset || targetCell.dataset.row === undefined) return;
+
+            const endRow = parseInt(targetCell.dataset.row);
+            const endCol = parseInt(targetCell.dataset.col);
+
+            // Show preview
+            showFillPreview(fillStartCell.row, fillStartCell.col, endRow, endCol);
+          };
+
+          const onFillMouseUp = (e) => {
+            if (!isFilling) return;
+            isFilling = false;
+
+            // Find target cell
+            const targetCell = document.elementFromPoint(e.clientX, e.clientY);
+            if (targetCell && targetCell.dataset && targetCell.dataset.row !== undefined) {
+              const endRow = parseInt(targetCell.dataset.row);
+              const endCol = parseInt(targetCell.dataset.col);
+
+              // Perform the fill
+              performAutoFill(fillStartCell.row, fillStartCell.col, endRow, endCol);
+            }
+
+            // Clean up preview
+            if (fillPreview) {
+              fillPreview.remove();
+              fillPreview = null;
+            }
+
+            document.removeEventListener('mousemove', onFillMouseMove);
+            document.removeEventListener('mouseup', onFillMouseUp);
+          };
+
+          document.addEventListener('mousemove', onFillMouseMove);
+          document.addEventListener('mouseup', onFillMouseUp);
+        });
+      }
+
+      function showFillPreview(startRow, startCol, endRow, endCol) {
+        if (fillPreview) fillPreview.remove();
+
+        const minRow = Math.min(startRow, endRow);
+        const maxRow = Math.max(startRow, endRow);
+        const minCol = Math.min(startCol, endCol);
+        const maxCol = Math.max(startCol, endCol);
+
+        // Get cell bounds
+        const startCellEl = table.querySelector(`td[data-row="${minRow}"][data-col="${minCol}"]`);
+        const endCellEl = table.querySelector(`td[data-row="${maxRow}"][data-col="${maxCol}"]`);
+
+        if (!startCellEl || !endCellEl) return;
+
+        const startRect = startCellEl.getBoundingClientRect();
+        const endRect = endCellEl.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+
+        fillPreview = document.createElement('div');
+        fillPreview.className = 'cell-fill-preview';
+        fillPreview.style.cssText = `
+          position: absolute;
+          left: ${startRect.left - containerRect.left + container.scrollLeft}px;
+          top: ${startRect.top - containerRect.top + container.scrollTop}px;
+          width: ${endRect.right - startRect.left}px;
+          height: ${endRect.bottom - startRect.top}px;
+          border: 2px dashed #667eea;
+          background: rgba(102, 126, 234, 0.1);
+          pointer-events: none;
+          z-index: 15;
+        `;
+        grid.appendChild(fillPreview);
+      }
+
+      function performAutoFill(startRow, startCol, endRow, endCol) {
+        const sourceValue = getCellDataInternal(currentSheet, startRow, startCol);
+        // Safely extract source text - handle empty cells and object values
+        let sourceText = '';
+        if (sourceValue && sourceValue.v !== undefined && sourceValue.v !== null) {
+          if (typeof sourceValue.v === 'object' && sourceValue.v.v !== undefined) {
+            sourceText = sourceValue.v.v;
+          } else if (typeof sourceValue.v !== 'object') {
+            sourceText = sourceValue.v;
+          }
+        }
+        // Ensure sourceText is never an object
+        if (typeof sourceText === 'object' || sourceText === null || sourceText === undefined) {
+          sourceText = '';
+        }
+
+        // Determine fill direction
+        const rowDir = endRow > startRow ? 1 : (endRow < startRow ? -1 : 0);
+        const colDir = endCol > startCol ? 1 : (endCol < startCol ? -1 : 0);
+
+        // Try to detect pattern (numbers, dates, etc.)
+        const numMatch = sourceText.toString().match(/^(\D*)(\d+)(\D*)$/);
+        let isSequence = false;
+        let prefix = '', suffix = '', startNum = 0;
+
+        if (numMatch) {
+          isSequence = true;
+          prefix = numMatch[1];
+          startNum = parseInt(numMatch[2]);
+          suffix = numMatch[3];
+        }
+
+        // Fill cells
+        const minRow = Math.min(startRow, endRow);
+        const maxRow = Math.max(startRow, endRow);
+        const minCol = Math.min(startCol, endCol);
+        const maxCol = Math.max(startCol, endCol);
+
+        let increment = 0;
+        for (let r = minRow; r <= maxRow; r++) {
+          for (let c = minCol; c <= maxCol; c++) {
+            if (r === startRow && c === startCol) continue; // Skip source cell
+
+            increment++;
+            let fillValue = sourceText;
+
+            if (isSequence) {
+              // Generate sequence
+              fillValue = prefix + (startNum + increment) + suffix;
+            }
+
+            setCellDataInternal(currentSheet, r, c, fillValue);
+
+            // Update DOM
+            const cellEl = table.querySelector(`td[data-row="${r}"][data-col="${c}"]`);
+            if (cellEl) cellEl.textContent = fillValue;
+          }
+        }
+
+        updateFileModified(true);
+      }
+
+      // Update cell focus to show fill handle
+      const allCells = table.querySelectorAll('td[data-row]');
+      allCells.forEach(cell => {
+        cell.addEventListener('focus', () => {
+          createFillHandle(cell);
+        });
+        cell.addEventListener('blur', () => {
+          // Delay removal to allow click on handle
+          setTimeout(() => {
+            if (!isFilling && fillHandle) {
+              fillHandle.remove();
+              fillHandle = null;
+            }
+          }, 100);
+        });
+      });
+
+      console.log('[Spreadsheet] Fallback grid initialized with auto-fill');
     }
 
     // Internal cell data functions
@@ -2894,6 +6767,105 @@
       isSelecting: false
     };
 
+    // Highlight selected cells visually
+    function highlightSelection() {
+      // Remove existing selection highlighting
+      document.querySelectorAll('td.selected').forEach(cell => {
+        cell.classList.remove('selected');
+      });
+      // Also remove column/row header highlights
+      document.querySelectorAll('th.selected, td.row-header-selected').forEach(el => {
+        el.classList.remove('selected', 'row-header-selected');
+      });
+
+      const minRow = Math.min(selection.startRow, selection.endRow);
+      const maxRow = Math.max(selection.startRow, selection.endRow);
+      const minCol = Math.min(selection.startCol, selection.endCol);
+      const maxCol = Math.max(selection.startCol, selection.endCol);
+
+      for (let r = minRow; r <= maxRow; r++) {
+        for (let c = minCol; c <= maxCol; c++) {
+          const cell = document.querySelector(`td[data-row="${r}"][data-col="${c}"]`);
+          if (cell) {
+            cell.classList.add('selected');
+          }
+        }
+      }
+    }
+
+    // Select entire column
+    function selectColumn(col) {
+      selection.startRow = 0;
+      selection.endRow = 99; // All rows
+      selection.startCol = col;
+      selection.endCol = col;
+
+      // Update selectedCell to first cell in column
+      selectedCell.row = 0;
+      selectedCell.col = col;
+
+      // Highlight the column header
+      const colHeader = document.querySelector(`th[data-col="${col}"]`);
+      if (colHeader) {
+        colHeader.classList.add('selected');
+      }
+
+      highlightSelection();
+      updateStatusBar();
+      console.log(`[Selection] Selected column ${String.fromCharCode(65 + col)}`);
+    }
+
+    // Select entire row
+    function selectRow(row) {
+      selection.startRow = row;
+      selection.endRow = row;
+      selection.startCol = 0;
+      selection.endCol = 25; // All columns (A-Z)
+
+      // Update selectedCell to first cell in row
+      selectedCell.row = row;
+      selectedCell.col = 0;
+
+      // Highlight the row header
+      const rowHeaders = document.querySelectorAll(`td[data-row="${row}"]`);
+      const rowHeader = rowHeaders[0]; // First td is the row header (no data-col)
+      if (rowHeader && !rowHeader.hasAttribute('data-col')) {
+        rowHeader.classList.add('row-header-selected');
+      }
+
+      highlightSelection();
+      updateStatusBar();
+      console.log(`[Selection] Selected row ${row + 1}`);
+    }
+
+    // Select multiple columns (shift+click)
+    function selectColumnRange(startCol, endCol) {
+      selection.startRow = 0;
+      selection.endRow = 99;
+      selection.startCol = Math.min(startCol, endCol);
+      selection.endCol = Math.max(startCol, endCol);
+
+      selectedCell.row = 0;
+      selectedCell.col = selection.startCol;
+
+      highlightSelection();
+      updateStatusBar();
+    }
+
+    // Select multiple rows (shift+click)
+    function selectRowRange(startRow, endRow) {
+      selection.startRow = Math.min(startRow, endRow);
+      selection.endRow = Math.max(startRow, endRow);
+      selection.startCol = 0;
+      selection.endCol = 25;
+
+      selectedCell.row = selection.startRow;
+      selectedCell.col = 0;
+
+      highlightSelection();
+      updateStatusBar();
+    }
+
     // Copy selected cells
     window.copySelection = function() {
       const { startRow, startCol, endRow, endCol } = getSelectionBounds();
@@ -3010,7 +6982,21 @@
     }
 
     function getSelectionBounds() {
-      // For now, just use selected cell as single selection
+      // Check if we have a multi-cell selection (row/column selection)
+      const hasMultiSelection =
+        selection.startRow !== selection.endRow ||
+        selection.startCol !== selection.endCol;
+
+      if (hasMultiSelection) {
+        return {
+          startRow: Math.min(selection.startRow, selection.endRow),
+          startCol: Math.min(selection.startCol, selection.endCol),
+          endRow: Math.max(selection.startRow, selection.endRow),
+          endCol: Math.max(selection.startCol, selection.endCol)
+        };
+      }
+
+      // Single cell selection - use selectedCell
       return {
         startRow: selectedCell.row,
         startCol: selectedCell.col,
@@ -3211,6 +7197,100 @@
         return;
       }
 
+      // Ctrl/Cmd + B = Bold
+      if (cmdOrCtrl && e.key === 'b') {
+        e.preventDefault();
+        const btn = document.getElementById('btn-bold');
+        if (btn) {
+          const isActive = btn.classList.toggle('active');
+          setCellFormat(currentSheet, selectedCell.row, selectedCell.col, { bold: isActive });
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + I = Italic
+      if (cmdOrCtrl && e.key === 'i') {
+        e.preventDefault();
+        const btn = document.getElementById('btn-italic');
+        if (btn) {
+          const isActive = btn.classList.toggle('active');
+          setCellFormat(currentSheet, selectedCell.row, selectedCell.col, { italic: isActive });
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + U = Underline
+      if (cmdOrCtrl && e.key === 'u') {
+        e.preventDefault();
+        const btn = document.getElementById('btn-underline');
+        if (btn) {
+          const isActive = btn.classList.toggle('active');
+          setCellFormat(currentSheet, selectedCell.row, selectedCell.col, { underline: isActive });
+        }
+        return;
+      }
+
+      // F2 = Edit cell (enter edit mode)
+      if (e.key === 'F2') {
+        e.preventDefault();
+        const cell = document.querySelector(`td[data-row="${selectedCell.row}"][data-col="${selectedCell.col}"]`);
+        if (cell) {
+          cell.focus();
+          // Move cursor to end of content
+          const range = document.createRange();
+          const sel = window.getSelection();
+          if (cell.childNodes.length > 0) {
+            range.setStartAfter(cell.lastChild);
+          } else {
+            range.setStart(cell, 0);
+          }
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + A = Select All (in spreadsheet context)
+      if (cmdOrCtrl && e.key === 'a') {
+        const activeCell = document.activeElement;
+        if (activeCell?.dataset?.row !== undefined) {
+          e.preventDefault();
+          // Select all cells (set selection range)
+          selection.startRow = 0;
+          selection.startCol = 0;
+          selection.endRow = 99;
+          selection.endCol = 25;
+          highlightSelection();
+          console.log('[Spreadsheet] Selected all cells');
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + F = Find
+      if (cmdOrCtrl && e.key === 'f') {
+        e.preventDefault();
+        toggleFindModal();
+        return;
+      }
+
+      // Escape = Cancel editing / Close modals
+      if (e.key === 'Escape') {
+        hideContextMenu();
+        closeFindModal();
+        closeChartModal();
+        // Reset cell to original value if editing
+        const activeCell = document.activeElement;
+        if (activeCell?.dataset?.row !== undefined) {
+          const row = parseInt(activeCell.dataset.row);
+          const col = parseInt(activeCell.dataset.col);
+          const cellData = getCellDataInternal(currentSheet, row, col);
+          activeCell.textContent = cellData?.v?.v ?? cellData?.v ?? '';
+          activeCell.blur();
+        }
+        return;
+      }
+
       // Delete or Backspace = Clear cell contents
       if (e.key === 'Delete' || e.key === 'Backspace') {
         // Only if a cell is focused, not editing
@@ -3314,15 +7394,38 @@
         { label: 'Copy', shortcut: '⌘C', action: () => window.copySelection() },
         { label: 'Paste', shortcut: '⌘V', action: () => window.pasteSelection() },
         { divider: true },
-        { label: 'Clear Contents', shortcut: 'Del', action: () => window.clearCells(selectedCell.row, selectedCell.col, selectedCell.row, selectedCell.col) },
+        { label: 'Clear Contents', shortcut: 'Del', action: () => {
+          const bounds = getSelectionBounds();
+          window.clearCells(bounds.startRow, bounds.startCol, bounds.endRow, bounds.endCol);
+        }},
         { divider: true },
-        { label: 'Insert Row Above', action: () => window.insertRows(selectedCell.row, 1) },
-        { label: 'Insert Row Below', action: () => window.insertRows(selectedCell.row + 1, 1) },
-        { label: 'Delete Row', action: () => window.deleteRows(selectedCell.row, 1) },
+        { label: 'Insert Row Above', action: () => {
+          const bounds = getSelectionBounds();
+          window.insertRows(bounds.startRow, 1);
+        }},
+        { label: 'Insert Row Below', action: () => {
+          const bounds = getSelectionBounds();
+          window.insertRows(bounds.endRow + 1, 1);
+        }},
+        { label: 'Delete Row', action: () => {
+          const bounds = getSelectionBounds();
+          const rowCount = bounds.endRow - bounds.startRow + 1;
+          window.deleteRows(bounds.startRow, rowCount);
+        }},
         { divider: true },
-        { label: 'Insert Column Left', action: () => window.insertColumns(selectedCell.col, 1) },
-        { label: 'Insert Column Right', action: () => window.insertColumns(selectedCell.col + 1, 1) },
-        { label: 'Delete Column', action: () => window.deleteColumns(selectedCell.col, 1) },
+        { label: 'Insert Column Left', action: () => {
+          const bounds = getSelectionBounds();
+          window.insertColumns(bounds.startCol, 1);
+        }},
+        { label: 'Insert Column Right', action: () => {
+          const bounds = getSelectionBounds();
+          window.insertColumns(bounds.endCol + 1, 1);
+        }},
+        { label: 'Delete Column', action: () => {
+          const bounds = getSelectionBounds();
+          const colCount = bounds.endCol - bounds.startCol + 1;
+          window.deleteColumns(bounds.startCol, colCount);
+        }},
       ];
 
       menuItems.forEach(item => {
@@ -3474,7 +7577,779 @@
       window._formulaDebug = null;
     };
 
-    console.log('[Spreadsheet] Enhanced features loaded: Undo/Redo, Clipboard, Insert/Delete, Shortcuts, Context Menu');
+    // ==========================================
+    // Window exports for Chart, Sort, Filter, Find/Replace
+    // These are needed for main process executeJavaScript calls
+    // ==========================================
+
+    // Chart exports
+    Object.defineProperty(window, 'embeddedCharts', {
+      get: () => embeddedCharts,
+      set: (val) => { embeddedCharts = val; }
+    });
+    Object.defineProperty(window, 'currentChartType', {
+      get: () => currentChartType,
+      set: (val) => { currentChartType = val; }
+    });
+    window.insertChart = insertChart;
+    window.getCharts = function() {
+      return embeddedCharts;
+    };
+
+    // Sort exports
+    window.sortSelection = sortSelection;
+    window.sortColumn = function(col, direction) {
+      selectedCell = { row: 0, col: parseInt(col) };
+      sortSelection(direction);
+      return { success: true };
+    };
+
+    // Filter exports
+    window.toggleFilter = toggleFilter;
+    window.applyFilter = applyFilter;
+    window.clearFilter = clearFilter;
+    window.clearAllFilters = clearAllFilters;
+
+    // ==========================================
+    // FILE TAB FUNCTIONS
+    // ==========================================
+    function createNewSpreadsheet() {
+      // Reset all data
+      spreadsheetData = [{
+        name: 'Sheet1',
+        celldata: [],
+        row: 100,
+        column: 26
+      }];
+      currentSheet = 'Sheet1';
+      sheetCounter = 1;
+      selectedCell = { row: 0, col: 0 };
+      selectionRange = null;
+      isModified = false;
+      currentFilePath = null;
+      mergedCells = {};
+      undoStack = [];
+      redoStack = [];
+
+      // Re-render
+      initFallbackGrid();
+      updateSheetTabs();
+      updateStatusBar();
+      document.getElementById('file-name').textContent = 'Untitled';
+      document.querySelector('.modified-indicator').style.display = 'none';
+      console.log('[File] Created new spreadsheet');
+    }
+
+    async function openFileDialog() {
+      try {
+        if (window.electronAPI?.openFile) {
+          const result = await window.electronAPI.openFile();
+          if (result) {
+            loadSpreadsheetData(result.data);
+            currentFilePath = result.path;
+            document.getElementById('file-name').textContent = result.path.split('/').pop();
+            isModified = false;
+            console.log('[File] Opened:', result.path);
+          }
+        } else {
+          // Browser fallback: use file input
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = '.xlsx,.xls,.csv';
+          input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                try {
+                  // For CSV files
+                  if (file.name.endsWith('.csv')) {
+                    const csvData = parseCSV(event.target.result);
+                    loadFromCSV(csvData);
+                  }
+                  document.getElementById('file-name').textContent = file.name;
+                  isModified = false;
+                } catch (err) {
+                  alert('Error loading file: ' + err.message);
+                }
+              };
+              reader.readAsText(file);
+            }
+          };
+          input.click();
+        }
+      } catch (err) {
+        console.error('[File] Open error:', err);
+        alert('Error opening file: ' + err.message);
+      }
+    }
+
+    function parseCSV(text) {
+      const lines = text.split('\n');
+      return lines.map(line => {
+        const cells = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            cells.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        cells.push(current.trim());
+        return cells;
+      });
+    }
+
+    function loadFromCSV(data) {
+      const celldata = [];
+      data.forEach((row, r) => {
+        row.forEach((value, c) => {
+          if (value !== '') {
+            celldata.push({ r, c, v: { v: value } });
+          }
+        });
+      });
+      spreadsheetData = [{
+        name: 'Sheet1',
+        celldata,
+        row: Math.max(100, data.length + 10),
+        column: Math.max(26, (data[0]?.length || 0) + 5)
+      }];
+      currentSheet = 'Sheet1';
+      initFallbackGrid();
+      updateSheetTabs();
+      updateStatusBar();
+    }
+
+    async function saveSpreadsheet() {
+      try {
+        const data = getSpreadsheetJSON();
+        if (window.electronAPI?.saveFile) {
+          const result = await window.electronAPI.saveFile(data, currentFilePath);
+          if (result.success) {
+            currentFilePath = result.path;
+            document.getElementById('file-name').textContent = result.path.split('/').pop();
+            isModified = false;
+            document.querySelector('.modified-indicator').style.display = 'none';
+            console.log('[File] Saved:', result.path);
+          }
+        } else {
+          // Browser fallback: download as CSV (more useful than JSON)
+          let csv = '';
+          const sheet = spreadsheetData.find(s => s.name === currentSheet);
+          if (sheet && sheet.celldata && sheet.celldata.length > 0) {
+            const maxRow = Math.max(...sheet.celldata.map(c => c.r), 0) + 1;
+            const maxCol = Math.max(...sheet.celldata.map(c => c.c), 0) + 1;
+            for (let r = 0; r < maxRow; r++) {
+              const rowData = [];
+              for (let c = 0; c < maxCol; c++) {
+                const cell = sheet.celldata.find(cd => cd.r === r && cd.c === c);
+                let value = '';
+                if (cell && cell.v !== undefined && cell.v !== null) {
+                  if (typeof cell.v === 'object' && cell.v.v !== undefined) {
+                    value = cell.v.v;
+                  } else if (typeof cell.v !== 'object') {
+                    value = cell.v;
+                  }
+                }
+                // Ensure value is never an object
+                if (typeof value === 'object') value = '';
+                // Escape quotes and commas for CSV
+                const escaped = String(value).includes(',') || String(value).includes('"')
+                  ? `"${String(value).replace(/"/g, '""')}"`
+                  : value;
+                rowData.push(escaped);
+              }
+              csv += rowData.join(',') + '\n';
+            }
+          }
+          const fileName = document.getElementById('file-name').textContent || 'spreadsheet';
+          const blob = new Blob([csv], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName.replace(/\.[^/.]+$/, '') + '.csv';
+          a.click();
+          URL.revokeObjectURL(url);
+          isModified = false;
+          document.querySelector('.modified-indicator').style.display = 'none';
+        }
+      } catch (err) {
+        console.error('[File] Save error:', err);
+        alert('Error saving file: ' + err.message);
+      }
+    }
+
+    function getSpreadsheetJSON() {
+      return {
+        sheets: spreadsheetData,
+        mergedCells,
+        currentSheet,
+        metadata: {
+          savedAt: new Date().toISOString(),
+          version: '1.0'
+        }
+      };
+    }
+
+    function loadSpreadsheetData(data) {
+      if (data.sheets) {
+        spreadsheetData = data.sheets;
+        mergedCells = data.mergedCells || {};
+        currentSheet = data.currentSheet || spreadsheetData[0]?.name || 'Sheet1';
+      }
+      initFallbackGrid();
+      updateSheetTabs();
+      updateStatusBar();
+    }
+
+    async function exportToExcel() {
+      try {
+        const data = getSpreadsheetJSON();
+        if (window.electronAPI?.exportExcel) {
+          await window.electronAPI.exportExcel(data);
+        } else {
+          // Browser fallback: export as CSV
+          let csv = '';
+          const sheet = spreadsheetData.find(s => s.name === currentSheet);
+          if (sheet) {
+            const maxRow = Math.max(...sheet.celldata.map(c => c.r), 0) + 1;
+            const maxCol = Math.max(...sheet.celldata.map(c => c.c), 0) + 1;
+            for (let r = 0; r < maxRow; r++) {
+              const rowData = [];
+              for (let c = 0; c < maxCol; c++) {
+                const cell = sheet.celldata.find(cd => cd.r === r && cd.c === c);
+                const value = cell?.v?.v ?? cell?.v ?? '';
+                // Escape quotes and commas
+                const escaped = String(value).includes(',') || String(value).includes('"')
+                  ? `"${String(value).replace(/"/g, '""')}"`
+                  : value;
+                rowData.push(escaped);
+              }
+              csv += rowData.join(',') + '\n';
+            }
+          }
+          const blob = new Blob([csv], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = (document.getElementById('file-name').textContent || 'spreadsheet') + '.csv';
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+        console.log('[File] Exported to Excel/CSV');
+      } catch (err) {
+        console.error('[File] Export error:', err);
+        alert('Error exporting: ' + err.message);
+      }
+    }
+
+    function printSpreadsheet() {
+      // Create a print-friendly version
+      const printContent = document.getElementById('spreadsheet-container').innerHTML;
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Print Spreadsheet</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            th { background: #f5f5f5; font-weight: bold; }
+            @media print {
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent}
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
+    }
+
+    // ==========================================
+    // INSERT TAB FUNCTIONS
+    // ==========================================
+    function insertShape() {
+      const shapes = ['Rectangle', 'Circle', 'Triangle', 'Arrow', 'Line'];
+      const shape = prompt(`Choose a shape to insert:\n${shapes.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\nEnter number:`);
+      if (shape && shapes[parseInt(shape) - 1]) {
+        const selectedShape = shapes[parseInt(shape) - 1];
+        console.log('[Insert] Shape:', selectedShape);
+        alert(`Shape "${selectedShape}" would be inserted at the selected cell.\n\n(Shape insertion is a visual feature that requires canvas rendering)`);
+      }
+    }
+
+    function openFunctionWizard() {
+      const categories = {
+        'Math': ['SUM', 'AVERAGE', 'COUNT', 'MAX', 'MIN', 'ROUND', 'ABS'],
+        'Text': ['CONCAT', 'LEFT', 'RIGHT', 'MID', 'LEN', 'UPPER', 'LOWER', 'TRIM'],
+        'Logical': ['IF', 'AND', 'OR', 'NOT', 'IFERROR'],
+        'Lookup': ['VLOOKUP', 'HLOOKUP', 'INDEX', 'MATCH'],
+        'Date': ['NOW', 'TODAY', 'DATE', 'YEAR', 'MONTH', 'DAY']
+      };
+
+      let message = 'Function Wizard - Available Functions:\n\n';
+      for (const [cat, funcs] of Object.entries(categories)) {
+        message += `${cat}: ${funcs.join(', ')}\n`;
+      }
+      message += '\nEnter a function name to insert:';
+
+      const func = prompt(message);
+      if (func) {
+        const formulaInput = document.getElementById('formula-input');
+        formulaInput.value = `=${func.toUpperCase()}()`;
+        formulaInput.focus();
+        // Position cursor between parentheses
+        formulaInput.setSelectionRange(formulaInput.value.length - 1, formulaInput.value.length - 1);
+      }
+    }
+
+    async function insertImage() {
+      try {
+        if (window.electronAPI?.selectImage) {
+          const result = await window.electronAPI.selectImage();
+          if (result) {
+            console.log('[Insert] Image selected:', result);
+            alert('Image insertion is a visual feature.\nThe image would be embedded at the selected cell.');
+          }
+        } else {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/*';
+          input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              console.log('[Insert] Image selected:', file.name);
+              alert(`Image "${file.name}" would be inserted.\n\n(Image embedding requires additional canvas rendering)`);
+            }
+          };
+          input.click();
+        }
+      } catch (err) {
+        console.error('[Insert] Image error:', err);
+      }
+    }
+
+    function openPivotTableWizard() {
+      const rangeInput = prompt('Create Pivot Table\n\nEnter data range (e.g., A1:D20):', 'A1:D20');
+      if (rangeInput) {
+        const range = parseRange(rangeInput);
+        if (range) {
+          console.log('[Insert] Creating pivot table from range:', rangeInput);
+          alert(`Pivot Table Wizard\n\nData Range: ${rangeInput}\n\nPivot tables allow you to:\n- Summarize data by categories\n- Calculate totals and averages\n- Create cross-tabulations\n\n(Full pivot table functionality requires additional UI)`);
+        } else {
+          alert('Invalid range format. Use format like A1:D20');
+        }
+      }
+    }
+
+    // ==========================================
+    // PAGE LAYOUT TAB FUNCTIONS
+    // ==========================================
+    let pageSettings = {
+      margins: 'normal',
+      orientation: 'portrait',
+      size: 'letter',
+      gridlines: true
+    };
+
+    function setPageMargins(type) {
+      const marginSettings = {
+        'normal': { top: 0.75, bottom: 0.75, left: 0.7, right: 0.7 },
+        'narrow': { top: 0.5, bottom: 0.5, left: 0.25, right: 0.25 },
+        'wide': { top: 1, bottom: 1, left: 1, right: 1 }
+      };
+      pageSettings.margins = type;
+      console.log('[Page Layout] Margins set to:', type, marginSettings[type]);
+      updateStatusBar();
+    }
+
+    function setPageOrientation(orientation) {
+      pageSettings.orientation = orientation;
+      console.log('[Page Layout] Orientation set to:', orientation);
+      updateStatusBar();
+    }
+
+    function setPageSize(size) {
+      const sizes = {
+        'letter': '8.5" x 11"',
+        'legal': '8.5" x 14"',
+        'a4': '210mm x 297mm'
+      };
+      pageSettings.size = size;
+      console.log('[Page Layout] Page size set to:', size, sizes[size]);
+      updateStatusBar();
+    }
+
+    function toggleGridlines(show) {
+      pageSettings.gridlines = show;
+      const table = document.querySelector('#spreadsheet-container table');
+      if (table) {
+        table.querySelectorAll('td').forEach(td => {
+          td.style.borderColor = show ? '#e5e7eb' : 'transparent';
+        });
+      }
+      console.log('[Page Layout] Gridlines:', show ? 'visible' : 'hidden');
+    }
+
+    function setPrintArea() {
+      if (!selectionRange) {
+        alert('Select a range of cells first, then click "Set Print Area"');
+        return;
+      }
+      const startCol = String.fromCharCode(65 + selectionRange.startCol);
+      const endCol = String.fromCharCode(65 + selectionRange.endCol);
+      const startRow = selectionRange.startRow + 1;
+      const endRow = selectionRange.endRow + 1;
+      const range = `${startCol}${startRow}:${endCol}${endRow}`;
+
+      pageSettings.printArea = range;
+      console.log('[Page Layout] Print area set to:', range);
+      alert(`Print area set to: ${range}\n\nOnly this range will be printed.`);
+    }
+
+    // ==========================================
+    // FORMULAS TAB FUNCTIONS
+    // ==========================================
+    function insertAutoFormula(formula) {
+      const formulaInput = document.getElementById('formula-input');
+      let formulaText = '';
+
+      // Detect range above current cell
+      const col = String.fromCharCode(65 + selectedCell.col);
+      const row = selectedCell.row + 1;
+      const startRow = 1;
+      const range = startRow < row ? `${col}${startRow}:${col}${row - 1}` : `${col}${row}`;
+
+      switch (formula) {
+        case 'sum': formulaText = `=SUM(${range})`; break;
+        case 'average': formulaText = `=AVERAGE(${range})`; break;
+        case 'count': formulaText = `=COUNT(${range})`; break;
+        case 'max': formulaText = `=MAX(${range})`; break;
+        case 'min': formulaText = `=MIN(${range})`; break;
+        default: formulaText = `=${formula.toUpperCase()}(${range})`;
+      }
+
+      formulaInput.value = formulaText;
+      formulaInput.focus();
+      console.log('[Formulas] Inserted:', formulaText);
+    }
+
+    function insertFinancialFormula(formula) {
+      const formulaInput = document.getElementById('formula-input');
+      const templates = {
+        'pmt': '=PMT(rate, nper, pv)',
+        'fv': '=FV(rate, nper, pmt, [pv])',
+        'pv': '=PV(rate, nper, pmt, [fv])',
+        'npv': '=NPV(rate, value1, [value2], ...)',
+        'irr': '=IRR(values, [guess])'
+      };
+      formulaInput.value = templates[formula] || `=${formula.toUpperCase()}()`;
+      formulaInput.focus();
+      console.log('[Formulas] Inserted financial:', formula);
+    }
+
+    function insertLogicalFormula(formula) {
+      const formulaInput = document.getElementById('formula-input');
+      const templates = {
+        'if': '=IF(condition, value_if_true, value_if_false)',
+        'and': '=AND(condition1, condition2, ...)',
+        'or': '=OR(condition1, condition2, ...)',
+        'not': '=NOT(condition)',
+        'iferror': '=IFERROR(value, value_if_error)'
+      };
+      formulaInput.value = templates[formula] || `=${formula.toUpperCase()}()`;
+      formulaInput.focus();
+      console.log('[Formulas] Inserted logical:', formula);
+    }
+
+    function insertTextFormula(formula) {
+      const formulaInput = document.getElementById('formula-input');
+      const templates = {
+        'concat': '=CONCAT(text1, text2, ...)',
+        'left': '=LEFT(text, num_chars)',
+        'right': '=RIGHT(text, num_chars)',
+        'mid': '=MID(text, start, num_chars)',
+        'len': '=LEN(text)',
+        'trim': '=TRIM(text)',
+        'upper': '=UPPER(text)',
+        'lower': '=LOWER(text)'
+      };
+      formulaInput.value = templates[formula] || `=${formula.toUpperCase()}()`;
+      formulaInput.focus();
+      console.log('[Formulas] Inserted text:', formula);
+    }
+
+    function insertLookupFormula(formula) {
+      const formulaInput = document.getElementById('formula-input');
+      const templates = {
+        'vlookup': '=VLOOKUP(lookup_value, table_array, col_index, [range_lookup])',
+        'hlookup': '=HLOOKUP(lookup_value, table_array, row_index, [range_lookup])',
+        'index': '=INDEX(array, row_num, [col_num])',
+        'match': '=MATCH(lookup_value, lookup_array, [match_type])',
+        'xlookup': '=XLOOKUP(lookup_value, lookup_array, return_array)'
+      };
+      formulaInput.value = templates[formula] || `=${formula.toUpperCase()}()`;
+      formulaInput.focus();
+      console.log('[Formulas] Inserted lookup:', formula);
+    }
+
+    // ==========================================
+    // DATA TAB FUNCTIONS
+    // ==========================================
+    function openTextToColumnsWizard() {
+      if (!selectionRange || selectionRange.startCol !== selectionRange.endCol) {
+        alert('Select a single column of data to split into multiple columns.');
+        return;
+      }
+
+      const delimiter = prompt('Text to Columns\n\nChoose delimiter:\n1. Comma (,)\n2. Tab\n3. Semicolon (;)\n4. Space\n5. Custom\n\nEnter number or custom character:');
+
+      let delim = ',';
+      switch (delimiter) {
+        case '1': delim = ','; break;
+        case '2': delim = '\t'; break;
+        case '3': delim = ';'; break;
+        case '4': delim = ' '; break;
+        default: delim = delimiter || ',';
+      }
+
+      const sheet = spreadsheetData.find(s => s.name === currentSheet);
+      if (!sheet) return;
+
+      let changesMade = 0;
+      for (let r = selectionRange.startRow; r <= selectionRange.endRow; r++) {
+        const cellData = sheet.celldata.find(c => c.r === r && c.c === selectionRange.startCol);
+        if (cellData) {
+          const value = cellData.v?.v ?? cellData.v ?? '';
+          const parts = String(value).split(delim);
+
+          parts.forEach((part, i) => {
+            const targetCol = selectionRange.startCol + i;
+            const existingCell = sheet.celldata.find(c => c.r === r && c.c === targetCol);
+            if (existingCell) {
+              if (existingCell.v && typeof existingCell.v === 'object') {
+                existingCell.v.v = part.trim();
+              } else {
+                existingCell.v = { v: part.trim() };
+              }
+            } else {
+              sheet.celldata.push({ r, c: targetCol, v: { v: part.trim() } });
+            }
+          });
+          changesMade++;
+        }
+      }
+
+      initFallbackGrid();
+      console.log('[Data] Text to columns completed:', changesMade, 'rows processed');
+      alert(`Split ${changesMade} cells using delimiter "${delim}"`);
+    }
+
+    function removeDuplicates() {
+      if (!selectionRange) {
+        alert('Select a range of data to remove duplicates from.');
+        return;
+      }
+
+      const sheet = spreadsheetData.find(s => s.name === currentSheet);
+      if (!sheet) return;
+
+      const seen = new Set();
+      const rowsToRemove = [];
+
+      for (let r = selectionRange.startRow; r <= selectionRange.endRow; r++) {
+        const rowKey = [];
+        for (let c = selectionRange.startCol; c <= selectionRange.endCol; c++) {
+          const cellData = sheet.celldata.find(cd => cd.r === r && cd.c === c);
+          rowKey.push(cellData?.v?.v ?? cellData?.v ?? '');
+        }
+        const key = rowKey.join('|');
+
+        if (seen.has(key)) {
+          rowsToRemove.push(r);
+        } else {
+          seen.add(key);
+        }
+      }
+
+      // Remove duplicate rows
+      rowsToRemove.reverse().forEach(row => {
+        sheet.celldata = sheet.celldata.filter(c => c.r !== row);
+        // Shift remaining rows up
+        sheet.celldata.forEach(c => {
+          if (c.r > row) c.r--;
+        });
+      });
+
+      initFallbackGrid();
+      console.log('[Data] Removed duplicates:', rowsToRemove.length);
+      alert(`Removed ${rowsToRemove.length} duplicate rows.\n${seen.size} unique rows remaining.`);
+    }
+
+    function openDataValidationDialog() {
+      const validationTypes = [
+        '1. Whole number',
+        '2. Decimal',
+        '3. List (dropdown)',
+        '4. Date',
+        '5. Text length',
+        '6. Custom formula'
+      ];
+
+      const type = prompt(`Data Validation\n\nChoose validation type:\n${validationTypes.join('\n')}\n\nEnter number:`);
+
+      if (!type) return;
+
+      let validation = null;
+      switch (type) {
+        case '1':
+          const minMax = prompt('Enter min and max (e.g., 1,100):');
+          if (minMax) {
+            const [min, max] = minMax.split(',').map(n => parseInt(n.trim()));
+            validation = { type: 'whole', min, max };
+          }
+          break;
+        case '2':
+          const decMinMax = prompt('Enter min and max decimals (e.g., 0.0,99.9):');
+          if (decMinMax) {
+            const [min, max] = decMinMax.split(',').map(n => parseFloat(n.trim()));
+            validation = { type: 'decimal', min, max };
+          }
+          break;
+        case '3':
+          const listItems = prompt('Enter list items separated by commas (e.g., Yes,No,Maybe):');
+          if (listItems) {
+            validation = { type: 'list', items: listItems.split(',').map(s => s.trim()) };
+          }
+          break;
+        case '4':
+          validation = { type: 'date' };
+          break;
+        case '5':
+          const lenMinMax = prompt('Enter min and max text length (e.g., 1,50):');
+          if (lenMinMax) {
+            const [min, max] = lenMinMax.split(',').map(n => parseInt(n.trim()));
+            validation = { type: 'textLength', min, max };
+          }
+          break;
+        case '6':
+          const formula = prompt('Enter custom validation formula:');
+          if (formula) {
+            validation = { type: 'custom', formula };
+          }
+          break;
+      }
+
+      if (validation) {
+        // Store validation for the selected cell/range
+        const key = `${selectedCell.row},${selectedCell.col}`;
+        cellValidations = cellValidations || {};
+        cellValidations[key] = validation;
+        console.log('[Data] Validation set:', key, validation);
+        alert(`Data validation applied to cell ${String.fromCharCode(65 + selectedCell.col)}${selectedCell.row + 1}`);
+      }
+    }
+
+    let cellValidations = {};
+
+    // Additional helper functions
+    function insertColumnAtPosition(col) {
+      const sheet = spreadsheetData.find(s => s.name === currentSheet);
+      if (!sheet) return;
+
+      // Shift all columns to the right
+      sheet.celldata.forEach(cell => {
+        if (cell.c >= col) cell.c++;
+      });
+      sheet.column++;
+
+      initFallbackGrid();
+      console.log('[Insert] Inserted column at position:', col);
+    }
+
+    function insertLink() {
+      const url = prompt('Enter URL:', 'https://');
+      if (url) {
+        const displayText = prompt('Enter display text (optional):', url);
+        const sheet = spreadsheetData.find(s => s.name === currentSheet);
+        if (sheet) {
+          const existingCell = sheet.celldata.find(c => c.r === selectedCell.row && c.c === selectedCell.col);
+          const linkValue = displayText || url;
+          const linkData = { v: linkValue, link: url };
+
+          if (existingCell) {
+            existingCell.v = linkData;
+          } else {
+            sheet.celldata.push({ r: selectedCell.row, c: selectedCell.col, v: linkData });
+          }
+
+          initFallbackGrid();
+          console.log('[Insert] Link inserted:', url);
+        }
+      }
+    }
+
+    let showFormulasMode = false;
+    function toggleShowFormulas(show) {
+      showFormulasMode = show;
+      const table = document.querySelector('#spreadsheet-container table');
+      if (!table) return;
+
+      const sheet = spreadsheetData.find(s => s.name === currentSheet);
+      if (!sheet) return;
+
+      table.querySelectorAll('td[data-row][data-col]').forEach(td => {
+        const row = parseInt(td.dataset.row);
+        const col = parseInt(td.dataset.col);
+        const cellData = sheet.celldata.find(c => c.r === row && c.c === col);
+
+        if (cellData) {
+          if (show && cellData.v?.f) {
+            // Show formula
+            td.textContent = cellData.v.f;
+            td.style.fontFamily = 'monospace';
+            td.style.fontSize = '11px';
+          } else {
+            // Show value
+            td.textContent = cellData.v?.v ?? cellData.v ?? '';
+            td.style.fontFamily = '';
+            td.style.fontSize = '';
+          }
+        }
+      });
+
+      console.log('[Formulas] Show formulas mode:', show);
+    }
+
+    // Find/Replace exports - use getters for arrays that get reassigned
+    Object.defineProperty(window, 'findResults', {
+      get: () => findResults,
+      set: (val) => { findResults = val; }
+    });
+    Object.defineProperty(window, 'currentFindIndex', {
+      get: () => currentFindIndex,
+      set: (val) => { currentFindIndex = val; }
+    });
+    window.performFind = performFind;
+    window.findNext = findNext;
+    window.findPrev = findPrev;
+    window.replaceOne = replaceOne;
+    window.replaceAll = replaceAll;
+
+    console.log('[Spreadsheet] Enhanced features loaded: Undo/Redo, Clipboard, Insert/Delete, Shortcuts, Context Menu, Charts, Sort/Filter, Find/Replace');
 
     // Initialize on load
     document.addEventListener('DOMContentLoaded', initSpreadsheet);

@@ -450,6 +450,123 @@ async function handleRequest(req, res) {
       });
     }
 
+    // =========================================================================
+    // Chart Operations
+    // =========================================================================
+
+    if (pathname === '/spreadsheet/insert-chart' && req.method === 'POST') {
+      const body = await parseBody(req);
+      const result = await spreadsheetManager.insertChart(
+        body.type || 'bar',
+        body.dataRange || 'A1:D5',
+        body.title || 'Chart',
+        body.showLegend !== false
+      );
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/spreadsheet/remove-chart' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (!body.chartId) {
+        return sendJson(res, 400, { success: false, error: 'chartId required' });
+      }
+      const result = await spreadsheetManager.removeChart(body.chartId);
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/spreadsheet/get-charts' && req.method === 'GET') {
+      const result = await spreadsheetManager.getCharts();
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    // =========================================================================
+    // Sort/Filter Operations
+    // =========================================================================
+
+    if (pathname === '/spreadsheet/sort' && req.method === 'POST') {
+      const body = await parseBody(req);
+      // Support both column index (0, 1, 2) and column letter (A, B, C)
+      let column = body.column || 0;
+      if (typeof column === 'string' && /^[A-Z]+$/i.test(column)) {
+        // Convert column letter to index (A=0, B=1, etc.)
+        const colStr = column.toUpperCase();
+        column = 0;
+        for (let i = 0; i < colStr.length; i++) {
+          column = column * 26 + (colStr.charCodeAt(i) - 64);
+        }
+        column -= 1; // 0-indexed
+      }
+      const result = await spreadsheetManager.sortColumn(
+        column,
+        body.direction || 'asc'
+      );
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/spreadsheet/filter' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (!body.value) {
+        return sendJson(res, 400, { success: false, error: 'value required for filtering' });
+      }
+      // Support both column index (0, 1, 2) and column letter (A, B, C)
+      let column = body.column || 0;
+      if (typeof column === 'string' && /^[A-Z]+$/i.test(column)) {
+        const colStr = column.toUpperCase();
+        column = 0;
+        for (let i = 0; i < colStr.length; i++) {
+          column = column * 26 + (colStr.charCodeAt(i) - 64);
+        }
+        column -= 1; // 0-indexed
+      }
+      const result = await spreadsheetManager.filterColumn(
+        column,
+        body.value
+      );
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/spreadsheet/clear-filter' && req.method === 'POST') {
+      const result = await spreadsheetManager.clearFilter();
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    // =========================================================================
+    // Find/Replace Operations
+    // =========================================================================
+
+    if (pathname === '/spreadsheet/find' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (!body.searchTerm) {
+        return sendJson(res, 400, { success: false, error: 'searchTerm required' });
+      }
+      const result = await spreadsheetManager.findText(
+        body.searchTerm,
+        body.caseSensitive || false,
+        body.wholeCell || false
+      );
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/spreadsheet/replace' && req.method === 'POST') {
+      const body = await parseBody(req);
+      const result = await spreadsheetManager.replaceText(body.replaceWith || '');
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/spreadsheet/replace-all' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (!body.searchTerm) {
+        return sendJson(res, 400, { success: false, error: 'searchTerm required' });
+      }
+      const result = await spreadsheetManager.replaceAll(
+        body.searchTerm,
+        body.replaceWith || '',
+        body.caseSensitive || false,
+        body.wholeCell || false
+      );
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
     // 404 for unknown routes
     return sendJson(res, 404, { error: 'Not found', path: pathname });
 

@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:;">
+  <title>Max's Notes</title>
+  <style>
+    /* ==========================================
+       Max Brand Design System
+       ========================================== */
+    :root {
+      /* Max Brand Colors - Orange/Amber Accent */
+      --max-accent: #f59e0b;
+      --max-accent-light: #fbbf24;
+      --max-accent-dark: #d97706;
+      --max-accent-glow: rgba(245, 158, 11, 0.4);
+      --max-accent-subtle: rgba(245, 158, 11, 0.15);
+
+      /* Background Colors - Matte Grey Theme */
+      --max-bg-dark: #18181b;
+      --max-bg-surface: rgba(30, 30, 35, 0.98);
+      --max-bg-card: rgba(38, 38, 42, 0.95);
+      --max-bg-hover: rgba(255, 255, 255, 0.05);
+      --max-bg-active: rgba(245, 158, 11, 0.1);
+
+      /* Text Colors */
+      --max-text-primary: rgba(255, 255, 255, 0.95);
+      --max-text-secondary: rgba(255, 255, 255, 0.7);
+      --max-text-muted: rgba(255, 255, 255, 0.5);
+      --max-text-dark: #1f2937;
+
+      /* Borders */
+      --max-border: rgba(255, 255, 255, 0.08);
+      --max-border-accent: rgba(245, 158, 11, 0.3);
+
+      /* Status Colors */
+      --max-success: #22c55e;
+      --max-warning: #f59e0b;
+      --max-error: #ef4444;
+      --max-info: #3b82f6;
+
+      /* Spacing & Sizing */
+      --sidebar-width: 260px;
+      --header-height: 44px;
+      --max-radius-sm: 6px;
+      --max-radius-md: 8px;
+      --max-radius-lg: 12px;
+
+      /* Shadows */
+      --max-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+      --max-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+      --max-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.25);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Inter", "Helvetica Neue", Arial, sans-serif;
+      background: var(--max-bg-dark);
+      color: var(--max-text-primary);
+      padding: 5px;
+    }
+
+    /* ==========================================
+       Layout Structure
+       ========================================== */
+    .app-container {
+      display: flex;
+      height: calc(100vh - 10px); /* Account for 5px padding top and bottom */
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    /* ==========================================
+       Sidebar
+       ========================================== */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--max-bg-surface);
+      border-right: 1px solid var(--max-border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      height: var(--header-height);
+      padding: 0 16px 0 78px; /* Left padding for macOS traffic lights */
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--max-border);
+      -webkit-app-region: drag;
+    }
+
+    .sidebar-header .logo {
+      width: 26px;
+      height: 26px;
+      background: linear-gradient(135deg, var(--max-accent) 0%, var(--max-accent-dark) 100%);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: white;
+      box-shadow: 0 2px 8px var(--max-accent-glow);
+    }
+
+    .sidebar-header .brand {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header .title {
+      color: var(--max-accent);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    .sidebar-header .subtitle {
+      color: var(--max-text-muted);
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    /* Search Box */
+    .search-container {
+      padding: 12px 12px 8px;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--max-bg-hover);
+      border: 1px solid var(--max-border);
+      border-radius: var(--max-radius-md);
+      padding: 8px 12px;
+      transition: all 0.15s ease;
+    }
+
+    .search-box:focus-within {
+      border-color: var(--max-accent);
+      box-shadow: 0 0 0 3px var(--max-accent-subtle);
+    }
+
+    .search-box input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--max-text-primary);
+      font-size: 13px;
+    }
+
+    .search-box input::placeholder {
+      color: var(--max-text-muted);
+    }
+
+    .search-icon {
+      color: var(--max-text-muted);
+      font-size: 14px;
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+      padding: 0 12px 12px;
+    }
+
+    .quick-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: var(--max-bg-hover);
+      border: 1px solid var(--max-border);
+      border-radius: var(--max-radius-sm);
+      color: var(--max-text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .quick-btn:hover {
+      background: var(--max-accent-subtle);
+      border-color: var(--max-border-accent);
+      color: var(--max-accent);
+    }
+
+    /* Folders Section */
+    .folders-section {
+      padding: 0 12px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      color: var(--max-text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .section-title button {
+      background: none;
+      border: none;
+      color: var(--max-text-muted);
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+    }
+
+    .section-title button:hover {
+      background: var(--max-bg-hover);
+      color: var(--max-accent);
+    }
+
+    .folder-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .folder-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--max-radius-sm);
+      color: var(--max-text-secondary);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .folder-item:hover {
+      background: var(--max-bg-hover);
+      color: var(--max-text-primary);
+    }
+
+    .folder-item.active {
+      background: var(--max-accent-subtle);
+      color: var(--max-accent);
+    }
+
+    .folder-item .icon {
+      font-size: 16px;
+    }
+
+    .folder-item .count {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--max-text-muted);
+      background: var(--max-bg-hover);
+      padding: 2px 6px;
+      border-radius: 10px;
+    }
+
+    /* Tags Section */
+    .tags-section {
+      padding: 12px;
+      margin-top: auto;
+      border-top: 1px solid var(--max-border);
+    }
+
+    .tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .tag {
+      padding: 4px 10px;
+      background: var(--max-bg-hover);
+      border-radius: 12px;
+      font-size: 11px;
+      color: var(--max-text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .tag:hover {
+      background: var(--max-accent-subtle);
+      color: var(--max-accent);
+    }
+
+    /* ==========================================
+       Notes List Panel
+       ========================================== */
+    .notes-list-panel {
+      width: 280px;
+      background: var(--max-bg-card);
+      border-right: 1px solid var(--max-border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .notes-list-header {
+      height: var(--header-height);
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--max-border);
+    }
+
+    .notes-list-header h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--max-text-primary);
+    }
+
+    .notes-list-header .note-count {
+      font-size: 12px;
+      color: var(--max-text-muted);
+    }
+
+    .notes-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .note-item {
+      padding: 12px;
+      border-radius: var(--max-radius-md);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      margin-bottom: 4px;
+    }
+
+    .note-item:hover {
+      background: var(--max-bg-hover);
+    }
+
+    .note-item.active {
+      background: var(--max-accent-subtle);
+      border-left: 3px solid var(--max-accent);
+    }
+
+    .note-item .note-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--max-text-primary);
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .note-item .note-preview {
+      font-size: 12px;
+      color: var(--max-text-muted);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      line-height: 1.4;
+    }
+
+    .note-item .note-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--max-text-muted);
+    }
+
+    .note-item .note-tags {
+      display: flex;
+      gap: 4px;
+    }
+
+    .note-item .note-tag {
+      padding: 2px 6px;
+      background: var(--max-bg-surface);
+      border-radius: 8px;
+      font-size: 10px;
+    }
+
+    /* ==========================================
+       Editor Panel
+       ========================================== */
+    .editor-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--max-bg-dark);
+    }
+
+    .editor-header {
+      height: var(--header-height);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--max-border);
+      background: var(--max-bg-surface);
+      -webkit-app-region: drag;
+    }
+
+    .editor-toolbar {
+      display: flex;
+      gap: 4px;
+    }
+
+    .toolbar-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      border-radius: var(--max-radius-sm);
+      color: var(--max-text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-size: 14px;
+      -webkit-app-region: no-drag;
+    }
+
+    .toolbar-btn:hover {
+      background: var(--max-bg-hover);
+      color: var(--max-text-primary);
+    }
+
+    .toolbar-btn.active {
+      background: var(--max-accent-subtle);
+      color: var(--max-accent);
+    }
+
+    .toolbar-separator {
+      width: 1px;
+      height: 20px;
+      background: var(--max-border);
+      margin: 0 4px;
+    }
+
+    .editor-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+      -webkit-app-region: no-drag;
+    }
+
+    .editor-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 32px;
+      overflow-y: auto;
+    }
+
+    .note-title-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--max-text-primary);
+      margin-bottom: 8px;
+      width: 100%;
+    }
+
+    .note-title-input::placeholder {
+      color: var(--max-text-muted);
+    }
+
+    .note-meta-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--max-border);
+      font-size: 12px;
+      color: var(--max-text-muted);
+    }
+
+    .note-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .note-editor {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--max-text-primary);
+      resize: none;
+      font-family: inherit;
+    }
+
+    .note-editor::placeholder {
+      color: var(--max-text-muted);
+    }
+
+    /* ==========================================
+       Empty State
+       ========================================== */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--max-text-muted);
+      text-align: center;
+      padding: 40px;
+    }
+
+    .empty-state .icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .empty-state h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--max-text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .empty-state p {
+      font-size: 14px;
+      max-width: 300px;
+    }
+
+    .empty-state button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: var(--max-accent);
+      border: none;
+      border-radius: var(--max-radius-md);
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .empty-state button:hover {
+      background: var(--max-accent-light);
+      transform: translateY(-1px);
+    }
+
+    /* ==========================================
+       Linked Notes Panel
+       ========================================== */
+    .linked-panel {
+      width: 240px;
+      background: var(--max-bg-surface);
+      border-left: 1px solid var(--max-border);
+      display: none;
+      flex-direction: column;
+    }
+
+    .linked-panel.visible {
+      display: flex;
+    }
+
+    .linked-header {
+      height: var(--header-height);
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--max-border);
+    }
+
+    .linked-header h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--max-text-secondary);
+    }
+
+    .linked-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    .linked-note {
+      padding: 10px;
+      background: var(--max-bg-hover);
+      border-radius: var(--max-radius-sm);
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .linked-note:hover {
+      background: var(--max-accent-subtle);
+    }
+
+    .linked-note .title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--max-text-primary);
+      margin-bottom: 4px;
+    }
+
+    .linked-note .preview {
+      font-size: 11px;
+      color: var(--max-text-muted);
+    }
+
+    /* ==========================================
+       Scrollbar Styling
+       ========================================== */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    /* ==========================================
+       Loading State
+       ========================================== */
+    .loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--max-bg-dark);
+      z-index: 1000;
+    }
+
+    .loading .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--max-border);
+      border-top-color: var(--max-accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ==========================================
+       Toast Notifications
+       ========================================== */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      padding: 12px 16px;
+      background: var(--max-bg-surface);
+      border: 1px solid var(--max-border);
+      border-radius: var(--max-radius-md);
+      color: var(--max-text-primary);
+      font-size: 13px;
+      box-shadow: var(--max-shadow-lg);
+      animation: slideIn 0.2s ease;
+    }
+
+    .toast.success {
+      border-color: var(--max-success);
+    }
+
+    .toast.error {
+      border-color: var(--max-error);
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+  </div>
+
+  <div class="app-container" id="app" style="display: none;">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">M</div>
+        <div class="brand">
+          <span class="title">Max's Notes</span>
+          <span class="subtitle">AI-Powered Knowledge Base</span>
+        </div>
+      </div>
+
+      <div class="search-container">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" placeholder="Search notes..." />
+        </div>
+      </div>
+
+      <div class="quick-actions">
+        <button class="quick-btn" id="btn-new-note">
+          <span>+</span> New Note
+        </button>
+        <button class="quick-btn" id="btn-daily-note">
+          <span>📅</span> Today
+        </button>
+      </div>
+
+      <div class="folders-section">
+        <div class="section-title">
+          <span>Folders</span>
+          <button id="btn-new-folder" title="New Folder">+</button>
+        </div>
+        <div class="folder-list" id="folder-list">
+          <!-- Folders will be populated here -->
+        </div>
+      </div>
+
+      <div class="tags-section">
+        <div class="section-title">
+          <span>Tags</span>
+        </div>
+        <div class="tags-container" id="tags-container">
+          <!-- Tags will be populated here -->
+        </div>
+      </div>
+    </aside>
+
+    <!-- Notes List -->
+    <div class="notes-list-panel">
+      <div class="notes-list-header">
+        <h2 id="folder-title">All Notes</h2>
+        <span class="note-count" id="note-count">0 notes</span>
+      </div>
+      <div class="notes-list" id="notes-list">
+        <!-- Notes will be populated here -->
+      </div>
+    </div>
+
+    <!-- Editor -->
+    <main class="editor-panel" id="editor-panel">
+      <div class="editor-header">
+        <div class="editor-toolbar">
+          <button class="toolbar-btn" title="Bold (⌘B)">𝐁</button>
+          <button class="toolbar-btn" title="Italic (⌘I)">𝐼</button>
+          <button class="toolbar-btn" title="Heading">H</button>
+          <div class="toolbar-separator"></div>
+          <button class="toolbar-btn" title="Bullet List">•</button>
+          <button class="toolbar-btn" title="Numbered List">1.</button>
+          <button class="toolbar-btn" title="Checkbox">☐</button>
+          <div class="toolbar-separator"></div>
+          <button class="toolbar-btn" title="Link">🔗</button>
+          <button class="toolbar-btn" title="Code">&lt;/&gt;</button>
+        </div>
+        <div class="editor-actions">
+          <button class="toolbar-btn" id="btn-link-notes" title="Linked Notes">🔗</button>
+          <button class="toolbar-btn" id="btn-tags" title="Tags">#</button>
+          <button class="toolbar-btn" id="btn-delete" title="Delete">🗑️</button>
+        </div>
+      </div>
+
+      <div class="editor-content" id="editor-content">
+        <input type="text" class="note-title-input" id="note-title" placeholder="Note Title" />
+        <div class="note-meta-bar" id="note-meta">
+          <span class="note-meta-item" id="note-date">
+            <span>📅</span>
+            <span id="note-date-text">Today</span>
+          </span>
+          <span class="note-meta-item" id="note-folder-display">
+            <span>📁</span>
+            <span id="note-folder-text">All Notes</span>
+          </span>
+        </div>
+        <textarea class="note-editor" id="note-content" placeholder="Start writing..."></textarea>
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" id="empty-state" style="display: none;">
+        <div class="icon">📝</div>
+        <h3>No Note Selected</h3>
+        <p>Select a note from the list or create a new one to get started.</p>
+        <button id="btn-create-first">Create Your First Note</button>
+      </div>
+    </main>
+
+    <!-- Linked Notes Panel -->
+    <aside class="linked-panel" id="linked-panel">
+      <div class="linked-header">
+        <h3>Linked Notes</h3>
+        <button class="toolbar-btn" id="btn-close-linked">×</button>
+      </div>
+      <div class="linked-list" id="linked-list">
+        <!-- Linked notes will be populated here -->
+      </div>
+    </aside>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    console.log('[Notes] Script starting...');
+
+    // ==========================================
+    // Max's Notes - Application Logic
+    // ==========================================
+
+    // State
+    let notesData = [];
+    let foldersData = [{ id: 'default', name: 'All Notes', icon: '📁' }];
+    let tags = [];
+    let currentNoteId = null;
+    let currentFolderId = 'default';
+    let searchQuery = '';
+    let isModified = false;
+    let saveTimeout = null;
+
+    // DOM Elements
+    console.log('[Notes] Getting DOM elements...');
+    const elements = {
+      app: document.getElementById('app'),
+      loading: document.getElementById('loading'),
+      searchInput: document.getElementById('search-input'),
+      folderList: document.getElementById('folder-list'),
+      tagsContainer: document.getElementById('tags-container'),
+      notesList: document.getElementById('notes-list'),
+      noteCount: document.getElementById('note-count'),
+      folderTitle: document.getElementById('folder-title'),
+      noteTitle: document.getElementById('note-title'),
+      noteContent: document.getElementById('note-content'),
+      noteDateText: document.getElementById('note-date-text'),
+      noteFolderText: document.getElementById('note-folder-text'),
+      editorContent: document.getElementById('editor-content'),
+      emptyState: document.getElementById('empty-state'),
+      linkedPanel: document.getElementById('linked-panel'),
+      linkedList: document.getElementById('linked-list'),
+      toastContainer: document.getElementById('toast-container')
+    };
+    console.log('[Notes] DOM elements:', { app: !!elements.app, loading: !!elements.loading });
+
+    // ==========================================
+    // Initialization
+    // ==========================================
+    async function init() {
+      console.log('[Notes] Initializing...');
+      console.log('[Notes] notesAPI available:', !!window.notesAPI);
+      console.log('[Notes] elements.loading:', elements.loading);
+      console.log('[Notes] elements.app:', elements.app);
+
+      // Hide loading, show app FIRST
+      if (elements.loading) {
+        elements.loading.style.display = 'none';
+        console.log('[Notes] Loading hidden');
+      } else {
+        console.error('[Notes] elements.loading is null!');
+      }
+
+      if (elements.app) {
+        elements.app.style.display = 'flex';
+        console.log('[Notes] App shown');
+      } else {
+        console.error('[Notes] elements.app is null!');
+      }
+
+      try {
+        // Set up event listeners
+        setupEventListeners();
+        console.log('[Notes] Event listeners set up');
+
+        // Listen for sync updates from main process
+        if (window.notesAPI?.onSync) {
+          window.notesAPI.onSync(handleSync);
+          console.log('[Notes] Sync listener registered');
+        }
+
+        // Request initial data
+        if (window.notesAPI?.getNotes) {
+          try {
+            const result = await window.notesAPI.getNotes({});
+            console.log('[Notes] Got initial data:', result);
+            if (result.notes) {
+              notesData = result.notes;
+            }
+            if (result.folders) {
+              foldersData = result.folders;
+            }
+            if (result.tags) {
+              tags = result.tags;
+            }
+            renderFolders();
+            renderTags();
+            renderNotesList();
+            console.log('[Notes] Rendered initial data');
+          } catch (err) {
+            console.error('[Notes] Failed to get notes:', err);
+          }
+        }
+
+        console.log('[Notes] Initialized');
+      } catch (err) {
+        console.error('[Notes] Init error:', err);
+      }
+    }
+
+    // ==========================================
+    // Event Listeners
+    // ==========================================
+    function setupEventListeners() {
+      // Search
+      if (elements.searchInput) {
+        elements.searchInput.addEventListener('input', handleSearch);
+      }
+
+      // New Note
+      const btnNewNote = document.getElementById('btn-new-note');
+      if (btnNewNote) btnNewNote.addEventListener('click', createNewNote);
+      const btnCreateFirst = document.getElementById('btn-create-first');
+      if (btnCreateFirst) btnCreateFirst.addEventListener('click', createNewNote);
+
+      // Daily Note
+      const btnDailyNote = document.getElementById('btn-daily-note');
+      if (btnDailyNote) btnDailyNote.addEventListener('click', createDailyNote);
+
+      // New Folder
+      const btnNewFolder = document.getElementById('btn-new-folder');
+      if (btnNewFolder) btnNewFolder.addEventListener('click', createNewFolder);
+
+      // Note editing
+      if (elements.noteTitle) elements.noteTitle.addEventListener('input', handleTitleChange);
+      if (elements.noteContent) elements.noteContent.addEventListener('input', handleContentChange);
+
+      // Delete
+      const btnDelete = document.getElementById('btn-delete');
+      if (btnDelete) btnDelete.addEventListener('click', deleteCurrentNote);
+
+      // Linked notes panel
+      const btnLinkNotes = document.getElementById('btn-link-notes');
+      if (btnLinkNotes) btnLinkNotes.addEventListener('click', toggleLinkedPanel);
+      const btnCloseLinked = document.getElementById('btn-close-linked');
+      if (btnCloseLinked) {
+        btnCloseLinked.addEventListener('click', () => {
+          if (elements.linkedPanel) elements.linkedPanel.classList.remove('visible');
+        });
+      }
+
+      // Keyboard shortcuts
+      document.addEventListener('keydown', handleKeyboard);
+    }
+
+    // ==========================================
+    // Sync Handler
+    // ==========================================
+    function handleSync(data) {
+      console.log('[Notes] Sync received:', data);
+      if (data.notes) notesData = data.notes;
+      if (data.folders) foldersData = data.folders;
+      if (data.tags) tags = data.tags;
+      if (data.currentNoteId) currentNoteId = data.currentNoteId;
+
+      renderFolders();
+      renderTags();
+      renderNotesList();
+
+      if (currentNoteId) {
+        loadNote(currentNoteId);
+      }
+    }
+
+    // ==========================================
+    // Rendering
+    // ==========================================
+    function renderFolders() {
+      const html = foldersData.map(folder => {
+        const noteCount = notesData.filter(n =>
+          folder.id === 'default' || n.folderId === folder.id
+        ).length;
+        const isActive = folder.id === currentFolderId;
+
+        return `
+          <div class="folder-item ${isActive ? 'active' : ''}" data-folder-id="${folder.id}">
+            <span class="icon">${folder.icon || '📁'}</span>
+            <span>${folder.name}</span>
+            <span class="count">${noteCount}</span>
+          </div>
+        `;
+      }).join('');
+
+      elements.folderList.innerHTML = html;
+
+      // Add click handlers
+      elements.folderList.querySelectorAll('.folder-item').forEach(el => {
+        el.addEventListener('click', () => {
+          currentFolderId = el.dataset.folderId;
+          renderFolders();
+          renderNotesList();
+          elements.folderTitle.textContent = foldersData.find(f => f.id === currentFolderId)?.name || 'All Notes';
+        });
+      });
+    }
+
+    function renderTags() {
+      const html = tags.slice(0, 10).map(t => `
+        <span class="tag" data-tag="${t.tag}">${t.tag} (${t.count})</span>
+      `).join('');
+
+      elements.tagsContainer.innerHTML = html || '<span style="font-size: 11px; color: var(--max-text-muted);">No tags yet</span>';
+
+      // Add click handlers
+      elements.tagsContainer.querySelectorAll('.tag').forEach(el => {
+        el.addEventListener('click', () => {
+          elements.searchInput.value = `#${el.dataset.tag}`;
+          handleSearch();
+        });
+      });
+    }
+
+    function renderNotesList() {
+      let filteredNotes = [...notesData];
+
+      // Filter by folder
+      if (currentFolderId !== 'default') {
+        filteredNotes = filteredNotes.filter(n => n.folderId === currentFolderId);
+      }
+
+      // Filter by search
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        filteredNotes = filteredNotes.filter(n =>
+          n.title.toLowerCase().includes(query) ||
+          n.content.toLowerCase().includes(query) ||
+          n.tags.some(t => t.toLowerCase().includes(query.replace('#', '')))
+        );
+      }
+
+      // Sort by updated date
+      filteredNotes.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+      const html = filteredNotes.map(note => {
+        const isActive = note.id === currentNoteId;
+        const date = new Date(note.updatedAt);
+        const dateStr = formatDate(date);
+        const preview = note.content.substring(0, 100).replace(/[#*_`]/g, '');
+
+        return `
+          <div class="note-item ${isActive ? 'active' : ''}" data-note-id="${note.id}">
+            <div class="note-title">${escapeHtml(note.title) || 'Untitled'}</div>
+            <div class="note-preview">${escapeHtml(preview)}</div>
+            <div class="note-meta">
+              <span>${dateStr}</span>
+              ${note.tags.length > 0 ? `
+                <div class="note-tags">
+                  ${note.tags.slice(0, 2).map(t => `<span class="note-tag">${t}</span>`).join('')}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      elements.notesList.innerHTML = html || `
+        <div style="padding: 20px; text-align: center; color: var(--max-text-muted);">
+          ${searchQuery ? 'No notes found' : 'No notes in this folder'}
+        </div>
+      `;
+
+      elements.noteCount.textContent = `${filteredNotes.length} note${filteredNotes.length !== 1 ? 's' : ''}`;
+
+      // Add click handlers
+      elements.notesList.querySelectorAll('.note-item').forEach(el => {
+        el.addEventListener('click', () => {
+          currentNoteId = el.dataset.noteId;
+          loadNote(currentNoteId);
+          renderNotesList();
+        });
+      });
+
+      // Show/hide empty state
+      if (!currentNoteId && notesData.length === 0) {
+        elements.editorContent.style.display = 'none';
+        elements.emptyState.style.display = 'flex';
+      } else {
+        elements.editorContent.style.display = 'flex';
+        elements.emptyState.style.display = 'none';
+      }
+    }
+
+    // ==========================================
+    // Note Operations
+    // ==========================================
+    function loadNote(noteId) {
+      const note = notesData.find(n => n.id === noteId);
+      if (!note) return;
+
+      currentNoteId = noteId;
+      elements.noteTitle.value = note.title;
+      elements.noteContent.value = note.content;
+      elements.noteDateText.textContent = formatDate(new Date(note.updatedAt));
+      elements.noteFolderText.textContent = foldersData.find(f => f.id === note.folderId)?.name || 'All Notes';
+
+      // Show editor, hide empty state
+      elements.editorContent.style.display = 'flex';
+      elements.emptyState.style.display = 'none';
+
+      // Update linked notes
+      renderLinkedNotes(note);
+    }
+
+    async function createNewNote() {
+      const note = {
+        id: `note_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        title: 'Untitled Note',
+        content: '',
+        folderId: currentFolderId === 'default' ? 'default' : currentFolderId,
+        tags: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        linkedNotes: []
+      };
+
+      notesData.unshift(note);
+      currentNoteId = note.id;
+      loadNote(note.id);
+      renderNotesList();
+
+      // Focus title
+      elements.noteTitle.focus();
+      elements.noteTitle.select();
+
+      // Save via API
+      if (window.notesAPI?.createNote) {
+        await window.notesAPI.createNote(note.title, note.content, note.folderId, note.tags);
+      }
+
+      showToast('Note created', 'success');
+    }
+
+    async function createDailyNote() {
+      const today = new Date().toISOString().split('T')[0];
+      const todayTitle = `Daily Note - ${today}`;
+
+      // Check if today's note exists
+      let note = notesData.find(n => n.title === todayTitle);
+
+      if (!note) {
+        note = {
+          id: `note_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          title: todayTitle,
+          content: `# ${today}\n\n## Tasks\n- [ ] \n\n## Notes\n\n## Ideas\n\n`,
+          folderId: 'default',
+          tags: ['daily'],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          linkedNotes: []
+        };
+        notesData.unshift(note);
+
+        if (window.notesAPI?.createNote) {
+          await window.notesAPI.createNote(note.title, note.content, note.folderId, note.tags);
+        }
+        showToast('Daily note created', 'success');
+      }
+
+      currentNoteId = note.id;
+      loadNote(note.id);
+      renderNotesList();
+    }
+
+    async function deleteCurrentNote() {
+      if (!currentNoteId) return;
+
+      const note = notesData.find(n => n.id === currentNoteId);
+      if (!note) return;
+
+      if (!confirm(`Delete "${note.title}"?`)) return;
+
+      notesData = notesData.filter(n => n.id !== currentNoteId);
+      currentNoteId = notesData[0]?.id || null;
+
+      if (currentNoteId) {
+        loadNote(currentNoteId);
+      } else {
+        elements.editorContent.style.display = 'none';
+        elements.emptyState.style.display = 'flex';
+      }
+
+      renderNotesList();
+
+      if (window.notesAPI?.deleteNote) {
+        await window.notesAPI.deleteNote(note.id);
+      }
+
+      showToast('Note deleted', 'success');
+    }
+
+    // ==========================================
+    // Event Handlers
+    // ==========================================
+    function handleSearch() {
+      searchQuery = elements.searchInput.value;
+      renderNotesList();
+    }
+
+    function handleTitleChange() {
+      if (!currentNoteId) return;
+      const note = notesData.find(n => n.id === currentNoteId);
+      if (note) {
+        note.title = elements.noteTitle.value;
+        note.updatedAt = new Date().toISOString();
+        scheduleAutoSave();
+        renderNotesList();
+      }
+    }
+
+    function handleContentChange() {
+      if (!currentNoteId) return;
+      const note = notesData.find(n => n.id === currentNoteId);
+      if (note) {
+        note.content = elements.noteContent.value;
+        note.updatedAt = new Date().toISOString();
+        scheduleAutoSave();
+      }
+    }
+
+    function scheduleAutoSave() {
+      isModified = true;
+      if (saveTimeout) clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(autoSave, 1000);
+    }
+
+    async function autoSave() {
+      if (!isModified || !currentNoteId) return;
+      const note = notesData.find(n => n.id === currentNoteId);
+      if (!note) return;
+
+      if (window.notesAPI?.updateNote) {
+        await window.notesAPI.updateNote(note.id, {
+          title: note.title,
+          content: note.content,
+          tags: note.tags
+        });
+      }
+
+      isModified = false;
+      console.log('[Notes] Auto-saved');
+    }
+
+    function handleKeyboard(e) {
+      // Cmd/Ctrl + N: New note
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        createNewNote();
+      }
+      // Cmd/Ctrl + F: Focus search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        elements.searchInput.focus();
+      }
+      // Cmd/Ctrl + S: Force save
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        autoSave();
+        showToast('Saved', 'success');
+      }
+    }
+
+    async function createNewFolder() {
+      const name = prompt('Folder name:');
+      if (!name) return;
+
+      const folder = {
+        id: `folder_${Date.now()}`,
+        name,
+        icon: '📁'
+      };
+
+      foldersData.push(folder);
+      renderFolders();
+
+      if (window.notesAPI?.createFolder) {
+        await window.notesAPI.createFolder(name, folder.icon);
+      }
+
+      showToast('Folder created', 'success');
+    }
+
+    function toggleLinkedPanel() {
+      elements.linkedPanel.classList.toggle('visible');
+    }
+
+    function renderLinkedNotes(note) {
+      if (!note.linkedNotes || note.linkedNotes.length === 0) {
+        elements.linkedList.innerHTML = `
+          <div style="padding: 20px; text-align: center; color: var(--max-text-muted); font-size: 12px;">
+            No linked notes yet.<br>
+            <small>Link related notes to build your knowledge graph.</small>
+          </div>
+        `;
+        return;
+      }
+
+      const linked = note.linkedNotes
+        .map(id => notesData.find(n => n.id === id))
+        .filter(Boolean);
+
+      const html = linked.map(n => `
+        <div class="linked-note" data-note-id="${n.id}">
+          <div class="title">${escapeHtml(n.title)}</div>
+          <div class="preview">${escapeHtml(n.content.substring(0, 60))}</div>
+        </div>
+      `).join('');
+
+      elements.linkedList.innerHTML = html;
+
+      elements.linkedList.querySelectorAll('.linked-note').forEach(el => {
+        el.addEventListener('click', () => {
+          currentNoteId = el.dataset.noteId;
+          loadNote(currentNoteId);
+          renderNotesList();
+        });
+      });
+    }
+
+    // ==========================================
+    // Utilities
+    // ==========================================
+    function formatDate(date) {
+      const now = new Date();
+      const diff = now - date;
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+      if (days === 0) return 'Today';
+      if (days === 1) return 'Yesterday';
+      if (days < 7) return `${days} days ago`;
+      return date.toLocaleDateString();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      elements.toastContainer.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 200);
+      }, 2000);
+    }
+
+    // ==========================================
+    // Expose for AI control
+    // ==========================================
+    window.createNote = createNewNote;
+    window.deleteNote = deleteCurrentNote;
+    window.searchNotes = (query) => {
+      elements.searchInput.value = query;
+      handleSearch();
+    };
+    window.getCurrentNote = () => notesData.find(n => n.id === currentNoteId);
+    window.getNotesData = () => notesData;
+    window.getStatus = () => ({
+      noteCount: notesData.length,
+      currentNoteId,
+      isModified
+    });
+
+    // Initialize on load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      // DOMContentLoaded already fired
+      init();
+    }
+  </script>
+</body>
+</html>

@@ -573,3 +573,92 @@ contextBridge.exposeInMainWorld('spreadsheet', {
     ipcRenderer.removeAllListeners('spreadsheet:frame');
   }
 });
+
+// ===========================================
+// Max Notes - AI-powered note-taking application
+// ===========================================
+
+contextBridge.exposeInMainWorld('notes', {
+  // Check if notes is active
+  isActive: () => ipcRenderer.invoke('notes:is-active'),
+
+  // Get current notes status
+  getStatus: () => ipcRenderer.invoke('notes:get-status'),
+
+  // Get detailed status with recent notes
+  getDetailedStatus: () => ipcRenderer.invoke('notes:get-detailed-status'),
+
+  // Create/open the notes window
+  create: () => ipcRenderer.invoke('notes:create'),
+
+  // Destroy/close the notes window
+  destroy: () => ipcRenderer.invoke('notes:destroy'),
+
+  // Capture current frame for PiP
+  captureFrame: () => ipcRenderer.invoke('notes:capture-frame'),
+
+  // ===========================================
+  // Note CRUD operations
+  // ===========================================
+
+  createNote: (title, content, folderId, tags) =>
+    ipcRenderer.invoke('notes-create-note', { title, content, folderId, tags }),
+
+  updateNote: (noteId, updates) =>
+    ipcRenderer.invoke('notes-update-note', { noteId, updates }),
+
+  deleteNote: (noteId) =>
+    ipcRenderer.invoke('notes-delete-note', { noteId }),
+
+  getNote: (noteId) =>
+    ipcRenderer.invoke('notes-get-note', { noteId }),
+
+  getNotes: (options) =>
+    ipcRenderer.invoke('notes-get-notes', options || {}),
+
+  searchNotes: (query) =>
+    ipcRenderer.invoke('notes-search', { query }),
+
+  // ===========================================
+  // Folder operations
+  // ===========================================
+
+  createFolder: (name, icon) =>
+    ipcRenderer.invoke('notes-create-folder', { name, icon }),
+
+  deleteFolder: (folderId) =>
+    ipcRenderer.invoke('notes-delete-folder', { folderId }),
+
+  // ===========================================
+  // Linking and tags
+  // ===========================================
+
+  linkNotes: (noteId1, noteId2) =>
+    ipcRenderer.invoke('notes-link', { noteId1, noteId2 }),
+
+  getAllTags: () =>
+    ipcRenderer.invoke('notes-get-tags'),
+
+  // ===========================================
+  // Export/Import
+  // ===========================================
+
+  exportNotes: (format, noteIds) =>
+    ipcRenderer.invoke('notes-export', { format, noteIds }),
+
+  importNotes: (data) =>
+    ipcRenderer.invoke('notes-import', { data }),
+
+  // ===========================================
+  // Quick actions
+  // ===========================================
+
+  createDailyNote: () =>
+    ipcRenderer.invoke('notes-quick-today'),
+
+  createScratchNote: () =>
+    ipcRenderer.invoke('notes-quick-scratch'),
+
+  setCurrentNote: (noteId) =>
+    ipcRenderer.invoke('notes-set-current', { noteId })
+});

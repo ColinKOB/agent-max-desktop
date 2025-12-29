@@ -1130,6 +1130,227 @@ class SpreadsheetManager {
       return { success: false, error: e.message };
     }
   }
+
+  // ===========================================================================
+  // Chart Operations
+  // ===========================================================================
+
+  /**
+   * Insert a chart into the spreadsheet
+   */
+  async insertChart(type, dataRange, title, showLegend = true) {
+    if (!this.getIsActive()) {
+      return { success: false, error: 'Spreadsheet not active' };
+    }
+
+    try {
+      const result = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        (function() {
+          // Set up chart config
+          currentChartType = '${type}';
+          document.getElementById('chart-data-range').value = '${dataRange}';
+          document.getElementById('chart-title').value = '${title}';
+          document.getElementById('chart-legend').checked = ${showLegend};
+
+          // Call insertChart
+          insertChart();
+
+          return { success: true, chartId: embeddedCharts[embeddedCharts.length - 1]?.id };
+        })()
+      `);
+      this.logActivity('insert_chart', { type, dataRange, title, showLegend, ...result });
+      return result;
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Remove a chart from the spreadsheet
+   */
+  async removeChart(chartId) {
+    if (!this.getIsActive()) {
+      return { success: false, error: 'Spreadsheet not active' };
+    }
+
+    try {
+      await this.spreadsheetWindow.webContents.executeJavaScript(`
+        window.removeChart('${chartId}')
+      `);
+      this.logActivity('remove_chart', { chartId });
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Get list of charts in the spreadsheet
+   */
+  async getCharts() {
+    if (!this.getIsActive()) {
+      return { success: false, error: 'Spreadsheet not active' };
+    }
+
+    try {
+      const charts = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        embeddedCharts || []
+      `);
+      return { success: true, charts };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  // ===========================================================================
+  // Sort/Filter Operations
+  // ===========================================================================
+
+  /**
+   * Sort a column in the spreadsheet
+   */
+  async sortColumn(column, direction = 'asc') {
+    if (!this.getIsActive()) {
+      return { success: false, error: 'Spreadsheet not active' };
+    }
+
+    try {
+      const result = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        window.sortColumn(${column}, '${direction}')
+      `);
+      this.logActivity('sort', { column, direction });
+      return result || { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Filter a column by value
+   */
+  async filterColumn(column, value) {
+    if (!this.getIsActive()) {
+      return { success: false, error: 'Spreadsheet not active' };
+    }
+
+    try {
+      const result = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        (function() {
+          window.applyFilter(${column}, '${value.replace(/'/g, "\\'")}');
+          // Count visible rows
+          const rows = document.querySelectorAll('#simple-grid tbody tr');
+          let count = 0;
+          rows.forEach(row => {
+            if (row.style.display !== 'none') count++;
+          });
+          return { matchCount: count };
+        })()
+      `);
+      this.logActivity('filter', { column, value, ...result });
+      return { success: true, ...result };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Clear all filters
+   */
+  async clearFilter() {
+    if (!this.getIsActive()) {
+      return { success: false, error: 'Spreadsheet not active' };
+    }
+
+    try {
+      await this.spreadsheetWindow.webContents.executeJavaScript(`
+        window.clearAllFilters()
+      `);
+      this.logActivity('clear_filter', {});
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  // ===========================================================================
+  // Find/Replace Operations
+  // ===========================================================================
+
+  /**
+   * Find text in the spreadsheet
+   */
+  async findText(searchTerm, caseSensitive = false, wholeCell = false) {
+    if (!this.getIsActive()) {
+      return { success: false, error: 'Spreadsheet not active' };
+    }
+
+    try {
+      const result = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        (function() {
+          window.performFind('${searchTerm.replace(/'/g, "\\'")}', ${caseSensitive}, ${wholeCell});
+          return {
+            count: window.findResults.length,
+            matches: window.findResults.map(r => String.fromCharCode(65 + r.col) + (r.row + 1))
+          };
+        })()
+      `);
+      this.logActivity('find', { searchTerm, ...result });
+      return { success: true, ...result };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Replace current found text
+   */
+  async replaceText(replaceWith) {
+    if (!this.getIsActive()) {
+      return { success: false, error: 'Spreadsheet not active' };
+    }
+
+    try {
+      await this.spreadsheetWindow.webContents.executeJavaScript(`
+        (function() {
+          const replaceInput = document.getElementById('replace-input');
+          if (replaceInput) replaceInput.value = '${replaceWith.replace(/'/g, "\\'")}';
+          window.replaceOne();
+        })()
+      `);
+      this.logActivity('replace', { replaceWith });
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Replace all occurrences
+   */
+  async replaceAll(searchTerm, replaceWith, caseSensitive = false, wholeCell = false) {
+    if (!this.getIsActive()) {
+      return { success: false, error: 'Spreadsheet not active' };
+    }
+
+    try {
+      const result = await this.spreadsheetWindow.webContents.executeJavaScript(`
+        (function() {
+          // Call replaceAll directly with parameters
+          const result = window.replaceAll(
+            '${searchTerm.replace(/'/g, "\\'")}',
+            '${replaceWith.replace(/'/g, "\\'")}',
+            ${caseSensitive},
+            ${wholeCell}
+          );
+          return { replacedCount: result ? result.count : 0 };
+        })()
+      `);
+      this.logActivity('replace_all', { searchTerm, replaceWith, ...result });
+      return { success: true, ...result };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
 }
 
 // Singleton instance

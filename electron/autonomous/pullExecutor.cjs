@@ -1254,6 +1254,40 @@ class PullExecutor {
                     }
                     break;
 
+                case 'workspace.screenshot':
+                    // Capture a screenshot of the current page
+                    // Returns base64-encoded PNG image for vision analysis
+                    try {
+                        const frame = await workspaceManager.captureFrame();
+                        if (frame && frame.success && frame.data) {
+                            return {
+                                success: true,
+                                stdout: JSON.stringify({
+                                    type: 'screenshot',
+                                    format: 'base64_png',
+                                    data: frame.data,
+                                    width: frame.width || 1280,
+                                    height: frame.height || 800,
+                                    message: 'Screenshot captured successfully. The image will be analyzed by vision AI.'
+                                }),
+                                stderr: '',
+                                exit_code: 0
+                            };
+                        } else {
+                            return {
+                                success: false,
+                                error: 'Failed to capture screenshot - workspace may not be active',
+                                exit_code: 1
+                            };
+                        }
+                    } catch (screenshotError) {
+                        return {
+                            success: false,
+                            error: `Screenshot error: ${screenshotError.message}`,
+                            exit_code: 1
+                        };
+                    }
+
                 default:
                     return {
                         success: false,

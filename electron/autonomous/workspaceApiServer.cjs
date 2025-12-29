@@ -107,12 +107,59 @@ async function handleRequest(req, res) {
     }
 
     if (pathname === '/workspace/status') {
+      const tabs = workspaceManager.listTabs();
       return sendJson(res, 200, {
         active: workspaceManager.getIsActive(),
         windowId: workspaceManager.getWindowId(),
         url: workspaceManager.getCurrentUrl(),
-        title: workspaceManager.getPageTitle()
+        title: workspaceManager.getPageTitle(),
+        activeTabId: tabs.activeTabId,
+        totalTabs: tabs.totalTabs
       });
+    }
+
+    // =========================================================================
+    // Tab Management
+    // =========================================================================
+
+    if (pathname === '/workspace/tab/create' && req.method === 'POST') {
+      const body = await parseBody(req);
+      const url = body.url || 'https://www.google.com';
+      const result = await workspaceManager.createTab(url);
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/workspace/tab/close' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (!body.tabId) {
+        return sendJson(res, 400, { success: false, error: 'tabId required' });
+      }
+      const result = workspaceManager.closeTab(body.tabId);
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/workspace/tab/switch' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (!body.tabId) {
+        return sendJson(res, 400, { success: false, error: 'tabId required' });
+      }
+      const result = workspaceManager.switchTab(body.tabId);
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
+    if (pathname === '/workspace/tabs/list' && req.method === 'GET') {
+      const result = workspaceManager.listTabs();
+      return sendJson(res, 200, result);
+    }
+
+    if (pathname === '/workspace/tab/info' && req.method === 'GET') {
+      const parsedUrl = url.parse(req.url, true);
+      const tabId = parsedUrl.query.tabId ? parseInt(parsedUrl.query.tabId, 10) : null;
+      if (!tabId) {
+        return sendJson(res, 400, { success: false, error: 'tabId required' });
+      }
+      const result = workspaceManager.getTabInfo(tabId);
+      return sendJson(res, result.success ? 200 : 400, result);
     }
 
     // =========================================================================

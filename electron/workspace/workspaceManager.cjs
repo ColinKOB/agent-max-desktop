@@ -43,9 +43,9 @@ class WorkspaceManager {
     this.tabs = new Map();      // tabId -> { view: BrowserView, url: string, title: string, createdAt: Date }
     this.activeTabId = null;    // Currently active tab ID
     this.nextTabId = 1;         // Auto-incrementing tab ID
-    this.headerHeight = 108;    // Header (48) + Tab bar (36) + Status bar (24) = 108px total chrome
-    this.topChromeHeight = 84;  // Header (48) + Tab bar (36) - content starts here
-    this.bottomChromeHeight = 24; // Status bar at bottom
+    this.headerHeight = 94;     // Header (38) + Tab bar (34) + Status bar (22) = 94px total chrome
+    this.topChromeHeight = 72;  // Header (38) + Tab bar (34) - content starts here
+    this.bottomChromeHeight = 22; // Status bar at bottom
   }
 
   // ===========================================================================
