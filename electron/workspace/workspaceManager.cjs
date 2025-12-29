@@ -1288,8 +1288,74 @@ class WorkspaceManager {
     try {
       const result = await this.executeScript(`
         (function() {
-          const el = document.querySelector('${selector.replace(/'/g, "\\'")}');
-          if (!el) return { found: false };
+          const selector = '${selector.replace(/'/g, "\\'")}';
+          const el = document.querySelector(selector);
+
+          if (!el) {
+            // ENHANCED ERROR: Collect context for AI recovery
+            // Find similar selectors that might work
+            const similarSelectors = [];
+
+            // Try to find elements with similar patterns
+            const selectorParts = selector.split(/[.#\\[\\]]/);
+            const mainPart = selectorParts.find(p => p.length > 2) || '';
+
+            if (mainPart) {
+              // Look for elements with similar class or id names
+              document.querySelectorAll('*').forEach(el => {
+                if (similarSelectors.length >= 5) return;
+                const id = el.id || '';
+                const classes = el.className || '';
+                if (id.includes(mainPart) || classes.includes(mainPart)) {
+                  const rect = el.getBoundingClientRect();
+                  if (rect.width > 0 && rect.height > 0) {
+                    let sel = id ? '#' + id : (classes ? '.' + classes.split(' ')[0] : el.tagName.toLowerCase());
+                    similarSelectors.push({
+                      selector: sel,
+                      tag: el.tagName.toLowerCase(),
+                      text: (el.innerText || '').slice(0, 50)
+                    });
+                  }
+                }
+              });
+            }
+
+            // Get some visible clickable elements as alternatives
+            const alternatives = [];
+            document.querySelectorAll('button, a, [role="button"], input[type="submit"]').forEach(el => {
+              if (alternatives.length >= 8) return;
+              const rect = el.getBoundingClientRect();
+              if (rect.width < 10 || rect.height < 10) return;
+              if (rect.top < 0 || rect.top > window.innerHeight) return;
+
+              const text = (el.innerText || el.value || el.getAttribute('aria-label') || '').trim();
+              if (!text) return;
+
+              let sel = '';
+              if (el.id) sel = '#' + el.id;
+              else if (el.getAttribute('data-testid')) sel = '[data-testid="' + el.getAttribute('data-testid') + '"]';
+
+              alternatives.push({
+                selector: sel,
+                tag: el.tagName.toLowerCase(),
+                text: text.slice(0, 60)
+              });
+            });
+
+            return {
+              found: false,
+              error: 'element_not_found',
+              errorDetails: {
+                selectorTried: selector,
+                pageUrl: window.location.href,
+                pageTitle: document.title,
+                pageLoadedCorrectly: document.readyState === 'complete',
+                similarSelectors: similarSelectors,
+                availableElements: alternatives,
+                suggestion: 'Element not found. Use workspace.get_selectors to discover valid selectors, or try workspace.click_by_text instead.'
+              }
+            };
+          }
 
           const rect = el.getBoundingClientRect();
           const x = rect.left + rect.width / 2;
@@ -1299,9 +1365,19 @@ class WorkspaceManager {
         })()
       `);
 
-      if (!result.success || !result.result.found) {
-        this.logActivity('click_element', { selector }, 'error', 'Element not found');
-        return { success: false, error: 'Element not found' };
+      if (!result.success) {
+        this.logActivity('click_element', { selector }, 'error', result.error);
+        return { success: false, error: result.error };
+      }
+
+      if (!result.result.found) {
+        this.logActivity('click_element', { selector }, 'error', result.result.error);
+        // ENHANCED: Pass through errorDetails for AI recovery
+        return {
+          success: false,
+          error: result.result.error,
+          errorDetails: result.result.errorDetails || null
+        };
       }
 
       this.logActivity('click_element', { selector });
@@ -1413,11 +1489,74 @@ class WorkspaceManager {
           if (matches.length === 0) {
             // Debug: count how many times the text appears at all
             const allText = document.body.innerText || '';
-            const occurrences = (allText.toLowerCase().match(new RegExp(searchLower, 'g')) || []).length;
+            const occurrences = (allText.toLowerCase().match(new RegExp(searchLower.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&'), 'g')) || []).length;
+
+            // ENHANCED ERROR: Collect available clickable elements for AI recovery
+            const visibleClickables = [];
+            clickables.forEach(el => {
+              const rect = el.getBoundingClientRect();
+              if (rect.width < 10 || rect.height < 10) return;
+              if (rect.top < 0 || rect.left < 0) return;
+              if (rect.top > window.innerHeight * 1.5) return; // Include some below-fold elements
+
+              const text = (el.innerText || el.textContent || el.value || el.getAttribute('aria-label') || '').trim();
+              if (!text || text.length < 3) return;
+
+              // Get a usable selector
+              let selector = '';
+              if (el.id) selector = '#' + el.id;
+              else if (el.getAttribute('data-testid')) selector = '[data-testid="' + el.getAttribute('data-testid') + '"]';
+              else if (el.className && typeof el.className === 'string') {
+                const classes = el.className.trim().split(/\\s+/).filter(c => c && c.length < 30);
+                if (classes.length > 0) selector = '.' + classes.slice(0, 2).join('.');
+              }
+
+              visibleClickables.push({
+                text: text.slice(0, 80),
+                tag: el.tagName.toLowerCase(),
+                selector: selector,
+                href: el.href || null
+              });
+            });
+
+            // Dedupe and limit
+            const uniqueClickables = [];
+            const seenTexts = new Set();
+            for (const el of visibleClickables) {
+              const key = el.text.toLowerCase().slice(0, 30);
+              if (!seenTexts.has(key)) {
+                seenTexts.add(key);
+                uniqueClickables.push(el);
+                if (uniqueClickables.length >= 10) break;
+              }
+            }
+
+            // Find similar text matches (partial matches that might help)
+            const similarText = [];
+            for (const el of visibleClickables) {
+              if (el.text.toLowerCase().includes(searchLower.slice(0, Math.min(10, searchLower.length)))) {
+                if (!similarText.includes(el.text)) {
+                  similarText.push(el.text);
+                  if (similarText.length >= 5) break;
+                }
+              }
+            }
+
             return {
               found: false,
-              error: 'No clickable element found with text: ' + searchText +
-                     ' (text appears ' + occurrences + ' times on page but not in clickable elements)'
+              error: 'click_by_text_not_found',
+              errorDetails: {
+                searchText: searchText,
+                textOccurrences: occurrences,
+                pageUrl: window.location.href,
+                pageTitle: document.title,
+                pageLoadedCorrectly: document.readyState === 'complete',
+                visibleClickableElements: uniqueClickables,
+                similarText: similarText,
+                suggestion: occurrences > 0
+                  ? 'Text exists on page but not in clickable elements. Try click_element with CSS selector or try shorter search text.'
+                  : 'Text not found on page. Verify page loaded correctly or try different search terms.'
+              }
             };
           }
 
@@ -1444,7 +1583,12 @@ class WorkspaceManager {
 
       if (!result.result.found) {
         this.logActivity('click_by_text', { searchText }, 'error', result.result.error);
-        return { success: false, error: result.result.error };
+        // ENHANCED: Pass through errorDetails for AI recovery
+        return {
+          success: false,
+          error: result.result.error,
+          errorDetails: result.result.errorDetails || null
+        };
       }
 
       this.logActivity('click_by_text', {
@@ -1544,8 +1688,85 @@ class WorkspaceManager {
       await new Promise(resolve => setTimeout(resolve, interval));
     }
 
+    // ENHANCED ERROR: Collect context on timeout for AI recovery
+    let errorDetails = null;
+    try {
+      const contextResult = await this.executeScript(`
+        (function() {
+          const selector = '${selector.replace(/'/g, "\\'")}';
+
+          // Check if element exists but is hidden
+          const el = document.querySelector(selector);
+          const elementExists = !!el;
+          let elementState = null;
+
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            const style = window.getComputedStyle(el);
+            elementState = {
+              exists: true,
+              visible: rect.width > 0 && rect.height > 0,
+              display: style.display,
+              visibility: style.visibility,
+              opacity: style.opacity,
+              position: { x: rect.left, y: rect.top, width: rect.width, height: rect.height }
+            };
+          }
+
+          // Get available elements that might be what the AI is looking for
+          const availableElements = [];
+          document.querySelectorAll('[id], [data-testid], [class*="product"], [class*="title"], [class*="price"]').forEach(el => {
+            if (availableElements.length >= 10) return;
+            const rect = el.getBoundingClientRect();
+            if (rect.width < 10 || rect.height < 10) return;
+            if (rect.top < 0 || rect.top > window.innerHeight * 1.5) return;
+
+            let sel = '';
+            if (el.id) sel = '#' + el.id;
+            else if (el.getAttribute('data-testid')) sel = '[data-testid="' + el.getAttribute('data-testid') + '"]';
+            else if (el.className) sel = '.' + (el.className.split(' ')[0] || '');
+
+            if (sel) {
+              availableElements.push({
+                selector: sel,
+                tag: el.tagName.toLowerCase(),
+                text: (el.innerText || '').slice(0, 50)
+              });
+            }
+          });
+
+          return {
+            pageUrl: window.location.href,
+            pageTitle: document.title,
+            pageLoadedCorrectly: document.readyState === 'complete',
+            elementExists: elementExists,
+            elementState: elementState,
+            availableElements: availableElements,
+            bodyTextPreview: (document.body.innerText || '').slice(0, 300)
+          };
+        })()
+      `);
+
+      if (contextResult.success) {
+        errorDetails = {
+          selectorTried: selector,
+          timeoutMs: timeout,
+          ...contextResult.result,
+          suggestion: contextResult.result.elementExists
+            ? 'Element exists but is not visible. It may be hidden, off-screen, or still loading. Try scrolling or waiting longer.'
+            : 'Element does not exist on page. You may be on the wrong page, or need to use a different selector. Use workspace.get_selectors to find valid selectors.'
+        };
+      }
+    } catch (e) {
+      // If context collection fails, continue with basic error
+    }
+
     this.logActivity('wait_for_element', { selector }, 'error', 'Timeout waiting for element');
-    return { success: false, error: `Timeout waiting for element: ${selector}` };
+    return {
+      success: false,
+      error: 'timeout_waiting_element',
+      errorDetails: errorDetails
+    };
   }
 
   /**
@@ -1577,8 +1798,73 @@ class WorkspaceManager {
       await new Promise(resolve => setTimeout(resolve, interval));
     }
 
+    // ENHANCED ERROR: Collect context on timeout for AI recovery
+    let errorDetails = null;
+    try {
+      const contextResult = await this.executeScript(`
+        (function() {
+          const searchText = '${searchText.toLowerCase().replace(/'/g, "\\'")}';
+          const body = document.body.innerText || '';
+          const bodyLower = body.toLowerCase();
+
+          // Find partial matches
+          const words = searchText.split(/\\s+/);
+          const partialMatches = [];
+          words.forEach(word => {
+            if (word.length > 3 && bodyLower.includes(word)) {
+              // Find the context around this word
+              const idx = bodyLower.indexOf(word);
+              const start = Math.max(0, idx - 20);
+              const end = Math.min(body.length, idx + word.length + 30);
+              partialMatches.push(body.slice(start, end).trim());
+            }
+          });
+
+          // Get a sample of visible text
+          const visibleTextSample = body.slice(0, 500);
+
+          // Check for similar text
+          const searchWords = searchText.split(/\\s+/).filter(w => w.length > 2);
+          const similarTexts = [];
+          if (searchWords.length > 0) {
+            const mainWord = searchWords[0];
+            const regex = new RegExp('.{0,20}' + mainWord + '.{0,20}', 'gi');
+            const matches = body.match(regex) || [];
+            matches.slice(0, 5).forEach(m => similarTexts.push(m.trim()));
+          }
+
+          return {
+            pageUrl: window.location.href,
+            pageTitle: document.title,
+            pageLoadedCorrectly: document.readyState === 'complete',
+            searchedFor: searchText,
+            partialMatches: partialMatches.slice(0, 5),
+            similarTexts: similarTexts,
+            visibleTextSample: visibleTextSample
+          };
+        })()
+      `);
+
+      if (contextResult.success) {
+        errorDetails = {
+          searchText: searchText,
+          timeoutMs: timeout,
+          ...contextResult.result,
+          suggestion: contextResult.result.partialMatches.length > 0
+            ? 'Some words from your search were found. The exact phrase may be formatted differently or split across elements.'
+            : 'The text was not found on the page. You may be on the wrong page, or the content is dynamically loaded. Try workspace.get_text to see current page content.'
+        };
+      }
+    } catch (e) {
+      // If context collection fails, continue with basic error
+    }
+
     this.logActivity('wait_for_text', { searchText }, 'error', 'Timeout waiting for text');
-    return { success: false, error: `Timeout waiting for text: ${searchText}` };
+    return {
+      success: false,
+      error: 'timeout_waiting_text',
+      errorDetails: errorDetails
+    };
   }
 
   /**
@@ -2171,8 +2457,44 @@ class WorkspaceManager {
             }
           }
 
+          // ENHANCED ERROR: If no price found, collect context for AI recovery
+          if (!price) {
+            // Find any dollar amounts on the page
+            const priceRegex = /\\$[\\d,]+\\.\\d{2}/g;
+            const allPrices = (document.body.innerText.match(priceRegex) || []).slice(0, 10);
+
+            // Check if this looks like a search results page vs product page
+            const isSearchResults = window.location.href.includes('/s?') ||
+                                   window.location.href.includes('/search') ||
+                                   window.location.href.includes('searchTerm') ||
+                                   document.querySelectorAll('[data-component-type="s-search-result"]').length > 0 ||
+                                   document.querySelectorAll('.s-result-item').length > 3;
+
+            // Get page structure hints
+            const hasProductTitle = !!(document.querySelector('#productTitle, .product-title, [itemprop="name"], h1'));
+            const hasAddToCart = !!(document.querySelector('#add-to-cart-button, .add-to-cart, [class*="addToCart"]'));
+
+            return {
+              success: false,
+              error: 'price_extraction_failed',
+              errorDetails: {
+                site: site,
+                pageUrl: window.location.href,
+                pageTitle: document.title,
+                productName: productName?.slice(0, 200) || null,
+                isSearchResultsPage: isSearchResults,
+                hasProductTitle: hasProductTitle,
+                hasAddToCartButton: hasAddToCart,
+                pricesFoundOnPage: allPrices,
+                suggestion: isSearchResults
+                  ? 'You appear to be on a search results page, not a product detail page. Navigate to a specific product first by clicking on it.'
+                  : 'Could not extract price from this page. The price may be in a format not recognized, or the page structure is different. Try workspace.get_text to read the page content manually.'
+              }
+            };
+          }
+
           return {
-            success: !!price,
+            success: true,
             price: price,
             rawPrice: rawPrice,
             productName: productName?.slice(0, 200),
@@ -2183,14 +2505,25 @@ class WorkspaceManager {
         })()
       `);
 
-      if (result.success) {
+      if (result.success && result.result.success) {
         this.logActivity('get_product_price', {
           price: result.result.price,
           site: result.result.site
         });
         return result.result;
       }
-      return { success: false, error: result.error };
+
+      // ENHANCED: Return error with details
+      if (result.result && result.result.errorDetails) {
+        this.logActivity('get_product_price', { site: result.result.errorDetails.site }, 'error', 'Price extraction failed');
+        return {
+          success: false,
+          error: result.result.error,
+          errorDetails: result.result.errorDetails
+        };
+      }
+
+      return { success: false, error: result.error || 'Price extraction failed' };
     } catch (e) {
       return { success: false, error: e.message };
     }

@@ -367,15 +367,21 @@ async function handleRequest(req, res) {
       return sendJson(res, result.success ? 200 : 400, result);
     }
 
-    if (pathname === '/workspace/get-product-links' && req.method === 'GET') {
-      const parsedUrl = url.parse(req.url, true);
-      const limit = parsedUrl.query.limit ? parseInt(parsedUrl.query.limit, 10) : 10;
+    if (pathname === '/workspace/get-product-links' && (req.method === 'GET' || req.method === 'POST')) {
+      let limit = 10;
+      if (req.method === 'POST') {
+        const body = await parseBody(req);
+        limit = body.limit || 10;
+      } else {
+        const parsedUrl = url.parse(req.url, true);
+        limit = parsedUrl.query.limit ? parseInt(parsedUrl.query.limit, 10) : 10;
+      }
       const result = await workspaceManager.getProductLinks({ limit });
       return sendJson(res, result.success ? 200 : 400, result);
     }
 
     // Get product price from current page (product detail page)
-    if (pathname === '/workspace/get-product-price' && req.method === 'GET') {
+    if (pathname === '/workspace/get-product-price' && (req.method === 'GET' || req.method === 'POST')) {
       const result = await workspaceManager.getProductPrice();
       return sendJson(res, result.success ? 200 : 400, result);
     }
