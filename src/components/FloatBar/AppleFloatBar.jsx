@@ -5585,6 +5585,66 @@ export default function AppleFloatBar({
     };
   }, []);
 
+  // Track pending testing message for submission
+  const pendingTestingMessageRef = useRef(null);
+
+  // Listen for testing API messages (allows Claude to send messages programmatically)
+  useEffect(() => {
+    if (!window.testing?.onSendMessage) return;
+
+    const handleTestingMessage = (data) => {
+      logger.info('[FloatBar] Testing API message received', data);
+
+      // Expand from mini if needed
+      if (isMini) {
+        setIsMini(false);
+      }
+
+      // Set the message
+      if (data.message) {
+        pendingTestingMessageRef.current = data.message;
+        setMessage(data.message);
+      }
+    };
+
+    window.testing.onSendMessage(handleTestingMessage);
+
+    return () => {
+      window.testing?.removeListeners?.();
+    };
+  }, [isMini]);
+
+  // Effect to submit the testing message once it's set
+  useEffect(() => {
+    if (pendingTestingMessageRef.current && message === pendingTestingMessageRef.current) {
+      // Clear the pending ref
+      const msgToSubmit = pendingTestingMessageRef.current;
+      pendingTestingMessageRef.current = null;
+
+      // Focus input and submit after a brief delay
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+        logger.info('[FloatBar] Testing API auto-submitting message:', msgToSubmit);
+        handleSubmit();
+      }, 150);
+    }
+  }, [message, handleSubmit]);
+
+  // Expose state globally for testing API to access
+  useEffect(() => {
+    window.__AGENT_MAX_STATE__ = {
+      messages: thoughts,
+      isThinking,
+      runStatus,
+      isMini,
+      apiConnected,
+      executionPlan: !!executionPlan,
+      lastUpdated: Date.now()
+    };
+  }, [thoughts, isThinking, runStatus, isMini, apiConnected, executionPlan]);
+
   // Window classes
   const windowClasses = useMemo(() => {
     const classes = ['apple-floatbar-root'];

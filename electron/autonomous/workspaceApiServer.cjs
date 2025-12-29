@@ -374,6 +374,12 @@ async function handleRequest(req, res) {
       return sendJson(res, result.success ? 200 : 400, result);
     }
 
+    // Get product price from current page (product detail page)
+    if (pathname === '/workspace/get-product-price' && req.method === 'GET') {
+      const result = await workspaceManager.getProductPrice();
+      return sendJson(res, result.success ? 200 : 400, result);
+    }
+
     // =========================================================================
     // Page Content
     // =========================================================================

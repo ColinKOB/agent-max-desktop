@@ -77,6 +77,7 @@ const { executeMacOSTool, isMacOSTool, isMacOS } = require('../autonomous/macosA
 const workspaceApiServer = require('../autonomous/workspaceApiServer.cjs');
 const spreadsheetApiServer = require('../spreadsheet/spreadsheetApiServer.cjs');
 const notesApiServer = require('../notes/notesApiServer.cjs');
+const testingApiServer = require('../testing/testingApiServer.cjs');
 
 // Virtual Display Workspace (legacy - native Swift module)
 // NOTE: The native CGVirtualDisplay approach is deprecated.
@@ -477,6 +478,11 @@ app.whenReady().then(async () => {
   notesApiServer.startNotesApiServer();
   notesManager.initStorage(app.getPath('userData'));
   console.log('✓ Notes API server started on port 3849');
+
+  // Start the testing API server for programmatic UI interaction
+  testingApiServer.setMainWindow(mainWindow);
+  testingApiServer.start();
+  console.log('✓ Testing API server started on port 3850');
 
   // NOTE: Hands on Desktop client DISABLED by default
   // This was causing unexpected background execution of commands without user requests.

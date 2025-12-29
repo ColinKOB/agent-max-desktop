@@ -575,6 +575,33 @@ contextBridge.exposeInMainWorld('spreadsheet', {
 });
 
 // ===========================================
+// Testing API - Programmatic UI interaction
+// ===========================================
+// Used by Claude or other tools to interact with the app programmatically
+
+contextBridge.exposeInMainWorld('testing', {
+  // Listen for messages sent via the testing API
+  onSendMessage: (callback) => {
+    ipcRenderer.on('testing:send-message', (_event, data) => {
+      try { callback(data); } catch (e) { console.error('[Testing] Send message callback error:', e); }
+    });
+  },
+
+  // Listen for window expand requests
+  onExpandWindow: (callback) => {
+    ipcRenderer.on('testing:expand-window', (_event) => {
+      try { callback(); } catch (e) { console.error('[Testing] Expand callback error:', e); }
+    });
+  },
+
+  // Remove listeners
+  removeListeners: () => {
+    ipcRenderer.removeAllListeners('testing:send-message');
+    ipcRenderer.removeAllListeners('testing:expand-window');
+  }
+});
+
+// ===========================================
 // Max Notes - AI-powered note-taking application
 // ===========================================
 

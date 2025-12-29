@@ -861,11 +861,35 @@ class PullExecutor {
     /**
      * Execute workspace tools for isolated AI browser
      * Maps workspace.* tool names to workspaceManager methods
+     *
+     * AUTO-CREATION: If workspace isn't active and a tool other than create/destroy
+     * is called, we automatically create the workspace first. This prevents failures
+     * when the AI tries to use workspace tools without explicitly creating first.
      */
     async executeWorkspaceTool(tool, args) {
         console.log(`[PullExecutor] Executing workspace tool: ${tool}`, args);
 
         try {
+            // Auto-create workspace if not active (except for create/destroy commands)
+            const skipAutoCreate = ['workspace.create', 'workspace.destroy', 'workspace.status'];
+            if (!skipAutoCreate.includes(tool) && !workspaceManager.getIsActive()) {
+                console.log('[PullExecutor] Workspace not active, auto-creating...');
+                const createResult = await workspaceManager.create(1200, 800);
+                if (createResult.success) {
+                    console.log(`[PullExecutor] ✓ Workspace auto-created (window ID: ${createResult.windowId})`);
+                    // Small delay to ensure window is ready
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                } else {
+                    console.error('[PullExecutor] Failed to auto-create workspace:', createResult.error);
+                    return {
+                        success: false,
+                        stdout: '',
+                        stderr: `Failed to auto-create workspace: ${createResult.error}`,
+                        exit_code: 1
+                    };
+                }
+            }
+
             let result;
 
             switch (tool) {
@@ -1189,6 +1213,37 @@ class PullExecutor {
                         success: false,
                         stdout: '',
                         stderr: result.error || 'get_product_links failed',
+                        exit_code: 1,
+                        recoverable: true
+                    };
+
+                case 'workspace.get_product_price':
+                    // Extract price from current product detail page
+                    // Works on Amazon, Best Buy, Walmart, Target, eBay, Newegg, and generic sites
+                    result = await workspaceManager.getProductPrice();
+                    if (result.success && result.price) {
+                        return {
+                            success: true,
+                            stdout: JSON.stringify({
+                                price: result.price,
+                                rawPrice: result.rawPrice,
+                                productName: result.productName,
+                                currency: result.currency,
+                                site: result.site,
+                                url: result.url
+                            }, null, 2),
+                            stderr: '',
+                            exit_code: 0
+                        };
+                    }
+                    return {
+                        success: false,
+                        stdout: JSON.stringify({
+                            error: result.error || 'Could not extract price from page',
+                            site: result.site,
+                            url: result.url
+                        }),
+                        stderr: result.error || 'get_product_price failed',
                         exit_code: 1,
                         recoverable: true
                     };

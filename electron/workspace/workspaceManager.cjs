@@ -1851,6 +1851,352 @@ class WorkspaceManager {
   }
 
   /**
+   * Extract product price from current page (product detail page)
+   * Works on Amazon, Best Buy, Walmart, Target, and generic e-commerce sites
+   * Returns: { success, price, productName, currency, rawPrice, site }
+   */
+  async getProductPrice() {
+    if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
+
+    try {
+      const result = await this.executeScript(`
+        (function() {
+          const hostname = window.location.hostname;
+          let price = null;
+          let productName = null;
+          let currency = 'USD';
+          let rawPrice = null;
+          let site = 'unknown';
+
+          // Helper to clean price string and extract numeric value
+          function cleanPrice(priceStr) {
+            if (!priceStr) return null;
+            // Remove everything except digits, dots, commas
+            const cleaned = priceStr.replace(/[^0-9.,]/g, '');
+            // Handle comma as thousands separator (US format)
+            const normalized = cleaned.replace(/,/g, '');
+            const num = parseFloat(normalized);
+            return isNaN(num) ? null : num;
+          }
+
+          // Helper to get visible text from element
+          function getText(el) {
+            if (!el) return null;
+            return el.innerText?.trim() || el.textContent?.trim() || null;
+          }
+
+          // ============ AMAZON ============
+          if (hostname.includes('amazon')) {
+            site = 'amazon';
+
+            // Product name - multiple fallbacks
+            productName = getText(document.querySelector('#productTitle')) ||
+                         getText(document.querySelector('#title')) ||
+                         getText(document.querySelector('[data-feature-name="title"]')) ||
+                         document.title.split(' : ')[0];
+
+            // Price selectors - Amazon has many different price display formats
+            const priceSelectors = [
+              // Primary price display
+              '#corePrice_feature_div .a-price .a-offscreen',
+              '#corePriceDisplay_desktop_feature_div .a-price .a-offscreen',
+              '.a-price[data-a-color="price"] .a-offscreen',
+              // Apex price (common)
+              '#apex_desktop .a-price .a-offscreen',
+              '#apex_desktop_newAccordionRow .a-price .a-offscreen',
+              // Buy box price
+              '#price_inside_buybox',
+              '#priceblock_ourprice',
+              '#priceblock_dealprice',
+              '#priceblock_saleprice',
+              // Alternative layouts
+              '.apexPriceToPay .a-offscreen',
+              '#tp_price_block_total_price_ww .a-offscreen',
+              // Kindle/digital prices
+              '#kindle-price',
+              '#digital-list-price',
+              // Fallback to any prominent price
+              '.a-price .a-offscreen'
+            ];
+
+            for (const selector of priceSelectors) {
+              const el = document.querySelector(selector);
+              if (el) {
+                const priceText = getText(el);
+                if (priceText && priceText.includes('$')) {
+                  rawPrice = priceText;
+                  price = cleanPrice(priceText);
+                  if (price) break;
+                }
+              }
+            }
+
+            // Fallback: construct from whole + fraction
+            if (!price) {
+              const whole = document.querySelector('.a-price-whole');
+              const fraction = document.querySelector('.a-price-fraction');
+              if (whole) {
+                const wholeNum = whole.innerText.replace(/[^0-9]/g, '');
+                const fractionNum = fraction ? fraction.innerText.replace(/[^0-9]/g, '') : '00';
+                price = parseFloat(wholeNum + '.' + fractionNum);
+                rawPrice = '$' + wholeNum + '.' + fractionNum;
+              }
+            }
+          }
+
+          // ============ BEST BUY ============
+          else if (hostname.includes('bestbuy')) {
+            site = 'bestbuy';
+
+            productName = getText(document.querySelector('.sku-title, h1.heading-5')) ||
+                         getText(document.querySelector('[data-testid="heading"]')) ||
+                         document.title.split(' - Best Buy')[0];
+
+            const priceSelectors = [
+              '[data-testid="customer-price"] span',
+              '.priceView-customer-price span',
+              '.priceView-hero-price span',
+              '[class*="priceView"] .sr-only',
+              '.price-box .sr-only',
+              // Sale prices
+              '.pricing-price__regular-price',
+              '.pricing-price__sale-price'
+            ];
+
+            for (const selector of priceSelectors) {
+              const el = document.querySelector(selector);
+              if (el) {
+                const priceText = getText(el);
+                if (priceText && priceText.includes('$')) {
+                  rawPrice = priceText;
+                  price = cleanPrice(priceText);
+                  if (price) break;
+                }
+              }
+            }
+          }
+
+          // ============ WALMART ============
+          else if (hostname.includes('walmart')) {
+            site = 'walmart';
+
+            productName = getText(document.querySelector('[data-testid="product-title"], h1[itemprop="name"]')) ||
+                         getText(document.querySelector('h1')) ||
+                         document.title.split(' - Walmart')[0];
+
+            const priceSelectors = [
+              '[data-testid="price-wrap"] [itemprop="price"]',
+              '[itemprop="price"]',
+              '[data-automation-id="product-price"]',
+              '.price-group [aria-hidden="false"]',
+              '.price-characteristic',
+              // Rollback/sale price
+              '[data-testid="current-price"]',
+              '.inline-flex [aria-hidden="true"]'
+            ];
+
+            for (const selector of priceSelectors) {
+              const el = document.querySelector(selector);
+              if (el) {
+                // Walmart sometimes stores price in content attribute
+                let priceText = el.getAttribute('content') || getText(el);
+                if (priceText) {
+                  // Check if it's just a number (content attribute)
+                  if (/^[\\d.]+$/.test(priceText)) {
+                    price = parseFloat(priceText);
+                    rawPrice = '$' + priceText;
+                  } else if (priceText.includes('$')) {
+                    rawPrice = priceText;
+                    price = cleanPrice(priceText);
+                  }
+                  if (price) break;
+                }
+              }
+            }
+
+            // Fallback: look for characteristic + mantissa pattern
+            if (!price) {
+              const char = document.querySelector('.price-characteristic');
+              const mantissa = document.querySelector('.price-mantissa');
+              if (char) {
+                const wholeNum = char.innerText.replace(/[^0-9]/g, '');
+                const fractionNum = mantissa ? mantissa.innerText.replace(/[^0-9]/g, '') : '00';
+                price = parseFloat(wholeNum + '.' + fractionNum);
+                rawPrice = '$' + wholeNum + '.' + fractionNum;
+              }
+            }
+          }
+
+          // ============ TARGET ============
+          else if (hostname.includes('target')) {
+            site = 'target';
+
+            productName = getText(document.querySelector('[data-test="product-title"], h1')) ||
+                         document.title.split(' : Target')[0];
+
+            const priceSelectors = [
+              '[data-test="product-price"]',
+              '[data-test="current-price"]',
+              '.styles__CurrentPriceFontSize',
+              '.h-text-bs span',
+              '[class*="Price"] span'
+            ];
+
+            for (const selector of priceSelectors) {
+              const el = document.querySelector(selector);
+              if (el) {
+                const priceText = getText(el);
+                if (priceText && priceText.includes('$')) {
+                  rawPrice = priceText;
+                  price = cleanPrice(priceText);
+                  if (price) break;
+                }
+              }
+            }
+          }
+
+          // ============ EBAY ============
+          else if (hostname.includes('ebay')) {
+            site = 'ebay';
+
+            productName = getText(document.querySelector('h1.x-item-title__mainTitle, h1[itemprop="name"]')) ||
+                         document.title.split(' | eBay')[0];
+
+            const priceSelectors = [
+              '.x-price-primary span[itemprop="price"]',
+              '[itemprop="price"]',
+              '.x-price-primary .ux-textspans',
+              '#prcIsum',
+              '#mm-saleDscPrc'
+            ];
+
+            for (const selector of priceSelectors) {
+              const el = document.querySelector(selector);
+              if (el) {
+                let priceText = el.getAttribute('content') || getText(el);
+                if (priceText) {
+                  if (/^[\\d.]+$/.test(priceText)) {
+                    price = parseFloat(priceText);
+                    rawPrice = '$' + priceText;
+                  } else if (priceText.includes('$') || priceText.includes('US')) {
+                    rawPrice = priceText;
+                    price = cleanPrice(priceText);
+                  }
+                  if (price) break;
+                }
+              }
+            }
+          }
+
+          // ============ NEWEGG ============
+          else if (hostname.includes('newegg')) {
+            site = 'newegg';
+
+            productName = getText(document.querySelector('.product-title, h1.title')) ||
+                         document.title.split(' - Newegg')[0];
+
+            const priceSelectors = [
+              '.price-current strong',
+              '.product-price .price-current',
+              'li.price-current',
+              '[itemprop="price"]'
+            ];
+
+            for (const selector of priceSelectors) {
+              const el = document.querySelector(selector);
+              if (el) {
+                const priceText = getText(el);
+                if (priceText) {
+                  rawPrice = '$' + priceText;
+                  price = cleanPrice(priceText);
+                  if (price) break;
+                }
+              }
+            }
+          }
+
+          // ============ GENERIC FALLBACK ============
+          if (!price) {
+            site = hostname.replace('www.', '').split('.')[0];
+
+            // Try to find product name
+            if (!productName) {
+              productName = getText(document.querySelector('h1')) ||
+                           getText(document.querySelector('[itemprop="name"]')) ||
+                           document.title.split(' - ')[0].split(' | ')[0];
+            }
+
+            // Generic price selectors
+            const genericSelectors = [
+              '[itemprop="price"]',
+              '[class*="price"]:not([class*="compare"])',
+              '[class*="Price"]:not([class*="Compare"])',
+              '[data-price]',
+              '.product-price',
+              '.sale-price',
+              '.current-price',
+              '[class*="ProductPrice"]'
+            ];
+
+            for (const selector of genericSelectors) {
+              const elements = document.querySelectorAll(selector);
+              for (const el of elements) {
+                // Check content attribute first
+                let priceText = el.getAttribute('content') ||
+                               el.getAttribute('data-price') ||
+                               getText(el);
+                if (priceText) {
+                  if (/^[\\d.]+$/.test(priceText)) {
+                    price = parseFloat(priceText);
+                    rawPrice = '$' + priceText;
+                  } else if (priceText.includes('$')) {
+                    rawPrice = priceText;
+                    price = cleanPrice(priceText);
+                  }
+                  if (price && price > 0 && price < 100000) break;
+                }
+              }
+              if (price) break;
+            }
+
+            // Final fallback: look for dollar amounts in prominent positions
+            if (!price) {
+              const mainContent = document.querySelector('main, #main, .main, article, [role="main"]') || document.body;
+              const priceRegex = /\\$([\\d,]+\\.\\d{2})/;
+              const match = mainContent.innerText.match(priceRegex);
+              if (match) {
+                rawPrice = match[0];
+                price = cleanPrice(match[1]);
+              }
+            }
+          }
+
+          return {
+            success: !!price,
+            price: price,
+            rawPrice: rawPrice,
+            productName: productName?.slice(0, 200),
+            currency: currency,
+            site: site,
+            url: window.location.href
+          };
+        })()
+      `);
+
+      if (result.success) {
+        this.logActivity('get_product_price', {
+          price: result.result.price,
+          site: result.result.site
+        });
+        return result.result;
+      }
+      return { success: false, error: result.error };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
    * Type into element by CSS selector
    */
   async typeIntoElement(selector, text, options = {}) {
