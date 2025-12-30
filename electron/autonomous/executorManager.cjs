@@ -240,12 +240,26 @@ class ExecutorManager {
      */
     setOnlineStatus(isOnline) {
         this.isOnline = isOnline;
-        
+
         if (this.usePhase2) {
             this.executor.setOnlineStatus(isOnline);
         }
-        
+
         console.log(`[ExecutorManager] Network status: ${isOnline ? 'online' : 'offline'}`);
+    }
+
+    /**
+     * Set the handler for ask_user questions.
+     * The handler receives { question, context, options, runId } and should return
+     * a Promise resolving to the user's response string, or null to cancel.
+     */
+    setAskUserHandler(handler) {
+        if (this.executor && this.executor.setAskUserHandler) {
+            this.executor.setAskUserHandler(handler);
+            console.log(`[ExecutorManager] Ask user handler registered`);
+        } else {
+            console.warn(`[ExecutorManager] Executor does not support ask user handler`);
+        }
     }
 
     /**

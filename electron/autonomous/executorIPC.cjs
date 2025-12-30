@@ -240,6 +240,79 @@ function registerExecutorHandlers(apiClient, config = {}) {
         }
     });
 
+    // Setup ask_user handler - sends question to renderer and waits for response
+    let pendingAskUserResolve = null;
+
+    // Register the ask_user handler on the executor
+    if (executorManager) {
+        executorManager.setAskUserHandler(async ({ question, context, options, runId }) => {
+            return new Promise((resolve, reject) => {
+                console.log(`[ExecutorIPC] ask_user: "${question.substring(0, 50)}..."`);
+
+                // Store resolve function for when renderer responds
+                pendingAskUserResolve = resolve;
+
+                // Send to all windows
+                const { BrowserWindow } = require('electron');
+                BrowserWindow.getAllWindows().forEach(win => {
+                    if (!win.isDestroyed()) {
+                        win.webContents.send('executor:ask-user', {
+                            question,
+                            context,
+                            options,
+                            runId
+                        });
+                    }
+                });
+
+                // Timeout after 5 minutes (user may be away)
+                setTimeout(() => {
+                    if (pendingAskUserResolve === resolve) {
+                        pendingAskUserResolve = null;
+                        resolve(null); // Null means cancelled/timeout
+                    }
+                }, 5 * 60 * 1000);
+            });
+        });
+    }
+
+    // Handle user response from renderer
+    ipcMain.handle('executor:respond-to-question', async (event, response) => {
+        // Response can be a string or an object from the UI
+        // Object format: { cancelled, answer, selectedOption, selectedOptionId, editedContent }
+        let responseText = null;
+
+        if (response === null || response === undefined) {
+            responseText = null;
+        } else if (typeof response === 'string') {
+            responseText = response;
+        } else if (typeof response === 'object') {
+            if (response.cancelled) {
+                responseText = null;
+            } else if (response.editedContent) {
+                // User edited the content
+                responseText = response.editedContent;
+            } else if (response.answer) {
+                // User provided a custom answer
+                responseText = response.answer;
+            } else if (response.selectedOption) {
+                // User selected an option
+                responseText = response.selectedOption;
+            }
+        }
+
+        console.log(`[ExecutorIPC] User responded: "${responseText?.substring?.(0, 50) || 'cancelled'}..."`);
+
+        if (pendingAskUserResolve) {
+            pendingAskUserResolve(responseText);
+            pendingAskUserResolve = null;
+            return { success: true };
+        } else {
+            console.warn('[ExecutorIPC] No pending question to respond to');
+            return { success: false, error: 'No pending question' };
+        }
+    });
+
     console.log('[ExecutorIPC] Handlers registered');
 }
 

@@ -40,6 +40,18 @@ class PullExecutor {
         // Cancellation support - allows interrupting active operations
         this.abortController = null;
         this.activeChildProcesses = new Set(); // Track spawned processes for cleanup
+
+        // Callback for ask_user - UI should set this to handle user questions
+        this.onAskUser = null;
+    }
+
+    /**
+     * Set the callback for handling ask_user questions.
+     * The callback should return a Promise that resolves to the user's response string,
+     * or null/undefined if the user cancels.
+     */
+    setAskUserHandler(handler) {
+        this.onAskUser = handler;
     }
 
     /**
@@ -170,6 +182,42 @@ class PullExecutor {
                 if (nextStep.status === 'not_found') {
                     console.error(`[PullExecutor] Run not found: ${runId}`);
                     break;
+                }
+
+                // Handle ask_user - AI is waiting for user response
+                if (nextStep.status === 'waiting_for_user') {
+                    console.log(`[PullExecutor] AI asking user: ${nextStep.question}`);
+
+                    // Emit event for UI to show question and get response
+                    if (this.onAskUser) {
+                        try {
+                            const userResponse = await this.onAskUser({
+                                question: nextStep.question,
+                                context: nextStep.context,
+                                options: nextStep.options,
+                                runId: runId
+                            });
+
+                            if (userResponse === null || userResponse === undefined) {
+                                // User cancelled
+                                console.log(`[PullExecutor] User cancelled, stopping run`);
+                                break;
+                            }
+
+                            // Submit user response to backend
+                            await this.submitUserResponse(runId, userResponse);
+                            console.log(`[PullExecutor] User response submitted, continuing...`);
+
+                            // Continue the loop - next fetchNextStep will get the next action
+                            continue;
+                        } catch (err) {
+                            console.error(`[PullExecutor] Error handling ask_user:`, err);
+                            break;
+                        }
+                    } else {
+                        console.error(`[PullExecutor] No onAskUser handler registered`);
+                        break;
+                    }
                 }
 
                 if (nextStep.status === 'out_of_sync') {
@@ -2829,6 +2877,38 @@ class PullExecutor {
             console.error(`[PullExecutor] Error reporting result:`, error);
             // Don't throw - desktop continues even if cloud unavailable
             return { status: 'error', error: error.message };
+        }
+    }
+
+    /**
+     * Submit user response to an ask_user question.
+     * Called when the AI asked the user a question and the user responded.
+     */
+    async submitUserResponse(runId, response) {
+        const url = `${this.apiClient.baseUrl}/api/v2/runs/${runId}/user-response`;
+
+        try {
+            const fetchResponse = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-API-Key': this.apiClient.apiKey,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    response: response
+                })
+            });
+
+            if (!fetchResponse.ok) {
+                throw new Error(`Failed to submit user response: ${fetchResponse.status}`);
+            }
+
+            const result = await fetchResponse.json();
+            console.log(`[PullExecutor] User response submitted: ${result.status}`);
+            return result;
+        } catch (error) {
+            console.error(`[PullExecutor] Error submitting user response:`, error);
+            throw error;
         }
     }
 

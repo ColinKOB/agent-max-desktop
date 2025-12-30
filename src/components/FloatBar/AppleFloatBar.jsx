@@ -6838,59 +6838,118 @@ export default function AppleFloatBar({
                   {!isEditingContext && (
                     <>
                       <div style={{ marginBottom: 12, fontWeight: 500 }}>{pendingAskUser.question}</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {pendingAskUser.options.map((option) => {
-                          // Rename edit-related options to "Edit message"
-                          const isEditOption = option.id?.toLowerCase().includes('edit') ||
-                                              option.label?.toLowerCase().includes('edit');
-                          const displayLabel = isEditOption ? 'Edit message' : option.label;
+                      {/* Show options if available */}
+                      {pendingAskUser.options && pendingAskUser.options.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {pendingAskUser.options.map((option) => {
+                            // Rename edit-related options to "Edit message"
+                            const isEditOption = option.id?.toLowerCase().includes('edit') ||
+                                                option.label?.toLowerCase().includes('edit');
+                            const displayLabel = isEditOption ? 'Edit message' : option.label;
 
-                          return (
-                            <button
-                              key={option.id}
-                              onClick={() => handleAskUserResponse(option)}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 10,
-                                padding: '10px 14px',
-                                background: 'rgba(255, 255, 255, 0.06)',
-                                border: '1px solid rgba(255, 255, 255, 0.12)',
-                                borderRadius: 10,
-                                color: '#fff',
-                                fontSize: 13,
-                                cursor: 'pointer',
-                                textAlign: 'left',
-                                transition: 'all 0.15s ease',
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)';
-                                e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
-                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
-                              }}
-                            >
-                              <div style={{
-                                width: 18,
-                                height: 18,
-                                borderRadius: '50%',
-                                border: '2px solid rgba(255, 255, 255, 0.3)',
-                                flexShrink: 0,
-                              }} />
-                              <div>
-                                <div style={{ fontWeight: 500 }}>{displayLabel}</div>
-                                {option.description && (
-                                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
-                                    {option.description}
-                                  </div>
-                                )}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
+                            return (
+                              <button
+                                key={option.id}
+                                onClick={() => handleAskUserResponse(option)}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 10,
+                                  padding: '10px 14px',
+                                  background: 'rgba(255, 255, 255, 0.06)',
+                                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                                  borderRadius: 10,
+                                  color: '#fff',
+                                  fontSize: 13,
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  transition: 'all 0.15s ease',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)';
+                                  e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                                }}
+                              >
+                                <div style={{
+                                  width: 18,
+                                  height: 18,
+                                  borderRadius: '50%',
+                                  border: '2px solid rgba(255, 255, 255, 0.3)',
+                                  flexShrink: 0,
+                                }} />
+                                <div>
+                                  <div style={{ fontWeight: 500 }}>{displayLabel}</div>
+                                  {option.description && (
+                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+                                      {option.description}
+                                    </div>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        /* No options - show text input for free-form response */
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                          <textarea
+                            ref={contextTextareaRef}
+                            value={editedContext}
+                            onChange={(e) => setEditedContext(e.target.value)}
+                            placeholder="Type your response..."
+                            style={{
+                              flex: 1,
+                              minHeight: 40,
+                              maxHeight: 120,
+                              padding: '10px 12px',
+                              background: 'rgba(255, 255, 255, 0.08)',
+                              borderRadius: 10,
+                              border: '1px solid rgba(255, 255, 255, 0.15)',
+                              fontSize: 13,
+                              lineHeight: 1.5,
+                              color: '#fff',
+                              resize: 'none',
+                              fontFamily: 'inherit',
+                              outline: 'none',
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                if (editedContext.trim()) {
+                                  handleSendEditedContent();
+                                }
+                              }
+                            }}
+                            onFocus={(e) => {
+                              e.target.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+                            }}
+                            onBlur={(e) => {
+                              e.target.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                            }}
+                          />
+                          <button
+                            onClick={handleSendEditedContent}
+                            disabled={!editedContext.trim()}
+                            style={{
+                              padding: '10px 16px',
+                              background: editedContext.trim() ? 'rgba(59, 130, 246, 0.8)' : 'rgba(59, 130, 246, 0.3)',
+                              border: 'none',
+                              borderRadius: 10,
+                              color: '#fff',
+                              fontSize: 13,
+                              fontWeight: 500,
+                              cursor: editedContext.trim() ? 'pointer' : 'not-allowed',
+                              opacity: editedContext.trim() ? 1 : 0.6,
+                            }}
+                          >
+                            Send
+                          </button>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
