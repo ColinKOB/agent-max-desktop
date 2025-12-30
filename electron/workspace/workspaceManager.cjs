@@ -1659,7 +1659,9 @@ class WorkspaceManager {
       'etsy': `https://www.etsy.com/search?q=${encodedQuery}`,
     };
 
-    const url = searchUrls[site.toLowerCase()];
+    // Normalize site name - strip .com/.org/etc if present
+    let normalizedSite = site.toLowerCase().replace(/\.(com|org|net|co)$/i, '');
+    const url = searchUrls[normalizedSite];
     if (!url) {
       return { success: false, error: `Unknown site: ${site}. Supported: ${Object.keys(searchUrls).join(', ')}` };
     }
