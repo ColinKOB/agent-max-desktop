@@ -803,6 +803,32 @@ class WorkspaceManager {
   }
 
   /**
+   * Get a specific tab's webContents by ID (for parallel execution)
+   * Falls back to active tab if tabId not found
+   */
+  getTabWebContents(tabId) {
+    if (tabId && this.tabs.has(tabId)) {
+      return this.tabs.get(tabId).view.webContents;
+    }
+    // Fallback to active tab
+    return this.getActiveWebContents();
+  }
+
+  /**
+   * Get the BrowserView for a specific tab (for parallel execution)
+   */
+  getTabView(tabId) {
+    if (tabId && this.tabs.has(tabId)) {
+      return this.tabs.get(tabId).view;
+    }
+    // Fallback to active tab
+    if (this.activeTabId && this.tabs.has(this.activeTabId)) {
+      return this.tabs.get(this.activeTabId).view;
+    }
+    return null;
+  }
+
+  /**
    * Inject the "Max's Computer" branding header into the page
    * This creates a distinctive visual boundary so users know this is Max's browser
    */
@@ -1264,12 +1290,15 @@ class WorkspaceManager {
 
   /**
    * Execute JavaScript in the page context
+   * @param {string} script - JavaScript code to execute
+   * @param {number|null} tabId - Optional tab ID for parallel execution
    */
-  async executeScript(script) {
+  async executeScript(script, tabId = null) {
     if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
 
     try {
-      const webContents = this.getActiveWebContents();
+      // Use specific tab or active tab
+      const webContents = tabId ? this.getTabWebContents(tabId) : this.getActiveWebContents();
       if (!webContents) return { success: false, error: 'No active tab' };
 
       const result = await webContents.executeJavaScript(script);
@@ -1639,15 +1668,18 @@ class WorkspaceManager {
 
   /**
    * Navigate directly to search results - combines buildSearchUrl + navigate
+   * @param {string} site - The site to search (amazon, google, etc.)
+   * @param {string} query - The search query
+   * @param {number|null} tabId - Optional tab ID for parallel execution
    */
-  async searchSite(site, query) {
+  async searchSite(site, query, tabId = null) {
     const urlResult = this.buildSearchUrl(site, query);
     if (!urlResult.success) {
       return urlResult;
     }
 
-    this.logActivity('search_site', { site, query, url: urlResult.url });
-    return this.navigateTo(urlResult.url);
+    this.logActivity('search_site', { site, query, url: urlResult.url, tabId });
+    return this.navigateTo(urlResult.url, tabId);
   }
 
   /**
@@ -2588,14 +2620,15 @@ class WorkspaceManager {
 
   /**
    * Get page content as text
+   * @param {number|null} tabId - Optional tab ID for parallel execution
    */
-  async getPageText() {
+  async getPageText(tabId = null) {
     if (!this.getIsActive()) return { success: false, error: 'Workspace not active' };
 
     try {
       const result = await this.executeScript(`
         document.body.innerText
-      `);
+      `, tabId);
       return { success: true, text: result.result };
     } catch (e) {
       return { success: false, error: e.message };
@@ -2652,11 +2685,13 @@ class WorkspaceManager {
 
   /**
    * Search Google
+   * @param {string} query - Search query
+   * @param {number|null} tabId - Optional tab ID for parallel execution
    */
-  async searchGoogle(query) {
-    this.logActivity('search', { query });
+  async searchGoogle(query, tabId = null) {
+    this.logActivity('search', { query, tabId });
     const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-    return this.navigateTo(searchUrl);
+    return this.navigateTo(searchUrl, tabId);
   }
 
   /**

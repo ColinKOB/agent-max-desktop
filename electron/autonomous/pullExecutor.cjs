@@ -984,7 +984,8 @@ class PullExecutor {
                     if (!args.url) {
                         return { success: false, error: 'URL required', exit_code: 1 };
                     }
-                    result = await workspaceManager.navigateTo(args.url);
+                    // Pass _tabId for parallel execution (if present)
+                    result = await workspaceManager.navigateTo(args.url, args._tabId);
                     if (result.success) {
                         return {
                             success: true,
@@ -999,7 +1000,8 @@ class PullExecutor {
                     if (!args.query) {
                         return { success: false, error: 'Query required', exit_code: 1 };
                     }
-                    result = await workspaceManager.searchGoogle(args.query);
+                    // Pass _tabId for parallel execution (if present)
+                    result = await workspaceManager.searchGoogle(args.query, args._tabId);
                     if (result.success) {
                         return {
                             success: true,
@@ -1011,7 +1013,8 @@ class PullExecutor {
                     break;
 
                 case 'workspace.get_text':
-                    result = await workspaceManager.getPageText();
+                    // Pass _tabId for parallel execution (if present)
+                    result = await workspaceManager.getPageText(args._tabId);
                     if (result.success) {
                         // Truncate very long text
                         const text = result.text || '';
@@ -1167,7 +1170,8 @@ class PullExecutor {
                 case 'workspace.search_site':
                     // Navigate directly to search results - MUCH faster than typing
                     // Supports: amazon, google, target, walmart, ebay, youtube, bing, bestbuy, etsy
-                    result = await workspaceManager.searchSite(args.site, args.query);
+                    // Pass _tabId for parallel execution (if present)
+                    result = await workspaceManager.searchSite(args.site, args.query, args._tabId);
                     if (result.success) {
                         return {
                             success: true,
@@ -4282,35 +4286,76 @@ class PullExecutor {
 
     /**
      * Execute multiple agent steps in parallel
-     * Each agent gets its own browser workspace
+     * Each agent gets its own browser TAB in the workspace
      */
     async executeParallelAgentSteps(runId, parallelAgents) {
         console.log(`[PullExecutor] 🔀 Starting ${parallelAgents.length} parallel agent steps`);
 
+        // Get workspace manager
+        const { getWorkspaceManager } = require('../workspace/workspaceManager.cjs');
+        const workspaceManager = getWorkspaceManager();
+
+        // Ensure workspace is active
+        if (!workspaceManager.getIsActive()) {
+            console.log(`[PullExecutor] 🔀 Creating workspace for parallel agents`);
+            await workspaceManager.create(1280, 800);
+        }
+
+        // Create a separate tab for each agent (except the first one uses current tab)
+        const agentTabMap = new Map(); // agent_id -> tab_id
+        const firstAgentId = parallelAgents[0]?.agent_id;
+
+        for (let i = 0; i < parallelAgents.length; i++) {
+            const agent = parallelAgents[i];
+            if (i === 0) {
+                // First agent uses the current active tab
+                agentTabMap.set(agent.agent_id, workspaceManager.activeTabId);
+                console.log(`[PullExecutor] 🔀 Agent '${agent.agent_id}' using existing tab ${workspaceManager.activeTabId}`);
+            } else {
+                // Create new tab for subsequent agents
+                const tabResult = await workspaceManager.createTab('about:blank');
+                if (tabResult.success) {
+                    agentTabMap.set(agent.agent_id, tabResult.tabId);
+                    console.log(`[PullExecutor] 🔀 Agent '${agent.agent_id}' created new tab ${tabResult.tabId}`);
+                } else {
+                    console.error(`[PullExecutor] 🔀 Failed to create tab for agent '${agent.agent_id}'`);
+                    agentTabMap.set(agent.agent_id, workspaceManager.activeTabId); // Fallback to active tab
+                }
+            }
+        }
+
+        // Store tab map for use during execution
+        this.parallelAgentTabs = agentTabMap;
+
         // Execute all steps in parallel using Promise.all
         const promises = parallelAgents.map(async (agentStep) => {
             const agentId = agentStep.agent_id;
+            const tabId = agentTabMap.get(agentId);
             const startTime = Date.now();
 
             try {
-                console.log(`[PullExecutor] [${agentId}] Executing: ${agentStep.tool_name}`);
+                console.log(`[PullExecutor] [${agentId}] Executing on tab ${tabId}: ${agentStep.tool_name}`);
 
-                // Create step config for this agent
+                // Switch to this agent's tab before executing
+                workspaceManager.switchTab(tabId);
+
+                // Create step config for this agent with tab context
                 const stepConfig = {
                     step: {
                         tool_name: agentStep.tool_name,
-                        args: agentStep.args,
+                        args: { ...agentStep.args, _tabId: tabId }, // Pass tab ID in args
                         step_id: agentStep.step_id,
                         description: agentStep.status_summary
                     },
                     timeout_sec: 60
                 };
 
-                // Execute the step (each agent may need its own workspace)
+                // Execute the step on the specific tab
                 const result = await this.executeStepWithRetry(stepConfig);
 
                 return {
                     agent_id: agentId,
+                    tab_id: tabId,
                     action: {
                         tool_name: agentStep.tool_name,
                         args: agentStep.args,
@@ -4325,6 +4370,7 @@ class PullExecutor {
                 console.error(`[PullExecutor] [${agentId}] Error:`, error);
                 return {
                     agent_id: agentId,
+                    tab_id: tabId,
                     action: {
                         tool_name: agentStep.tool_name,
                         args: agentStep.args,
