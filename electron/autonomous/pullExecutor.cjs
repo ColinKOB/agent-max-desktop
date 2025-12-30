@@ -240,6 +240,31 @@ class PullExecutor {
                     this.userContext.intent = nextStep.run_context.intent;
                 }
 
+                // Handle PARALLEL web agents
+                if (nextStep.is_parallel_web_agents && nextStep.parallel_agents && nextStep.parallel_agents.length > 0) {
+                    console.log(`[PullExecutor] 🔀 Executing ${nextStep.parallel_agents.length} parallel web agents`);
+
+                    // Emit parallel agents status for UI
+                    if (this.onParallelAgentsUpdate) {
+                        this.onParallelAgentsUpdate({
+                            runId,
+                            agents: nextStep.parallel_agents_summary || nextStep.parallel_agents,
+                            status: 'running'
+                        });
+                    }
+
+                    // Execute all agent steps in parallel
+                    const parallelResults = await this.executeParallelAgentSteps(runId, nextStep.parallel_agents);
+
+                    // Report each agent's result
+                    for (const agentResult of parallelResults) {
+                        await this.reportParallelAgentResult(runId, nextStep.step_index, agentResult);
+                    }
+
+                    // Continue to next step (backend handles combining results)
+                    continue;
+                }
+
                 // Execute step locally
                 console.log(`[PullExecutor] Executing step ${nextStep.step_index + 1}/${nextStep.total_steps}`);
                 const result = await this.executeStepWithRetry(nextStep);
@@ -4249,6 +4274,128 @@ class PullExecutor {
                 clearInterval(checkInterval);
             }, ms + 10);
         });
+    }
+
+    // =========================================================================
+    // PARALLEL WEB AGENTS EXECUTION
+    // =========================================================================
+
+    /**
+     * Execute multiple agent steps in parallel
+     * Each agent gets its own browser workspace
+     */
+    async executeParallelAgentSteps(runId, parallelAgents) {
+        console.log(`[PullExecutor] 🔀 Starting ${parallelAgents.length} parallel agent steps`);
+
+        // Execute all steps in parallel using Promise.all
+        const promises = parallelAgents.map(async (agentStep) => {
+            const agentId = agentStep.agent_id;
+            const startTime = Date.now();
+
+            try {
+                console.log(`[PullExecutor] [${agentId}] Executing: ${agentStep.tool_name}`);
+
+                // Create step config for this agent
+                const stepConfig = {
+                    step: {
+                        tool_name: agentStep.tool_name,
+                        args: agentStep.args,
+                        step_id: agentStep.step_id,
+                        description: agentStep.status_summary
+                    },
+                    timeout_sec: 60
+                };
+
+                // Execute the step (each agent may need its own workspace)
+                const result = await this.executeStepWithRetry(stepConfig);
+
+                return {
+                    agent_id: agentId,
+                    action: {
+                        tool_name: agentStep.tool_name,
+                        args: agentStep.args,
+                        status_summary: agentStep.status_summary
+                    },
+                    result: {
+                        ...result,
+                        execution_time_ms: Date.now() - startTime
+                    }
+                };
+            } catch (error) {
+                console.error(`[PullExecutor] [${agentId}] Error:`, error);
+                return {
+                    agent_id: agentId,
+                    action: {
+                        tool_name: agentStep.tool_name,
+                        args: agentStep.args,
+                        status_summary: agentStep.status_summary
+                    },
+                    result: {
+                        success: false,
+                        error: error.message,
+                        execution_time_ms: Date.now() - startTime
+                    }
+                };
+            }
+        });
+
+        // Wait for all parallel executions to complete
+        const results = await Promise.all(promises);
+        console.log(`[PullExecutor] 🔀 All ${results.length} parallel steps completed`);
+
+        return results;
+    }
+
+    /**
+     * Report a parallel agent's result to the backend
+     */
+    async reportParallelAgentResult(runId, stepIndex, agentResult) {
+        const url = `${this.apiClient.baseUrl}/api/v2/runs/${runId}/action-result`;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-API-Key': this.apiClient.apiKey,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    step_index: stepIndex,
+                    action: agentResult.action,
+                    result: agentResult.result,
+                    agent_id: agentResult.agent_id  // Identify which parallel agent
+                })
+            });
+
+            if (!response.ok) {
+                console.error(`[PullExecutor] Failed to report parallel agent result: ${response.status}`);
+                return { status: 'error' };
+            }
+
+            const data = await response.json();
+            console.log(`[PullExecutor] [${agentResult.agent_id}] Result reported: ${data.status}`);
+
+            // Update UI if handler is registered
+            if (this.onParallelAgentsUpdate && data.parallel_agents_summary) {
+                this.onParallelAgentsUpdate({
+                    runId,
+                    agents: data.parallel_agents_summary,
+                    status: data.is_parallel_web_agents ? 'running' : 'complete'
+                });
+            }
+
+            return data;
+        } catch (error) {
+            console.error(`[PullExecutor] Error reporting parallel agent result:`, error);
+            return { status: 'error', error: error.message };
+        }
+    }
+
+    /**
+     * Set callback for parallel agents UI updates
+     */
+    setParallelAgentsHandler(handler) {
+        this.onParallelAgentsUpdate = handler;
     }
 }
 

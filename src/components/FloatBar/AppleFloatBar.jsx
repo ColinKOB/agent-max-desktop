@@ -74,6 +74,7 @@ import PlanCard from '../PlanCard';
 import { usePermission } from '../../contexts/PermissionContext';
 import ApprovalDialog from '../ApprovalDialog';
 import IntentConfirmationModal from '../IntentConfirmationModal';
+import { ParallelAgentsPanel } from '../ParallelAgentsPanel';
 import './AppleFloatBar.css';
 import './FloatBar.css';
 
@@ -406,6 +407,7 @@ export default function AppleFloatBar({
   const [memoryProposals, setMemoryProposals] = useState([]);
   const [showMemoryToast, setShowMemoryToast] = useState(false);
   const [thinkingStatus, setThinkingStatus] = useState('');
+  const [parallelAgents, setParallelAgents] = useState(null); // Parallel web agents state
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [factTiles, setFactTiles] = useState([]);
   // Autonomous mode state - consolidated via useReducer for atomic updates
@@ -1082,6 +1084,29 @@ export default function AppleFloatBar({
       window.askUser.respond({ cancelled: true });
     }
     setPendingAskUser(null);
+  }, []);
+
+  // Listen for parallel web agents updates (worktree-style display)
+  useEffect(() => {
+    if (!window.parallelAgents?.onUpdate) return;
+
+    const handleParallelAgentsUpdate = (data) => {
+      console.log('[AppleFloatBar] Parallel agents update:', data);
+      if (data.agents && data.agents.length > 0) {
+        setParallelAgents(data.agents);
+      } else if (data.status === 'complete') {
+        // Clear after a short delay so user can see completion
+        setTimeout(() => setParallelAgents(null), 2000);
+      }
+    };
+
+    window.parallelAgents.onUpdate(handleParallelAgentsUpdate);
+
+    return () => {
+      if (window.parallelAgents?.removeListener) {
+        window.parallelAgents.removeListener();
+      }
+    };
   }, []);
 
   const permissionKey = validatedPermissionMode;
@@ -5709,6 +5734,14 @@ export default function AppleFloatBar({
                 <div className="drop-zone-hint">Images, PDFs, and text files</div>
               </div>
             </div>
+          )}
+
+          {/* Parallel Web Agents Panel - Worktree style */}
+          {parallelAgents && parallelAgents.length > 0 && (
+            <ParallelAgentsPanel
+              agents={parallelAgents}
+              onClose={() => setParallelAgents(null)}
+            />
           )}
 
           {/* Tools Overlay - inside apple-bar-glass for proper click handling */}

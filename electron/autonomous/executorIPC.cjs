@@ -240,6 +240,25 @@ function registerExecutorHandlers(apiClient, config = {}) {
         }
     });
 
+    // Setup parallel agents handler - sends agent status updates to renderer
+    if (executorManager && executorManager.executor) {
+        executorManager.executor.setParallelAgentsHandler(({ runId, agents, status }) => {
+            console.log(`[ExecutorIPC] Parallel agents update: ${agents.length} agents, status=${status}`);
+
+            // Send to all windows
+            const { BrowserWindow } = require('electron');
+            BrowserWindow.getAllWindows().forEach(win => {
+                if (!win.isDestroyed()) {
+                    win.webContents.send('executor:parallel-agents-update', {
+                        runId,
+                        agents,
+                        status
+                    });
+                }
+            });
+        });
+    }
+
     // Setup ask_user handler - sends question to renderer and waits for response
     let pendingAskUserResolve = null;
 

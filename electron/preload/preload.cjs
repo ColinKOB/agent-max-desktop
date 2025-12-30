@@ -306,6 +306,18 @@ contextBridge.exposeInMainWorld('askUser', {
   }
 });
 
+// Parallel web agents - for showing multiple running agents in UI (worktree style)
+contextBridge.exposeInMainWorld('parallelAgents', {
+  // Listen for parallel agents status updates
+  onUpdate: (callback) => {
+    ipcRenderer.on('executor:parallel-agents-update', (event, data) => callback(data));
+  },
+  // Remove listener
+  removeListener: () => {
+    ipcRenderer.removeAllListeners('executor:parallel-agents-update');
+  }
+});
+
 // ===========================================
 // Workspace API - Isolated BrowserWindow for AI
 // ===========================================
