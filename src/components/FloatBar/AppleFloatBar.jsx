@@ -2261,7 +2261,16 @@ export default function AppleFloatBar({
           logger.info(`[FactTile] Rendered ${toolName} tile in ${Math.round(latencyMs)}ms`);
         } else if (event.type === 'token') {
           const content = event.content || event.data?.content || '';
+          const channel = event.channel || event.data?.channel || 'final';
           if (!content) return;
+
+          // Skip thinking channel tokens - they shouldn't appear in the main message
+          // These are internal status updates like "Analyzing your query..."
+          if (channel === 'thinking' || channel === 'narration') {
+            // Update thinking status for the indicator instead
+            setThinkingStatus(content);
+            return;
+          }
 
           // Hide thinking indicator as soon as content starts arriving
           // This prevents the dots from lingering after content is visible
