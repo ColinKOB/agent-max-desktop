@@ -40,6 +40,7 @@ class PullExecutorV2 extends PullExecutor {
 
         this.isRunning = true;
         this.currentRunId = runId;
+        this.parallelAgentTabs = null; // Clear parallel agent tabs for new run
 
         console.log(`[PullExecutorV2] Starting run ${runId}`);
 
@@ -145,6 +146,28 @@ class PullExecutorV2 extends PullExecutor {
                 }
 
                 if (cloudStep.status === 'ready') {
+                    // Check if this is a parallel web agents response
+                    if (cloudStep.is_parallel_web_agents && cloudStep.parallel_agents && cloudStep.parallel_agents.length > 0) {
+                        console.log(`[PullExecutorV2] 🔀 Detected parallel web agents response (${cloudStep.parallel_agents.length} agents)`);
+
+                        // Update run status for UI
+                        this.stateStore.updateRun(runId, {
+                            current_status_summary: `Running ${cloudStep.parallel_agents.length} parallel agents...`
+                        });
+
+                        // Execute parallel agents using parent class method
+                        const parallelResults = await this.executeParallelAgentSteps(runId, cloudStep.parallel_agents);
+
+                        // Report each agent's result to backend
+                        for (const agentResult of parallelResults) {
+                            await this.reportParallelAgentResult(runId, cloudStep.step_index || 0, agentResult);
+                        }
+
+                        console.log(`[PullExecutorV2] 🔀 Parallel agents completed, continuing to next step`);
+                        // Continue loop to fetch next step (backend will combine results)
+                        continue;
+                    }
+
                     console.log(`[PullExecutorV2] Got new step from cloud: step ${cloudStep.step_index}`);
                     // Save new step to local state
                     this.stateStore.saveStep(runId, cloudStep.step_index, cloudStep.step);

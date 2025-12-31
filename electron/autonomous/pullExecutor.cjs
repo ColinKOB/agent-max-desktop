@@ -4292,8 +4292,7 @@ class PullExecutor {
         console.log(`[PullExecutor] 🔀 Starting ${parallelAgents.length} parallel agent steps`);
 
         // Get workspace manager
-        const { getWorkspaceManager } = require('../workspace/workspaceManager.cjs');
-        const workspaceManager = getWorkspaceManager();
+        const { workspaceManager } = require('../workspace/workspaceManager.cjs');
 
         // Ensure workspace is active
         if (!workspaceManager.getIsActive()) {
@@ -4301,13 +4300,23 @@ class PullExecutor {
             await workspaceManager.create(1280, 800);
         }
 
-        // Create a separate tab for each agent (except the first one uses current tab)
-        const agentTabMap = new Map(); // agent_id -> tab_id
-        const firstAgentId = parallelAgents[0]?.agent_id;
+        // Reuse existing tab map if available, otherwise create new one
+        if (!this.parallelAgentTabs) {
+            this.parallelAgentTabs = new Map();
+        }
+        const agentTabMap = this.parallelAgentTabs;
 
+        // Only create tabs for agents that don't have one yet
         for (let i = 0; i < parallelAgents.length; i++) {
             const agent = parallelAgents[i];
-            if (i === 0) {
+
+            // If agent already has a tab assigned, reuse it
+            if (agentTabMap.has(agent.agent_id)) {
+                console.log(`[PullExecutor] 🔀 Agent '${agent.agent_id}' reusing tab ${agentTabMap.get(agent.agent_id)}`);
+                continue;
+            }
+
+            if (i === 0 || agentTabMap.size === 0) {
                 // First agent uses the current active tab
                 agentTabMap.set(agent.agent_id, workspaceManager.activeTabId);
                 console.log(`[PullExecutor] 🔀 Agent '${agent.agent_id}' using existing tab ${workspaceManager.activeTabId}`);
@@ -4324,9 +4333,6 @@ class PullExecutor {
             }
         }
 
-        // Store tab map for use during execution
-        this.parallelAgentTabs = agentTabMap;
-
         // Execute all steps in parallel using Promise.all
         const promises = parallelAgents.map(async (agentStep) => {
             const agentId = agentStep.agent_id;
@@ -4334,6 +4340,25 @@ class PullExecutor {
             const startTime = Date.now();
 
             try {
+                // Skip workspace.create for parallel agents - workspace is already created above
+                if (agentStep.tool_name === 'workspace.create') {
+                    console.log(`[PullExecutor] [${agentId}] Skipping workspace.create (already created)`);
+                    return {
+                        agent_id: agentId,
+                        tab_id: tabId,
+                        action: {
+                            tool_name: agentStep.tool_name,
+                            args: agentStep.args,
+                            status_summary: 'Workspace already active'
+                        },
+                        result: {
+                            success: true,
+                            output: 'Workspace already created for parallel agents',
+                            execution_time_ms: Date.now() - startTime
+                        }
+                    };
+                }
+
                 console.log(`[PullExecutor] [${agentId}] Executing on tab ${tabId}: ${agentStep.tool_name}`);
 
                 // Switch to this agent's tab before executing

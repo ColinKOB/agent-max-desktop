@@ -83,3 +83,57 @@
 .typewriter-message {
   transition: height 0.1s ease-out;
 }
+
+/* Table styles for comparison data */
+.typewriter-message table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75em 0;
+  font-size: 0.9em;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.typewriter-message thead {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.typewriter-message th {
+  padding: 0.6em 0.8em;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.typewriter-message td {
+  padding: 0.5em 0.8em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary, rgba(255, 255, 255, 0.8));
+}
+
+.typewriter-message tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.typewriter-message tbody tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Highlight best value row */
+.typewriter-message tbody tr:first-child {
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.typewriter-message tbody tr:first-child td {
+  color: var(--text-primary, #fff);
+  font-weight: 500;
+}
+
+/* Price column styling - make numbers stand out */
+.typewriter-message td:nth-child(2) {
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+  font-family: 'SF Mono', Monaco, monospace;
+}

@@ -605,8 +605,8 @@ class WorkspaceManager {
       // Calculate bounds (account for header, tab bar, status bar)
       view.setBounds(this.getViewBounds());
 
-      // Ensure protocol is present
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      // Ensure protocol is present (but don't modify special URLs like about:blank)
+      if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('about:')) {
         url = 'https://' + url;
       }
 
