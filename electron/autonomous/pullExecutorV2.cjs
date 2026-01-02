@@ -272,14 +272,33 @@ class PullExecutorV2 extends PullExecutor {
                 });
             }
 
-            // If step failed, stop execution
+            // If step failed, check for unrecoverable errors vs recoverable ones
             if (!result.success) {
-                console.error(`[PullExecutorV2] Step failed, stopping execution`);
+                // Check if this is an unrecoverable error that requires user action
+                const isUnrecoverable = result.unrecoverable || false;
+
+                if (isUnrecoverable) {
+                    // Unrecoverable error (e.g., Google account not connected) - stop immediately
+                    console.error(`[PullExecutorV2] ⛔ Unrecoverable error - stopping execution`);
+                    this.stateStore.updateRun(runId, {
+                        status: 'failed',
+                        completed_at: Date.now()
+                    });
+                    break;
+                }
+
+                // Recoverable error - continue loop to let backend provide recovery step
+                // Backend's get_next_step_iterative will detect the failure and generate
+                // an adaptive recovery step using LLM
+                console.log(`[PullExecutorV2] 🔄 Step failed - continuing to check for recovery step from backend`);
+
+                // Update status to show we're attempting recovery
                 this.stateStore.updateRun(runId, {
-                    status: 'failed',
-                    completed_at: Date.now()
+                    current_status_summary: 'Attempting alternative approach...'
                 });
-                break;
+
+                // Don't break - continue the loop to fetch recovery step
+                // The backend will either provide a recovery step or mark the run as failed
             }
         }
     }
