@@ -682,87 +682,111 @@
   transform: scale(0.95);
 }
 
-/* Search Mode Toggle - appears when shopping query detected */
-.search-mode-toggle {
+/* AI Options Container - appears when AI calls show_options tool */
+.ai-options-container {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
-  animation: searchModeSlideIn 0.2s ease-out;
+  animation: aiOptionsSlideIn 0.25s ease-out;
 }
 
-@keyframes searchModeSlideIn {
+@keyframes aiOptionsSlideIn {
   from {
     opacity: 0;
-    transform: translateX(-10px) scale(0.95);
+    transform: translateY(8px) scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
-.search-mode-btn {
+.ai-options-prompt {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-options-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.ai-option-btn {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  height: 30px;
-  border-radius: 15px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
-  font-weight: 500;
+  justify-content: center;
+  padding: 6px 12px;
+  height: 28px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: rgba(167, 139, 250, 1);
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   -webkit-app-region: no-drag;
 }
 
-.search-mode-btn span {
-  font-size: 11px;
-}
-
-.search-mode-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.search-mode-btn.active {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(99, 102, 241, 0.2) 100%);
+.ai-option-btn:hover {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(139, 92, 246, 0.2) 100%);
   border-color: rgba(99, 102, 241, 0.5);
-  color: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
+  color: rgba(196, 181, 253, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
 }
 
-.search-mode-btn.active:hover {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.35) 0%, rgba(99, 102, 241, 0.3) 100%);
-  border-color: rgba(99, 102, 241, 0.6);
+.ai-option-btn:active {
+  transform: translateY(0) scale(0.98);
 }
 
-/* Quick search specific styling */
-.search-mode-btn:first-child.active {
-  background: linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(251, 191, 36, 0.15) 100%);
-  border-color: rgba(251, 191, 36, 0.4);
-  color: rgba(251, 191, 36, 1);
+/* Alternate colors for variety */
+.ai-option-btn:nth-child(2) {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(52, 211, 153, 0.1) 100%);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: rgba(110, 231, 183, 1);
 }
 
-.search-mode-btn:first-child.active:hover {
-  background: linear-gradient(135deg, rgba(234, 179, 8, 0.3) 0%, rgba(251, 191, 36, 0.25) 100%);
-  border-color: rgba(251, 191, 36, 0.5);
+.ai-option-btn:nth-child(2):hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(52, 211, 153, 0.2) 100%);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: rgba(167, 243, 208, 1);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
 }
 
-/* Amazon search specific styling */
-.search-mode-btn:last-child.active {
-  background: linear-gradient(135deg, rgba(255, 153, 0, 0.2) 0%, rgba(255, 136, 0, 0.15) 100%);
-  border-color: rgba(255, 153, 0, 0.4);
-  color: rgba(255, 170, 51, 1);
+.ai-option-btn:nth-child(3) {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(251, 191, 36, 0.1) 100%);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: rgba(252, 211, 77, 1);
 }
 
-.search-mode-btn:last-child.active:hover {
-  background: linear-gradient(135deg, rgba(255, 153, 0, 0.3) 0%, rgba(255, 136, 0, 0.25) 100%);
-  border-color: rgba(255, 153, 0, 0.5);
+.ai-option-btn:nth-child(3):hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(251, 191, 36, 0.2) 100%);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: rgba(253, 230, 138, 1);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
+}
+
+.ai-option-btn:nth-child(4) {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.15) 0%, rgba(244, 114, 182, 0.1) 100%);
+  border-color: rgba(236, 72, 153, 0.3);
+  color: rgba(249, 168, 212, 1);
+}
+
+.ai-option-btn:nth-child(4):hover {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.25) 0%, rgba(244, 114, 182, 0.2) 100%);
+  border-color: rgba(236, 72, 153, 0.5);
+  color: rgba(251, 207, 232, 1);
+  box-shadow: 0 2px 8px rgba(236, 72, 153, 0.2);
 }
 
 /* Attachment preview row above the composer */

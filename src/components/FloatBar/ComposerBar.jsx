@@ -38,10 +38,9 @@ const ComposerBar = React.memo(function ComposerBar({
   handleResumeRun,
   handlePauseRun,
   handleCancelRun,
-  // Search mode props
-  searchMode = 'quick',
-  setSearchMode,
-  isShoppingQuery = false,
+  // AI-triggered options
+  aiOptions,      // {options: [{id, label}], prompt: string, runId: string}
+  setAiOptions,   // Setter to clear options after selection
 }) {
   // Handle file selection from hidden input - with compression for images
   const handleFileChange = useCallback(
@@ -221,25 +220,42 @@ const ComposerBar = React.memo(function ComposerBar({
         <Plus size={18} />
       </button>
 
-      {/* Search Mode Toggle - Only shows when shopping query detected */}
-      {isShoppingQuery && setSearchMode && (
-        <div className="search-mode-toggle">
-          <button
-            className={`search-mode-btn ${searchMode === 'quick' ? 'active' : ''}`}
-            onClick={() => setSearchMode('quick')}
-            title="Quick Search - Uses AI web search (faster, no browser)"
-          >
-            <Zap size={14} />
-            <span>Quick Search</span>
-          </button>
-          <button
-            className={`search-mode-btn ${searchMode === 'amazon' ? 'active' : ''}`}
-            onClick={() => setSearchMode('amazon')}
-            title="Search Amazon - Uses browser automation for real product data"
-          >
-            <ShoppingCart size={14} />
-            <span>Search Amazon</span>
-          </button>
+      {/* AI-triggered Option Buttons - Shows when AI calls show_options tool */}
+      {aiOptions && aiOptions.options && aiOptions.options.length > 0 && (
+        <div className="ai-options-container">
+          {aiOptions.prompt && (
+            <span className="ai-options-prompt">{aiOptions.prompt}</span>
+          )}
+          <div className="ai-options-buttons">
+            {aiOptions.options.map((option, index) => (
+              <button
+                key={option.id || index}
+                className={`ai-option-btn ai-option-btn-${index}`}
+                onClick={() => {
+                  // Send the selection back to the AI
+                  if (setAiOptions) {
+                    // Clear the options
+                    setAiOptions(null);
+                  }
+                  // Set the message with both ID and label for backend parsing
+                  const selectionText = option.id
+                    ? `I choose: ${option.label} (${option.id})`
+                    : `I choose: ${option.label}`;
+                  setMessage(selectionText);
+                  // Auto-submit after a brief delay
+                  setTimeout(() => {
+                    const submitBtn = document.querySelector('.apple-send-btn');
+                    if (submitBtn && !submitBtn.disabled) {
+                      submitBtn.click();
+                    }
+                  }, 50);
+                }}
+                title={option.description || option.label}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

@@ -450,43 +450,9 @@ export default function AppleFloatBar({
   // Hover state for send button controls
   const [showSendControls, setShowSendControls] = useState(false);
 
-  // Search mode state - 'quick' (ChatGPT web search) or 'amazon' (browser workspace)
-  const [searchMode, setSearchMode] = useState(() => {
-    try {
-      return localStorage.getItem('agent_max_search_mode') || 'quick';
-    } catch {
-      return 'quick';
-    }
-  });
-
-  // Persist search mode to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('agent_max_search_mode', searchMode);
-    } catch {}
-  }, [searchMode]);
-
-  // Detect if message looks like a shopping/search query
-  const isShoppingQuery = useMemo(() => {
-    const text = message.toLowerCase();
-    if (text.length < 5) return false;
-
-    // Shopping keywords
-    const shoppingKeywords = [
-      'find', 'buy', 'purchase', 'shop', 'price', 'cost', 'cheap', 'best deal',
-      'amazon', 'walmart', 'target', 'best buy', 'ebay', 'online',
-      'product', 'compare', 'review', 'looking for', 'where can i get',
-      'order', 'add to cart', 'checkout', 'search for'
-    ];
-
-    // Check for shopping patterns
-    const hasShoppingKeyword = shoppingKeywords.some(kw => text.includes(kw));
-
-    // Check for price patterns like "$XX" or "under $XX"
-    const hasPricePattern = /\$\d+|\d+\s*(dollars?|bucks?)|\bunder\b|\bbudget\b/i.test(text);
-
-    return hasShoppingKeyword || hasPricePattern;
-  }, [message]);
+  // AI-triggered option buttons state
+  // When AI calls show_options tool, these get populated and displayed
+  const [aiOptions, setAiOptions] = useState(null); // {options: [{id, label}], prompt: string, runId: string}
 
   const [approvalDetails, setApprovalDetails] = useState({
     action: '',
@@ -2059,6 +2025,8 @@ export default function AppleFloatBar({
           clearActivityLog(); // Start fresh activity feed for new task
           // Reset thought ref (bubble will be created lazily on first thinking event)
           thoughtIdRef.current = null;
+          // Clear any pending AI option buttons from previous request
+          setAiOptions(null);
           // Only require desktop actions in autonomous mode (not chatty)
           const currentMode = permissionModeRef.current;
           const isAutoMode = currentMode === 'autonomous';
@@ -3319,6 +3287,15 @@ export default function AppleFloatBar({
           setThinkingStatus('');
           // Collapse the Thought bubble if it exists
           collapseCurrentThought();
+        } else if (event.type === 'show_options') {
+          // AI wants to show option buttons for user selection
+          const optionsData = event.data || event;
+          console.log('[Chat] Show options received:', optionsData);
+          setAiOptions({
+            prompt: optionsData.prompt || 'Choose an option:',
+            options: optionsData.options || [],
+            runId: optionsData.run_id || planIdRef.current
+          });
         }
       })
       .catch((error) => {
@@ -3459,7 +3436,6 @@ export default function AppleFloatBar({
           typeof resolveMode === 'function'
             ? resolveMode()
             : localStorage.getItem('permission_level') || 'chatty',
-        search_mode: searchMode, // 'quick' (AI web search) or 'amazon' (browser workspace)
       };
       // NEW: include current mode so backend can enable tools appropriately
       try {
@@ -3631,7 +3607,6 @@ export default function AppleFloatBar({
         facts: null,
         preferences: null,
         google_user_email: localStorage.getItem('google_user_email') || null, // Add Google connection status
-        search_mode: searchMode, // 'quick' (AI web search) or 'amazon' (browser workspace)
       };
 
       const userId = localStorage.getItem('user_id');
@@ -7114,9 +7089,8 @@ export default function AppleFloatBar({
             handleResumeRun={handleResumeRun}
             handlePauseRun={handlePauseRun}
             handleCancelRun={handleCancelRun}
-            searchMode={searchMode}
-            setSearchMode={setSearchMode}
-            isShoppingQuery={isShoppingQuery}
+            aiOptions={aiOptions}
+            setAiOptions={setAiOptions}
           />
 
         </div>
