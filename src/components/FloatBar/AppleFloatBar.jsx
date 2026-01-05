@@ -449,6 +449,45 @@ export default function AppleFloatBar({
   const [approvalOpen, setApprovalOpen] = useState(false);
   // Hover state for send button controls
   const [showSendControls, setShowSendControls] = useState(false);
+
+  // Search mode state - 'quick' (ChatGPT web search) or 'amazon' (browser workspace)
+  const [searchMode, setSearchMode] = useState(() => {
+    try {
+      return localStorage.getItem('agent_max_search_mode') || 'quick';
+    } catch {
+      return 'quick';
+    }
+  });
+
+  // Persist search mode to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('agent_max_search_mode', searchMode);
+    } catch {}
+  }, [searchMode]);
+
+  // Detect if message looks like a shopping/search query
+  const isShoppingQuery = useMemo(() => {
+    const text = message.toLowerCase();
+    if (text.length < 5) return false;
+
+    // Shopping keywords
+    const shoppingKeywords = [
+      'find', 'buy', 'purchase', 'shop', 'price', 'cost', 'cheap', 'best deal',
+      'amazon', 'walmart', 'target', 'best buy', 'ebay', 'online',
+      'product', 'compare', 'review', 'looking for', 'where can i get',
+      'order', 'add to cart', 'checkout', 'search for'
+    ];
+
+    // Check for shopping patterns
+    const hasShoppingKeyword = shoppingKeywords.some(kw => text.includes(kw));
+
+    // Check for price patterns like "$XX" or "under $XX"
+    const hasPricePattern = /\$\d+|\d+\s*(dollars?|bucks?)|\bunder\b|\bbudget\b/i.test(text);
+
+    return hasShoppingKeyword || hasPricePattern;
+  }, [message]);
+
   const [approvalDetails, setApprovalDetails] = useState({
     action: '',
     markers: [],
@@ -3420,6 +3459,7 @@ export default function AppleFloatBar({
           typeof resolveMode === 'function'
             ? resolveMode()
             : localStorage.getItem('permission_level') || 'chatty',
+        search_mode: searchMode, // 'quick' (AI web search) or 'amazon' (browser workspace)
       };
       // NEW: include current mode so backend can enable tools appropriately
       try {
@@ -3591,6 +3631,7 @@ export default function AppleFloatBar({
         facts: null,
         preferences: null,
         google_user_email: localStorage.getItem('google_user_email') || null, // Add Google connection status
+        search_mode: searchMode, // 'quick' (AI web search) or 'amazon' (browser workspace)
       };
 
       const userId = localStorage.getItem('user_id');
@@ -7073,6 +7114,9 @@ export default function AppleFloatBar({
             handleResumeRun={handleResumeRun}
             handlePauseRun={handlePauseRun}
             handleCancelRun={handleCancelRun}
+            searchMode={searchMode}
+            setSearchMode={setSearchMode}
+            isShoppingQuery={isShoppingQuery}
           />
 
         </div>

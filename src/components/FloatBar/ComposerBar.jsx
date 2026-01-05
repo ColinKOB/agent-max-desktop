@@ -7,7 +7,7 @@
  */
 
 import React, { useCallback } from 'react';
-import { Plus, ArrowUp, Square, Pause, Play, X } from 'lucide-react';
+import { Plus, ArrowUp, Square, Pause, Play, X, Search, Zap, ShoppingCart } from 'lucide-react';
 import { processImageFile, compressImage } from '../../utils/imageCompression';
 
 const ComposerBar = React.memo(function ComposerBar({
@@ -38,6 +38,10 @@ const ComposerBar = React.memo(function ComposerBar({
   handleResumeRun,
   handlePauseRun,
   handleCancelRun,
+  // Search mode props
+  searchMode = 'quick',
+  setSearchMode,
+  isShoppingQuery = false,
 }) {
   // Handle file selection from hidden input - with compression for images
   const handleFileChange = useCallback(
@@ -216,6 +220,28 @@ const ComposerBar = React.memo(function ComposerBar({
       >
         <Plus size={18} />
       </button>
+
+      {/* Search Mode Toggle - Only shows when shopping query detected */}
+      {isShoppingQuery && setSearchMode && (
+        <div className="search-mode-toggle">
+          <button
+            className={`search-mode-btn ${searchMode === 'quick' ? 'active' : ''}`}
+            onClick={() => setSearchMode('quick')}
+            title="Quick Search - Uses AI web search (faster, no browser)"
+          >
+            <Zap size={14} />
+            <span>Quick Search</span>
+          </button>
+          <button
+            className={`search-mode-btn ${searchMode === 'amazon' ? 'active' : ''}`}
+            onClick={() => setSearchMode('amazon')}
+            title="Search Amazon - Uses browser automation for real product data"
+          >
+            <ShoppingCart size={14} />
+            <span>Search Amazon</span>
+          </button>
+        </div>
+      )}
 
       <textarea
         ref={inputRef}

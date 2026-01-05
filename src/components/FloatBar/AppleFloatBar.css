@@ -682,6 +682,89 @@
   transform: scale(0.95);
 }
 
+/* Search Mode Toggle - appears when shopping query detected */
+.search-mode-toggle {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  animation: searchModeSlideIn 0.2s ease-out;
+}
+
+@keyframes searchModeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.search-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  height: 30px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  -webkit-app-region: no-drag;
+}
+
+.search-mode-btn span {
+  font-size: 11px;
+}
+
+.search-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.search-mode-btn.active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(99, 102, 241, 0.2) 100%);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
+}
+
+.search-mode-btn.active:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.35) 0%, rgba(99, 102, 241, 0.3) 100%);
+  border-color: rgba(99, 102, 241, 0.6);
+}
+
+/* Quick search specific styling */
+.search-mode-btn:first-child.active {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(251, 191, 36, 0.15) 100%);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: rgba(251, 191, 36, 1);
+}
+
+.search-mode-btn:first-child.active:hover {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.3) 0%, rgba(251, 191, 36, 0.25) 100%);
+  border-color: rgba(251, 191, 36, 0.5);
+}
+
+/* Amazon search specific styling */
+.search-mode-btn:last-child.active {
+  background: linear-gradient(135deg, rgba(255, 153, 0, 0.2) 0%, rgba(255, 136, 0, 0.15) 100%);
+  border-color: rgba(255, 153, 0, 0.4);
+  color: rgba(255, 170, 51, 1);
+}
+
+.search-mode-btn:last-child.active:hover {
+  background: linear-gradient(135deg, rgba(255, 153, 0, 0.3) 0%, rgba(255, 136, 0, 0.25) 100%);
+  border-color: rgba(255, 153, 0, 0.5);
+}
+
 /* Attachment preview row above the composer */
 .attachment-preview-row {
   display: flex;
