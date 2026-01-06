@@ -5956,7 +5956,7 @@ export default function AppleFloatBar({
                 cursor: 'pointer',
               }}
             >
-              {resolveMode() === 'autonomous' ? 'autonomous' : 'chatty'}
+              {resolveMode() === 'autonomous' ? 'Auto' : 'Chatty'}
             </div>
             <div
               onClick={
