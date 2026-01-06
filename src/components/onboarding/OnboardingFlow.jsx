@@ -798,9 +798,9 @@ const MODE_OPTIONS = [
     recommended: true,
   },
   {
-    id: 'autonomous',
+    id: 'autonomous',  // NOTE: id must stay 'autonomous' - only display title changes
     icon: Bot,
-    title: 'Autonomous Mode',
+    title: 'Auto Mode',
     description: 'Let Max take control of your computer to complete tasks for you.',
     features: ['Controls mouse & keyboard', 'Opens apps & websites', 'Completes multi-step tasks'],
     recommended: false,

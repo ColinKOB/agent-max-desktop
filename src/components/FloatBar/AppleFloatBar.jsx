@@ -5165,7 +5165,8 @@ export default function AppleFloatBar({
   const handleSelectLevel = useCallback(
     async (level) => {
       const resolvedMode = validateModeValue(level);
-      const label = resolvedMode === 'autonomous' ? 'Autonomous' : 'Chatty';
+      // Display label only - internal value stays 'autonomous'
+      const label = resolvedMode === 'autonomous' ? 'Auto' : 'Chatty';
       try {
         await updateLevel(resolvedMode);
         toast.success(`Permission level set to ${label}`);
@@ -6280,9 +6281,10 @@ export default function AppleFloatBar({
               }}
             >
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', height: '100%' }}>
+                {/* NOTE: value must stay 'autonomous' - only title changes for display */}
                 {[
                   { value: 'chatty', title: 'Chatty' },
-                  { value: 'autonomous', title: 'Autonomous' },
+                  { value: 'autonomous', title: 'Auto' },
                 ].map((opt, idx) => {
                   const optionMode = validateModeValue(opt.value);
                   const isSelected = validatedPermissionMode === optionMode;

@@ -43,9 +43,9 @@ export default function PermissionLevelSelector({ currentLevel, onChange, loadin
       approvals: ['Financial operations']
     },
     {
-      value: 'autonomous',
+      value: 'autonomous',  // NOTE: value must stay 'autonomous' - only display name changes
       icon: '🤖',
-      name: 'Autonomous (Full Access)',
+      name: 'Auto (Full Access)',
       description: 'Full autonomous capabilities with multi-step execution',
       capabilities: [
         'Everything in Chatty mode',

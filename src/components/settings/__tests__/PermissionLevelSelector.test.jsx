@@ -12,7 +12,8 @@ describe('PermissionLevelSelector', () => {
   it('renders both permission levels', () => {
     render(<PermissionLevelSelector currentLevel="chatty" onChange={() => {}} />);
     expect(screen.getByText(/Chatty/i)).toBeInTheDocument();
-    expect(screen.getByText(/Autonomous/i)).toBeInTheDocument();
+    // Display label is "Auto" but internal value stays 'autonomous'
+    expect(screen.getByText(/Auto/i)).toBeInTheDocument();
   });
 
   it('calls onChange and updates via API on selection', async () => {
@@ -21,9 +22,11 @@ describe('PermissionLevelSelector', () => {
 
     render(<PermissionLevelSelector currentLevel="chatty" onChange={onChange} />);
 
-    fireEvent.click(screen.getByText(/Autonomous/i));
+    // Click "Auto" button (display label), but expect 'autonomous' value
+    fireEvent.click(screen.getByText(/Auto/i));
 
     await waitFor(() => {
+      // Internal value stays 'autonomous' - NOT 'auto'
       expect(permissionAPI.updateLevel).toHaveBeenCalledWith('autonomous');
       expect(onChange).toHaveBeenCalledWith('autonomous');
     });

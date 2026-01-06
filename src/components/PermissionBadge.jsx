@@ -15,9 +15,10 @@ import { useState } from 'react';
 export default function PermissionBadge({ level = 'chatty', onClick }) {
   const [isHovered, setIsHovered] = useState(false);
 
+  // NOTE: Keys must stay 'chatty' and 'autonomous' - only display labels change
   const badges = {
     chatty: { icon: '💬', label: 'Chatty', color: 'hsl(220, 100%, 70%)' },
-    autonomous: { icon: '🤖', label: 'Autonomous', color: 'hsl(280, 100%, 70%)' }
+    autonomous: { icon: '🤖', label: 'Auto', color: 'hsl(280, 100%, 70%)' }
   };
 
   const badge = badges[level] || badges.chatty;
