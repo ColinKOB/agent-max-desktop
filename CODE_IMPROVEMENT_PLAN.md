@@ -59,16 +59,55 @@ AppleFloatBar/
 
 ---
 
-## Priority 3: Mode Validation Scattered Across 25+ Files
+## Priority 3: Mode Validation Centralized
 
 ### Problem
-Mode checking (`chatty` vs `autonomous`) is duplicated across 256 files with inconsistent patterns.
+Mode checking (`chatty` vs `autonomous`) was duplicated across 256 files with inconsistent patterns:
+- Three duplicate enum definitions
+- Raw string comparisons (`mode == "chatty"`) everywhere
+- No single source of truth
 
 ### Solution
-- Backend: Use only `permission_levels.py` with `PermissionLevel` enum
-- Frontend: Use only `PermissionContext`
+Enhanced `permission_levels.py` as THE single source of truth with:
+- String constants: `CHATTY`, `AUTONOMOUS`, `VALID_MODES`
+- Helper functions: `is_chatty()`, `is_autonomous()`, `normalize_mode()`, `is_valid_mode()`, `to_permission_level()`
+- Updated all critical files to import from `permission_levels`
 
-### Status: NOT STARTED
+### Status: COMPLETED
+
+### Changes Made
+1. **Enhanced `permission_levels.py`** (single source of truth):
+   - Added string constants `CHATTY = "chatty"`, `AUTONOMOUS = "autonomous"`
+   - Added `VALID_MODES` frozenset
+   - Added `normalize_mode()` - validates and normalizes mode strings
+   - Added `is_chatty()`, `is_autonomous()` - type-safe mode checks
+   - Added `is_valid_mode()` - validation without default fallback
+   - Added `to_permission_level()` - converts to enum
+   - Simplified `get_permission_level_from_settings()` to use new helpers
+
+2. **Updated `api/models/safety.py`**:
+   - Imports constants from `permission_levels.py`
+   - Uses `is_valid_mode()` in validator
+
+3. **Updated core files** to use centralized imports:
+   - `tool_definitions.py` - `is_chatty()` for tool selection
+   - `response_router.py` - `is_autonomous()` for routing
+   - `chat_pipeline.py` - `is_chatty()`, `is_autonomous()`
+   - `unified_prompts.py` - `is_chatty()` for prompt selection
+   - `denylist.py` - `normalize_mode()`, `is_chatty()`
+   - `actions/policy.py` - `is_chatty()`, `is_autonomous()`
+
+### Usage Pattern
+```python
+# OLD (fragile):
+if mode == "chatty":
+    ...
+
+# NEW (centralized):
+from agent_max.core.safety.permission_levels import is_chatty
+if is_chatty(mode):
+    ...
+```
 
 ---
 
@@ -118,3 +157,4 @@ All `.jsx` files rely on runtime for type safety. Risk areas:
 | Date | Item | Status | Notes |
 |------|------|--------|-------|
 | 2026-01-06 | CHATTY_TOOLS fix | COMPLETED | Added get_tool_by_name() helper, refactored CHATTY_TOOLS to use name-based lookup |
+| 2026-01-06 | Mode validation centralization | COMPLETED | Enhanced permission_levels.py as single source of truth, updated 7 critical files |
