@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS runs (
     plan_id TEXT NOT NULL,
     user_id TEXT,
     message TEXT,
-    status TEXT NOT NULL CHECK(status IN ('planning', 'executing', 'paused', 'complete', 'failed', 'cancelled')),
+    status TEXT NOT NULL CHECK(status IN ('planning', 'executing', 'paused', 'complete', 'failed', 'cancelled', 'waiting_for_user')),
     current_step_index INTEGER DEFAULT -1,
     total_steps INTEGER DEFAULT 0,
     created_at INTEGER NOT NULL,

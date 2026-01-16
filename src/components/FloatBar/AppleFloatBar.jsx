@@ -4165,11 +4165,13 @@ export default function AppleFloatBar({
 
       if (usePullExecution && isAutonomous) {
         // NEW: Pull-based execution
-        console.log('[FloatBar] Using PULL execution (Phase 2)');
+        console.log('[FloatBar] Using PULL execution (Phase 2)', { hasUserImage: !!screenshotData });
 
         try {
           const pullService = new PullAutonomousService();
-          const runTracker = await pullService.execute(text, userContext);
+          // Pass user-attached image (from drag-drop) to the executor
+          // This will take priority over auto-captured screenshots
+          const runTracker = await pullService.execute(text, userContext, screenshotData);
 
           // NEW: Handle direct responses (questions, conversations, clarifications)
           // These don't require tool execution - the AI answered directly

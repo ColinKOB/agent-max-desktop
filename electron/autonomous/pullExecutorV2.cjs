@@ -145,6 +145,68 @@ class PullExecutorV2 extends PullExecutor {
                     break;
                 }
 
+                // Handle waiting_for_user - AI wants to ask user a question
+                if (cloudStep.status === 'waiting_for_user') {
+                    console.log(`[PullExecutorV2] AI asking user: ${cloudStep.question}`);
+
+                    // Update run status for UI
+                    this.stateStore.updateRun(runId, {
+                        status: 'waiting_for_user',
+                        current_status_summary: 'Waiting for your response...'
+                    });
+
+                    // Use parent class onAskUser handler
+                    if (this.onAskUser) {
+                        try {
+                            const userResponse = await this.onAskUser({
+                                question: cloudStep.question,
+                                context: cloudStep.context,
+                                options: cloudStep.options,
+                                runId: runId
+                            });
+
+                            if (userResponse === null || userResponse === undefined) {
+                                // User cancelled
+                                console.log(`[PullExecutorV2] User cancelled, stopping run`);
+                                this.stateStore.updateRun(runId, {
+                                    status: 'cancelled',
+                                    completed_at: Date.now()
+                                });
+                                break;
+                            }
+
+                            // Submit user response to backend
+                            await this.submitUserResponse(runId, userResponse);
+                            console.log(`[PullExecutorV2] User response submitted, continuing...`);
+
+                            // Update run status back to executing
+                            this.stateStore.updateRun(runId, {
+                                status: 'executing',
+                                current_status_summary: 'Processing your response...'
+                            });
+
+                            // Continue the loop - next fetchNextStep will get the next action
+                            continue;
+                        } catch (err) {
+                            console.error(`[PullExecutorV2] Error handling ask_user:`, err);
+                            this.stateStore.updateRun(runId, {
+                                status: 'failed',
+                                completed_at: Date.now(),
+                                error: err.message
+                            });
+                            break;
+                        }
+                    } else {
+                        console.error(`[PullExecutorV2] No onAskUser handler registered`);
+                        this.stateStore.updateRun(runId, {
+                            status: 'failed',
+                            completed_at: Date.now(),
+                            error: 'No ask_user handler registered'
+                        });
+                        break;
+                    }
+                }
+
                 if (cloudStep.status === 'ready') {
                     // Check if this is a parallel web agents response
                     if (cloudStep.is_parallel_web_agents && cloudStep.parallel_agents && cloudStep.parallel_agents.length > 0) {

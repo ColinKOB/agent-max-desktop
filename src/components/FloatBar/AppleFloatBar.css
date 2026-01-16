@@ -310,7 +310,7 @@
   display: flex;
   align-items: center; /* Center vertically for single line */
   gap: 8px;
-  padding: 4px 8px; /* Minimal padding */
+  padding: 4px 8px 12px 8px; /* Added bottom padding for spacing from window edge */
   width: 100%;
   background: linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.05)); /* Subtle dark gradient */
   border-radius: 0;

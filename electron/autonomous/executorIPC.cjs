@@ -273,8 +273,11 @@ function registerExecutorHandlers(apiClient, config = {}) {
 
                 // Send to all windows
                 const { BrowserWindow } = require('electron');
-                BrowserWindow.getAllWindows().forEach(win => {
+                const windows = BrowserWindow.getAllWindows();
+                console.log(`[ExecutorIPC] Sending ask_user to ${windows.length} window(s)`);
+                windows.forEach(win => {
                     if (!win.isDestroyed()) {
+                        console.log(`[ExecutorIPC] Sending executor:ask-user event to window ${win.id}`);
                         win.webContents.send('executor:ask-user', {
                             question,
                             context,

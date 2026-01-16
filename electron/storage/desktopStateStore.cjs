@@ -87,6 +87,84 @@ class DesktopStateStore {
                 this.db.exec("ALTER TABLE runs ADD COLUMN initial_message TEXT");
                 console.log('[DesktopStateStore] Migration complete: initial_message column added');
             }
+
+            // Migration 4: Update runs table CHECK constraint to include 'waiting_for_user'
+            // SQLite doesn't allow modifying CHECK constraints, so we need to recreate the table
+            // First check if migration already completed by testing the constraint
+            let needsMigration4 = false;
+            try {
+                // Test if the constraint allows 'waiting_for_user'
+                this.db.exec("SAVEPOINT migration4_test");
+                const testRunId = `migration_test_${Date.now()}`;
+                this.db.prepare(`INSERT INTO runs (run_id, plan_id, status, created_at, updated_at) VALUES (?, ?, 'waiting_for_user', ?, ?)`).run(testRunId, testRunId, Date.now(), Date.now());
+                // If we get here, the constraint already allows it - clean up test row
+                this.db.prepare(`DELETE FROM runs WHERE run_id = ?`).run(testRunId);
+                this.db.exec("RELEASE SAVEPOINT migration4_test");
+                console.log('[DesktopStateStore] Migration 4: waiting_for_user status already supported');
+            } catch (constraintErr) {
+                // Rollback the savepoint
+                try { this.db.exec("ROLLBACK TO SAVEPOINT migration4_test"); } catch (e) {}
+                try { this.db.exec("RELEASE SAVEPOINT migration4_test"); } catch (e) {}
+
+                // Only run migration if it's a constraint error
+                if (constraintErr.message && constraintErr.message.includes('CHECK constraint failed')) {
+                    needsMigration4 = true;
+                } else {
+                    console.log('[DesktopStateStore] Migration 4 test error (not constraint):', constraintErr.message);
+                }
+            }
+
+            if (needsMigration4) {
+                console.log('[DesktopStateStore] Running migration 4: updating runs table to support waiting_for_user status');
+
+                this.db.exec("PRAGMA foreign_keys = OFF");
+                this.db.exec("BEGIN TRANSACTION");
+
+                // Rename old table
+                this.db.exec("ALTER TABLE runs RENAME TO runs_old");
+
+                // Create new table with updated constraint
+                this.db.exec(`
+                    CREATE TABLE runs (
+                        run_id TEXT PRIMARY KEY,
+                        plan_id TEXT NOT NULL,
+                        user_id TEXT,
+                        message TEXT,
+                        status TEXT NOT NULL CHECK(status IN ('planning', 'executing', 'paused', 'complete', 'failed', 'cancelled', 'waiting_for_user')),
+                        current_step_index INTEGER DEFAULT -1,
+                        total_steps INTEGER DEFAULT 0,
+                        created_at INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        completed_at INTEGER,
+                        plan_json TEXT,
+                        metadata_json TEXT,
+                        final_response TEXT,
+                        last_synced_at INTEGER,
+                        sync_status TEXT DEFAULT 'pending' CHECK(sync_status IN ('pending', 'syncing', 'synced', 'failed')),
+                        current_status_summary TEXT,
+                        initial_message TEXT
+                    )
+                `);
+
+                // Copy data from old table
+                this.db.exec(`
+                    INSERT INTO runs SELECT * FROM runs_old
+                `);
+
+                // Drop old table
+                this.db.exec("DROP TABLE runs_old");
+
+                // Recreate indexes
+                this.db.exec("CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status)");
+                this.db.exec("CREATE INDEX IF NOT EXISTS idx_runs_user ON runs(user_id)");
+                this.db.exec("CREATE INDEX IF NOT EXISTS idx_runs_sync ON runs(sync_status)");
+                this.db.exec("CREATE INDEX IF NOT EXISTS idx_runs_updated ON runs(updated_at DESC)");
+
+                this.db.exec("COMMIT");
+                this.db.exec("PRAGMA foreign_keys = ON");
+
+                console.log('[DesktopStateStore] Migration 4 complete: runs table updated to support waiting_for_user');
+            }
         } catch (err) {
             console.error('[DesktopStateStore] Migration error:', err.message);
         }

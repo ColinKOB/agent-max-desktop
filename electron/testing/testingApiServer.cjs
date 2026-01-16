@@ -263,6 +263,96 @@ function start() {
         return;
       }
 
+      // Start a new conversation (clear messages)
+      if (pathname === '/new-conversation' && req.method === 'POST') {
+        if (mainWindow) {
+          try {
+            // Send IPC to clear conversation
+            mainWindow.webContents.send('new-conversation');
+
+            // Also clear via JavaScript
+            await mainWindow.webContents.executeJavaScript(`
+              (function() {
+                const stateStore = window.__AGENT_MAX_STATE__;
+                if (stateStore && typeof stateStore.clearMessages === 'function') {
+                  stateStore.clearMessages();
+                }
+                // Also try zustand store if available
+                if (window.useStore && window.useStore.getState) {
+                  const state = window.useStore.getState();
+                  if (typeof state.clearMessages === 'function') {
+                    state.clearMessages();
+                  }
+                }
+                return true;
+              })()
+            `);
+
+            // Wait a moment for state to clear
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            res.writeHead(200);
+            res.end(JSON.stringify({ success: true, message: 'Conversation cleared' }));
+          } catch (err) {
+            res.writeHead(500);
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        } else {
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: 'Window not available' }));
+        }
+        return;
+      }
+
+      // Respond to ask_user question (for automated testing)
+      if (pathname === '/respond-ask-user' && req.method === 'POST') {
+        const body = await readBody(req);
+        const { response } = JSON.parse(body);
+
+        if (!response) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: 'response is required' }));
+          return;
+        }
+
+        if (!mainWindow) {
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: 'Main window not available' }));
+          return;
+        }
+
+        try {
+          // Use IPC to trigger the respond handler directly
+          const { ipcMain } = require('electron');
+
+          // Emit the respond event through the renderer
+          await mainWindow.webContents.executeJavaScript(`
+            (function() {
+              // Call the askUser.respond function if available
+              if (window.askUser && window.askUser.respond) {
+                window.askUser.respond({
+                  cancelled: false,
+                  answer: ${JSON.stringify(response)},
+                  selectedOption: null,
+                  selectedOptionId: null
+                });
+                return { success: true, method: 'askUser.respond' };
+              }
+              return { success: false, error: 'askUser.respond not available' };
+            })()
+          `);
+
+          console.log(`[TestingAPI] Sent ask_user response: ${response.slice(0, 50)}...`);
+
+          res.writeHead(200);
+          res.end(JSON.stringify({ success: true, message: 'Response sent to ask_user' }));
+        } catch (err) {
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: err.message }));
+        }
+        return;
+      }
+
       // Get last N messages
       if (pathname === '/get-messages' && req.method === 'GET') {
         const count = parseInt(url.searchParams.get('count') || '10', 10);

@@ -51,13 +51,16 @@ class PullAutonomousService {
 
     /**
      * Execute a message using pull-based approach
+     * @param {string} message - User message
+     * @param {object} context - User context (profile, facts, etc.)
+     * @param {string|null} userImage - Optional user-provided image (base64 data URL from drag-drop)
      */
-    async execute(message, context = {}) {
-        logger.info('[PullAutonomous] Starting execution', { message });
+    async execute(message, context = {}, userImage = null) {
+        logger.info('[PullAutonomous] Starting execution', { message, hasUserImage: !!userImage });
 
         try {
             // Step 1: Create run via backend
-            const result = await this.createRun(message, context);
+            const result = await this.createRun(message, context, userImage);
             
             // NEW: Check if this is a direct response (question/conversation/clarify)
             // These don't create runs - the AI answered directly
@@ -152,28 +155,45 @@ class PullAutonomousService {
 
     /**
      * Create a run via backend API (using main process for network stability)
+     * @param {string} message - User message
+     * @param {object} context - User context
+     * @param {string|null} userImage - Optional user-provided image (takes priority over auto-capture)
      */
-    async createRun(message, context) {
+    async createRun(message, context, userImage = null) {
         // Get system context from desktop (where files will actually be created)
         const systemContext = await window.executor.getSystemContext();
-        
+
         // PRODUCTIVITY FEATURE: Capture screenshot for context on every auto-mode request
         // This gives Max visual context of what the user is looking at when they send a request
+        // NOTE: User-provided images (drag-drop) take priority over auto-captured screenshots
         let initialScreenshot = null;
-        try {
-            const screenshotStart = Date.now();
-            const screenshotResult = await window.executor.captureScreen();
-            if (screenshotResult?.base64) {
-                initialScreenshot = screenshotResult.base64;
-                const captureTime = Date.now() - screenshotStart;
-                logger.info('[PullAutonomous] Screen captured for context', { 
-                    sizeKB: Math.round(initialScreenshot.length / 1024),
-                    captureTimeMs: captureTime
-                });
+
+        if (userImage) {
+            // User explicitly attached an image - use that instead of auto-capture
+            // Strip data URL prefix if present for consistency
+            initialScreenshot = userImage.startsWith('data:')
+                ? userImage.split(',')[1]  // Extract just the base64 part
+                : userImage;
+            logger.info('[PullAutonomous] Using user-provided image', {
+                sizeKB: Math.round(initialScreenshot.length / 1024)
+            });
+        } else {
+            // No user image - capture screen automatically
+            try {
+                const screenshotStart = Date.now();
+                const screenshotResult = await window.executor.captureScreen();
+                if (screenshotResult?.base64) {
+                    initialScreenshot = screenshotResult.base64;
+                    const captureTime = Date.now() - screenshotStart;
+                    logger.info('[PullAutonomous] Screen captured for context', {
+                        sizeKB: Math.round(initialScreenshot.length / 1024),
+                        captureTimeMs: captureTime
+                    });
+                }
+            } catch (e) {
+                // Screenshot capture is optional - don't fail the request if it doesn't work
+                logger.warn('[PullAutonomous] Could not capture screen (non-fatal)', e?.message || e);
             }
-        } catch (e) {
-            // Screenshot capture is optional - don't fail the request if it doesn't work
-            logger.warn('[PullAutonomous] Could not capture screen (non-fatal)', e?.message || e);
         }
         
         // Include user_id for billing (token accrual)
