@@ -293,16 +293,35 @@ contextBridge.exposeInMainWorld('macos', {
 });
 
 // AI ask_user tool - allows AI to ask user questions during execution
+// Supports both executorIPC and pullExecutor channels
+let currentAskUserSource = null; // Track which executor sent the question
+
 contextBridge.exposeInMainWorld('askUser', {
-  // Listen for questions from the AI (new executor-based channel)
+  // Listen for questions from the AI (both executor channels)
   onQuestion: (callback) => {
-    ipcRenderer.on('executor:ask-user', (event, data) => callback(data));
+    // ExecutorIPC channel (legacy)
+    ipcRenderer.on('executor:ask-user', (event, data) => {
+      currentAskUserSource = 'executor';
+      callback(data);
+    });
+    // PullExecutor channel (new, supports batched questions)
+    ipcRenderer.on('pull-executor:ask-user', (event, data) => {
+      currentAskUserSource = 'pull-executor';
+      callback(data);
+    });
   },
-  // Send response back to the AI
-  respond: (response) => ipcRenderer.invoke('executor:respond-to-question', response),
-  // Remove question listener
+  // Send response back to the AI (routes to correct channel based on source)
+  respond: (response) => {
+    const channel = currentAskUserSource === 'pull-executor'
+      ? 'pull-executor:respond-to-question'
+      : 'executor:respond-to-question';
+    return ipcRenderer.invoke(channel, response);
+  },
+  // Remove question listeners
   removeListener: () => {
     ipcRenderer.removeAllListeners('executor:ask-user');
+    ipcRenderer.removeAllListeners('pull-executor:ask-user');
+    currentAskUserSource = null;
   }
 });
 

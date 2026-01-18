@@ -837,16 +837,25 @@ class PullExecutor {
     /**
      * Execute ask_user tool - prompts user with a question and waits for response
      * This pauses execution until the user responds
+     *
+     * Supports two formats:
+     * 1. Single question: { question, context, options }
+     * 2. Batched questions: { context, questions: [{id, question, options}, ...] }
      */
     async executeAskUser(args) {
         const { BrowserWindow, ipcMain } = require('electron');
 
-        const question = args.question || 'Please provide input';
+        // Check for batched questions format (new)
+        const isBatched = args.questions && Array.isArray(args.questions) && args.questions.length > 0;
+
         const context = args.context || '';
-        const options = args.options || [];
         const allowCustomResponse = args.allow_custom_response || false;
 
-        console.log(`[PullExecutor] ask_user: "${question}" (context: ${context})`);
+        if (isBatched) {
+            console.log(`[PullExecutor] ask_user (batched): ${args.questions.length} questions (context: ${context})`);
+        } else {
+            console.log(`[PullExecutor] ask_user: "${args.question}" (context: ${context})`);
+        }
 
         // Find the main window to show the dialog
         const mainWindow = BrowserWindow.getAllWindows().find(w => !w.isDestroyed());
@@ -858,14 +867,26 @@ class PullExecutor {
             };
         }
 
-        // Send the question to the renderer
-        mainWindow.webContents.send('ask-user-question', {
-            question,
+        // Build the payload - support both single and batched formats
+        const payload = {
             context,
-            options,
             allowCustomResponse,
             timestamp: Date.now()
-        });
+        };
+
+        if (isBatched) {
+            // Batched questions format - send the full questions array
+            payload.questions = args.questions;
+            payload.isBatched = true;
+        } else {
+            // Single question format (legacy)
+            payload.question = args.question || 'Please provide input';
+            payload.options = args.options || [];
+            payload.isBatched = false;
+        }
+
+        // Send to renderer using pull-executor:ask-user channel
+        mainWindow.webContents.send('pull-executor:ask-user', payload);
 
         // Wait for response from renderer (with timeout)
         return new Promise((resolve) => {
@@ -875,7 +896,7 @@ class PullExecutor {
             const handler = (event, response) => {
                 if (resolved) return;
                 resolved = true;
-                ipcMain.removeHandler('ask-user-response');
+                ipcMain.removeHandler('pull-executor:respond-to-question');
 
                 console.log(`[PullExecutor] ask_user response:`, response);
 
@@ -899,7 +920,20 @@ class PullExecutor {
                         user_edited: true,
                         edited_content: response.editedContent
                     });
+                } else if (response.answers && typeof response.answers === 'object') {
+                    // Batched answers format - response.answers is an object like {cuisine: "italian", vibe: "casual", area: "south"}
+                    const answersJson = JSON.stringify(response.answers);
+                    resolve({
+                        success: true,
+                        stdout: `User answers: ${answersJson}`,
+                        stderr: '',
+                        exit_code: 0,
+                        user_response: answersJson,
+                        answers: response.answers,  // Include the structured answers object
+                        is_batched: true
+                    });
                 } else {
+                    // Single answer format (legacy)
                     resolve({
                         success: true,
                         stdout: `User response: ${response.answer || response.selectedOption || 'No answer'}`,
@@ -911,14 +945,14 @@ class PullExecutor {
                 }
             };
 
-            // Register one-time handler
-            ipcMain.handleOnce('ask-user-response', handler);
+            // Register one-time handler on pull-executor channel
+            ipcMain.handleOnce('pull-executor:respond-to-question', handler);
 
             // Timeout
             setTimeout(() => {
                 if (resolved) return;
                 resolved = true;
-                ipcMain.removeHandler('ask-user-response');
+                ipcMain.removeHandler('pull-executor:respond-to-question');
 
                 resolve({
                     success: false,
