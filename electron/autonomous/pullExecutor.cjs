@@ -186,17 +186,33 @@ class PullExecutor {
 
                 // Handle ask_user - AI is waiting for user response
                 if (nextStep.status === 'waiting_for_user') {
-                    console.log(`[PullExecutor] AI asking user: ${nextStep.question}`);
+                    // Check for batched questions format
+                    const isBatched = nextStep.questions && Array.isArray(nextStep.questions) && nextStep.questions.length > 0;
+                    if (isBatched) {
+                        console.log(`[PullExecutor] AI asking user (batched): ${nextStep.questions.length} questions`);
+                    } else {
+                        console.log(`[PullExecutor] AI asking user: ${nextStep.question}`);
+                    }
 
                     // Emit event for UI to show question and get response
                     if (this.onAskUser) {
                         try {
-                            const userResponse = await this.onAskUser({
-                                question: nextStep.question,
+                            // Build payload - support both single and batched formats
+                            const askUserPayload = {
                                 context: nextStep.context,
-                                options: nextStep.options,
                                 runId: runId
-                            });
+                            };
+
+                            if (isBatched) {
+                                askUserPayload.questions = nextStep.questions;
+                                askUserPayload.isBatched = true;
+                            } else {
+                                askUserPayload.question = nextStep.question;
+                                askUserPayload.options = nextStep.options;
+                                askUserPayload.isBatched = false;
+                            }
+
+                            const userResponse = await this.onAskUser(askUserPayload);
 
                             if (userResponse === null || userResponse === undefined) {
                                 // User cancelled

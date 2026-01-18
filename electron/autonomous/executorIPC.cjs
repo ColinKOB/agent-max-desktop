@@ -263,27 +263,46 @@ function registerExecutorHandlers(apiClient, config = {}) {
     let pendingAskUserResolve = null;
 
     // Register the ask_user handler on the executor
+    // Supports both single question and batched questions formats
     if (executorManager) {
-        executorManager.setAskUserHandler(async ({ question, context, options, runId }) => {
+        executorManager.setAskUserHandler(async ({ question, questions, context, options, runId, isBatched }) => {
             return new Promise((resolve, reject) => {
-                console.log(`[ExecutorIPC] ask_user: "${question.substring(0, 50)}..."`);
+                // Check if this is batched format
+                const hasBatchedQuestions = questions && Array.isArray(questions) && questions.length > 0;
+
+                if (hasBatchedQuestions) {
+                    console.log(`[ExecutorIPC] ask_user (batched): ${questions.length} questions`);
+                } else {
+                    console.log(`[ExecutorIPC] ask_user: "${(question || '').substring(0, 50)}..."`);
+                }
 
                 // Store resolve function for when renderer responds
                 pendingAskUserResolve = resolve;
 
+                // Build payload - support both single and batched formats
+                const payload = {
+                    context,
+                    runId,
+                    timestamp: Date.now()
+                };
+
+                if (hasBatchedQuestions) {
+                    payload.questions = questions;
+                    payload.isBatched = true;
+                } else {
+                    payload.question = question;
+                    payload.options = options;
+                    payload.isBatched = false;
+                }
+
                 // Send to all windows
                 const { BrowserWindow } = require('electron');
                 const windows = BrowserWindow.getAllWindows();
-                console.log(`[ExecutorIPC] Sending ask_user to ${windows.length} window(s)`);
+                console.log(`[ExecutorIPC] Sending ask_user to ${windows.length} window(s), batched: ${hasBatchedQuestions}`);
                 windows.forEach(win => {
                     if (!win.isDestroyed()) {
                         console.log(`[ExecutorIPC] Sending executor:ask-user event to window ${win.id}`);
-                        win.webContents.send('executor:ask-user', {
-                            question,
-                            context,
-                            options,
-                            runId
-                        });
+                        win.webContents.send('executor:ask-user', payload);
                     }
                 });
 
@@ -301,7 +320,8 @@ function registerExecutorHandlers(apiClient, config = {}) {
     // Handle user response from renderer
     ipcMain.handle('executor:respond-to-question', async (event, response) => {
         // Response can be a string or an object from the UI
-        // Object format: { cancelled, answer, selectedOption, selectedOptionId, editedContent }
+        // Object format: { cancelled, answer, selectedOption, selectedOptionId, editedContent, answers }
+        // For batched questions, answers is an object like { cuisine: "italian", vibe: "casual" }
         let responseText = null;
 
         if (response === null || response === undefined) {
@@ -311,6 +331,10 @@ function registerExecutorHandlers(apiClient, config = {}) {
         } else if (typeof response === 'object') {
             if (response.cancelled) {
                 responseText = null;
+            } else if (response.answers && typeof response.answers === 'object') {
+                // Batched answers format - convert to JSON string for the backend
+                responseText = JSON.stringify(response.answers);
+                console.log(`[ExecutorIPC] Batched answers:`, response.answers);
             } else if (response.editedContent) {
                 // User edited the content
                 responseText = response.editedContent;
