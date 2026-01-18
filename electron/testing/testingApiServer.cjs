@@ -392,6 +392,69 @@ function start() {
         return;
       }
 
+      // Get current permission mode (chatty or autonomous)
+      if (pathname === '/get-mode' && req.method === 'GET') {
+        if (mainWindow) {
+          try {
+            const mode = await mainWindow.webContents.executeJavaScript(`
+              (function() {
+                // Try to get from localStorage
+                const stored = localStorage.getItem('agent-max-permission-level');
+                return stored || 'chatty';
+              })()
+            `);
+            res.writeHead(200);
+            res.end(JSON.stringify({ mode }));
+          } catch (err) {
+            res.writeHead(500);
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        } else {
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: 'Window not available' }));
+        }
+        return;
+      }
+
+      // Set permission mode (chatty or autonomous)
+      if (pathname === '/set-mode' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk.toString(); });
+        req.on('end', async () => {
+          try {
+            const { mode } = JSON.parse(body);
+            if (!mode || !['chatty', 'autonomous'].includes(mode)) {
+              res.writeHead(400);
+              res.end(JSON.stringify({ error: 'mode must be "chatty" or "autonomous"' }));
+              return;
+            }
+
+            if (mainWindow) {
+              await mainWindow.webContents.executeJavaScript(`
+                (function() {
+                  localStorage.setItem('agent-max-permission-level', '${mode}');
+                  // Also dispatch event so React picks up the change
+                  window.dispatchEvent(new StorageEvent('storage', {
+                    key: 'agent-max-permission-level',
+                    newValue: '${mode}'
+                  }));
+                })()
+              `);
+              console.log('[TestingAPI] Mode set to:', mode);
+              res.writeHead(200);
+              res.end(JSON.stringify({ success: true, mode }));
+            } else {
+              res.writeHead(500);
+              res.end(JSON.stringify({ error: 'Window not available' }));
+            }
+          } catch (err) {
+            res.writeHead(500);
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+        return;
+      }
+
       // Not found
       res.writeHead(404);
       res.end(JSON.stringify({ error: 'Not found', path: pathname }))

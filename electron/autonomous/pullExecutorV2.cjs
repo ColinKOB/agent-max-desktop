@@ -147,7 +147,13 @@ class PullExecutorV2 extends PullExecutor {
 
                 // Handle waiting_for_user - AI wants to ask user a question
                 if (cloudStep.status === 'waiting_for_user') {
-                    console.log(`[PullExecutorV2] AI asking user: ${cloudStep.question}`);
+                    // Check for batched questions format
+                    const isBatched = cloudStep.questions && Array.isArray(cloudStep.questions) && cloudStep.questions.length > 0;
+                    if (isBatched) {
+                        console.log(`[PullExecutorV2] AI asking user (batched): ${cloudStep.questions.length} questions`);
+                    } else {
+                        console.log(`[PullExecutorV2] AI asking user: ${cloudStep.question}`);
+                    }
 
                     // Update run status for UI
                     this.stateStore.updateRun(runId, {
@@ -158,12 +164,22 @@ class PullExecutorV2 extends PullExecutor {
                     // Use parent class onAskUser handler
                     if (this.onAskUser) {
                         try {
-                            const userResponse = await this.onAskUser({
-                                question: cloudStep.question,
+                            // Build payload - support both single and batched formats
+                            const askUserPayload = {
                                 context: cloudStep.context,
-                                options: cloudStep.options,
                                 runId: runId
-                            });
+                            };
+
+                            if (isBatched) {
+                                askUserPayload.questions = cloudStep.questions;
+                                askUserPayload.isBatched = true;
+                            } else {
+                                askUserPayload.question = cloudStep.question;
+                                askUserPayload.options = cloudStep.options;
+                                askUserPayload.isBatched = false;
+                            }
+
+                            const userResponse = await this.onAskUser(askUserPayload);
 
                             if (userResponse === null || userResponse === undefined) {
                                 // User cancelled
