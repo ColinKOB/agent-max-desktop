@@ -41,6 +41,89 @@ const formatDate = (dateStr) => {
   }
 };
 
+// Handle workspace: links by opening them in the user's default browser
+// Note: workspace: prefix is for semantic purposes - we open in external browser for best UX
+const handleWorkspaceLink = (url) => {
+  console.log('[EmailRenderer] Workspace link clicked:', url);
+  // Strip the workspace: prefix and open in external browser
+  const actualUrl = url.replace(/^workspace:/, '');
+  console.log('[EmailRenderer] Opening URL in external browser:', actualUrl);
+
+  // Open in the user's default browser for the best UX
+  if (window.electron?.openExternal) {
+    console.log('[EmailRenderer] Using electron.openExternal');
+    window.electron.openExternal(actualUrl);
+  } else {
+    console.log('[EmailRenderer] Using window.open fallback');
+    window.open(actualUrl, '_blank');
+  }
+};
+
+// Shared markdown components with workspace link support
+const markdownComponents = {
+  a: ({ node, children, href, ...props }) => {
+    // Check if this is a workspace: link - render as prominent CTA button
+    if (href && href.startsWith('workspace:')) {
+      console.log('[EmailRenderer] Rendering workspace link button for:', href);
+      return (
+        <button
+          className="workspace-link-button"
+          onClick={(e) => {
+            console.log('[EmailRenderer] Button clicked!');
+            e.preventDefault();
+            e.stopPropagation();
+            handleWorkspaceLink(href);
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            width: '100%',
+            padding: '12px 20px',
+            marginTop: '16px',
+            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(99, 102, 241, 0.9))',
+            border: 'none',
+            borderRadius: '12px',
+            color: '#fff',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 1), rgba(99, 102, 241, 1))';
+            e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(99, 102, 241, 0.9))';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          <span style={{ fontSize: '16px' }}>🌐</span>
+          {children}
+          <span style={{ fontSize: '14px', opacity: 0.9 }}>→</span>
+        </button>
+      );
+    }
+
+    // Regular external links
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  },
+};
+
 const EmailRenderer = React.memo(function EmailRenderer({ content }) {
   // Check if content contains email-like patterns (handles markdown bold, emoji, or plain text)
   // Look for "Email Results" or "From:" followed by "Subject:" pattern
@@ -48,13 +131,11 @@ const EmailRenderer = React.memo(function EmailRenderer({ content }) {
   const isEmailContent = emailPattern.test(content);
 
   if (!isEmailContent) {
-    // Not email content, render as regular markdown
+    // Not email content, render as regular markdown with workspace link support
     return (
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        components={{
-          a: ({ node, ...props }) => <a target="_blank" rel="noreferrer" {...props} />,
-        }}
+        components={markdownComponents}
       >
         {content}
       </ReactMarkdown>
@@ -140,14 +221,12 @@ const EmailRenderer = React.memo(function EmailRenderer({ content }) {
     }
   }
 
-  // If we still couldn't parse any emails, fall back to markdown
+  // If we still couldn't parse any emails, fall back to markdown with workspace link support
   if (emailBlocks.length === 0) {
     return (
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        components={{
-          a: ({ node, ...props }) => <a target="_blank" rel="noreferrer" {...props} />,
-        }}
+        components={markdownComponents}
       >
         {content}
       </ReactMarkdown>

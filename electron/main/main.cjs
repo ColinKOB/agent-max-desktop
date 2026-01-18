@@ -302,6 +302,13 @@ function createWindow() {
     });
   });
 
+  // Handle window.open() calls - redirect to external browser instead of creating new Electron windows
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    console.log('[Electron] window.open intercepted, opening in external browser:', url);
+    shell.openExternal(url);
+    return { action: 'deny' }; // Prevent Electron from creating a new window
+  });
+
   if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:5173/');
   } else {
@@ -351,6 +358,13 @@ function ensureCardWindow() {
   cardWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   cardWindow.setAlwaysOnTop(true, 'floating', 1);
   cardWindow.setWindowButtonVisibility(false);
+
+  // Handle window.open() calls - redirect to external browser instead of creating new Electron windows
+  cardWindow.webContents.setWindowOpenHandler(({ url }) => {
+    console.log('[Electron] window.open intercepted from card, opening in external browser:', url);
+    shell.openExternal(url);
+    return { action: 'deny' }; // Prevent Electron from creating a new window
+  });
 
   // Apply magnet behavior to card window too
   cardWindow.on('move', () => {

@@ -381,10 +381,13 @@ class PullAutonomousService {
                         this.pollTimeouts.set(runId, timeoutId);
                     } else {
                         // Run complete, failed, cancelled, or stopped
-                        console.log('[PullAutonomous] Run finished with status:', status.status);
+                        console.log('[PullAutonomous] ✅ Run finished with status:', status.status);
+                        console.log('[PullAutonomous] ✅ Final response:', tracker.final_response?.substring(0, 200));
+                        console.log('[PullAutonomous] ✅ Calling onUpdate callback now');
                         logger.info('[PullAutonomous] Run complete', {
                             runId,
                             status: status.status,
+                            hasFinalResponse: !!tracker.final_response,
                             wasCancelled: status.status === 'cancelled'
                         });
                         this.pollTimeouts.delete(runId);

@@ -105,7 +105,17 @@ function registerExecutorHandlers(apiClient, config = {}) {
     ipcMain.handle('executor:get-status', async (event, runId) => {
         try {
             const status = executorManager.getRunStatus(runId);
-            
+
+            // Log when returning complete status for debugging
+            if (status?.status === 'complete' || status?.status === 'done') {
+                console.log('[ExecutorIPC] ✅ Returning COMPLETE status:', {
+                    runId,
+                    status: status.status,
+                    hasFinalResponse: !!status.final_response,
+                    finalResponsePreview: status.final_response?.substring(0, 100)
+                });
+            }
+
             return {
                 success: true,
                 status: status

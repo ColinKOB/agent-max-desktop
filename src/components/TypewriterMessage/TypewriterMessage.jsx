@@ -114,90 +114,106 @@ export default function TypewriterMessage({
     };
   }, [content, speed, enabled, onComplete]);
 
-  // Handle workspace: links by opening them in the workspace browser
-  const handleWorkspaceLink = (url) => {
-    // Strip the workspace: prefix and open in workspace
-    const actualUrl = url.replace(/^workspace:/, '');
-    if (window.workspace?.navigate) {
-      window.workspace.navigate(actualUrl);
-    } else if (window.electron?.openExternal) {
-      window.electron.openExternal(actualUrl);
-    } else {
-      window.open(actualUrl, '_blank');
-    }
-  };
-
   // Memoize markdown components for performance
-  const components = useMemo(() => ({
-    // Make code blocks look nice
-    code: ({ node, inline, className: codeClassName, children, ...props }) => {
-      return inline ? (
-        <code className={`inline-code ${codeClassName || ''}`} {...props}>
-          {children}
-        </code>
-      ) : (
-        <pre className="code-block">
-          <code className={codeClassName} {...props}>
+  // Note: handleWorkspaceLink is defined inside useMemo to avoid stale closure issues
+  const components = useMemo(() => {
+    // Handle workspace: links by opening them in the user's default browser
+    // Note: workspace: prefix is for semantic purposes - we open in external browser for best UX
+    const handleWorkspaceLink = (url) => {
+      console.log('[TypewriterMessage] Workspace link clicked:', url);
+      // Strip the workspace: prefix and open in external browser
+      const actualUrl = url.replace(/^workspace:/, '');
+      console.log('[TypewriterMessage] Opening URL in external browser:', actualUrl);
+
+      // Open in the user's default browser for the best UX
+      if (window.electron?.openExternal) {
+        console.log('[TypewriterMessage] Using electron.openExternal');
+        window.electron.openExternal(actualUrl);
+      } else {
+        console.log('[TypewriterMessage] Using window.open fallback');
+        window.open(actualUrl, '_blank');
+      }
+    };
+
+    return {
+      // Make code blocks look nice
+      code: ({ node, inline, className: codeClassName, children, ...props }) => {
+        return inline ? (
+          <code className={`inline-code ${codeClassName || ''}`} {...props}>
             {children}
           </code>
-        </pre>
-      );
-    },
-    // Make links open externally, with special handling for workspace: links
-    a: ({ node, children, href, ...props }) => {
-      // Check if this is a workspace: link
-      if (href && href.startsWith('workspace:')) {
-        return (
-          <button
-            className="workspace-link-button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleWorkspaceLink(href);
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 16px',
-              marginTop: '12px',
-              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2))',
-              border: '1px solid rgba(59, 130, 246, 0.4)',
-              borderRadius: '8px',
-              color: '#93c5fd',
-              fontSize: '13px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(139, 92, 246, 0.3))';
-              e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.6)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2))';
-              e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
-            }}
-          >
-            <span style={{ fontSize: '14px' }}>🌐</span>
-            {children}
-          </button>
+        ) : (
+          <pre className="code-block">
+            <code className={codeClassName} {...props}>
+              {children}
+            </code>
+          </pre>
         );
-      }
+      },
+      // Make links open externally, with special handling for workspace: links
+      a: ({ node, children, href, ...props }) => {
+        // Check if this is a workspace: link - render as prominent CTA button
+        if (href && href.startsWith('workspace:')) {
+          console.log('[TypewriterMessage] Rendering workspace link button for:', href);
+          return (
+            <button
+              className="workspace-link-button"
+              onClick={(e) => {
+                console.log('[TypewriterMessage] Button clicked!');
+                e.preventDefault();
+                e.stopPropagation();
+                handleWorkspaceLink(href);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                width: '100%',
+                padding: '12px 20px',
+                marginTop: '16px',
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(99, 102, 241, 0.9))',
+                border: 'none',
+                borderRadius: '12px',
+                color: '#fff',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 1), rgba(99, 102, 241, 1))';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(99, 102, 241, 0.9))';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <span style={{ fontSize: '16px' }}>🌐</span>
+              {children}
+              <span style={{ fontSize: '14px', opacity: 0.9 }}>→</span>
+            </button>
+          );
+        }
 
-      // Regular external links
-      return (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          {...props}
-        >
-          {children}
-        </a>
-      );
-    },
-  }), []);
+        // Regular external links
+        return (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            {...props}
+          >
+            {children}
+          </a>
+        );
+      },
+    };
+  }, []);
 
   return (
     <div 

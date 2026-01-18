@@ -493,10 +493,12 @@ export default function AppleFloatBar({
   // Or batched questions: { context, questions: [{id, question, options}], timestamp }
   const [pendingAskUser, setPendingAskUser] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0); // For wizard navigation
-  const [collectedAnswers, setCollectedAnswers] = useState({}); // {questionId: selectedOptionId}
+  const [collectedAnswers, setCollectedAnswers] = useState({}); // {questionId: selectedOptionId or custom text}
+  const [customTextInput, setCustomTextInput] = useState(''); // Custom text input for current question
   const [isEditingContext, setIsEditingContext] = useState(false); // When user wants to edit the draft
   const [editedContext, setEditedContext] = useState(''); // The edited content
   const contextTextareaRef = useRef(null); // Ref for focusing the textarea
+  const customInputRef = useRef(null); // Ref for custom text input
 
   // Refs
   const barRef = useRef(null);
@@ -1089,15 +1091,20 @@ export default function AppleFloatBar({
       const currentQuestion = pendingAskUser.questions[currentQuestionIndex];
       const qId = questionId || currentQuestion?.id;
 
-      // Store the answer
-      const newAnswers = { ...collectedAnswers, [qId]: option.id };
+      // Store the answer (option.id for predefined, option.label for custom text)
+      const answerId = option.isCustom ? `custom:${option.label}` : option.id;
+      const newAnswers = { ...collectedAnswers, [qId]: answerId };
       setCollectedAnswers(newAnswers);
 
       console.log('[AppleFloatBar] Wizard progress:', {
         questionIndex: currentQuestionIndex,
         totalQuestions: pendingAskUser.questions.length,
-        answers: newAnswers
+        answers: newAnswers,
+        isCustom: option.isCustom
       });
+
+      // Clear custom text input for next question
+      setCustomTextInput('');
 
       // Check if there are more questions
       if (currentQuestionIndex < pendingAskUser.questions.length - 1) {
@@ -1111,9 +1118,9 @@ export default function AppleFloatBar({
       if (window.askUser?.respond) {
         window.askUser.respond({
           cancelled: false,
-          answers: newAnswers, // Object with all questionId: answerId pairs
+          answers: newAnswers, // Object with all questionId: answerId pairs (custom answers prefixed with "custom:")
           selectedOption: option.label, // Last selected option
-          selectedOptionId: option.id
+          selectedOptionId: option.id || 'custom'
         });
       }
 
@@ -1121,6 +1128,7 @@ export default function AppleFloatBar({
       setPendingAskUser(null);
       setCurrentQuestionIndex(0);
       setCollectedAnswers({});
+      setCustomTextInput('');
       return;
     }
 
@@ -1128,15 +1136,33 @@ export default function AppleFloatBar({
     if (window.askUser?.respond) {
       window.askUser.respond({
         cancelled: false,
-        answer: null,
+        answer: option.isCustom ? option.label : null,
         selectedOption: option.label,
-        selectedOptionId: option.id
+        selectedOptionId: option.id || 'custom'
       });
     }
     setPendingAskUser(null);
     setIsEditingContext(false);
     setEditedContext('');
+    setCustomTextInput('');
   }, [pendingAskUser, currentQuestionIndex, collectedAnswers]);
+
+  // Handle custom text input submission for wizard questions
+  const handleCustomTextSubmit = useCallback(() => {
+    if (!customTextInput.trim()) return;
+
+    console.log('[AppleFloatBar] Custom text submitted:', customTextInput);
+
+    // Create a synthetic option for the custom text
+    const customOption = {
+      id: 'custom',
+      label: customTextInput.trim(),
+      isCustom: true
+    };
+
+    // Use the existing handler
+    handleAskUserResponse(customOption);
+  }, [customTextInput, handleAskUserResponse]);
 
   // Handle sending the edited content
   const handleSendEditedContent = useCallback(() => {
@@ -4417,6 +4443,10 @@ export default function AppleFloatBar({
               }
 
               if (status.status === 'complete' || status.status === 'done') {
+                console.log('[FloatBar] ✅ COMPLETION DETECTED! status:', status.status);
+                console.log('[FloatBar] ✅ final_summary:', status.final_summary?.substring(0, 100));
+                console.log('[FloatBar] ✅ final_response:', status.final_response?.substring(0, 100));
+
                 completeCurrentActivity(); // Mark last activity as done
                 clearActivityLog(); // Clear for next task
                 setIsThinking(false);
@@ -6995,6 +7025,72 @@ export default function AppleFloatBar({
                                   </div>
                                 </button>
                               ))}
+
+                              {/* Custom text input option */}
+                              <div style={{
+                                marginTop: 4,
+                                display: 'flex',
+                                gap: 8,
+                                alignItems: 'center',
+                              }}>
+                                <input
+                                  ref={customInputRef}
+                                  type="text"
+                                  value={customTextInput}
+                                  onChange={(e) => setCustomTextInput(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && customTextInput.trim()) {
+                                      e.preventDefault();
+                                      handleCustomTextSubmit();
+                                    }
+                                  }}
+                                  placeholder="Or type your own..."
+                                  style={{
+                                    flex: 1,
+                                    padding: '10px 14px',
+                                    background: 'rgba(255, 255, 255, 0.06)',
+                                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                                    borderRadius: 10,
+                                    color: '#fff',
+                                    fontSize: 13,
+                                    outline: 'none',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                  onFocus={(e) => {
+                                    e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+                                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+                                  }}
+                                  onBlur={(e) => {
+                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                  }}
+                                />
+                                {customTextInput.trim() && (
+                                  <button
+                                    onClick={handleCustomTextSubmit}
+                                    style={{
+                                      padding: '10px 16px',
+                                      background: 'rgba(59, 130, 246, 0.8)',
+                                      border: 'none',
+                                      borderRadius: 10,
+                                      color: '#fff',
+                                      fontSize: 13,
+                                      fontWeight: 500,
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = 'rgba(59, 130, 246, 1)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = 'rgba(59, 130, 246, 0.8)';
+                                    }}
+                                  >
+                                    Next →
+                                  </button>
+                                )}
+                              </div>
                             </div>
 
                             {/* Show collected answers so far */}
@@ -7009,16 +7105,20 @@ export default function AppleFloatBar({
                               }}>
                                 {Object.entries(collectedAnswers).map(([qId, answerId]) => {
                                   const q = pendingAskUser.questions.find(q => q.id === qId);
-                                  const opt = q?.options?.find(o => o.id === answerId);
+                                  // Handle custom answers (prefixed with "custom:")
+                                  const isCustomAnswer = answerId?.startsWith('custom:');
+                                  const displayLabel = isCustomAnswer
+                                    ? answerId.replace('custom:', '')
+                                    : q?.options?.find(o => o.id === answerId)?.label || answerId;
                                   return (
                                     <span key={qId} style={{
                                       padding: '4px 8px',
-                                      background: 'rgba(34, 197, 94, 0.15)',
+                                      background: isCustomAnswer ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
                                       borderRadius: 6,
                                       fontSize: 11,
-                                      color: 'rgba(134, 239, 172, 0.9)',
+                                      color: isCustomAnswer ? 'rgba(147, 197, 253, 0.9)' : 'rgba(134, 239, 172, 0.9)',
                                     }}>
-                                      ✓ {opt?.label || answerId}
+                                      {isCustomAnswer ? '✎' : '✓'} {displayLabel}
                                     </span>
                                   );
                                 })}
@@ -7085,6 +7185,70 @@ export default function AppleFloatBar({
                                 </button>
                               );
                             })}
+
+                            {/* Custom text input option for single question */}
+                            <div style={{
+                              marginTop: 4,
+                              display: 'flex',
+                              gap: 8,
+                              alignItems: 'center',
+                            }}>
+                              <input
+                                type="text"
+                                value={customTextInput}
+                                onChange={(e) => setCustomTextInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && customTextInput.trim()) {
+                                    e.preventDefault();
+                                    handleCustomTextSubmit();
+                                  }
+                                }}
+                                placeholder="Or type your own..."
+                                style={{
+                                  flex: 1,
+                                  padding: '10px 14px',
+                                  background: 'rgba(255, 255, 255, 0.06)',
+                                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                                  borderRadius: 10,
+                                  color: '#fff',
+                                  fontSize: 13,
+                                  outline: 'none',
+                                  transition: 'all 0.15s ease',
+                                }}
+                                onFocus={(e) => {
+                                  e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+                                  e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+                                }}
+                                onBlur={(e) => {
+                                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                }}
+                              />
+                              {customTextInput.trim() && (
+                                <button
+                                  onClick={handleCustomTextSubmit}
+                                  style={{
+                                    padding: '10px 16px',
+                                    background: 'rgba(59, 130, 246, 0.8)',
+                                    border: 'none',
+                                    borderRadius: 10,
+                                    color: '#fff',
+                                    fontSize: 13,
+                                    fontWeight: 500,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'rgba(59, 130, 246, 1)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.8)';
+                                  }}
+                                >
+                                  Submit
+                                </button>
+                              )}
+                            </div>
                           </div>
                         ) : (
                           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
