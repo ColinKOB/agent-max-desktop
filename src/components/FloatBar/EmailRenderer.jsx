@@ -5,9 +5,19 @@
  */
 
 import React from 'react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Mail } from 'lucide-react';
+
+// Custom URL transform to allow workspace: protocol (default filters it out)
+const customUrlTransform = (url) => {
+  // Allow workspace: URLs - they're handled specially by our link component
+  if (url && url.startsWith('workspace:')) {
+    return url;
+  }
+  // Use default transform for all other URLs
+  return defaultUrlTransform(url);
+};
 
 // Helper function to clean text: remove markdown and decode HTML entities
 const cleanText = (text) => {
@@ -136,6 +146,7 @@ const EmailRenderer = React.memo(function EmailRenderer({ content }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={markdownComponents}
+        urlTransform={customUrlTransform}
       >
         {content}
       </ReactMarkdown>
@@ -227,6 +238,7 @@ const EmailRenderer = React.memo(function EmailRenderer({ content }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={markdownComponents}
+        urlTransform={customUrlTransform}
       >
         {content}
       </ReactMarkdown>

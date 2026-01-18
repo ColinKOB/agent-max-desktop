@@ -34,8 +34,20 @@ class PullExecutor {
         this.isRunning = false;
         this.currentRunId = null;
         this.stepResults = []; // Track completed steps for context
-        this.systemContext = this.getSystemContext(); // Cache system context
         this.userContext = {}; // User-specific context (e.g., google_user_email)
+
+        // Location cache (fetched from IP)
+        this.cachedLocation = null;
+        this.locationFetchedAt = null;
+
+        // Fetch location on startup (async, non-blocking)
+        this.fetchUserLocation().then(() => {
+            // Update system context after location is fetched
+            this.systemContext = this.getSystemContext();
+        });
+
+        // Initialize system context (may not have location yet)
+        this.systemContext = this.getSystemContext();
 
         // Cancellation support - allows interrupting active operations
         this.abortController = null;
@@ -116,26 +128,29 @@ class PullExecutor {
     getSystemContext() {
         const os = require('os');
         const path = require('path');
-        
+
         // Get timezone and locale info
         const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const locale = Intl.DateTimeFormat().resolvedOptions().locale || 'en-US';
-        
+
         // Try to infer country from locale (e.g., 'en-US' -> 'US')
         const localeParts = locale.split('-');
         const country = localeParts.length > 1 ? localeParts[1] : null;
-        
+
         // Get current time for context
         const now = new Date();
-        const localTime = now.toLocaleString(locale, { 
+        const localTime = now.toLocaleString(locale, {
             timeZone: timezone,
             weekday: 'short',
-            month: 'short', 
+            month: 'short',
             day: 'numeric',
             hour: 'numeric',
             minute: '2-digit'
         });
-        
+
+        // Get cached location if available
+        const locationData = this.cachedLocation || {};
+
         return {
             os: os.platform(),
             user: os.userInfo().username,
@@ -145,9 +160,60 @@ class PullExecutor {
             // Location context
             timezone: timezone,
             locale: locale,
-            country: country,
+            country: locationData.country || country,
+            city: locationData.city || null,
+            region: locationData.region || null,
             local_time: localTime
         };
+    }
+
+    /**
+     * Fetch user's location from IP (async, cached)
+     * Uses free ip-api.com service (no API key needed, 45 requests/minute limit)
+     */
+    async fetchUserLocation() {
+        // Return cached if fresh (cache for 1 hour)
+        if (this.cachedLocation && this.locationFetchedAt &&
+            (Date.now() - this.locationFetchedAt) < 3600000) {
+            return this.cachedLocation;
+        }
+
+        try {
+            const response = await new Promise((resolve, reject) => {
+                const req = require('http').get('http://ip-api.com/json/?fields=status,country,regionName,city,timezone', (res) => {
+                    let data = '';
+                    res.on('data', chunk => data += chunk);
+                    res.on('end', () => {
+                        try {
+                            resolve(JSON.parse(data));
+                        } catch (e) {
+                            reject(e);
+                        }
+                    });
+                });
+                req.on('error', reject);
+                req.setTimeout(5000, () => {
+                    req.destroy();
+                    reject(new Error('Location fetch timeout'));
+                });
+            });
+
+            if (response.status === 'success') {
+                this.cachedLocation = {
+                    city: response.city,
+                    region: response.regionName,
+                    country: response.country,
+                    timezone: response.timezone
+                };
+                this.locationFetchedAt = Date.now();
+                console.log(`[PullExecutor] Location detected: ${response.city}, ${response.regionName}, ${response.country}`);
+                return this.cachedLocation;
+            }
+        } catch (error) {
+            console.log('[PullExecutor] Could not fetch location:', error.message);
+        }
+
+        return null;
     }
 
     /**

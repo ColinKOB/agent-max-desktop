@@ -4,8 +4,8 @@
  * Makes AI responses feel more natural and streamed
  */
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import ReactMarkdown from 'react-markdown';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import './TypewriterMessage.css';
 
@@ -215,15 +215,26 @@ export default function TypewriterMessage({
     };
   }, []);
 
+  // Custom URL transform to allow workspace: protocol (default filters it out)
+  const urlTransform = useCallback((url) => {
+    // Allow workspace: URLs - they're handled specially by our link component
+    if (url && url.startsWith('workspace:')) {
+      return url;
+    }
+    // Use default transform for all other URLs
+    return defaultUrlTransform(url);
+  }, []);
+
   return (
-    <div 
+    <div
       className={`typewriter-message ${className} ${isTyping ? 'is-typing' : ''}`}
       onClick={isTyping ? handleSkip : undefined}
       title={isTyping ? 'Click to skip animation' : undefined}
     >
-      <ReactMarkdown 
+      <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={components}
+        urlTransform={urlTransform}
       >
         {displayedContent}
       </ReactMarkdown>
