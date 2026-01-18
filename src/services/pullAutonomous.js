@@ -368,9 +368,15 @@ class PullAutonomousService {
                     // Notify UI
                     onUpdate(tracker);
 
-                    // Continue polling if still running (and not stopped)
-                    if (!this.isStopped && (status.status === 'running' || status.status === 'executing')) {
-                        console.log('[PullAutonomous] Still running, continuing poll...');
+                    // Continue polling if still running or waiting for user (and not stopped)
+                    const shouldContinuePolling = !this.isStopped && (
+                        status.status === 'running' ||
+                        status.status === 'executing' ||
+                        status.status === 'waiting_for_user'  // Keep polling while waiting for user input
+                    );
+
+                    if (shouldContinuePolling) {
+                        console.log('[PullAutonomous] Still active, continuing poll...', { status: status.status });
                         const timeoutId = setTimeout(poll, this.pollIntervalMs);
                         this.pollTimeouts.set(runId, timeoutId);
                     } else {

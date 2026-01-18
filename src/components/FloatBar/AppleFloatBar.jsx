@@ -489,7 +489,11 @@ export default function AppleFloatBar({
   const fileInputRef = useRef(null);
 
   // ask_user inline question state (for AI to ask user questions during execution)
-  const [pendingAskUser, setPendingAskUser] = useState(null); // { question, context, options, timestamp }
+  // Can be single question: { question, context, options, timestamp }
+  // Or batched questions: { context, questions: [{id, question, options}], timestamp }
+  const [pendingAskUser, setPendingAskUser] = useState(null);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0); // For wizard navigation
+  const [collectedAnswers, setCollectedAnswers] = useState({}); // {questionId: selectedOptionId}
   const [isEditingContext, setIsEditingContext] = useState(false); // When user wants to edit the draft
   const [editedContext, setEditedContext] = useState(''); // The edited content
   const contextTextareaRef = useRef(null); // Ref for focusing the textarea
@@ -1008,13 +1012,32 @@ export default function AppleFloatBar({
 
     const handleAskUserQuestion = (data) => {
       console.log('[AppleFloatBar] Received ask_user question:', data);
-      setPendingAskUser({
-        question: data.question,
-        context: data.context || '',
-        options: data.options || [],
-        allowCustomResponse: data.allowCustomResponse || false,
-        timestamp: data.timestamp || Date.now()
-      });
+
+      // Reset wizard state for new question set
+      setCurrentQuestionIndex(0);
+      setCollectedAnswers({});
+
+      // Handle both single question and batched questions format
+      if (data.questions && Array.isArray(data.questions)) {
+        // Batched questions format: { context, questions: [{id, question, options}] }
+        setPendingAskUser({
+          context: data.context || '',
+          questions: data.questions,
+          isBatched: true,
+          allowCustomResponse: data.allowCustomResponse || false,
+          timestamp: data.timestamp || Date.now()
+        });
+      } else {
+        // Single question format: { question, context, options }
+        setPendingAskUser({
+          question: data.question,
+          context: data.context || '',
+          options: data.options || [],
+          isBatched: false,
+          allowCustomResponse: data.allowCustomResponse || false,
+          timestamp: data.timestamp || Date.now()
+        });
+      }
     };
 
     window.askUser.onQuestion(handleAskUserQuestion);
@@ -1026,9 +1049,28 @@ export default function AppleFloatBar({
     };
   }, []);
 
-  // Handle ask_user response
-  const handleAskUserResponse = useCallback((option) => {
-    console.log('[AppleFloatBar] User selected:', option);
+  // Listen for testing API expand window requests
+  useEffect(() => {
+    if (!window.testing?.onExpandWindow) return;
+
+    const handleExpand = () => {
+      console.log('[AppleFloatBar] Testing API expand window request');
+      setIsMini(false);
+      isMiniRef.current = false;
+    };
+
+    window.testing.onExpandWindow(handleExpand);
+
+    return () => {
+      if (window.testing?.removeListeners) {
+        window.testing.removeListeners();
+      }
+    };
+  }, []);
+
+  // Handle ask_user response (supports both single question and batched wizard)
+  const handleAskUserResponse = useCallback((option, questionId = null) => {
+    console.log('[AppleFloatBar] User selected:', option, 'for question:', questionId);
 
     // Check if this is an edit option (id contains 'edit' or label contains 'edit')
     const isEditOption = option.id?.toLowerCase().includes('edit') ||
@@ -1039,10 +1081,50 @@ export default function AppleFloatBar({
       console.log('[AppleFloatBar] Edit option selected - enabling inline editing');
       setEditedContext(pendingAskUser.context);
       setIsEditingContext(true);
-      // Focus will be set by useEffect when isEditingContext changes
       return;
     }
 
+    // Handle batched questions (wizard mode)
+    if (pendingAskUser?.isBatched && pendingAskUser?.questions) {
+      const currentQuestion = pendingAskUser.questions[currentQuestionIndex];
+      const qId = questionId || currentQuestion?.id;
+
+      // Store the answer
+      const newAnswers = { ...collectedAnswers, [qId]: option.id };
+      setCollectedAnswers(newAnswers);
+
+      console.log('[AppleFloatBar] Wizard progress:', {
+        questionIndex: currentQuestionIndex,
+        totalQuestions: pendingAskUser.questions.length,
+        answers: newAnswers
+      });
+
+      // Check if there are more questions
+      if (currentQuestionIndex < pendingAskUser.questions.length - 1) {
+        // Move to next question
+        setCurrentQuestionIndex(currentQuestionIndex + 1);
+        return;
+      }
+
+      // All questions answered - send all answers at once
+      console.log('[AppleFloatBar] All questions answered, sending response:', newAnswers);
+      if (window.askUser?.respond) {
+        window.askUser.respond({
+          cancelled: false,
+          answers: newAnswers, // Object with all questionId: answerId pairs
+          selectedOption: option.label, // Last selected option
+          selectedOptionId: option.id
+        });
+      }
+
+      // Clear state
+      setPendingAskUser(null);
+      setCurrentQuestionIndex(0);
+      setCollectedAnswers({});
+      return;
+    }
+
+    // Single question mode (original behavior)
     if (window.askUser?.respond) {
       window.askUser.respond({
         cancelled: false,
@@ -1054,7 +1136,7 @@ export default function AppleFloatBar({
     setPendingAskUser(null);
     setIsEditingContext(false);
     setEditedContext('');
-  }, [pendingAskUser]);
+  }, [pendingAskUser, currentQuestionIndex, collectedAnswers]);
 
   // Handle sending the edited content
   const handleSendEditedContent = useCallback(() => {
@@ -4339,6 +4421,7 @@ export default function AppleFloatBar({
                 clearActivityLog(); // Clear for next task
                 setIsThinking(false);
                 setThinkingStatus('');
+                setPendingAskUser(null); // Clear any pending ask_user question
 
                 // Mark all running steps as completed in LiveActivityFeed
                 setLiveActivitySteps((prev) =>
@@ -4384,6 +4467,35 @@ export default function AppleFloatBar({
                 );
 
                 toast.error('Task failed', { duration: 4000 });
+              } else if (status.status === 'waiting_for_user') {
+                // AI is waiting for user input - update status but keep thinking indicator
+                // The ask_user IPC event will handle showing the actual question
+                console.log('[FloatBar] AI waiting for user response:', status);
+                setThinkingStatus('Waiting for your response...');
+
+                // Mark current step as pending user input
+                setLiveActivitySteps((prev) =>
+                  prev.map((s) =>
+                    s.status === 'running'
+                      ? { ...s, status: 'waiting', description: status.current_status_summary || 'Waiting for your input...' }
+                      : s
+                  )
+                );
+              } else if (status.status === 'cancelled') {
+                // Run was cancelled - reset UI state
+                console.log('[FloatBar] Run cancelled:', status);
+                setIsThinking(false);
+                setThinkingStatus('');
+                setPendingAskUser(null);
+
+                // Mark all running steps as cancelled
+                setLiveActivitySteps((prev) =>
+                  prev.map((s) =>
+                    s.status === 'running' || s.status === 'waiting'
+                      ? { ...s, status: 'cancelled' }
+                      : s
+                  )
+                );
               }
             });
 
@@ -5694,9 +5806,12 @@ export default function AppleFloatBar({
       isMini,
       apiConnected,
       executionPlan: !!executionPlan,
+      pendingAskUser,  // Include for debugging
+      currentQuestionIndex,  // Wizard progress
+      collectedAnswers,  // Collected wizard answers
       lastUpdated: Date.now()
     };
-  }, [thoughts, isThinking, runStatus, isMini, apiConnected, executionPlan]);
+  }, [thoughts, isThinking, runStatus, isMini, apiConnected, executionPlan, pendingAskUser, currentQuestionIndex, collectedAnswers]);
 
   // Window classes
   const windowClasses = useMemo(() => {
@@ -6793,226 +6908,236 @@ export default function AppleFloatBar({
               );
             })}
 
-            {/* Inline ask_user question from AI */}
+            {/* Inline ask_user question from AI - supports both single question and batched wizard */}
             {pendingAskUser && (
               <div className="apple-message apple-message-assistant" style={{ marginBottom: 12 }}>
                 <div className="apple-message-content">
-                  {/* Show context (e.g., email draft) - either static or editable */}
+                  {/* Context header */}
                   {pendingAskUser.context && (
-                    isEditingContext ? (
-                      /* Editable textarea mode */
-                      <div style={{ marginBottom: 14, marginLeft: -12, marginRight: -12 }}>
-                        <textarea
-                          ref={contextTextareaRef}
-                          value={editedContext}
-                          onChange={(e) => setEditedContext(e.target.value)}
-                          style={{
-                            width: '100%',
-                            minHeight: 220,
-                            padding: '12px 14px',
-                            background: 'rgba(255, 255, 255, 0.08)',
-                            borderRadius: 10,
-                            border: '2px solid rgba(59, 130, 246, 0.5)',
-                            fontSize: 13,
-                            lineHeight: 1.6,
-                            color: '#fff',
-                            resize: 'vertical',
-                            fontFamily: 'inherit',
-                            outline: 'none',
-                            boxSizing: 'border-box',
-                          }}
-                          onKeyDown={(e) => {
-                            // Cmd/Ctrl + Enter to send
-                            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                              e.preventDefault();
-                              handleSendEditedContent();
-                            }
-                          }}
-                        />
-                        <div style={{
-                          display: 'flex',
-                          gap: 8,
-                          marginTop: 10,
-                          justifyContent: 'flex-end'
-                        }}>
-                          <button
-                            onClick={() => {
-                              setIsEditingContext(false);
-                              setEditedContext('');
-                            }}
-                            style={{
-                              padding: '8px 16px',
-                              background: 'rgba(255, 255, 255, 0.06)',
-                              border: '1px solid rgba(255, 255, 255, 0.12)',
-                              borderRadius: 8,
-                              color: 'rgba(255, 255, 255, 0.7)',
-                              fontSize: 13,
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={handleSendEditedContent}
-                            style={{
-                              padding: '8px 16px',
-                              background: 'rgba(59, 130, 246, 0.8)',
-                              border: 'none',
-                              borderRadius: 8,
-                              color: '#fff',
-                              fontSize: 13,
-                              fontWeight: 500,
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Send edited message
-                          </button>
-                        </div>
-                        <div style={{
-                          fontSize: 11,
-                          color: 'rgba(255, 255, 255, 0.4)',
-                          marginTop: 6,
-                          textAlign: 'right'
-                        }}>
-                          Press ⌘+Enter to send
-                        </div>
-                      </div>
-                    ) : (
-                      /* Static display mode */
-                      <div style={{
-                        marginBottom: 14,
-                        padding: '12px 14px',
-                        background: 'rgba(255, 255, 255, 0.04)',
-                        borderRadius: 10,
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        fontSize: 13,
-                        lineHeight: 1.5,
-                        color: 'rgba(255, 255, 255, 0.85)',
-                        whiteSpace: 'pre-wrap',
-                        maxHeight: 200,
-                        overflowY: 'auto',
-                      }}>
-                        {pendingAskUser.context}
-                      </div>
-                    )
-                  )}
-                  {/* Only show question and options when not in editing mode */}
-                  {!isEditingContext && (
-                    <>
-                      <div style={{ marginBottom: 12, fontWeight: 500 }}>{pendingAskUser.question}</div>
-                      {/* Show options if available */}
-                      {pendingAskUser.options && pendingAskUser.options.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {pendingAskUser.options.map((option) => {
-                            // Rename edit-related options to "Edit message"
-                            const isEditOption = option.id?.toLowerCase().includes('edit') ||
-                                                option.label?.toLowerCase().includes('edit');
-                            const displayLabel = isEditOption ? 'Edit message' : option.label;
-
-                            return (
-                              <button
-                                key={option.id}
-                                onClick={() => handleAskUserResponse(option)}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 10,
-                                  padding: '10px 14px',
-                                  background: 'rgba(255, 255, 255, 0.06)',
-                                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                                  borderRadius: 10,
-                                  color: '#fff',
-                                  fontSize: 13,
-                                  cursor: 'pointer',
-                                  textAlign: 'left',
-                                  transition: 'all 0.15s ease',
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)';
-                                  e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
-                                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
-                                }}
-                              >
-                                <div style={{
-                                  width: 18,
-                                  height: 18,
-                                  borderRadius: '50%',
-                                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                                  flexShrink: 0,
-                                }} />
-                                <div>
-                                  <div style={{ fontWeight: 500 }}>{displayLabel}</div>
-                                  {option.description && (
-                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
-                                      {option.description}
-                                    </div>
-                                  )}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        /* No options - show text input for free-form response */
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-                          <textarea
-                            ref={contextTextareaRef}
-                            value={editedContext}
-                            onChange={(e) => setEditedContext(e.target.value)}
-                            placeholder="Type your response..."
-                            style={{
-                              flex: 1,
-                              minHeight: 40,
-                              maxHeight: 120,
-                              padding: '10px 12px',
-                              background: 'rgba(255, 255, 255, 0.08)',
-                              borderRadius: 10,
-                              border: '1px solid rgba(255, 255, 255, 0.15)',
-                              fontSize: 13,
-                              lineHeight: 1.5,
-                              color: '#fff',
-                              resize: 'none',
-                              fontFamily: 'inherit',
-                              outline: 'none',
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                if (editedContext.trim()) {
-                                  handleSendEditedContent();
-                                }
-                              }
-                            }}
-                            onFocus={(e) => {
-                              e.target.style.borderColor = 'rgba(59, 130, 246, 0.5)';
-                            }}
-                            onBlur={(e) => {
-                              e.target.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-                            }}
-                          />
-                          <button
-                            onClick={handleSendEditedContent}
-                            disabled={!editedContext.trim()}
-                            style={{
-                              padding: '10px 16px',
-                              background: editedContext.trim() ? 'rgba(59, 130, 246, 0.8)' : 'rgba(59, 130, 246, 0.3)',
-                              border: 'none',
-                              borderRadius: 10,
-                              color: '#fff',
-                              fontSize: 13,
-                              fontWeight: 500,
-                              cursor: editedContext.trim() ? 'pointer' : 'not-allowed',
-                              opacity: editedContext.trim() ? 1 : 0.6,
-                            }}
-                          >
-                            Send
-                          </button>
-                        </div>
+                    <div style={{
+                      marginBottom: 12,
+                      padding: '8px 12px',
+                      background: 'rgba(59, 130, 246, 0.1)',
+                      borderRadius: 8,
+                      border: '1px solid rgba(59, 130, 246, 0.2)',
+                      fontSize: 12,
+                      color: 'rgba(147, 197, 253, 0.9)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}>
+                      <span>🔍</span>
+                      <span>{pendingAskUser.context}</span>
+                      {/* Progress indicator for batched questions */}
+                      {pendingAskUser.isBatched && pendingAskUser.questions && (
+                        <span style={{ marginLeft: 'auto', opacity: 0.7 }}>
+                          {currentQuestionIndex + 1} of {pendingAskUser.questions.length}
+                        </span>
                       )}
+                    </div>
+                  )}
+
+                  {/* Batched questions wizard */}
+                  {pendingAskUser.isBatched && pendingAskUser.questions ? (
+                    <>
+                      {/* Current question */}
+                      {(() => {
+                        const currentQ = pendingAskUser.questions[currentQuestionIndex];
+                        if (!currentQ) return null;
+
+                        return (
+                          <>
+                            <div style={{ marginBottom: 12, fontWeight: 500, fontSize: 14 }}>
+                              {currentQ.question}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              {currentQ.options?.map((option) => (
+                                <button
+                                  key={option.id}
+                                  onClick={() => handleAskUserResponse(option, currentQ.id)}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 10,
+                                    padding: '10px 14px',
+                                    background: 'rgba(255, 255, 255, 0.06)',
+                                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                                    borderRadius: 10,
+                                    color: '#fff',
+                                    fontSize: 13,
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)';
+                                    e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                                  }}
+                                >
+                                  <div style={{
+                                    width: 18,
+                                    height: 18,
+                                    borderRadius: '50%',
+                                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                                    flexShrink: 0,
+                                  }} />
+                                  <div>
+                                    <div style={{ fontWeight: 500 }}>{option.label}</div>
+                                    {option.description && (
+                                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+                                        {option.description}
+                                      </div>
+                                    )}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Show collected answers so far */}
+                            {Object.keys(collectedAnswers).length > 0 && (
+                              <div style={{
+                                marginTop: 12,
+                                paddingTop: 8,
+                                borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: 6,
+                              }}>
+                                {Object.entries(collectedAnswers).map(([qId, answerId]) => {
+                                  const q = pendingAskUser.questions.find(q => q.id === qId);
+                                  const opt = q?.options?.find(o => o.id === answerId);
+                                  return (
+                                    <span key={qId} style={{
+                                      padding: '4px 8px',
+                                      background: 'rgba(34, 197, 94, 0.15)',
+                                      borderRadius: 6,
+                                      fontSize: 11,
+                                      color: 'rgba(134, 239, 172, 0.9)',
+                                    }}>
+                                      ✓ {opt?.label || answerId}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </>
+                  ) : (
+                    /* Single question mode (original behavior) */
+                    !isEditingContext && (
+                      <>
+                        <div style={{ marginBottom: 12, fontWeight: 500 }}>{pendingAskUser.question}</div>
+                        {pendingAskUser.options && pendingAskUser.options.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {pendingAskUser.options.map((option) => {
+                              const isEditOption = option.id?.toLowerCase().includes('edit') ||
+                                                  option.label?.toLowerCase().includes('edit');
+                              const displayLabel = isEditOption ? 'Edit message' : option.label;
+
+                              return (
+                                <button
+                                  key={option.id}
+                                  onClick={() => handleAskUserResponse(option)}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 10,
+                                    padding: '10px 14px',
+                                    background: 'rgba(255, 255, 255, 0.06)',
+                                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                                    borderRadius: 10,
+                                    color: '#fff',
+                                    fontSize: 13,
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)';
+                                    e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                                  }}
+                                >
+                                  <div style={{
+                                    width: 18,
+                                    height: 18,
+                                    borderRadius: '50%',
+                                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                                    flexShrink: 0,
+                                  }} />
+                                  <div>
+                                    <div style={{ fontWeight: 500 }}>{displayLabel}</div>
+                                    {option.description && (
+                                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+                                        {option.description}
+                                      </div>
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                            <textarea
+                              ref={contextTextareaRef}
+                              value={editedContext}
+                              onChange={(e) => setEditedContext(e.target.value)}
+                              placeholder="Type your response..."
+                              style={{
+                                flex: 1,
+                                minHeight: 40,
+                                maxHeight: 120,
+                                padding: '10px 12px',
+                                background: 'rgba(255, 255, 255, 0.08)',
+                                borderRadius: 10,
+                                border: '1px solid rgba(255, 255, 255, 0.15)',
+                                fontSize: 13,
+                                lineHeight: 1.5,
+                                color: '#fff',
+                                resize: 'none',
+                                fontFamily: 'inherit',
+                                outline: 'none',
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  if (editedContext.trim()) {
+                                    handleSendEditedContent();
+                                  }
+                                }
+                              }}
+                            />
+                            <button
+                              onClick={handleSendEditedContent}
+                              disabled={!editedContext.trim()}
+                              style={{
+                                padding: '10px 16px',
+                                background: editedContext.trim() ? 'rgba(59, 130, 246, 0.8)' : 'rgba(59, 130, 246, 0.3)',
+                                border: 'none',
+                                borderRadius: 10,
+                                color: '#fff',
+                                fontSize: 13,
+                                fontWeight: 500,
+                                cursor: editedContext.trim() ? 'pointer' : 'not-allowed',
+                                opacity: editedContext.trim() ? 1 : 0.6,
+                              }}
+                            >
+                              Send
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )
                   )}
                 </div>
               </div>

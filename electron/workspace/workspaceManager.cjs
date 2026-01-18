@@ -1656,6 +1656,22 @@ class WorkspaceManager {
       'youtube': `https://www.youtube.com/results?search_query=${encodedQuery}`,
       'bing': `https://www.bing.com/search?q=${encodedQuery}`,
       'bestbuy': `https://www.bestbuy.com/site/searchpage.jsp?st=${encodedQuery}`,
+      // Travel sites
+      'google_flights': `https://www.google.com/travel/flights?q=${encodedQuery}`,
+      'googleflights': `https://www.google.com/travel/flights?q=${encodedQuery}`,
+      'kayak': `https://www.kayak.com/flights?search=${encodedQuery}`,
+      'expedia': `https://www.expedia.com/Flights?search=${encodedQuery}`,
+      'skyscanner': `https://www.skyscanner.com/transport/flights?query=${encodedQuery}`,
+      // Restaurant/food sites
+      'yelp': `https://www.yelp.com/search?find_desc=${encodedQuery}`,
+      'opentable': `https://www.opentable.com/s?term=${encodedQuery}`,
+      'doordash': `https://www.doordash.com/search/store/${encodedQuery}`,
+      'ubereats': `https://www.ubereats.com/search?q=${encodedQuery}`,
+      'grubhub': `https://www.grubhub.com/search?queryText=${encodedQuery}`,
+      // Hotel sites
+      'hotels': `https://www.hotels.com/Hotel-Search?destination=${encodedQuery}`,
+      'booking': `https://www.booking.com/searchresults.html?ss=${encodedQuery}`,
+      'airbnb': `https://www.airbnb.com/s/${encodedQuery}/homes`,
       'etsy': `https://www.etsy.com/search?q=${encodedQuery}`,
     };
 

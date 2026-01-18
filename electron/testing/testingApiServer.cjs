@@ -158,10 +158,21 @@ function start() {
                   return {
                     messages: stateStore.messages || [],
                     isThinking: stateStore.isThinking || false,
-                    runStatus: stateStore.runStatus || 'idle'
+                    runStatus: stateStore.runStatus || 'idle',
+                    isMini: stateStore.isMini,
+                    // Debug: check askUser API availability
+                    hasAskUserAPI: !!window.askUser,
+                    hasAskUserOnQuestion: !!(window.askUser && window.askUser.onQuestion),
+                    pendingAskUser: stateStore.pendingAskUser || null
                   };
                 }
-                return { messages: [], isThinking: false, runStatus: 'unknown' };
+                return {
+                  messages: [],
+                  isThinking: false,
+                  runStatus: 'unknown',
+                  hasAskUserAPI: !!window.askUser,
+                  hasAskUserOnQuestion: !!(window.askUser && window.askUser.onQuestion)
+                };
               })()
             `);
             res.writeHead(200);
