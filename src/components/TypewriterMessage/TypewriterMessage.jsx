@@ -114,6 +114,19 @@ export default function TypewriterMessage({
     };
   }, [content, speed, enabled, onComplete]);
 
+  // Handle workspace: links by opening them in the workspace browser
+  const handleWorkspaceLink = (url) => {
+    // Strip the workspace: prefix and open in workspace
+    const actualUrl = url.replace(/^workspace:/, '');
+    if (window.workspace?.navigate) {
+      window.workspace.navigate(actualUrl);
+    } else if (window.electron?.openExternal) {
+      window.electron.openExternal(actualUrl);
+    } else {
+      window.open(actualUrl, '_blank');
+    }
+  };
+
   // Memoize markdown components for performance
   const components = useMemo(() => ({
     // Make code blocks look nice
@@ -130,17 +143,60 @@ export default function TypewriterMessage({
         </pre>
       );
     },
-    // Make links open externally
-    a: ({ node, children, href, ...props }) => (
-      <a 
-        href={href} 
-        target="_blank" 
-        rel="noopener noreferrer" 
-        {...props}
-      >
-        {children}
-      </a>
-    ),
+    // Make links open externally, with special handling for workspace: links
+    a: ({ node, children, href, ...props }) => {
+      // Check if this is a workspace: link
+      if (href && href.startsWith('workspace:')) {
+        return (
+          <button
+            className="workspace-link-button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleWorkspaceLink(href);
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              marginTop: '12px',
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2))',
+              border: '1px solid rgba(59, 130, 246, 0.4)',
+              borderRadius: '8px',
+              color: '#93c5fd',
+              fontSize: '13px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(139, 92, 246, 0.3))';
+              e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.6)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2))';
+              e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+            }}
+          >
+            <span style={{ fontSize: '14px' }}>🌐</span>
+            {children}
+          </button>
+        );
+      }
+
+      // Regular external links
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          {...props}
+        >
+          {children}
+        </a>
+      );
+    },
   }), []);
 
   return (
