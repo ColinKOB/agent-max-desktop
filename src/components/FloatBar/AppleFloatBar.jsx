@@ -1601,8 +1601,20 @@ export default function AppleFloatBar({
     } catch {}
   }, []);
 
-  // Start new session on mount
+  // Start new session on mount - clear old backend session for fresh context
   useEffect(() => {
+    // IMPORTANT: Clear the backend session ID on app startup for fresh context
+    // This ensures context usage starts at 0% on each app restart
+    localStorage.removeItem('agent_max_session_id');
+    console.log('[Session] Cleared agent_max_session_id on mount for fresh context');
+
+    // Also clear backend session state via pullAutonomous service
+    if (pullServiceRef.current?.clearSession) {
+      pullServiceRef.current.clearSession()
+        .then(() => console.log('[Session] Backend session cleared'))
+        .catch((err) => console.warn('[Session] Failed to clear backend session:', err));
+    }
+
     if (localStorage.getItem('user_id')) {
       startSession()
         .then(() => console.log('[Session] New session started on mount'))
