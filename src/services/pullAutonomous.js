@@ -18,6 +18,110 @@ class PullAutonomousService {
         this.pollIntervalMs = 1000; // Poll every second
         this.maxPollTime = 300000; // 5 minutes max
         this.isStopped = false; // Flag to prevent new polls after stop
+
+        // Session ID for conversation continuity
+        // Persists across messages in the same app session
+        this.sessionId = this._getOrCreateSessionId();
+    }
+
+    /**
+     * Get or create a session ID for conversation continuity
+     * Session persists until app restart or explicit clear
+     */
+    _getOrCreateSessionId() {
+        try {
+            // Try to get existing session from localStorage
+            let sessionId = localStorage.getItem('agent_max_session_id');
+
+            if (!sessionId) {
+                // Generate new session ID
+                sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                localStorage.setItem('agent_max_session_id', sessionId);
+                logger.info('[PullAutonomous] Created new session:', sessionId);
+            } else {
+                logger.info('[PullAutonomous] Using existing session:', sessionId);
+            }
+
+            return sessionId;
+        } catch (e) {
+            // Fallback if localStorage isn't available
+            const fallbackId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            logger.warn('[PullAutonomous] localStorage unavailable, using fallback session:', fallbackId);
+            return fallbackId;
+        }
+    }
+
+    /**
+     * Clear the current session (start fresh conversation)
+     * Also notifies the backend to clear session state
+     */
+    async clearSession() {
+        const oldSessionId = this.sessionId;
+        try {
+            // Clear local session
+            localStorage.removeItem('agent_max_session_id');
+            this.sessionId = this._getOrCreateSessionId();
+            logger.info('[PullAutonomous] Session cleared, new session:', this.sessionId);
+
+            // Also clear session on backend (if available)
+            try {
+                const apiConfig = apiConfigManager.getConfig();
+                const response = await fetch(`${apiConfig.baseURL}/api/v2/runs/session/${oldSessionId}/clear`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiConfig.apiKey || ''
+                    }
+                });
+                if (response.ok) {
+                    logger.info('[PullAutonomous] Backend session cleared');
+                }
+            } catch (backendErr) {
+                // Backend clear is optional - don't fail if it doesn't work
+                logger.debug('[PullAutonomous] Backend session clear failed (non-critical):', backendErr);
+            }
+        } catch (e) {
+            logger.warn('[PullAutonomous] Could not clear session:', e);
+        }
+    }
+
+    /**
+     * Get context window usage for the current session
+     * Returns { tokensUsed, contextWindow, usagePercent, isFull }
+     */
+    async getContextUsage() {
+        try {
+            const apiConfig = apiConfigManager.getConfig();
+            const response = await fetch(`${apiConfig.baseURL}/api/v2/runs/session/${this.sessionId}/context-usage`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': apiConfig.apiKey || ''
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return {
+                    tokensUsed: data.tokens_used || 0,
+                    contextWindow: data.context_window || 200000,
+                    usagePercent: data.usage_percent || 0,
+                    isFull: data.is_full || false
+                };
+            }
+
+            return { tokensUsed: 0, contextWindow: 200000, usagePercent: 0, isFull: false };
+        } catch (err) {
+            logger.debug('[PullAutonomous] Could not get context usage:', err);
+            return { tokensUsed: 0, contextWindow: 200000, usagePercent: 0, isFull: false };
+        }
+    }
+
+    /**
+     * Get the current session ID
+     */
+    getSessionId() {
+        return this.sessionId;
     }
 
     /**
@@ -257,10 +361,12 @@ class PullAutonomousService {
             logger.warn('[PullAutonomous] Could not get active tools status (non-fatal)', e?.message || e);
         }
 
-        // Merge userId, screenshot, google_user_email, browser_mode, and active_tools into context
+        // Merge userId, screenshot, google_user_email, browser_mode, active_tools, and session_id into context
         const enrichedContext = {
             ...context,
             userId: userId || context?.userId,
+            // Include session_id for conversation continuity (follow-up messages stay in context)
+            sessionId: this.sessionId,
             // Include initial screenshot for AI context (optional - may be null)
             initial_screenshot_b64: initialScreenshot,
             // Include google_user_email for Gmail/Calendar integration
@@ -270,6 +376,7 @@ class PullAutonomousService {
             // Include active tools for context awareness (spreadsheet, workspace, etc.)
             active_tools: Object.keys(activeTools).length > 0 ? activeTools : null
         };
+        logger.info('[PullAutonomous] Session ID:', this.sessionId);
         logger.info('[PullAutonomous] Browser mode:', browserMode);
         if (Object.keys(activeTools).length > 0) {
             logger.info('[PullAutonomous] Active tools:', Object.keys(activeTools));

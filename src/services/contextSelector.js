@@ -110,7 +110,7 @@ class ContextSelector {
     }
 
     // Get recent messages (last 10)
-    const messages = vault.getRecentMessages(10);
+    const messages = vault.getRecentMessages(100); // Increased from 10 to use more context
     for (const msg of messages) {
       candidates.push({
         id: msg.id,
@@ -399,7 +399,7 @@ class ContextSelector {
       profile: sections.profile.length > 0 ? sections.profile.join('\n') : null,
       facts: sections.facts.length > 0 ? sections.facts.join('\n') : null,
       recent_messages:
-        sections.recent_messages.length > 0 ? sections.recent_messages.slice(-5) : null,
+        sections.recent_messages.length > 0 ? sections.recent_messages.slice(-50) : null, // Increased from 5 to use more context
       preferences: sections.preferences.length > 0 ? sections.preferences.join('\n') : null,
     };
   }

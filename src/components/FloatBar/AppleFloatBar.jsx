@@ -399,6 +399,8 @@ export default function AppleFloatBar({
   const [message, setMessage] = useState('');
   const [thoughts, setThoughts] = useState([]);
   const [isThinking, setIsThinking] = useState(false);
+  const [thinkingStartTime, setThinkingStartTime] = useState(null); // Track when thinking started for stuck detection
+  const [isStuck, setIsStuck] = useState(false); // True if stuck state detected
   // Better Memory UI state
   const [contextPack, setContextPack] = useState(null);
   const [showContextPreview, setShowContextPreview] = useState(false);
@@ -474,6 +476,121 @@ export default function AppleFloatBar({
 
   const [attachments, setAttachments] = useState([]); // [{file, preview, type}]
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+
+  // Context window usage tracking
+  const [contextUsage, setContextUsage] = useState({
+    tokensUsed: 0,
+    contextWindow: 200000,
+    usagePercent: 0,
+    isFull: false
+  });
+
+  // Fetch context usage on mount and periodically
+  useEffect(() => {
+    const fetchContextUsage = async () => {
+      try {
+        // Get session ID from localStorage (same as PullAutonomousService does)
+        let sessionId = localStorage.getItem('agent_max_session_id');
+        if (!sessionId) {
+          console.log('[FloatBar] No session ID yet, context usage will be 0');
+          return;
+        }
+
+        console.log('[FloatBar] Fetching context usage for session:', sessionId);
+        const apiConfig = apiConfigManager.getConfig();
+        const response = await fetch(`${apiConfig.baseURL}/api/v2/runs/session/${sessionId}/context-usage`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': apiConfig.apiKey || ''
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const usage = {
+            tokensUsed: data.tokens_used || 0,
+            contextWindow: data.context_window || 200000,
+            usagePercent: data.usage_percent || 0,
+            isFull: data.is_full || false
+          };
+          console.log('[FloatBar] Context usage fetched:', usage);
+          setContextUsage(usage);
+        } else {
+          console.log('[FloatBar] Context usage fetch failed:', response.status);
+        }
+      } catch (err) {
+        console.debug('[FloatBar] Could not fetch context usage:', err);
+      }
+    };
+
+    // Fetch on mount
+    fetchContextUsage();
+
+    // Also fetch every 5 seconds while app is active (to catch updates)
+    const interval = setInterval(fetchContextUsage, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // STUCK DETECTION: Track when isThinking changes
+  useEffect(() => {
+    if (isThinking) {
+      setThinkingStartTime(Date.now());
+      setIsStuck(false);
+    } else {
+      setThinkingStartTime(null);
+      setIsStuck(false);
+    }
+  }, [isThinking]);
+
+  // STUCK DETECTION: Check if thinking for too long without progress
+  useEffect(() => {
+    if (!isThinking || !thinkingStartTime) return;
+
+    const STUCK_TIMEOUT_MS = 90000; // 90 seconds - if no progress for 90s, likely stuck
+    const CHECK_INTERVAL_MS = 10000; // Check every 10 seconds
+
+    const checkStuck = () => {
+      const elapsed = Date.now() - thinkingStartTime;
+
+      // Check if we're actually stuck (thinking but no run status updates)
+      if (elapsed > STUCK_TIMEOUT_MS && runStatus !== 'running') {
+        console.warn(`[StuckDetection] AI appears stuck - thinking for ${Math.round(elapsed / 1000)}s with runStatus=${runStatus}`);
+        setIsStuck(true);
+      }
+    };
+
+    const interval = setInterval(checkStuck, CHECK_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [isThinking, thinkingStartTime, runStatus]);
+
+  // STUCK RECOVERY: Provide a way for users to recover from stuck state
+  const handleStuckRecovery = useCallback(() => {
+    console.log('[StuckDetection] User triggered stuck recovery');
+
+    // Reset all execution state
+    setIsThinking(false);
+    setIsStuck(false);
+    setThinkingStartTime(null);
+    setThinkingStatus('');
+    setLiveActivitySteps([]);
+    setInitialAIMessage(null);
+    initialAIMessageSetRef.current = false;
+
+    // Reset execution state via dispatch
+    dispatchExecution({ type: 'RESET' });
+
+    // Add a message to thoughts explaining what happened
+    setThoughts(prev => [...prev, {
+      role: 'assistant',
+      content: "I got stuck and had to reset. Sorry about that! Please try your request again.",
+      timestamp: Date.now(),
+      isError: true
+    }]);
+
+    // Notify user
+    toast.info('Recovered from stuck state. Please try again.');
+  }, []);
 
   // Max's Monitor workspace state
   const [workspaceActive, setWorkspaceActive] = useState(false);
@@ -811,6 +928,42 @@ export default function AppleFloatBar({
           setLiveActivitySteps((prev) =>
             prev.map((s) => (s.status === 'running' ? { ...s, status: 'completed' } : s))
           );
+
+          // Update context usage after run completes
+          const fetchContextUsageNow = async () => {
+            try {
+              let usage = null;
+              if (pullServiceRef.current) {
+                usage = await pullServiceRef.current.getContextUsage();
+              } else {
+                // Fallback: fetch directly via API
+                const sessionId = localStorage.getItem('agent_max_session_id');
+                if (sessionId) {
+                  const apiConfig = apiConfigManager.getConfig();
+                  const response = await fetch(`${apiConfig.baseURL}/api/v2/runs/session/${sessionId}/context-usage`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json', 'X-API-Key': apiConfig.apiKey || '' }
+                  });
+                  if (response.ok) {
+                    const data = await response.json();
+                    usage = {
+                      tokensUsed: data.tokens_used || 0,
+                      contextWindow: data.context_window || 200000,
+                      usagePercent: data.usage_percent || 0,
+                      isFull: data.is_full || false
+                    };
+                  }
+                }
+              }
+              if (usage) {
+                console.log('[FloatBar] Context usage after run:', usage);
+                setContextUsage(usage);
+              }
+            } catch (err) {
+              console.debug('[FloatBar] Could not fetch context usage:', err);
+            }
+          };
+          fetchContextUsageNow();
 
           const finalMessage = status.final_summary || status.final_response;
           if (finalMessage) {
@@ -4458,6 +4611,42 @@ export default function AppleFloatBar({
                   prev.map((s) => (s.status === 'running' ? { ...s, status: 'completed' } : s))
                 );
 
+                // Update context usage after run completes
+                const fetchContextUsage = async () => {
+                  try {
+                    let usage;
+                    if (pullServiceRef.current) {
+                      usage = await pullServiceRef.current.getContextUsage();
+                    } else {
+                      // Fallback: fetch directly
+                      const sessionId = localStorage.getItem('agent_max_session_id');
+                      if (sessionId) {
+                        const apiConfig = apiConfigManager.getConfig();
+                        const response = await fetch(`${apiConfig.baseURL}/api/v2/runs/session/${sessionId}/context-usage`, {
+                          method: 'GET',
+                          headers: { 'Content-Type': 'application/json', 'X-API-Key': apiConfig.apiKey || '' }
+                        });
+                        if (response.ok) {
+                          const data = await response.json();
+                          usage = {
+                            tokensUsed: data.tokens_used || 0,
+                            contextWindow: data.context_window || 200000,
+                            usagePercent: data.usage_percent || 0,
+                            isFull: data.is_full || false
+                          };
+                        }
+                      }
+                    }
+                    if (usage) {
+                      console.log('[FloatBar] Context usage updated:', usage);
+                      setContextUsage(usage);
+                    }
+                  } catch (err) {
+                    console.debug('[FloatBar] Could not fetch context usage:', err);
+                  }
+                };
+                fetchContextUsage();
+
                 // Add final summary as message (check both final_summary and final_response)
                 const finalMessage = status.final_summary || status.final_response;
                 console.log(
@@ -4780,6 +4969,7 @@ export default function AppleFloatBar({
 
       // Clear previous run's steps immediately to avoid showing stale steps
       setLiveActivitySteps([]);
+      clearActivityLog(); // Also clear old activity log to prevent phantom old UI
 
       const userId = localStorage.getItem('user_id');
 
@@ -5066,7 +5256,7 @@ export default function AppleFloatBar({
   );
 
   // Handle clear conversation
-  const handleClear = useCallback(() => {
+  const handleClear = useCallback(async () => {
     // Clear chat transcript and tiles
     setThoughts([]);
     setFactTiles([]);
@@ -5080,10 +5270,25 @@ export default function AppleFloatBar({
     setArtifactSummary(null);
     planIdRef.current = null;
 
+    // Reset context usage to 0
+    setContextUsage({
+      tokensUsed: 0,
+      contextWindow: 200000,
+      usagePercent: 0,
+      isFull: false
+    });
+
     // FIX: Generate new session_id for conversation isolation
     const newSessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     localStorage.setItem('session_id', newSessionId);
+    // Also update localStorage for pullAutonomous
+    localStorage.setItem('agent_max_session_id', newSessionId);
     logger.info('[Session] Generated new session_id for new conversation', { sessionId: newSessionId });
+
+    // Clear session in pullAutonomous service (also clears backend)
+    if (pullServiceRef.current) {
+      await pullServiceRef.current.clearSession();
+    }
 
     // Start new session in memory manager
     if (localStorage.getItem('user_id')) {
@@ -6160,8 +6365,66 @@ export default function AppleFloatBar({
             <button className="apple-tool-btn" onClick={handleSettings} title="Settings">
               <Settings size={16} />
             </button>
-            <button className="apple-tool-btn" onClick={handleClear} title="Clear">
-              <Edit3 size={16} />
+            <button
+              className="apple-tool-btn context-usage-btn"
+              onClick={handleClear}
+              title={contextUsage.isFull ? "Context full - Start new conversation" : `New conversation (${contextUsage.usagePercent.toFixed(1)}% used)`}
+              style={{
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Fill-up effect background */}
+              <div
+                className="context-fill"
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  // Show at least 15% height when there's any usage for visibility
+                  height: contextUsage.usagePercent > 0 ? `${Math.max(contextUsage.usagePercent, 15)}%` : '0%',
+                  background: contextUsage.usagePercent >= 85
+                    ? 'rgba(239, 68, 68, 0.8)' // Red - more visible
+                    : contextUsage.usagePercent >= 60
+                      ? 'rgba(245, 158, 11, 0.8)' // Yellow/amber
+                      : 'rgba(59, 130, 246, 0.7)', // Blue - more visible
+                  transition: 'height 0.5s ease-out, background 0.3s ease',
+                  pointerEvents: 'none',
+                  borderRadius: 'inherit',
+                  zIndex: 2, // Above the ::before background (which is z-index: 0)
+                }}
+              />
+              {/* Icon */}
+              <Edit3
+                size={16}
+                style={{
+                  position: 'relative',
+                  zIndex: 3, // Above the fill
+                  color: contextUsage.usagePercent >= 85
+                    ? '#ef4444'
+                    : contextUsage.usagePercent >= 60
+                      ? '#f59e0b'
+                      : undefined
+                }}
+              />
+              {/* Show percentage when at 100% */}
+              {contextUsage.isFull && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    bottom: -2,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    fontSize: 8,
+                    fontWeight: 600,
+                    color: '#ef4444',
+                    zIndex: 2,
+                  }}
+                >
+                  100%
+                </span>
+              )}
             </button>
             <button className="apple-tool-btn" onClick={handleCollapse} title="Shrink">
               <Minimize2 size={16} />
@@ -7309,23 +7572,39 @@ export default function AppleFloatBar({
 
             {isThinking && !liveActivitySteps.length && (
               <div className="apple-message apple-message-thinking">
-                {/* Show ActivityFeed when in autonomous mode (but not when using LiveActivityFeed) */}
-                {executionPlan || activityLog.length > 0 || runStatus === 'running' ? (
-                  <ActivityFeed
-                    activities={activityLog}
-                    currentAction={thinkingStatus}
-                    startTime={activityStartTime}
-                    compact={true}
-                  />
-                ) : (
-                  <>
-                    <div className="typing-indicator">
-                      <span className="typing-dot"></span>
-                      <span className="typing-dot"></span>
-                      <span className="typing-dot"></span>
+                {/* STUCK STATE: Show recovery button if stuck */}
+                {isStuck ? (
+                  <div className="stuck-indicator">
+                    <div className="stuck-message">
+                      <span className="stuck-icon">⚠️</span>
+                      <span>It looks like I got stuck. Sorry about that!</span>
                     </div>
-                    <span className="typing-text">{thinkingStatus || 'Thinking...'}</span>
-                  </>
+                    <button
+                      className="stuck-recovery-btn"
+                      onClick={handleStuckRecovery}
+                    >
+                      Reset & Try Again
+                    </button>
+                  </div>
+                ) : (
+                  /* Show ActivityFeed only when NOT using pull execution AND there's actual activity */
+                  !usePullExecution && (executionPlan || activityLog.length > 0 || runStatus === 'running') ? (
+                    <ActivityFeed
+                      activities={activityLog}
+                      currentAction={thinkingStatus}
+                      startTime={activityStartTime}
+                      compact={true}
+                    />
+                  ) : (
+                    <>
+                      <div className="typing-indicator">
+                        <span className="typing-dot"></span>
+                        <span className="typing-dot"></span>
+                        <span className="typing-dot"></span>
+                      </div>
+                      <span className="typing-text">{thinkingStatus || 'Thinking...'}</span>
+                    </>
+                  )
                 )}
               </div>
             )}

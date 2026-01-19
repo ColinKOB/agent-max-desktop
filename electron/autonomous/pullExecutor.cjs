@@ -807,7 +807,45 @@ class PullExecutor {
         let args = step.args || {};
 
         console.log(`[PullExecutor] Executing: ${tool}`);
-        
+
+        // FIX: Handle case where args.filename contains a JSON string (AI formatting issue)
+        // This happens when the AI returns {"filename": '{"path": "...", "content": "..."}'}
+        if (args.filename && typeof args.filename === 'string') {
+            const fn = args.filename.trim();
+            if (fn.startsWith('{') || fn.includes('"path"') || fn.includes('"content"')) {
+                console.log(`[PullExecutor] ⚠️ Detected JSON in args.filename - extracting...`);
+                try {
+                    const innerArgs = JSON.parse(fn);
+                    if (innerArgs.path || innerArgs.file_path || innerArgs.content) {
+                        console.log(`[PullExecutor] ✓ Extracted path: ${innerArgs.path || innerArgs.file_path}`);
+                        args = { ...innerArgs };
+                    }
+                } catch (e) {
+                    // Try manual extraction for truncated JSON
+                    const pathMatch = fn.match(/"path"\s*:\s*"([^"]+)"/);
+                    if (pathMatch) {
+                        console.log(`[PullExecutor] ✓ Manually extracted path: ${pathMatch[1]}`);
+                        // Extract content - everything after "content": "
+                        const contentStartIdx = fn.indexOf('"content"');
+                        if (contentStartIdx !== -1) {
+                            const afterContent = fn.substring(contentStartIdx);
+                            const contentMatch = afterContent.match(/"content"\s*:\s*"([\s\S]*)$/);
+                            if (contentMatch) {
+                                let content = contentMatch[1];
+                                content = content.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+                                args = { path: pathMatch[1], content: content };
+                                console.log(`[PullExecutor] ✓ Extracted content (${content.length} chars)`);
+                            } else {
+                                args = { path: pathMatch[1] };
+                            }
+                        } else {
+                            args = { path: pathMatch[1] };
+                        }
+                    }
+                }
+            }
+        }
+
         // Apply path translation for file operations
         if (tool === 'fs.write' || tool === 'fs.read') {
             if (args.filename) {
@@ -1798,6 +1836,19 @@ class PullExecutor {
                 env = commandOrArgs.env;
             }
 
+            // HEREDOC DETECTION: If command uses heredoc to create a file, redirect to fs.write
+            // This is more reliable than shell heredoc with special characters
+            if (command && this._isHeredocFileCreation(command)) {
+                console.log(`[PullExecutor] ⚠️ Detected heredoc file creation - redirecting to fs.write for reliability`);
+                const fsWriteArgs = this._parseHeredocToFileWrite(command);
+                if (fsWriteArgs) {
+                    console.log(`[PullExecutor] Extracted file: ${fsWriteArgs.file_path}`);
+                    return await this.executeFileWrite(fsWriteArgs, step);
+                }
+                // If parsing failed, continue with original command
+                console.log(`[PullExecutor] Could not parse heredoc, falling back to shell`);
+            }
+
             // If no command but step description mentions Desktop path, provide it directly
             if (!command && step) {
                 const description = (step.description || step.goal || '').toLowerCase();
@@ -1815,6 +1866,45 @@ class PullExecutor {
 
             if (!command) {
                 throw new Error('No command specified');
+            }
+
+            // BACKGROUND PROCESS DETECTION: If command ends with &, it's meant to run in background
+            // Handle this specially to prevent hanging - spawn detached and return immediately
+            const isBackgroundCommand = command.trim().endsWith('&');
+            if (isBackgroundCommand) {
+                console.log(`[PullExecutor] Detected background command, spawning detached process`);
+                const cleanCommand = command.trim().slice(0, -1).trim(); // Remove trailing &
+
+                const spawnOptions = {
+                    shell: true,
+                    cwd: cwd || undefined,
+                    env: env ? { ...process.env, ...env } : process.env,
+                    detached: true,
+                    stdio: 'ignore'  // Don't wait for stdio
+                };
+
+                try {
+                    const childProcess = spawn(cleanCommand, [], spawnOptions);
+                    childProcess.unref();  // Allow parent to exit independently
+
+                    // Give it a moment to start, then return success
+                    await new Promise(r => setTimeout(r, 500));
+
+                    return {
+                        success: true,
+                        stdout: `Background process started (PID: ${childProcess.pid || 'unknown'})`,
+                        stderr: '',
+                        exit_code: 0
+                    };
+                } catch (bgError) {
+                    return {
+                        success: false,
+                        stdout: '',
+                        stderr: bgError.message,
+                        exit_code: 1,
+                        error: `Failed to start background process: ${bgError.message}`
+                    };
+                }
             }
 
             // Use spawn with shell for better process control
@@ -1929,6 +2019,120 @@ class PullExecutor {
     }
 
     /**
+     * Check if a shell command is trying to create a file using heredoc syntax
+     * These often fail with special characters in the content
+     */
+    _isHeredocFileCreation(command) {
+        if (!command || typeof command !== 'string') return false;
+
+        // Common heredoc patterns for file creation:
+        // cat << 'EOF' > file.txt
+        // cat <<EOF > file.txt
+        // cat <<-EOF > file.txt
+        // tee file.txt << 'EOF'
+        const heredocPatterns = [
+            /cat\s+<<[-']?\s*['"]?(\w+)['"]?\s*>\s*(\S+)/,    // cat << EOF > file
+            /cat\s+<<[-']?\s*['"]?(\w+)['"]?\s*>>\s*(\S+)/,   // cat << EOF >> file
+            /tee\s+(\S+)\s*<<[-']?\s*['"]?(\w+)['"]?/,         // tee file << EOF
+            /cat\s+>\s*(\S+)\s*<<[-']?\s*['"]?(\w+)['"]?/      // cat > file << EOF
+        ];
+
+        for (const pattern of heredocPatterns) {
+            if (pattern.test(command)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Parse a heredoc file creation command into fs.write arguments
+     * Returns { file_path, content } or null if parsing fails
+     */
+    _parseHeredocToFileWrite(command) {
+        try {
+            // Match: cat << 'EOF' > filename\ncontent\nEOF
+            // or: cat <<EOF > filename\ncontent\nEOF
+            // or: cat <<-'EOF' > filename\ncontent\nEOF
+
+            // Extract the delimiter (EOF, END, etc.)
+            const delimiterMatch = command.match(/<<[-']?\s*['"]?(\w+)['"]?/);
+            if (!delimiterMatch) return null;
+
+            const delimiter = delimiterMatch[1];
+
+            // Extract the filename
+            let filename = null;
+
+            // Try: cat << EOF > filename
+            const toFileMatch = command.match(/>\s*(\S+)/);
+            if (toFileMatch) {
+                filename = toFileMatch[1];
+            }
+
+            // Try: tee filename << EOF
+            if (!filename) {
+                const teeMatch = command.match(/tee\s+(\S+)\s*<</);
+                if (teeMatch) {
+                    filename = teeMatch[1];
+                }
+            }
+
+            if (!filename) return null;
+
+            // Extract content between the first occurrence of delimiter and the last
+            // The content is everything after the first line (the cat command) until the closing delimiter
+            const lines = command.split('\n');
+            let contentStartIndex = -1;
+            let contentEndIndex = -1;
+
+            for (let i = 0; i < lines.length; i++) {
+                // Find the line after the command line that starts the content
+                if (contentStartIndex === -1 && i > 0) {
+                    contentStartIndex = i;
+                }
+                // Find the closing delimiter
+                if (lines[i].trim() === delimiter) {
+                    contentEndIndex = i;
+                    break;
+                }
+            }
+
+            if (contentStartIndex === -1 || contentEndIndex === -1) {
+                // Fallback: try to find content after the heredoc marker
+                const heredocIndex = command.indexOf(delimiter);
+                if (heredocIndex !== -1) {
+                    // Find the next newline after the heredoc start
+                    const afterHeredoc = command.indexOf('\n', heredocIndex);
+                    if (afterHeredoc !== -1) {
+                        // Find the closing delimiter
+                        const closingIndex = command.lastIndexOf(delimiter);
+                        if (closingIndex > afterHeredoc) {
+                            const content = command.substring(afterHeredoc + 1, closingIndex).trim();
+                            return {
+                                file_path: filename,
+                                content: content
+                            };
+                        }
+                    }
+                }
+                return null;
+            }
+
+            const content = lines.slice(contentStartIndex, contentEndIndex).join('\n');
+
+            return {
+                file_path: filename,
+                content: content
+            };
+        } catch (error) {
+            console.error(`[PullExecutor] Error parsing heredoc command:`, error);
+            return null;
+        }
+    }
+
+    /**
      * Execute file read
      */
     async executeFileRead(args) {
@@ -2016,6 +2220,59 @@ class PullExecutor {
         const os = require('os');
 
         try {
+            // Handle case where args might be stringified JSON
+            let parsedArgs = args;
+            if (typeof args === 'string') {
+                try {
+                    parsedArgs = JSON.parse(args);
+                    console.log(`[PullExecutor] Parsed string args to object`);
+                } catch (e) {
+                    // Not JSON, might be just a filename
+                    parsedArgs = { filename: args };
+                }
+            }
+            args = parsedArgs;
+
+            // EXTRA FIX: If args.filename looks like JSON (starts with { or contains "path":), try parsing it
+            // This handles double-stringified cases where the AI puts JSON into filename field
+            if (args.filename && typeof args.filename === 'string') {
+                const fn = args.filename.trim();
+                const looksLikeJson = fn.startsWith('{') || fn.includes('"path"') || fn.includes('"content"');
+                if (looksLikeJson) {
+                    console.log(`[PullExecutor] ⚠️ Detected potential JSON in filename field, attempting parse...`);
+                    try {
+                        const innerArgs = JSON.parse(fn);
+                        if (innerArgs.path || innerArgs.file_path || innerArgs.content) {
+                            console.log(`[PullExecutor] ✓ Successfully extracted inner args from filename JSON`);
+                            args = { ...args, ...innerArgs };
+                            // Clear the malformed filename
+                            delete args.filename;
+                        }
+                    } catch (e) {
+                        // JSON might be truncated or malformed, try to extract path manually
+                        console.log(`[PullExecutor] JSON parse failed, trying manual extraction: ${e.message}`);
+                        const pathMatch = fn.match(/"path"\s*:\s*"([^"]+)"/);
+                        const contentMatch = fn.match(/"content"\s*:\s*"([\s\S]*)$/);
+                        if (pathMatch) {
+                            console.log(`[PullExecutor] ✓ Manually extracted path: ${pathMatch[1]}`);
+                            args.path = pathMatch[1];
+                            // Try to get content - it may be truncated but we can try
+                            if (contentMatch) {
+                                // Unescape the content
+                                let content = contentMatch[1];
+                                // Remove trailing quote and closing brace if present
+                                content = content.replace(/"\s*}\s*$/, '');
+                                // Unescape common escape sequences
+                                content = content.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+                                args.content = content;
+                                console.log(`[PullExecutor] ✓ Manually extracted content (${content.length} chars)`);
+                            }
+                            delete args.filename;
+                        }
+                    }
+                }
+            }
+
             // Check if this is a multi-file project (has "files" array)
             if (args.files && Array.isArray(args.files)) {
                 console.log(`[PullExecutor] 📁 Multi-file project: ${args.files.length} files`);

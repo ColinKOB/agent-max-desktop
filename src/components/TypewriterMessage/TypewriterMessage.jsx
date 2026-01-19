@@ -164,38 +164,10 @@ export default function TypewriterMessage({
                 e.stopPropagation();
                 handleWorkspaceLink(href);
               }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                width: '100%',
-                padding: '12px 20px',
-                marginTop: '16px',
-                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(99, 102, 241, 0.9))',
-                border: 'none',
-                borderRadius: '12px',
-                color: '#fff',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 1), rgba(99, 102, 241, 1))';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(99, 102, 241, 0.9))';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
             >
-              <span style={{ fontSize: '16px' }}>🌐</span>
+              <span className="workspace-link-icon">🌐</span>
               {children}
-              <span style={{ fontSize: '14px', opacity: 0.9 }}>→</span>
+              <span className="workspace-link-arrow">→</span>
             </button>
           );
         }

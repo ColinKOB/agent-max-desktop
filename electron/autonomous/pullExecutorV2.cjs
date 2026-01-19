@@ -145,6 +145,22 @@ class PullExecutorV2 extends PullExecutor {
                     break;
                 }
 
+                // Handle backend error responses gracefully (instead of 500)
+                if (cloudStep.status === 'error') {
+                    console.error(`[PullExecutorV2] ⚠️ Backend returned error: ${cloudStep.error}`);
+                    console.error(`[PullExecutorV2] Error type: ${cloudStep.error_type}`);
+                    console.error(`[PullExecutorV2] User message: ${cloudStep.user_message}`);
+
+                    // Update run status to failed with user-friendly message
+                    this.stateStore.updateRun(runId, {
+                        status: 'failed',
+                        completed_at: Date.now(),
+                        error: cloudStep.error,
+                        final_response: cloudStep.user_message || cloudStep.error
+                    });
+                    break;
+                }
+
                 // Handle waiting_for_user - AI wants to ask user a question
                 if (cloudStep.status === 'waiting_for_user') {
                     // Check for batched questions format

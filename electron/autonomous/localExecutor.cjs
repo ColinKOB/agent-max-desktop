@@ -192,6 +192,11 @@ class LocalExecutor {
 
   /**
    * Run a shell command
+   *
+   * Includes smart timeout detection for long-running commands like:
+   * - npm install, npx create-*, yarn, pnpm
+   * - git clone, docker build
+   * - compilation commands (make, cargo, go build)
    */
   async shellRun(args) {
     const { command, timeout_sec } = args || {};
@@ -199,6 +204,35 @@ class LocalExecutor {
       throw new Error('Invalid shell command');
     }
     console.log('[LocalExecutor] Running shell command:', command);
+
+    // Detect long-running commands that need extended timeouts (defined at function scope for catch block)
+    const longRunningPatterns = [
+      /\bnpx\s+create-/i,           // npx create-* (Next.js, React, etc.)
+      /\bnpm\s+install\b/i,         // npm install
+      /\bnpm\s+i\b/i,               // npm i (shorthand)
+      /\byarn\s+add\b/i,            // yarn add
+      /\byarn\s+install\b/i,        // yarn install
+      /\bpnpm\s+install\b/i,        // pnpm install
+      /\bgit\s+clone\b/i,           // git clone
+      /\bdocker\s+build\b/i,        // docker build
+      /\bcargo\s+build\b/i,         // Rust cargo build
+      /\bgo\s+build\b/i,            // Go build
+      /\bmake\b/i,                  // make (C/C++ build)
+      /\bpip\s+install\b/i,         // pip install
+      /\bbrew\s+install\b/i,        // homebrew install
+    ];
+
+    const isLongRunning = longRunningPatterns.some(pattern => pattern.test(command));
+
+    // Extended timeout for long-running commands (5 minutes default)
+    const extendedTimeoutMs = 300000; // 5 minutes
+    const defaultTimeoutMs = timeout_sec
+      ? timeout_sec * 1000
+      : (isLongRunning ? extendedTimeoutMs : 60000);
+
+    if (isLongRunning) {
+      console.log(`[LocalExecutor] Long-running command detected, using ${defaultTimeoutMs / 1000}s timeout`);
+    }
 
     try {
       const started = Date.now();
@@ -210,8 +244,6 @@ class LocalExecutor {
       const inameRegex = /\b-i?name\s+(["'])(.*?)\1/i; // capture name
       const looksLikeFindHome = findHomeDirRegex.test(command);
 
-      // Prefer shorter timeouts for search commands; keep generous default otherwise
-      const defaultTimeoutMs = (timeout_sec || 60) * 1000;
       const searchTimeoutMs = Math.min(defaultTimeoutMs, 10000); // cap at 10s for searches
 
       // If command is a home-wide find, use fast mdfind (Spotlight) instead
@@ -292,12 +324,16 @@ class LocalExecutor {
       const duration_ms = typeof error?.killed === 'boolean' || error?.signal || error?.cmd ? (error.startTime ? (Date.now() - error.startTime) : undefined) : undefined;
       const timedOut = (error && (error.killed === true) && (error.signal === 'SIGTERM')) || /timed out/i.test(String(error.message || ''));
       const exit = timedOut ? 124 : (typeof error.code === 'number' ? error.code : 1);
+
+      // Calculate actual timeout used (uses isLongRunning from outer scope)
+      const actualTimeoutSec = timeout_sec || (isLongRunning ? 300 : 60);
+
       return {
         status: timedOut ? 'timeout' : 'failed',
         stdout: error.stdout || '',
         stderr: error.stderr || error.message,
         exit_code: exit,
-        message: timedOut ? `Command timed out after ${(timeout_sec || 60)}s` : 'Command failed',
+        message: timedOut ? `Command timed out after ${actualTimeoutSec}s` : 'Command failed',
         duration_ms,
       };
     }

@@ -1463,6 +1463,7 @@ ipcMain.handle('autonomous:create-run', async (event, { message, context, system
 
   console.log('[Autonomous] Creating run via main process (stable network)');
   console.log('[Autonomous] User ID from context:', context?.userId || 'NOT PROVIDED - using desktop_user');
+  console.log('[Autonomous] Session ID from context:', context?.sessionId || 'NOT PROVIDED - using default');
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     // Check if aborted before each attempt
@@ -1479,7 +1480,8 @@ ipcMain.handle('autonomous:create-run', async (event, { message, context, system
         headers: {
           'Content-Type': 'application/json',
           'X-API-Key': apiKey,
-          'X-User-Id': context?.userId || 'desktop_user'
+          'X-User-Id': context?.userId || 'desktop_user',
+          'X-Session-ID': context?.sessionId || 'default'  // For conversation continuity
         },
         body: JSON.stringify({
           message,
@@ -1489,7 +1491,8 @@ ipcMain.handle('autonomous:create-run', async (event, { message, context, system
           },
           mode: 'autonomous',
           execution_mode: 'pull',
-          skip_intent_confirmation: true  // Skip "Let me clarify" for autonomous mode
+          skip_intent_confirmation: true,  // Skip "Let me clarify" for autonomous mode
+          session_id: context?.sessionId || 'default'  // For conversation continuity
         }),
         signal  // Pass AbortController signal to fetch
       });

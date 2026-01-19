@@ -58,6 +58,24 @@
 .apple-tool-btn { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.9); display:flex; align-items:center; justify-content:center; cursor:pointer; transition: all 0.15s ease; }
 .apple-tool-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.25); transform: translateY(-1px); color: white; }
 
+/* Context usage button - needs transparent background for fill effect */
+.apple-tool-btn.context-usage-btn {
+  background: transparent;
+  position: relative;
+  overflow: hidden;
+}
+.apple-tool-btn.context-usage-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.1);
+  z-index: 0;
+  border-radius: inherit;
+}
+.apple-tool-btn.context-usage-btn:hover::before {
+  background: rgba(255,255,255,0.15);
+}
+
 /* Remove blue-ish focus glow for toolbar buttons */
 .apple-tool-btn:focus,
 .apple-tool-btn:focus-visible {
@@ -503,6 +521,52 @@
 .typing-dot:nth-child(2) { animation-delay: 0.15s; }
 .typing-dot:nth-child(3) { animation-delay: 0.3s; }
 @keyframes typingBounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.6; } 40% { transform: translateY(-3px); opacity: 1; } }
+
+/* STUCK STATE INDICATOR */
+.stuck-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1));
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.stuck-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.stuck-icon {
+  font-size: 16px;
+}
+
+.stuck-recovery-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(37, 99, 235, 0.9));
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.stuck-recovery-btn:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(37, 99, 235, 1));
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+
+.stuck-recovery-btn:active {
+  transform: translateY(0);
+}
 
 /* When only the thinking indicator is showing (no messages), keep it compact */
 .apple-messages:not(.apple-messages-empty) .apple-message-thinking:only-child {
@@ -1099,5 +1163,45 @@
     opacity: 0.7;
     transform: scale(1.1);
   }
+}
+
+/* Workspace link button - source citation CTA */
+.workspace-link-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 20px;
+  margin-top: 16px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(99, 102, 241, 0.9));
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.workspace-link-button:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 1), rgba(99, 102, 241, 1));
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+  transform: translateY(-1px);
+}
+
+.workspace-link-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.workspace-link-icon {
+  font-size: 16px;
+}
+
+.workspace-link-arrow {
+  font-size: 14px;
+  opacity: 0.9;
 }
 
