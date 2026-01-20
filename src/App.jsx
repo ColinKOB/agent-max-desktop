@@ -21,6 +21,7 @@ function App({ windowMode = 'single' }) {
   const { setApiConnected, setProfile, setGreeting } = useStore();
   // Default to ready state so the floatbar pill renders immediately; async inits can adjust afterward.
   const [showWelcome, setShowWelcome] = useState(null); // null = loading, true = show onboarding, false = hide
+  const [showTutorial, setShowTutorial] = useState(false); // Show tutorial after onboarding
   const [isLoading, setIsLoading] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [updateProgress, setUpdateProgress] = useState(null);
@@ -33,6 +34,12 @@ function App({ windowMode = 'single' }) {
     // CRITICAL: Check onboarding completion FIRST, before any user init
     // This ensures fresh installs show onboarding even if device_id gets created
     const onboardingCompleted = localStorage.getItem('onboarding_completed') === 'true';
+    const tutorialCompleted = localStorage.getItem('tutorial_completed') === 'true';
+
+    // Show tutorial for users who completed onboarding but not tutorial
+    if (onboardingCompleted && !tutorialCompleted) {
+      setShowTutorial(true);
+    }
 
     if (!onboardingCompleted) {
       // Fresh install or onboarding not completed - show onboarding immediately
@@ -336,6 +343,19 @@ function App({ windowMode = 'single' }) {
     } catch (err) {
       console.warn('[App] Failed to resize window after onboarding:', err);
     }
+
+    // Start the in-app tutorial after onboarding
+    const tutorialCompleted = localStorage.getItem('tutorial_completed') === 'true';
+    if (!tutorialCompleted) {
+      console.log('[App] Starting in-app tutorial after onboarding');
+      setShowTutorial(true);
+    }
+  };
+
+  const handleTutorialComplete = () => {
+    console.log('[App] Tutorial completed');
+    setShowTutorial(false);
+    localStorage.setItem('tutorial_completed', 'true');
   };
 
   return (
@@ -375,6 +395,8 @@ function App({ windowMode = 'single' }) {
         <AppleFloatBar
           showWelcome={showWelcome}
           onWelcomeComplete={handleWelcomeComplete}
+          showTutorial={showTutorial}
+          onTutorialComplete={handleTutorialComplete}
           isLoading={isLoading}
           windowMode={windowMode}
         />

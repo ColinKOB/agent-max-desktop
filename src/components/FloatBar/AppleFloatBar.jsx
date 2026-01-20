@@ -98,6 +98,7 @@ import TypewriterMessage from '../TypewriterMessage/TypewriterMessage';
 import ActivityFeed from '../ActivityFeed/ActivityFeed';
 import EmailRenderer from './EmailRenderer';
 import ComposerBar from './ComposerBar';
+import AppTutorial from '../tutorial/AppTutorial';
 import { processImageFile } from '../../utils/imageCompression';
 
 const logger = createLogger('FloatBar');
@@ -387,6 +388,8 @@ function executionReducer(state, action) {
 export default function AppleFloatBar({
   showWelcome,
   onWelcomeComplete,
+  showTutorial,
+  onTutorialComplete,
   isLoading,
   windowMode = 'single',
   autoSend = true,
@@ -4979,6 +4982,11 @@ export default function AppleFloatBar({
       setAttachments([]);
       setMessage('');
 
+      // Dispatch tutorial event when first message is sent
+      if (showTutorial) {
+        window.dispatchEvent(new CustomEvent('tutorial:message_sent'));
+      }
+
       // Clear previous run's steps immediately to avoid showing stale steps
       setLiveActivitySteps([]);
       clearActivityLog(); // Also clear old activity log to prevent phantom old UI
@@ -5607,12 +5615,16 @@ export default function AppleFloatBar({
         borderBottom +
         totalGaps;
 
-      // Add a small buffer and step the window by roughly one line when content grows
+      // Add a small buffer only when content is actively growing (streaming)
+      // to prevent clipping during animation. When idle, use exact height.
       const prevMh = lastMessagesHeightRef.current || 0;
-      const incrementalBuffer = mh > prevMh ? LINE_GROWTH : 0;
+      const isGrowing = mh > prevMh;
+      const incrementalBuffer = isGrowing ? LINE_GROWTH : 0;
       lastMessagesHeightRef.current = mh;
 
-      const bufferedHeight = naturalHeight + incrementalBuffer + 8;
+      // Only add buffer during active content growth; otherwise use tight fit
+      // to prevent extra padding when app regains focus
+      const bufferedHeight = naturalHeight + incrementalBuffer + (isGrowing ? 4 : 0);
 
       const minHeight = MIN_EXPANDED_HEIGHT;
 
@@ -5851,6 +5863,9 @@ export default function AppleFloatBar({
   useEffect(() => {
     const handleFocus = () => {
       if (!isMini) {
+        // Reset the last messages height ref to prevent stale incremental buffer
+        // calculation when regaining focus after the app was idle
+        lastMessagesHeightRef.current = messagesRef.current?.scrollHeight || 0;
         setTimeout(() => updateWindowHeight(), 50);
       }
     };
@@ -6081,6 +6096,7 @@ export default function AppleFloatBar({
         <div
           className={`amx-root amx-mini amx-mini-draggable ${isTransitioning ? 'amx-transitioning' : ''}`}
           onClick={handleExpand}
+          data-tutorial="pill"
         >
           <img
             src={LogoPng}
@@ -6374,13 +6390,14 @@ export default function AppleFloatBar({
               </button>
 {/* Tools menu is now an overlay - see tools-overlay below */}
             </div>
-            <button className="apple-tool-btn" onClick={handleSettings} title="Settings">
+            <button className="apple-tool-btn" onClick={handleSettings} title="Settings" data-tutorial="settings">
               <Settings size={16} />
             </button>
             <button
               className="apple-tool-btn context-usage-btn"
               onClick={handleClear}
               title={contextUsage.isFull ? "Context full - Start new conversation" : `New conversation (${contextUsage.usagePercent.toFixed(1)}% used)`}
+              data-tutorial="context"
               style={{
                 position: 'relative',
                 overflow: 'hidden',
@@ -7884,6 +7901,15 @@ export default function AppleFloatBar({
             Yes
           </button>
         </div>
+      )}
+
+      {/* In-App Tutorial for new users (after onboarding completes) */}
+      {console.log('[Tutorial Debug]', { showTutorial, showWelcome, shouldShow: showTutorial && !showWelcome })}
+      {showTutorial && !showWelcome && (
+        <AppTutorial
+          onComplete={onTutorialComplete}
+          isExpanded={!isMini}
+        />
       )}
     </div>
   );

@@ -200,7 +200,7 @@ const ComposerBar = React.memo(function ComposerBar({
     (!message.trim() && attachments.length === 0) || (!userInputRequest && !apiConnected);
 
   return (
-    <div className="apple-input-area" ref={composerRef}>
+    <div className="apple-input-area" ref={composerRef} data-tutorial="input-area">
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -216,6 +216,7 @@ const ComposerBar = React.memo(function ComposerBar({
         className="apple-attach-btn"
         onClick={handleAttachClick}
         title="Attach files or images"
+        data-tutorial="attach"
       >
         <Plus size={18} />
       </button>
@@ -262,6 +263,7 @@ const ComposerBar = React.memo(function ComposerBar({
       <textarea
         ref={inputRef}
         className={`apple-input apple-textarea${message.includes('\n') || inputRef.current?.scrollHeight > 40 ? ' has-overflow' : ''}`}
+        data-tutorial="input"
         placeholder={
           userInputRequest
             ? 'Type your response...'
@@ -343,6 +345,7 @@ const ComposerBar = React.memo(function ComposerBar({
             className="apple-send-btn"
             onClick={userInputRequest ? handleUserInputSubmit : handleSubmit}
             disabled={sendDisabled}
+            data-tutorial="send"
             style={
               userInputRequest
                 ? {
