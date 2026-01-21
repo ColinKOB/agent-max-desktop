@@ -917,91 +917,134 @@ class PullExecutor {
         }
 
         // Handle different tool types
-        if (tool === 'shell.command' || tool === 'command' || tool === 'shell_exec') {
+        // Updated to support new dot notation names with backwards compatibility
+
+        // === SHELL TOOLS ===
+        if (tool === 'shell.exec' || tool === 'shell.command' || tool === 'command' || tool === 'shell_exec') {
             return await this.executeShellCommand(args, timeoutSec, step);
+
+        // === FILE TOOLS ===
         } else if (tool === 'fs.write') {
             return await this.executeFileWrite(args, step);
         } else if (tool === 'fs.read') {
             return await this.executeFileRead(args);
-        } else if (tool === 'browser' || tool === 'web_search') {
-            return await this.executeBrowserSearch(args);
-        } else if (tool === 'web_fetch') {
-            // Direct URL fetch tool
+
+        // === WEB TOOLS ===
+        } else if (tool === 'web.fetch' || tool === 'web_fetch') {
             const url = args.url || args.fetch_url;
             if (!url) {
-                return {
-                    success: false,
-                    error: 'web_fetch requires a url parameter',
-                    exit_code: 1
-                };
+                return { success: false, error: 'web.fetch requires a url parameter', exit_code: 1 };
             }
             return await this.fetchUrlContent(url);
+        } else if (tool === 'browser' || tool === 'web_search') {
+            // Legacy search tools - redirect to workspace.search
+            return await this.executeBrowserSearch(args);
+        } else if (tool === 'web.delegate' || tool === 'delegate_to_web_agent') {
+            return await this.executeDelegateWebAgent(args);
+        } else if (tool === 'web.delegate_parallel' || tool === 'delegate_to_web_agents') {
+            return await this.executeDelegateWebAgents(args);
+
+        // === CORE TOOLS ===
         } else if (tool === 'think') {
             return await this.executeThink(args);
         } else if (tool === 'user_input') {
             return await this.executeUserInput(args);
-        } else if (tool === 'start_background_process') {
+        } else if (tool === 'ask_user') {
+            return await this.executeAskUser(args);
+
+        // === SYSTEM TOOLS ===
+        } else if (tool === 'system.start_process' || tool === 'start_background_process') {
             return await this.executeStartBackgroundProcess(args);
-        } else if (tool === 'monitor_process') {
+        } else if (tool === 'system.monitor_process' || tool === 'monitor_process') {
             return await this.executeMonitorProcess(args);
-        } else if (tool === 'stop_process') {
+        } else if (tool === 'system.stop_process' || tool === 'stop_process') {
             return await this.executeStopProcess(args);
+        } else if (tool === 'system.info' || tool === 'system_info') {
+            return await this.executeSystemInfo(args);
+        } else if (tool === 'system.notify' || tool === 'notify' || tool === 'notification') {
+            return await this.executeNotification(args);
+
+        // === DESKTOP TOOLS ===
         } else if (tool === 'desktop.screenshot' || tool === 'screenshot') {
             return await this.executeScreenshot(args);
-        } else if (tool === 'clipboard_read' || tool === 'clipboard.read') {
-            return await this.executeClipboardRead(args);
-        } else if (tool === 'clipboard_write' || tool === 'clipboard.write') {
-            return await this.executeClipboardWrite(args);
         } else if (tool === 'desktop.mouse_click' || tool === 'mouse_click' || tool === 'mouse.click') {
             return await this.executeMouseClick(args);
         } else if (tool === 'desktop.mouse_move' || tool === 'mouse_move' || tool === 'mouse.move') {
             return await this.executeMouseMove(args);
-        } else if (tool === 'system_info' || tool === 'system.info') {
-            return await this.executeSystemInfo(args);
-        } else if (tool === 'notify' || tool === 'notification') {
-            return await this.executeNotification(args);
-        } else if (tool === 'open_url') {
-            return await this.executeOpenUrl(args);
-        } else if (tool === 'open_file') {
-            return await this.executeOpenFile(args);
-        } else if (tool === 'list_apps' || tool === 'running_apps') {
-            return await this.executeListApps(args);
-        } else if (tool === 'focus_app' || tool === 'activate_app') {
-            return await this.executeFocusApp(args);
         } else if (tool === 'desktop.type_text' || tool === 'type_text' || tool === 'type') {
             return await this.executeTypeText(args);
         } else if (tool === 'desktop.hotkey' || tool === 'hotkey' || tool === 'keyboard_shortcut') {
             return await this.executeHotkey(args);
+
+        // === CLIPBOARD TOOLS ===
+        } else if (tool === 'clipboard.read' || tool === 'clipboard_read') {
+            return await this.executeClipboardRead(args);
+        } else if (tool === 'clipboard.write' || tool === 'clipboard_write') {
+            return await this.executeClipboardWrite(args);
+
+        // === WINDOW TOOLS ===
+        } else if (tool === 'window.list_apps' || tool === 'list_apps' || tool === 'running_apps') {
+            return await this.executeListApps(args);
+        } else if (tool === 'window.focus_app' || tool === 'focus_app' || tool === 'activate_app') {
+            return await this.executeFocusApp(args);
+        } else if (tool === 'window.get_active' || tool === 'get_active_window' || tool === 'active_window') {
+            return await this.executeGetActiveWindow(args);
+        } else if (tool === 'window.manage') {
+            // New consolidated window management tool
+            const action = args.action || 'arrange';
+            if (action === 'resize') {
+                return await this.executeWindowResize(args);
+            } else {
+                return await this.executeWindowArrange(args);
+            }
         } else if (tool === 'window_resize' || tool === 'resize_window') {
             return await this.executeWindowResize(args);
         } else if (tool === 'window_arrange' || tool === 'arrange_windows') {
             return await this.executeWindowArrange(args);
-        } else if (tool === 'get_active_window' || tool === 'active_window') {
-            return await this.executeGetActiveWindow(args);
+
+        // === UI TOOLS ===
+        } else if (tool === 'ui.show_options' || tool === 'show_options') {
+            return await this.executeShowOptions(args);
+        } else if (tool === 'ui.comparison_table' || tool === 'comparison_table') {
+            return await this.executeComparisonTable(args);
+
+        // === LEGACY TOOLS (removed but handle gracefully) ===
+        } else if (tool === 'open_url') {
+            // Deprecated - redirect to workspace.navigate
+            return await this.executeWorkspaceTool('workspace.navigate', { url: args.url });
+        } else if (tool === 'open_file') {
+            // Deprecated - redirect to finder.open_file
+            return await executeMacOSTool('finder.open_file', args);
         } else if (tool === 'dictate' || tool === 'speak' || tool === 'say') {
+            // Deprecated but still handle
             return await this.executeDictate(args);
         } else if (tool === 'play_sound' || tool === 'audio_play') {
+            // Deprecated but still handle
             return await this.executePlaySound(args);
         } else if (tool === 'file_watch' || tool === 'watch_directory') {
+            // Deprecated but still handle
             return await this.executeFileWatch(args);
-        } else if (tool === 'google_command') {
-            // google_command is a wrapper - extract the action from args
+
+        // === GOOGLE TOOLS ===
+        } else if (tool === 'google.command' || tool === 'google_command') {
             const action = args.action || 'google.gmail.list_messages';
             return await this.executeGoogleAction(action, args);
         } else if (tool.startsWith('google.')) {
             return await this.executeGoogleAction(tool, args);
+
+        // === MACOS NATIVE TOOLS ===
         } else if (isMacOSTool(tool)) {
             // macOS AppleScript tools: safari.*, notes.*, mail.*, calendar.*, finder.*, reminders.*
             return await executeMacOSTool(tool, args);
-        } else if (tool === 'ask_user') {
-            // User question tool - pauses execution to ask user a question
-            return await this.executeAskUser(args);
+
+        // === WORKSPACE TOOLS ===
         } else if (tool.startsWith('workspace.')) {
-            // Workspace tools for isolated AI browser
             return await this.executeWorkspaceTool(tool, args);
+
+        // === SPREADSHEET TOOLS ===
         } else if (tool.startsWith('spreadsheet.')) {
-            // Spreadsheet tools for Excel-like data manipulation
             return await this.executeSpreadsheetTool(tool, args);
+
         } else {
             return {
                 success: false,
