@@ -66,6 +66,7 @@ class StubExecutor {
           }
         };
       
+      case 'desktop.screenshot':
       case 'screenshot':
         return {
           status: 'completed',

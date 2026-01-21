@@ -946,15 +946,15 @@ class PullExecutor {
             return await this.executeMonitorProcess(args);
         } else if (tool === 'stop_process') {
             return await this.executeStopProcess(args);
-        } else if (tool === 'screenshot') {
+        } else if (tool === 'desktop.screenshot' || tool === 'screenshot') {
             return await this.executeScreenshot(args);
         } else if (tool === 'clipboard_read' || tool === 'clipboard.read') {
             return await this.executeClipboardRead(args);
         } else if (tool === 'clipboard_write' || tool === 'clipboard.write') {
             return await this.executeClipboardWrite(args);
-        } else if (tool === 'mouse_click' || tool === 'mouse.click') {
+        } else if (tool === 'desktop.mouse_click' || tool === 'mouse_click' || tool === 'mouse.click') {
             return await this.executeMouseClick(args);
-        } else if (tool === 'mouse_move' || tool === 'mouse.move') {
+        } else if (tool === 'desktop.mouse_move' || tool === 'mouse_move' || tool === 'mouse.move') {
             return await this.executeMouseMove(args);
         } else if (tool === 'system_info' || tool === 'system.info') {
             return await this.executeSystemInfo(args);
@@ -968,9 +968,9 @@ class PullExecutor {
             return await this.executeListApps(args);
         } else if (tool === 'focus_app' || tool === 'activate_app') {
             return await this.executeFocusApp(args);
-        } else if (tool === 'type_text' || tool === 'type') {
+        } else if (tool === 'desktop.type_text' || tool === 'type_text' || tool === 'type') {
             return await this.executeTypeText(args);
-        } else if (tool === 'hotkey' || tool === 'keyboard_shortcut') {
+        } else if (tool === 'desktop.hotkey' || tool === 'hotkey' || tool === 'keyboard_shortcut') {
             return await this.executeHotkey(args);
         } else if (tool === 'window_resize' || tool === 'resize_window') {
             return await this.executeWindowResize(args);

@@ -66,7 +66,7 @@ class LocalExecutor {
     // Initialize browser only for actions that need it
     const needsBrowser = (() => {
       const t = action.type;
-      return t === 'browser.open' || t === 'browser.fill' || t === 'browser.click' || t === 'browser.get_text' || t === 'screenshot';
+      return t === 'browser.open' || t === 'browser.fill' || t === 'browser.click' || t === 'browser.get_text' || t === 'desktop.screenshot' || t === 'screenshot';
     })();
     try { console.log('[LocalExecutor] needsBrowser:', needsBrowser); } catch {}
     if (needsBrowser && !this.initialized) {
@@ -95,6 +95,7 @@ class LocalExecutor {
           result = await this.browserClick(args);
           break;
         
+        case 'desktop.screenshot':
         case 'screenshot':
           result = await this.screenshot(args);
           break;
