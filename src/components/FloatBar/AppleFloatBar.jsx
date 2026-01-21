@@ -4491,7 +4491,8 @@ export default function AppleFloatBar({
         recordMessageSent();
 
         // BETA ANALYTICS: Capture full message with context (beta testers only)
-        captureBetaMessageSent({
+        // Returns message_id for correlation with subsequent events
+        const betaMessageId = captureBetaMessageSent({
           message_content: text,
           has_screenshot: !!screenshotData,
           screenshot_size_kb: screenshotData ? Math.round(screenshotData.length / 1024) : null,
@@ -4509,7 +4510,8 @@ export default function AppleFloatBar({
           const pullService = new PullAutonomousService();
           // Pass user-attached image (from drag-drop) to the executor
           // This will take priority over auto-captured screenshots
-          const runTracker = await pullService.execute(text, userContext, screenshotData);
+          // Also pass beta message_id for analytics correlation
+          const runTracker = await pullService.execute(text, userContext, screenshotData, betaMessageId);
 
           // NEW: Handle direct responses (questions, conversations, clarifications)
           // These don't require tool execution - the AI answered directly
@@ -4551,6 +4553,7 @@ export default function AppleFloatBar({
               response_type: 'direct',
               response_time_ms: directResponseTimeMs,
               run_id: null,
+              message_id: betaMessageId, // Correlation with beta_message_full
               is_direct_response: true,
               original_message: text,
             });
@@ -4774,6 +4777,7 @@ export default function AppleFloatBar({
                     response_type: 'task_complete',
                     response_time_ms: pullResponseTimeMs,
                     run_id: runTracker.runId,
+                    message_id: betaMessageId, // Correlation with beta_message_full
                     is_direct_response: false,
                     original_message: text,
                   });

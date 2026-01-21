@@ -159,13 +159,14 @@ class PullAutonomousService {
      * @param {string} message - User message
      * @param {object} context - User context (profile, facts, etc.)
      * @param {string|null} userImage - Optional user-provided image (base64 data URL from drag-drop)
+     * @param {string|null} betaMessageId - Optional message ID for beta analytics correlation
      */
-    async execute(message, context = {}, userImage = null) {
-        logger.info('[PullAutonomous] Starting execution', { message, hasUserImage: !!userImage });
+    async execute(message, context = {}, userImage = null, betaMessageId = null) {
+        logger.info('[PullAutonomous] Starting execution', { message, hasUserImage: !!userImage, betaMessageId });
 
         try {
             // Step 1: Create run via backend
-            const result = await this.createRun(message, context, userImage);
+            const result = await this.createRun(message, context, userImage, betaMessageId);
             
             // NEW: Check if this is a direct response (question/conversation/clarify)
             // These don't create runs - the AI answered directly
@@ -263,8 +264,9 @@ class PullAutonomousService {
      * @param {string} message - User message
      * @param {object} context - User context
      * @param {string|null} userImage - Optional user-provided image (takes priority over auto-capture)
+     * @param {string|null} betaMessageId - Optional message ID for beta analytics correlation
      */
-    async createRun(message, context, userImage = null) {
+    async createRun(message, context, userImage = null, betaMessageId = null) {
         // Get system context from desktop (where files will actually be created)
         const systemContext = await window.executor.getSystemContext();
 
@@ -405,6 +407,7 @@ class PullAutonomousService {
             // BETA ANALYTICS: Capture session context snapshot (beta testers only)
             captureBetaSessionContext({
                 run_id: result.run_id,
+                message_id: betaMessageId, // Correlation ID from beta_message_full event
                 message: message,
                 screenshot_b64: initialScreenshot,
                 google_user_email: googleUserEmail,

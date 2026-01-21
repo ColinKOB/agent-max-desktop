@@ -980,11 +980,16 @@ export function captureBetaEvent(eventName, properties = {}) {
 /**
  * Capture full message sent by user (beta testers only)
  * @param {object} data - Message data
+ * @returns {string} message_id for correlation with subsequent events
  */
 export function captureBetaMessageSent(data) {
-  if (!isBetaAnalyticsEnabled()) return;
+  if (!isBetaAnalyticsEnabled()) return null;
 
   betaSessionMessageIndex++;
+
+  // Generate a unique message ID for correlation
+  // This links the message to the run that follows
+  const messageId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
   const { text: messageContent, truncated: messageTruncated, fullLength: messageFullLength } =
     truncateText(data.message_content);
@@ -998,6 +1003,9 @@ export function captureBetaMessageSent(data) {
     }));
 
   captureBetaEvent(AnalyticsEvents.BETA_MESSAGE_FULL, {
+    // Correlation ID - use this to link message to run
+    message_id: messageId,
+
     // Message content
     message_content: messageContent,
     message_truncated: messageTruncated,
@@ -1023,6 +1031,8 @@ export function captureBetaMessageSent(data) {
     has_semantic_context: !!data.user_context?.semantic_context,
     context_keys: data.context_keys || [],
   });
+
+  return messageId;
 }
 
 /**
@@ -1036,6 +1046,10 @@ export function captureBetaAIResponse(data) {
     truncateText(data.response_content);
 
   captureBetaEvent(AnalyticsEvents.BETA_AI_RESPONSE_FULL, {
+    // Correlation IDs
+    run_id: data.run_id || null,
+    message_id: data.message_id || null, // Links to beta_message_full event
+
     // Response content
     response_content: responseContent,
     response_truncated: responseTruncated,
@@ -1047,7 +1061,6 @@ export function captureBetaAIResponse(data) {
     tokens_used: data.tokens_used || null,
 
     // Run info
-    run_id: data.run_id || null,
     is_direct_response: data.is_direct_response || false,
 
     // Correlation
@@ -1130,7 +1143,9 @@ export function captureBetaSessionContext(data) {
     truncateText(data.message || '');
 
   captureBetaEvent(AnalyticsEvents.BETA_SESSION_CONTEXT, {
+    // Correlation IDs
     run_id: data.run_id,
+    message_id: data.message_id || null, // Links to beta_message_full event
 
     // Message
     message_content: messageContent,
