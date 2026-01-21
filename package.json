@@ -1,6 +1,6 @@
 {
   "name": "agent-max-desktop",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "Desktop application for Agent Max Memory System V2",
   "main": "electron/main/main.cjs",
   "author": "Colin O'Brien",
