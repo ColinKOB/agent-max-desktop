@@ -1,3 +1,14 @@
+// Load environment variables from .env file first
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
+// Also try .env.production if we're in production mode
+if (process.env.NODE_ENV === 'production' || require('electron').app.isPackaged) {
+  require('dotenv').config({
+    path: path.resolve(__dirname, '..', '..', '.env.production'),
+    override: false // Don't override existing vars
+  });
+}
+
 const {
   app,
   BrowserWindow,
@@ -11,7 +22,6 @@ const {
   clipboard,
   desktopCapturer,
 } = require('electron');
-const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const os = require('os');

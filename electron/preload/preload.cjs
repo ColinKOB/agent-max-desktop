@@ -231,6 +231,28 @@ contextBridge.exposeInMainWorld('posthog', {
       console.error('[PostHog Bridge] Failed to flush:', e);
     }
   },
+  // Beta analytics methods
+  setBetaEnabled: (enabled) => {
+    try {
+      ipcRenderer.invoke('posthog:set-beta-enabled', { enabled });
+    } catch (e) {
+      console.error('[PostHog Bridge] Failed to set beta enabled:', e);
+    }
+  },
+  betaToolExecution: (data) => {
+    try {
+      ipcRenderer.invoke('posthog:beta-tool-execution', data);
+    } catch (e) {
+      console.error('[PostHog Bridge] Failed to capture beta tool execution:', e);
+    }
+  },
+  betaToolResult: (data) => {
+    try {
+      ipcRenderer.invoke('posthog:beta-tool-result', data);
+    } catch (e) {
+      console.error('[PostHog Bridge] Failed to capture beta tool result:', e);
+    }
+  },
 });
 
 // Legacy Sentry bridge for backwards compatibility (redirects to PostHog)

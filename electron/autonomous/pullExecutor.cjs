@@ -602,7 +602,23 @@ class PullExecutor {
                         };
                     }
                 }
-                
+
+                // BETA ANALYTICS: Capture tool execution start (beta testers only)
+                if (analytics?.captureBetaToolExecution) {
+                    analytics.captureBetaToolExecution({
+                        run_id: this.currentRunId,
+                        step_index: this.stepResults.length,
+                        step_id: step.step_id,
+                        tool_name: step.tool_name || step.tool,
+                        tool_args: step.args,
+                        tool_description: step.description,
+                        attempt_number: attempt,
+                        max_attempts: maxRetries,
+                        user_request: this.userContext?.userRequest,
+                        intent: this.userContext?.intent,
+                    });
+                }
+
                 const result = await this.executeStep(resolvedStep, timeoutSec);
 
                 if (result.success) {
@@ -634,6 +650,26 @@ class PullExecutor {
                             stepId: step.step_id,
                             attemptsBeforeSuccess: attempt,
                             recoveryMethod: 'retry_with_adaptive_args',
+                        });
+                    }
+
+                    // BETA ANALYTICS: Capture successful tool result (beta testers only)
+                    if (analytics?.captureBetaToolResult) {
+                        analytics.captureBetaToolResult({
+                            run_id: this.currentRunId,
+                            step_id: step.step_id,
+                            tool_name: step.tool_name || step.tool,
+                            success: true,
+                            exit_code: result.exit_code,
+                            stdout: result.stdout,
+                            stderr: result.stderr,
+                            error_message: null,
+                            execution_time_ms: executionTime,
+                            attempt_number: attempt,
+                            recovered: attempt > 1,
+                            recovery_method: attempt > 1 ? 'retry_with_adaptive_args' : null,
+                            has_screenshot: !!result.screenshot_b64,
+                            screenshot_size_kb: result.screenshot_b64 ? Math.round(result.screenshot_b64.length / 1024) : null,
                         });
                     }
 
@@ -735,6 +771,27 @@ class PullExecutor {
         }
 
         const executionTime = Date.now() - startTime;
+
+        // BETA ANALYTICS: Capture final failed tool result (beta testers only)
+        if (analytics?.captureBetaToolResult) {
+            analytics.captureBetaToolResult({
+                run_id: this.currentRunId,
+                step_id: step.step_id,
+                tool_name: step.tool_name || step.tool,
+                success: false,
+                exit_code: -1,
+                stdout: null,
+                stderr: null,
+                error_message: lastError,
+                execution_time_ms: executionTime,
+                attempt_number: maxRetries,
+                recovered: false,
+                recovery_method: null,
+                has_screenshot: false,
+                screenshot_size_kb: null,
+            });
+        }
+
         return {
             success: false,
             error: lastError,

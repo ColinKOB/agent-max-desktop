@@ -22,6 +22,8 @@ import {
   setUserProperties,
   setUserPropertiesOnce,
   trackDailyActive,
+  isBetaAnalyticsEnabled,
+  initializeBetaRecording,
 } from './services/analytics';
 
 const logger = createLogger('App');
@@ -39,6 +41,13 @@ function App({ windowMode = 'single' }) {
     // Initialize PostHog analytics
     initializeAnalytics();
     trackPageViewed('app_main');
+
+    // Initialize beta analytics (always enabled during beta period)
+    // Syncs state to main process for tool tracking
+    if (window.posthog?.setBetaEnabled) {
+      window.posthog.setBetaEnabled(true);
+    }
+    initializeBetaRecording();
 
     // Start session tracking
     const isReturningUser = localStorage.getItem('onboarding_completed') === 'true';

@@ -107,6 +107,13 @@ import {
   recordMessageSent,
   recordActivity,
   setUserProperties,
+  // Beta analytics
+  captureBetaMessageSent,
+  captureBetaAIResponse,
+  captureBetaAskUser,
+  isBetaAnalyticsEnabled,
+  initializeBetaRecording,
+  resetBetaSessionCounter,
 } from '../../services/analytics';
 import ExecutionProgress from '../ExecutionProgress/ExecutionProgress';
 import LiveActivityFeed from '../LiveActivityFeed/LiveActivityFeed';
@@ -4478,6 +4485,26 @@ export default function AppleFloatBar({
         // NEW: Pull-based execution
         console.log('[FloatBar] Using PULL execution (Phase 2)', { hasUserImage: !!screenshotData });
 
+        // Track message sent for pull execution (analytics)
+        const pullMessageSentAt = Date.now();
+        trackMessageSent(text?.length || 0, !!screenshotData);
+        recordMessageSent();
+
+        // BETA ANALYTICS: Capture full message with context (beta testers only)
+        captureBetaMessageSent({
+          message_content: text,
+          has_screenshot: !!screenshotData,
+          screenshot_size_kb: screenshotData ? Math.round(screenshotData.length / 1024) : null,
+          conversation_length: thoughts.length,
+          recent_messages: thoughts.slice(-5).map(t => ({ role: t.role, content: t.content })),
+          active_tools: {
+            spreadsheet: window.spreadsheet ? { active: true } : null,
+            workspace: window.workspace ? { active: true } : null,
+          },
+          user_context: userContext,
+          context_keys: Object.keys(userContext).filter(k => userContext[k] != null),
+        });
+
         try {
           const pullService = new PullAutonomousService();
           // Pass user-attached image (from drag-drop) to the executor
@@ -4513,6 +4540,20 @@ export default function AppleFloatBar({
                 timestamp: directMsgTimestamp,
               },
             ]);
+
+            // Track message received for direct responses (analytics)
+            const directResponseTimeMs = Date.now() - pullMessageSentAt;
+            trackMessageReceived(directResponseTimeMs, runTracker.response?.length || 0);
+
+            // BETA ANALYTICS: Capture full AI response (beta testers only)
+            captureBetaAIResponse({
+              response_content: runTracker.response,
+              response_type: 'direct',
+              response_time_ms: directResponseTimeMs,
+              run_id: null,
+              is_direct_response: true,
+              original_message: text,
+            });
 
             return; // Done - no need to poll or track execution
           }
@@ -4550,6 +4591,9 @@ export default function AppleFloatBar({
             // so we don't need to add it as a separate assistant message
 
             setThinkingStatus('Working...');
+
+            // Track execution started (analytics) - runId, mode
+            trackExecutionStarted(runTracker.runId, 'autonomous');
 
             // Initialize activity feed with the intent
             clearActivityLog();
@@ -4717,8 +4761,28 @@ export default function AppleFloatBar({
                       timestamp: msgTimestamp,
                     },
                   ]);
+
+                  // Track message received for pull execution completion (analytics)
+                  const pullResponseTimeMs = Date.now() - pullMessageSentAt;
+                  trackMessageReceived(pullResponseTimeMs, finalMessage?.length || 0);
+                  // trackExecutionCompleted: runId, durationMs, stepsCompleted
+                  trackExecutionCompleted(runTracker.runId, pullResponseTimeMs, status.currentStep || 0);
+
+                  // BETA ANALYTICS: Capture full AI response (beta testers only)
+                  captureBetaAIResponse({
+                    response_content: finalMessage,
+                    response_type: 'task_complete',
+                    response_time_ms: pullResponseTimeMs,
+                    run_id: runTracker.runId,
+                    is_direct_response: false,
+                    original_message: text,
+                  });
                 } else {
                   console.warn('[FloatBar] No final message found in status!');
+                  // Still track completion even without message
+                  const pullResponseTimeMs = Date.now() - pullMessageSentAt;
+                  // trackExecutionCompleted: runId, durationMs, stepsCompleted
+                  trackExecutionCompleted(runTracker.runId, pullResponseTimeMs, status.currentStep || 0);
                 }
 
                 toast.success('Task completed', { duration: 3000 });
@@ -4734,6 +4798,9 @@ export default function AppleFloatBar({
                       : s
                   )
                 );
+
+                // Track execution failed (analytics) - runId, error, stepFailed
+                trackExecutionFailed(runTracker.runId, status.error || 'Task failed', status.currentStep || 0);
 
                 toast.error('Task failed', { duration: 4000 });
               } else if (status.status === 'waiting_for_user') {

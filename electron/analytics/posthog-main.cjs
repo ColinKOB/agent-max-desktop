@@ -237,6 +237,111 @@ function captureToolRecovery(data) {
   });
 }
 
+// ============================================
+// BETA ANALYTICS - Detailed tracking for all users during beta period
+// ============================================
+
+// Beta analytics always enabled during beta period
+let betaAnalyticsEnabled = true;
+
+/**
+ * Set beta analytics enabled state (kept for IPC compatibility)
+ */
+function setBetaAnalyticsEnabled(enabled) {
+  // During beta period, always keep enabled
+  betaAnalyticsEnabled = true;
+  log.info('[PostHog] Beta analytics enabled (always on during beta period)');
+}
+
+/**
+ * Truncate text for beta events
+ */
+function truncateBetaText(text, maxBytes = 10240) {
+  if (!text || typeof text !== 'string') return { text: '', truncated: false, fullLength: 0 };
+  const fullLength = text.length;
+  if (text.length <= maxBytes) {
+    return { text, truncated: false, fullLength };
+  }
+  return {
+    text: text.substring(0, maxBytes) + '...[TRUNCATED]',
+    truncated: true,
+    fullLength
+  };
+}
+
+/**
+ * Capture beta tool execution start
+ * Full args and context for debugging
+ */
+function captureBetaToolExecution(data) {
+  if (!enabled || !betaAnalyticsEnabled) return;
+
+  const { text: argsJson, truncated: argsTruncated, fullLength: argsFullLength } =
+    truncateBetaText(JSON.stringify(data.tool_args || {}));
+
+  capture('beta_tool_execution', {
+    beta_tracking: true,
+    run_id: data.run_id,
+    step_index: data.step_index,
+    step_id: data.step_id,
+    tool_name: data.tool_name,
+    tool_args_json: argsJson,
+    tool_args_truncated: argsTruncated,
+    tool_args_full_length: argsFullLength,
+    tool_description: data.tool_description || null,
+    attempt_number: data.attempt_number || 1,
+    max_attempts: data.max_attempts || 3,
+    user_request: (data.user_request || '').substring(0, 200),
+    intent: (data.intent || '').substring(0, 200),
+    os: process.platform,
+    app_version: app.getVersion(),
+  });
+
+  log.info('[PostHog] Beta tool execution captured:', {
+    tool: data.tool_name,
+    runId: data.run_id,
+  });
+}
+
+/**
+ * Capture beta tool result
+ * Full stdout/stderr for debugging
+ */
+function captureBetaToolResult(data) {
+  if (!enabled || !betaAnalyticsEnabled) return;
+
+  const { text: stdout, truncated: stdoutTruncated } = truncateBetaText(data.stdout || '');
+  const { text: stderr, truncated: stderrTruncated } = truncateBetaText(data.stderr || '');
+
+  capture('beta_tool_result', {
+    beta_tracking: true,
+    run_id: data.run_id,
+    step_id: data.step_id,
+    tool_name: data.tool_name,
+    success: data.success,
+    exit_code: data.exit_code,
+    stdout: stdout,
+    stdout_truncated: stdoutTruncated,
+    stderr: stderr,
+    stderr_truncated: stderrTruncated,
+    error_message: data.error_message || null,
+    execution_time_ms: data.execution_time_ms || null,
+    attempt_number: data.attempt_number || 1,
+    recovered: data.recovered || false,
+    recovery_method: data.recovery_method || null,
+    has_screenshot: data.has_screenshot || false,
+    screenshot_size_kb: data.screenshot_size_kb || null,
+    os: process.platform,
+    app_version: app.getVersion(),
+  });
+
+  log.info('[PostHog] Beta tool result captured:', {
+    tool: data.tool_name,
+    success: data.success,
+    runId: data.run_id,
+  });
+}
+
 /**
  * Identify a user (when they sign in)
  */
@@ -369,6 +474,22 @@ function registerIPCHandlers() {
     return { success: true };
   });
 
+  // Beta analytics handlers
+  ipcMain.handle('posthog:set-beta-enabled', async (event, { enabled }) => {
+    setBetaAnalyticsEnabled(enabled);
+    return { success: true };
+  });
+
+  ipcMain.handle('posthog:beta-tool-execution', async (event, data) => {
+    captureBetaToolExecution(data);
+    return { success: true };
+  });
+
+  ipcMain.handle('posthog:beta-tool-result', async (event, data) => {
+    captureBetaToolResult(data);
+    return { success: true };
+  });
+
   log.info('[PostHog] IPC handlers registered');
 }
 
@@ -404,4 +525,8 @@ module.exports = {
   shutdown,
   setupLifecycleTracking,
   getDistinctId,
+  // Beta analytics
+  setBetaAnalyticsEnabled,
+  captureBetaToolExecution,
+  captureBetaToolResult,
 };

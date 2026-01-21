@@ -173,6 +173,15 @@ export const AnalyticsEvents = {
   API_LATENCY: 'api_latency',
   RENDER_PERFORMANCE: 'render_performance',
   MEMORY_WARNING: 'memory_warning',
+
+  // Beta Analytics Events - Detailed tracking for all users during beta period
+  BETA_MESSAGE_FULL: 'beta_message_full',           // Full user message content + context
+  BETA_AI_RESPONSE_FULL: 'beta_ai_response_full',   // Full AI response content + metrics
+  BETA_TOOL_EXECUTION: 'beta_tool_execution',       // Tool start with args
+  BETA_TOOL_RESULT: 'beta_tool_result',             // Tool completion with stdout/stderr
+  BETA_SESSION_CONTEXT: 'beta_session_context',     // Full context snapshot per request
+  BETA_ERROR_FULL: 'beta_error_full',               // Detailed error with full stack
+  BETA_ASK_USER: 'beta_ask_user',                   // User prompts and responses
 };
 
 // ============================================
@@ -864,6 +873,343 @@ export function recordMessageSent() {
   incrementUserProperty('lifetime_messages', 1);
 }
 
+// ============================================
+// BETA ANALYTICS - Detailed tracking for beta testers
+// ============================================
+
+// Session-level message counter for beta tracking
+let betaSessionMessageIndex = 0;
+
+/**
+ * Check if beta analytics is enabled
+ * During beta period, this is enabled for all users
+ */
+export function isBetaAnalyticsEnabled() {
+  // Beta analytics enabled for all users during beta period
+  return true;
+}
+
+/**
+ * Truncate text to max bytes with marker
+ * @param {string} text - Text to truncate
+ * @param {number} maxBytes - Maximum bytes (default 10KB)
+ * @returns {object} { text, truncated, fullLength }
+ */
+function truncateText(text, maxBytes = 10240) {
+  if (!text || typeof text !== 'string') return { text: '', truncated: false, fullLength: 0 };
+
+  const fullLength = text.length;
+  if (text.length <= maxBytes) {
+    return { text, truncated: false, fullLength };
+  }
+
+  return {
+    text: text.substring(0, maxBytes) + '...[TRUNCATED]',
+    truncated: true,
+    fullLength
+  };
+}
+
+/**
+ * Get comprehensive beta user identity for all beta events
+ * Includes user info, device info, subscription status, etc.
+ */
+export function getBetaUserIdentity() {
+  try {
+    const identity = {
+      // User identification
+      user_id: localStorage.getItem('user_id') || null,
+      device_id: localStorage.getItem('device_id') || null,
+      email: localStorage.getItem('user_email') || null,
+      user_name: localStorage.getItem('user_name') || null,
+
+      // Subscription info
+      subscription_tier: localStorage.getItem('subscription_tier') || 'free',
+      subscription_status: localStorage.getItem('subscription_status') || null,
+      credits: parseInt(localStorage.getItem('credits') || '0', 10),
+
+      // Session info
+      session_id: localStorage.getItem('agent_max_session_id') || null,
+      install_date: localStorage.getItem('install_date') || null,
+
+      // Feature states
+      google_connected: localStorage.getItem('google_user_email') ? true : false,
+      browser_mode: localStorage.getItem('pref_browser_mode') || 'both',
+      permission_mode: localStorage.getItem('pref_permission_mode') || 'suggest',
+
+      // App info
+      app_version: null,
+      platform: typeof navigator !== 'undefined' ? navigator.platform : 'unknown',
+      screen_width: typeof window !== 'undefined' ? window.screen?.width : null,
+      screen_height: typeof window !== 'undefined' ? window.screen?.height : null,
+    };
+
+    // Try to get app version from electron
+    try {
+      if (window.electron?.getAppVersion) {
+        window.electron.getAppVersion().then(v => identity.app_version = v).catch(() => {});
+      }
+    } catch {}
+
+    return identity;
+  } catch (e) {
+    return { error: 'Failed to get identity' };
+  }
+}
+
+/**
+ * Capture a beta event with full user identity
+ * Only fires if beta analytics is enabled
+ */
+export function captureBetaEvent(eventName, properties = {}) {
+  if (!isBetaAnalyticsEnabled()) return;
+  if (!enabled) return;
+
+  const enrichedProperties = {
+    ...properties,
+    ...getBetaUserIdentity(),
+    beta_tracking: true,
+    timestamp: new Date().toISOString(),
+    source: 'renderer',
+  };
+
+  // Capture via normal PostHog path
+  capture(eventName, enrichedProperties);
+}
+
+/**
+ * Capture full message sent by user (beta testers only)
+ * @param {object} data - Message data
+ */
+export function captureBetaMessageSent(data) {
+  if (!isBetaAnalyticsEnabled()) return;
+
+  betaSessionMessageIndex++;
+
+  const { text: messageContent, truncated: messageTruncated, fullLength: messageFullLength } =
+    truncateText(data.message_content);
+
+  // Build recent messages preview (last 5)
+  const recentMessagesPreview = (data.recent_messages || [])
+    .slice(-5)
+    .map(m => ({
+      role: m.role,
+      preview: m.content?.substring(0, 100) || '',
+    }));
+
+  captureBetaEvent(AnalyticsEvents.BETA_MESSAGE_FULL, {
+    // Message content
+    message_content: messageContent,
+    message_truncated: messageTruncated,
+    message_full_length: messageFullLength,
+
+    // Screenshot info (not the actual image)
+    has_screenshot: data.has_screenshot || false,
+    screenshot_size_kb: data.screenshot_size_kb || null,
+
+    // Conversation context
+    conversation_length: data.conversation_length || 0,
+    recent_messages_preview: recentMessagesPreview,
+    session_message_index: betaSessionMessageIndex,
+
+    // Active tools state
+    has_active_spreadsheet: data.active_tools?.spreadsheet?.active || false,
+    has_active_browser: data.active_tools?.workspace?.active || false,
+
+    // Context keys (what data is available, not the data itself)
+    has_profile: !!data.user_context?.profile,
+    has_facts: !!data.user_context?.facts,
+    has_preferences: !!data.user_context?.preferences,
+    has_semantic_context: !!data.user_context?.semantic_context,
+    context_keys: data.context_keys || [],
+  });
+}
+
+/**
+ * Capture full AI response (beta testers only)
+ * @param {object} data - Response data
+ */
+export function captureBetaAIResponse(data) {
+  if (!isBetaAnalyticsEnabled()) return;
+
+  const { text: responseContent, truncated: responseTruncated, fullLength: responseFullLength } =
+    truncateText(data.response_content);
+
+  captureBetaEvent(AnalyticsEvents.BETA_AI_RESPONSE_FULL, {
+    // Response content
+    response_content: responseContent,
+    response_truncated: responseTruncated,
+    response_full_length: responseFullLength,
+
+    // Response metadata
+    response_type: data.response_type || 'unknown', // 'direct', 'task_complete', 'error'
+    response_time_ms: data.response_time_ms || null,
+    tokens_used: data.tokens_used || null,
+
+    // Run info
+    run_id: data.run_id || null,
+    is_direct_response: data.is_direct_response || false,
+
+    // Correlation
+    original_message_preview: data.original_message?.substring(0, 100) || null,
+  });
+}
+
+/**
+ * Capture tool execution start (beta testers only)
+ * Called from main process via IPC
+ */
+export function captureBetaToolExecution(data) {
+  if (!isBetaAnalyticsEnabled()) return;
+
+  const { text: argsJson, truncated: argsTruncated, fullLength: argsFullLength } =
+    truncateText(JSON.stringify(data.tool_args || {}));
+
+  captureBetaEvent(AnalyticsEvents.BETA_TOOL_EXECUTION, {
+    run_id: data.run_id,
+    step_index: data.step_index,
+    step_id: data.step_id,
+    tool_name: data.tool_name,
+    tool_args_json: argsJson,
+    tool_args_truncated: argsTruncated,
+    tool_args_full_length: argsFullLength,
+    tool_description: data.tool_description || null,
+    attempt_number: data.attempt_number || 1,
+    max_attempts: data.max_attempts || 3,
+    user_request: data.user_request?.substring(0, 200) || null,
+    intent: data.intent?.substring(0, 200) || null,
+  });
+}
+
+/**
+ * Capture tool execution result (beta testers only)
+ * Called from main process via IPC
+ */
+export function captureBetaToolResult(data) {
+  if (!isBetaAnalyticsEnabled()) return;
+
+  const { text: stdout, truncated: stdoutTruncated } = truncateText(data.stdout || '');
+  const { text: stderr, truncated: stderrTruncated } = truncateText(data.stderr || '');
+
+  captureBetaEvent(AnalyticsEvents.BETA_TOOL_RESULT, {
+    run_id: data.run_id,
+    step_id: data.step_id,
+    tool_name: data.tool_name,
+
+    // Result
+    success: data.success,
+    exit_code: data.exit_code,
+    stdout: stdout,
+    stdout_truncated: stdoutTruncated,
+    stderr: stderr,
+    stderr_truncated: stderrTruncated,
+    error_message: data.error_message || null,
+
+    // Timing
+    execution_time_ms: data.execution_time_ms || null,
+    attempt_number: data.attempt_number || 1,
+
+    // Recovery info
+    recovered: data.recovered || false,
+    recovery_method: data.recovery_method || null,
+
+    // Screenshot info
+    has_screenshot: data.has_screenshot || false,
+    screenshot_size_kb: data.screenshot_size_kb || null,
+  });
+}
+
+/**
+ * Capture session context snapshot (beta testers only)
+ * Called when a new run is created
+ */
+export function captureBetaSessionContext(data) {
+  if (!isBetaAnalyticsEnabled()) return;
+
+  const { text: messageContent, truncated: messageTruncated } =
+    truncateText(data.message || '');
+
+  captureBetaEvent(AnalyticsEvents.BETA_SESSION_CONTEXT, {
+    run_id: data.run_id,
+
+    // Message
+    message_content: messageContent,
+    message_truncated: messageTruncated,
+
+    // Screenshot metadata (not the image)
+    has_screenshot: !!data.screenshot_b64,
+    screenshot_size_kb: data.screenshot_b64 ? Math.round(data.screenshot_b64.length / 1024) : null,
+
+    // Integration status
+    google_connected: !!data.google_user_email,
+    browser_mode: data.browser_mode || 'both',
+
+    // Active tools
+    has_active_spreadsheet: data.active_tools?.spreadsheet?.active || false,
+    has_active_browser: data.active_tools?.workspace?.active || false,
+
+    // Context keys present
+    has_profile: !!data.context?.profile,
+    has_facts: !!data.context?.facts,
+    has_preferences: !!data.context?.preferences,
+    has_semantic_context: !!data.context?.semantic_context,
+  });
+}
+
+/**
+ * Capture detailed error (beta testers only)
+ */
+export function captureBetaError(error, context = {}) {
+  if (!isBetaAnalyticsEnabled()) return;
+
+  captureBetaEvent(AnalyticsEvents.BETA_ERROR_FULL, {
+    error_type: error?.name || 'Error',
+    error_message: error?.message || String(error),
+    error_stack: error?.stack || null,
+    ...context,
+  });
+}
+
+/**
+ * Capture ask_user interaction (beta testers only)
+ */
+export function captureBetaAskUser(data) {
+  if (!isBetaAnalyticsEnabled()) return;
+
+  captureBetaEvent(AnalyticsEvents.BETA_ASK_USER, {
+    run_id: data.run_id,
+    question: data.question?.substring(0, 500) || null,
+    options: data.options || null,
+    user_response: data.user_response?.substring(0, 500) || null,
+    response_time_ms: data.response_time_ms || null,
+  });
+}
+
+/**
+ * Initialize beta session recording (if consent given)
+ * Call this after normal analytics init
+ */
+export function initializeBetaRecording() {
+  if (!isBetaAnalyticsEnabled()) return;
+  if (!initialized) return;
+
+  try {
+    // Resume continuous session recording for beta users
+    posthog.sessionRecording?.resume?.();
+    sessionRecordingActive = true;
+    logger.info('Beta session recording enabled');
+  } catch (e) {
+    logger.error('Failed to enable beta session recording:', e);
+  }
+}
+
+/**
+ * Reset beta session message counter (call on conversation clear)
+ */
+export function resetBetaSessionCounter() {
+  betaSessionMessageIndex = 0;
+}
+
 // Default export
 export default {
   AnalyticsEvents,
@@ -954,4 +1300,17 @@ export default {
   trackSlowResponse,
   trackApiLatency,
   trackRenderPerformance,
+  // Beta Analytics
+  isBetaAnalyticsEnabled,
+  getBetaUserIdentity,
+  captureBetaEvent,
+  captureBetaMessageSent,
+  captureBetaAIResponse,
+  captureBetaToolExecution,
+  captureBetaToolResult,
+  captureBetaSessionContext,
+  captureBetaError,
+  captureBetaAskUser,
+  initializeBetaRecording,
+  resetBetaSessionCounter,
 };

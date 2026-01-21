@@ -10,6 +10,7 @@
 import { logger } from './logger';
 import apiConfigManager from '../config/apiConfig';
 import useStore from '../store/useStore';
+import { captureBetaSessionContext } from './analytics';
 
 class PullAutonomousService {
     constructor() {
@@ -400,8 +401,25 @@ class PullAutonomousService {
             }
 
             logger.info('[PullAutonomous] ✓ Run created successfully', { runId: result.run_id });
+
+            // BETA ANALYTICS: Capture session context snapshot (beta testers only)
+            captureBetaSessionContext({
+                run_id: result.run_id,
+                message: message,
+                screenshot_b64: initialScreenshot,
+                google_user_email: googleUserEmail,
+                browser_mode: browserMode,
+                active_tools: activeTools,
+                context: {
+                    profile: context?.profile,
+                    facts: context?.facts,
+                    preferences: context?.preferences,
+                    semantic_context: context?.semantic_context,
+                },
+            });
+
             return result;
-            
+
         } catch (error) {
             logger.error('[PullAutonomous] Failed to create run', { error: error.message });
             throw error;

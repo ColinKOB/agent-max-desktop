@@ -455,6 +455,91 @@ function start() {
         return;
       }
 
+      // Set localStorage value (for testing configuration)
+      if (pathname === '/set-storage' && req.method === 'POST') {
+        const body = await readBody(req);
+        const { key, value } = JSON.parse(body);
+
+        if (!key) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: 'key is required' }));
+          return;
+        }
+
+        if (mainWindow) {
+          try {
+            await mainWindow.webContents.executeJavaScript(`
+              localStorage.setItem(${JSON.stringify(key)}, ${JSON.stringify(value)});
+            `);
+            console.log(`[TestingAPI] Set localStorage: ${key} = ${value}`);
+            res.writeHead(200);
+            res.end(JSON.stringify({ success: true, key, value }));
+          } catch (err) {
+            res.writeHead(500);
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        } else {
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: 'Window not available' }));
+        }
+        return;
+      }
+
+      // Get localStorage value
+      if (pathname === '/get-storage' && req.method === 'GET') {
+        const key = url.searchParams.get('key');
+
+        if (!key) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: 'key query param is required' }));
+          return;
+        }
+
+        if (mainWindow) {
+          try {
+            const value = await mainWindow.webContents.executeJavaScript(`
+              localStorage.getItem(${JSON.stringify(key)})
+            `);
+            res.writeHead(200);
+            res.end(JSON.stringify({ key, value }));
+          } catch (err) {
+            res.writeHead(500);
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        } else {
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: 'Window not available' }));
+        }
+        return;
+      }
+
+      // Execute arbitrary JavaScript (for testing only)
+      if (pathname === '/execute-js' && req.method === 'POST') {
+        const body = await readBody(req);
+        const { code } = JSON.parse(body);
+
+        if (!code) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: 'code is required' }));
+          return;
+        }
+
+        if (mainWindow) {
+          try {
+            const result = await mainWindow.webContents.executeJavaScript(code);
+            res.writeHead(200);
+            res.end(JSON.stringify({ success: true, result }));
+          } catch (err) {
+            res.writeHead(500);
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        } else {
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: 'Window not available' }));
+        }
+        return;
+      }
+
       // Not found
       res.writeHead(404);
       res.end(JSON.stringify({ error: 'Not found', path: pathname }))
