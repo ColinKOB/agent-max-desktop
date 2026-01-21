@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { TUTORIAL_STEPS, TOTAL_STEPS } from './tutorialSteps';
+import { trackTutorialStarted, trackTutorialCompleted, trackTutorialSkipped } from '../../services/analytics';
 import './AppTutorial.css';
 
 function AppTutorial({ onComplete, isExpanded }) {
@@ -22,8 +23,11 @@ function AppTutorial({ onComplete, isExpanded }) {
   const [waitingForExpand, setWaitingForExpand] = useState(false);
   const observerRef = useRef(null);
 
-  // Resize window to be larger during tutorial for better UX
+  // Track tutorial start and resize window
   useEffect(() => {
+    // Track that tutorial started
+    trackTutorialStarted();
+
     const resizeForTutorial = async () => {
       try {
         // Small delay to ensure window is ready
@@ -249,16 +253,18 @@ function AppTutorial({ onComplete, isExpanded }) {
   }, [currentStep]);
 
   const skipTutorial = useCallback(() => {
+    trackTutorialSkipped(currentStep);
     localStorage.setItem('tutorial_completed', 'true');
     localStorage.setItem('tutorial_skipped', 'true');
     onComplete?.();
-  }, [onComplete]);
+  }, [onComplete, currentStep]);
 
   const completeTutorial = useCallback(() => {
+    trackTutorialCompleted(totalVisibleSteps);
     localStorage.setItem('tutorial_completed', 'true');
     localStorage.setItem('tutorial_completed_at', new Date().toISOString());
     onComplete?.();
-  }, [onComplete]);
+  }, [onComplete, totalVisibleSteps]);
 
   // Render overlay with spotlight cutout
   const renderOverlay = () => {

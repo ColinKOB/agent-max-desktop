@@ -90,7 +90,23 @@ import {
   trackChatError,
   trackExecutionStarted,
   trackExecutionCompleted,
-  trackExecutionFailed
+  trackExecutionFailed,
+  trackWindowExpanded,
+  trackWindowMinimized,
+  trackSettingsOpened,
+  trackConversationCleared,
+  trackConversationStopped,
+  trackContextFullWarning,
+  trackCodeBlockCopied,
+  trackResponseCopied,
+  trackImageAttached,
+  trackSlowResponse,
+  trackFeatureUsed,
+  trackCreditsLowWarning,
+  trackCreditsDepleted,
+  recordMessageSent,
+  recordActivity,
+  setUserProperties,
 } from '../../services/analytics';
 import ExecutionProgress from '../ExecutionProgress/ExecutionProgress';
 import LiveActivityFeed from '../LiveActivityFeed/LiveActivityFeed';
@@ -1043,6 +1059,9 @@ export default function AppleFloatBar({
   const handleStopAll = useCallback(async () => {
     logger.info('[Stop] User requested full stop');
 
+    // Track conversation stopped
+    trackConversationStopped('user_action');
+
     // IMMEDIATELY reset UI state - don't wait for async operations
     // This ensures the UI always responds to stop, even if backend calls hang
     setIsThinking(false);
@@ -1955,6 +1974,10 @@ export default function AppleFloatBar({
     setIsMini(false);
     isMiniRef.current = false;
 
+    // Track window expansion
+    trackWindowExpanded('mini');
+    recordActivity();
+
     // Pre-warm connections while UI is transitioning (non-blocking)
     warmConnections();
 
@@ -2063,6 +2086,10 @@ export default function AppleFloatBar({
 
   const handleCollapse = useCallback(async () => {
     setIsTransitioning(true);
+
+    // Track window minimization
+    trackWindowMinimized('mini');
+
     if (resizeDebounceRef.current) {
       clearTimeout(resizeDebounceRef.current);
       resizeDebounceRef.current = null;
@@ -2276,8 +2303,9 @@ export default function AppleFloatBar({
     let totalOutputTokens = 0;
     const messageSentAt = Date.now();
 
-    // Track message sent
+    // Track message sent with enhanced analytics
     trackMessageSent(text?.length || 0, !!screenshotData);
+    recordMessageSent(); // Also records to session tracking
 
     // FIX: Ensure session_id exists before sending chat message
     let sessionId = localStorage.getItem('session_id');
@@ -3071,6 +3099,11 @@ export default function AppleFloatBar({
           const responseTimeMs = Date.now() - messageSentAt;
           trackMessageReceived(responseTimeMs, totalOutputTokens);
 
+          // Track slow responses (over 10 seconds)
+          if (responseTimeMs > 10000) {
+            trackSlowResponse(responseTimeMs, 10000);
+          }
+
           // Check for execution_steps in the response (from non-streaming chat endpoint)
           // This provides user-friendly progress display like "✅ Getting started", "✅ Checked your calendar"
           if (d.execution_steps && Array.isArray(d.execution_steps) && d.execution_steps.length > 0) {
@@ -3682,6 +3715,8 @@ export default function AppleFloatBar({
                 Math.round(result.size / 1024),
                 'KB'
               );
+              // Track screenshot attachment
+              trackImageAttached('screenshot', { size_kb: Math.round(result.size / 1024) });
             } catch (error) {
               logger.error('[Screenshot] Failed to capture:', error);
               toast.error('Failed to capture screenshot');
@@ -5277,6 +5312,10 @@ export default function AppleFloatBar({
 
   // Handle clear conversation
   const handleClear = useCallback(async () => {
+    // Track conversation cleared with message count
+    const messageCount = thoughts.length;
+    trackConversationCleared(messageCount);
+
     // Clear chat transcript and tiles
     setThoughts([]);
     setFactTiles([]);
@@ -5328,6 +5367,7 @@ export default function AppleFloatBar({
 
   // Handle settings
   const handleSettings = useCallback(() => {
+    trackSettingsOpened('toolbar');
     if (window.electron?.openSettings) {
       window.electron.openSettings();
     } else if (window.electronAPI?.openSettings) {

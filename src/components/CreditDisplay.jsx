@@ -7,6 +7,7 @@ import { Coins, AlertCircle, Plus, TrendingDown } from 'lucide-react';
 import { supabase, canUseSupabase } from '../services/supabase';
 import { creditsAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import { trackCreditsLowWarning, trackCreditsDepleted, trackUpgradePromptShown } from '../services/analytics';
 
 export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', purchasePackage = 'pro' }) {
   const [credits, setCredits] = useState(null);
@@ -119,6 +120,7 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
 
       // Show warning if low
       if (newCredits < 10 && newCredits > 0 && prevCredits !== newCredits) {
+        trackCreditsLowWarning(newCredits, 10);
         toast('⚠️ Low credits! Consider purchasing more.', {
           duration: 4000,
           style: {
@@ -130,6 +132,7 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
 
       // Show error if empty
       if (newCredits === 0 && prevCredits > 0) {
+        trackCreditsDepleted();
         toast.error('No credits remaining! Purchase more to continue.', {
           duration: 6000
         });

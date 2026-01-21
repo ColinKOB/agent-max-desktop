@@ -13,7 +13,16 @@ import { PermissionProvider } from './contexts/PermissionContext';
 import UpdateNotification from './components/UpdateNotification';
 import { UserInputDialog } from './components/UserInputDialog';
 import logo from './assets/AgentMaxLogo.png';
-import { initializeAnalytics, identify, trackPageViewed } from './services/analytics';
+import {
+  initializeAnalytics,
+  identify,
+  trackPageViewed,
+  startSession,
+  endSession,
+  setUserProperties,
+  setUserPropertiesOnce,
+  trackDailyActive,
+} from './services/analytics';
 
 const logger = createLogger('App');
 
@@ -31,6 +40,28 @@ function App({ windowMode = 'single' }) {
     initializeAnalytics();
     trackPageViewed('app_main');
 
+    // Start session tracking
+    const isReturningUser = localStorage.getItem('onboarding_completed') === 'true';
+    startSession(isReturningUser);
+
+    // Track daily active user
+    const installDate = localStorage.getItem('install_date');
+    if (installDate) {
+      const daysSinceInstall = Math.floor((Date.now() - new Date(installDate).getTime()) / (1000 * 60 * 60 * 24));
+      trackDailyActive(daysSinceInstall);
+    } else {
+      // First time - set install date
+      localStorage.setItem('install_date', new Date().toISOString());
+      setUserPropertiesOnce({ install_date: new Date().toISOString() });
+      trackDailyActive(0);
+    }
+
+    // Set up session end on page unload
+    const handleBeforeUnload = () => {
+      endSession();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     // CRITICAL: Check onboarding completion FIRST, before any user init
     // This ensures fresh installs show onboarding even if device_id gets created
     const onboardingCompleted = localStorage.getItem('onboarding_completed') === 'true';
@@ -47,7 +78,7 @@ function App({ windowMode = 'single' }) {
       setShowWelcome(true);
       // Still check API connection but skip user init until onboarding completes
       checkApiConnection();
-      return;
+      return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }
 
     // Onboarding was completed - initialize user and load profile
@@ -208,6 +239,13 @@ function App({ windowMode = 'single' }) {
         identify(user.id, {
           device_id: deviceId,
           credits: user.metadata?.credits || 0,
+        });
+
+        // Set user properties for segmentation
+        setUserProperties({
+          subscription_tier: user.subscription_tier || 'free',
+          subscription_status: user.subscription_status || 'none',
+          credits: user.credits || 0,
         });
       }
     } catch (error) {

@@ -129,6 +129,50 @@ export const AnalyticsEvents = {
   UPDATE_DOWNLOADED: 'update_downloaded',
   UPDATE_INSTALLED: 'update_installed',
   UPDATE_DEFERRED: 'update_deferred',
+
+  // Window/UI State (10 events)
+  WINDOW_EXPANDED: 'window_expanded',
+  WINDOW_MINIMIZED: 'window_minimized',
+  WINDOW_FOCUSED: 'window_focused',
+  WINDOW_BLURRED: 'window_blurred',
+  SETTINGS_OPENED: 'settings_opened',
+  SETTINGS_CLOSED: 'settings_closed',
+  CONVERSATION_CLEARED: 'conversation_cleared',
+  CONVERSATION_STOPPED: 'conversation_stopped',
+  CONTEXT_FULL_WARNING: 'context_full_warning',
+  TUTORIAL_STARTED: 'tutorial_started',
+  TUTORIAL_COMPLETED: 'tutorial_completed',
+  TUTORIAL_SKIPPED: 'tutorial_skipped',
+
+  // User Engagement (8 events)
+  SESSION_STARTED: 'session_started',
+  SESSION_ENDED: 'session_ended',
+  DAILY_ACTIVE: 'daily_active',
+  WEEKLY_ACTIVE: 'weekly_active',
+  FIRST_MESSAGE_SENT: 'first_message_sent',
+  POWER_USER_ACTION: 'power_user_action',
+  IDLE_TIMEOUT: 'idle_timeout',
+  RETURN_FROM_IDLE: 'return_from_idle',
+
+  // Content Actions (6 events)
+  CODE_BLOCK_COPIED: 'code_block_copied',
+  RESPONSE_COPIED: 'response_copied',
+  RESPONSE_REGENERATED: 'response_regenerated',
+  FILE_ATTACHED: 'file_attached',
+  IMAGE_ATTACHED: 'image_attached',
+  LINK_CLICKED: 'link_clicked',
+
+  // Billing Extended (4 events)
+  CREDITS_LOW_WARNING: 'credits_low_warning',
+  CREDITS_DEPLETED: 'credits_depleted',
+  UPGRADE_PROMPT_SHOWN: 'upgrade_prompt_shown',
+  UPGRADE_PROMPT_CLICKED: 'upgrade_prompt_clicked',
+
+  // Performance (4 events)
+  SLOW_RESPONSE: 'slow_response',
+  API_LATENCY: 'api_latency',
+  RENDER_PERFORMANCE: 'render_performance',
+  MEMORY_WARNING: 'memory_warning',
 };
 
 // ============================================
@@ -580,6 +624,246 @@ export const trackUpdateAvailable = (version) =>
 export const trackUpdateInstalled = (fromVersion, toVersion) =>
   capture(AnalyticsEvents.UPDATE_INSTALLED, { from_version: fromVersion, to_version: toVersion });
 
+// Window/UI State
+export const trackWindowExpanded = (fromState = 'mini') =>
+  capture(AnalyticsEvents.WINDOW_EXPANDED, { from_state: fromState });
+
+export const trackWindowMinimized = (toState = 'mini') =>
+  capture(AnalyticsEvents.WINDOW_MINIMIZED, { to_state: toState });
+
+export const trackWindowFocused = () =>
+  capture(AnalyticsEvents.WINDOW_FOCUSED);
+
+export const trackWindowBlurred = () =>
+  capture(AnalyticsEvents.WINDOW_BLURRED);
+
+export const trackSettingsOpened = (source = 'toolbar') =>
+  capture(AnalyticsEvents.SETTINGS_OPENED, { source });
+
+export const trackSettingsClosed = (changesApplied = false) =>
+  capture(AnalyticsEvents.SETTINGS_CLOSED, { changes_applied: changesApplied });
+
+export const trackConversationCleared = (messageCount = 0) =>
+  capture(AnalyticsEvents.CONVERSATION_CLEARED, { message_count: messageCount });
+
+export const trackConversationStopped = (reason = 'user_action') =>
+  capture(AnalyticsEvents.CONVERSATION_STOPPED, { reason });
+
+export const trackContextFullWarning = (usagePercent) =>
+  capture(AnalyticsEvents.CONTEXT_FULL_WARNING, { usage_percent: usagePercent });
+
+export const trackTutorialStarted = () =>
+  capture(AnalyticsEvents.TUTORIAL_STARTED);
+
+export const trackTutorialCompleted = (stepsCompleted) =>
+  capture(AnalyticsEvents.TUTORIAL_COMPLETED, { steps_completed: stepsCompleted });
+
+export const trackTutorialSkipped = (atStep) =>
+  capture(AnalyticsEvents.TUTORIAL_SKIPPED, { at_step: atStep });
+
+// User Engagement
+export const trackSessionStarted = (isReturningUser = false) =>
+  capture(AnalyticsEvents.SESSION_STARTED, {
+    is_returning_user: isReturningUser,
+    session_start_time: new Date().toISOString(),
+  });
+
+export const trackSessionEnded = (durationMs, messageCount = 0) =>
+  capture(AnalyticsEvents.SESSION_ENDED, {
+    duration_ms: durationMs,
+    message_count: messageCount,
+  });
+
+export const trackDailyActive = (daysSinceInstall) =>
+  capture(AnalyticsEvents.DAILY_ACTIVE, { days_since_install: daysSinceInstall });
+
+export const trackFirstMessageSent = () =>
+  capture(AnalyticsEvents.FIRST_MESSAGE_SENT, { milestone: 'first_message' });
+
+export const trackPowerUserAction = (action, details = {}) =>
+  capture(AnalyticsEvents.POWER_USER_ACTION, { action, ...details });
+
+export const trackReturnFromIdle = (idleDurationMs) =>
+  capture(AnalyticsEvents.RETURN_FROM_IDLE, { idle_duration_ms: idleDurationMs });
+
+// Content Actions
+export const trackCodeBlockCopied = (language = 'unknown', lineCount = 0) =>
+  capture(AnalyticsEvents.CODE_BLOCK_COPIED, { language, line_count: lineCount });
+
+export const trackResponseCopied = (responseLength = 0) =>
+  capture(AnalyticsEvents.RESPONSE_COPIED, { response_length: responseLength });
+
+export const trackResponseRegenerated = () =>
+  capture(AnalyticsEvents.RESPONSE_REGENERATED);
+
+export const trackFileAttached = (fileType, fileSizeKb) =>
+  capture(AnalyticsEvents.FILE_ATTACHED, { file_type: fileType, file_size_kb: fileSizeKb });
+
+export const trackImageAttached = (source = 'file', dimensions = {}) =>
+  capture(AnalyticsEvents.IMAGE_ATTACHED, { source, ...dimensions });
+
+export const trackLinkClicked = (linkType = 'external', domain = '') =>
+  capture(AnalyticsEvents.LINK_CLICKED, { link_type: linkType, domain });
+
+// Billing Extended
+export const trackCreditsLowWarning = (creditsRemaining, threshold) =>
+  capture(AnalyticsEvents.CREDITS_LOW_WARNING, {
+    credits_remaining: creditsRemaining,
+    threshold,
+  });
+
+export const trackCreditsDepleted = () =>
+  capture(AnalyticsEvents.CREDITS_DEPLETED);
+
+export const trackUpgradePromptShown = (trigger, currentPlan = 'free') =>
+  capture(AnalyticsEvents.UPGRADE_PROMPT_SHOWN, { trigger, current_plan: currentPlan });
+
+export const trackUpgradePromptClicked = (action, targetPlan = null) =>
+  capture(AnalyticsEvents.UPGRADE_PROMPT_CLICKED, { action, target_plan: targetPlan });
+
+// Performance
+export const trackSlowResponse = (responseTimeMs, threshold = 10000) =>
+  capture(AnalyticsEvents.SLOW_RESPONSE, {
+    response_time_ms: responseTimeMs,
+    threshold_ms: threshold,
+  });
+
+export const trackApiLatency = (endpoint, latencyMs, success = true) =>
+  capture(AnalyticsEvents.API_LATENCY, {
+    endpoint,
+    latency_ms: latencyMs,
+    success,
+  });
+
+export const trackRenderPerformance = (component, renderTimeMs) =>
+  capture(AnalyticsEvents.RENDER_PERFORMANCE, {
+    component,
+    render_time_ms: renderTimeMs,
+  });
+
+// ============================================
+// USER PROPERTIES MANAGEMENT
+// ============================================
+
+/**
+ * Set persistent user properties for segmentation
+ */
+export function setUserProperties(properties) {
+  if (!enabled || !initialized) return;
+
+  try {
+    posthog.people.set(properties);
+    logger.info('User properties set:', Object.keys(properties));
+  } catch (error) {
+    logger.error('Failed to set user properties:', error);
+  }
+}
+
+/**
+ * Increment a numeric user property
+ */
+export function incrementUserProperty(property, amount = 1) {
+  if (!enabled || !initialized) return;
+
+  try {
+    posthog.people.increment(property, amount);
+  } catch (error) {
+    logger.error('Failed to increment user property:', error);
+  }
+}
+
+/**
+ * Set user properties once (won't overwrite if already set)
+ */
+export function setUserPropertiesOnce(properties) {
+  if (!enabled || !initialized) return;
+
+  try {
+    posthog.people.set_once(properties);
+  } catch (error) {
+    logger.error('Failed to set user properties once:', error);
+  }
+}
+
+// ============================================
+// SESSION TRACKING HELPERS
+// ============================================
+
+let sessionStartTime = null;
+let messageCountThisSession = 0;
+let lastActivityTime = null;
+const IDLE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Start tracking a new session
+ */
+export function startSession(isReturningUser = false) {
+  sessionStartTime = Date.now();
+  messageCountThisSession = 0;
+  lastActivityTime = Date.now();
+
+  trackSessionStarted(isReturningUser);
+
+  // Set first seen date if not already set
+  setUserPropertiesOnce({
+    first_seen_date: new Date().toISOString(),
+  });
+
+  // Update last seen date
+  setUserProperties({
+    last_seen_date: new Date().toISOString(),
+  });
+}
+
+/**
+ * End the current session
+ */
+export function endSession() {
+  if (sessionStartTime) {
+    const durationMs = Date.now() - sessionStartTime;
+    trackSessionEnded(durationMs, messageCountThisSession);
+
+    // Update user properties
+    incrementUserProperty('total_sessions', 1);
+    incrementUserProperty('total_messages_sent', messageCountThisSession);
+  }
+
+  sessionStartTime = null;
+  messageCountThisSession = 0;
+}
+
+/**
+ * Record user activity (prevents idle timeout)
+ */
+export function recordActivity() {
+  const now = Date.now();
+
+  // Check if returning from idle
+  if (lastActivityTime && (now - lastActivityTime) > IDLE_THRESHOLD_MS) {
+    trackReturnFromIdle(now - lastActivityTime);
+  }
+
+  lastActivityTime = now;
+}
+
+/**
+ * Increment message count for session
+ */
+export function recordMessageSent() {
+  messageCountThisSession++;
+  recordActivity();
+
+  // Track first message milestone
+  const totalMessages = parseInt(localStorage.getItem('total_messages_sent') || '0', 10);
+  if (totalMessages === 0) {
+    trackFirstMessageSent();
+    setUserPropertiesOnce({ first_message_date: new Date().toISOString() });
+  }
+
+  localStorage.setItem('total_messages_sent', String(totalMessages + 1));
+  incrementUserProperty('lifetime_messages', 1);
+}
+
 // Default export
 export default {
   AnalyticsEvents,
@@ -594,31 +878,80 @@ export default {
   flush,
   resumeSessionRecording,
   pauseSessionRecording,
-  // Convenience methods
+  // User properties
+  setUserProperties,
+  setUserPropertiesOnce,
+  incrementUserProperty,
+  // Session tracking
+  startSession,
+  endSession,
+  recordActivity,
+  recordMessageSent,
+  // Onboarding
   trackOnboardingStarted,
   trackOnboardingStepCompleted,
   trackOnboardingCompleted,
+  // Auth
   trackSignInAttempted,
   trackSignInSucceeded,
   trackSignInFailed,
   trackLogout,
+  // Billing
   trackBillingPageViewed,
   trackPlanSelected,
   trackCheckoutStarted,
   trackCheckoutCompleted,
   trackCheckoutFailed,
+  trackCreditsLowWarning,
+  trackCreditsDepleted,
+  trackUpgradePromptShown,
+  trackUpgradePromptClicked,
+  // Chat
   trackMessageSent,
   trackMessageReceived,
   trackChatError,
+  // Execution
   trackPlanCreated,
   trackExecutionStarted,
   trackExecutionCompleted,
   trackExecutionFailed,
   trackToolExecutionFailed,
   trackToolExecutionRecovered,
+  // UI/UX
   trackPageViewed,
   trackButtonClicked,
   trackFeatureUsed,
+  trackWindowExpanded,
+  trackWindowMinimized,
+  trackWindowFocused,
+  trackWindowBlurred,
+  trackSettingsOpened,
+  trackSettingsClosed,
+  trackConversationCleared,
+  trackConversationStopped,
+  trackContextFullWarning,
+  trackTutorialStarted,
+  trackTutorialCompleted,
+  trackTutorialSkipped,
+  // Content Actions
+  trackCodeBlockCopied,
+  trackResponseCopied,
+  trackResponseRegenerated,
+  trackFileAttached,
+  trackImageAttached,
+  trackLinkClicked,
+  // Engagement
+  trackSessionStarted,
+  trackSessionEnded,
+  trackDailyActive,
+  trackFirstMessageSent,
+  trackPowerUserAction,
+  trackReturnFromIdle,
+  // Updates
   trackUpdateAvailable,
   trackUpdateInstalled,
+  // Performance
+  trackSlowResponse,
+  trackApiLatency,
+  trackRenderPerformance,
 };
