@@ -3498,6 +3498,72 @@ export default function AppleFloatBar({
                     });
                 }
               }
+
+              // Workspace actions - handle workspace.search for live web data
+              // This executes searches in Max's Monitor browser and returns results
+              if (actionName === 'workspace.search' && window.workspace) {
+                const query = args.query;
+                if (query) {
+                  logger.info('[Workspace] Executing search:', query);
+                  toast.loading(`Searching: ${query}...`, { id: 'workspace-search' });
+
+                  try {
+                    // Ensure workspace is created
+                    const status = await window.workspace.getStatus?.();
+                    if (!status?.active) {
+                      logger.info('[Workspace] Creating workspace for search...');
+                      await window.workspace.create?.(1280, 800);
+                      await new Promise(r => setTimeout(r, 1000)); // Wait for workspace to initialize
+                    }
+
+                    // Execute the search
+                    const searchResult = await window.workspace.search?.(query);
+                    logger.info('[Workspace] Search initiated:', searchResult);
+
+                    // Wait for page to load
+                    await new Promise(r => setTimeout(r, 2000));
+
+                    // Get the page text (search results)
+                    const textResult = await window.workspace.getText?.();
+                    toast.dismiss('workspace-search');
+
+                    if (textResult?.success && textResult?.text) {
+                      // Truncate if too long
+                      const maxLen = 4000;
+                      let resultText = textResult.text;
+                      if (resultText.length > maxLen) {
+                        resultText = resultText.substring(0, maxLen) + '\n...[truncated]';
+                      }
+
+                      logger.info('[Workspace] Got search results:', resultText.substring(0, 200));
+                      toast.success('Search complete!');
+
+                      // Add the search results as a system message so the AI can see them
+                      // This will be visible in the next response
+                      const searchResultMessage = {
+                        role: 'system',
+                        content: `[Web Search Results for "${query}"]\n\n${resultText}\n\n[End of Search Results - Now respond to the user with the specific data you found above]`,
+                        timestamp: Date.now(),
+                        isSearchResult: true
+                      };
+
+                      // Add to messages so AI sees it
+                      setMessages(prev => [...prev, searchResultMessage]);
+
+                      // Re-send to get AI to process the results
+                      // The AI will see the search results in context and can now answer
+                      logger.info('[Workspace] Search results added to context, AI will process on next turn');
+                    } else {
+                      logger.warn('[Workspace] No text retrieved from search');
+                      toast.error('Could not retrieve search results');
+                    }
+                  } catch (err) {
+                    toast.dismiss('workspace-search');
+                    logger.error('[Workspace] Search failed:', err);
+                    toast.error(`Search failed: ${err.message}`);
+                  }
+                }
+              }
             } catch (err) {
               logger.error('[Command] Failed to parse command', err);
             }
