@@ -622,6 +622,19 @@ export const chatAPI = {
     // Get system OS for macOS native tools support
     const systemOS = getSystemOS();
 
+    // Get client timezone and local time for accurate time context
+    const clientTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
+    const now = new Date();
+    const clientLocalTime = now.toLocaleString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+
     const payload = isAutonomous ? {
       // Autonomous endpoint: include both keys for compatibility with guide/backend
       goal: message,
@@ -634,7 +647,9 @@ export const chatAPI = {
         preferences: userContext?.preferences || {},
         recent_messages: userContext?.recent_messages || [],
         google_user_email: googleUserEmail,  // Backend reads from user_context.google_user_email
-        system_os: systemOS  // Enable macOS native tools (Notes, Calendar, Reminders, etc.)
+        system_os: systemOS,  // Enable macOS native tools (Notes, Calendar, Reminders, etc.)
+        timezone: clientTimezone,  // Client's local timezone (e.g., "America/New_York")
+        local_time: clientLocalTime  // Client's formatted local time
       },
       image: image || null,
       max_steps: 10,
@@ -650,7 +665,9 @@ export const chatAPI = {
         preferences: userContext?.preferences || {},
         recent_messages: userContext?.recent_messages || [],
         google_user_email: googleUserEmail,  // Backend reads from user_context.google_user_email
-        system_os: systemOS  // Enable macOS native tools (Notes, Calendar, Reminders, etc.)
+        system_os: systemOS,  // Enable macOS native tools (Notes, Calendar, Reminders, etc.)
+        timezone: clientTimezone,  // Client's local timezone (e.g., "America/New_York")
+        local_time: clientLocalTime  // Client's formatted local time
       },
       max_tokens: 1024,
       temperature: 0.7,
