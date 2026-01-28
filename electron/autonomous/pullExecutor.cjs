@@ -1257,9 +1257,22 @@ class PullExecutor {
                     // Pass _tabId for parallel execution (if present)
                     result = await workspaceManager.searchGoogle(args.query, args._tabId);
                     if (result.success) {
+                        // AUTO-FETCH: Automatically get page text after search
+                        // This ensures the AI always sees the actual search results
+                        // without needing to call workspace.get_text separately
+                        await new Promise(r => setTimeout(r, 2000)); // Wait for page to load
+                        const textResult = await workspaceManager.getPageText(args._tabId);
+                        let searchResultText = '';
+                        if (textResult.success && textResult.text) {
+                            // Truncate if too long (keep first 8000 chars for search results)
+                            const text = textResult.text;
+                            searchResultText = text.length > 8000
+                                ? text.slice(0, 8000) + '\n...[truncated]'
+                                : text;
+                        }
                         return {
                             success: true,
-                            stdout: `Searched Google for: ${args.query}`,
+                            stdout: `Searched Google for: ${args.query}\n\n=== SEARCH RESULTS ===\n${searchResultText}\n=== END RESULTS ===`,
                             stderr: '',
                             exit_code: 0
                         };
