@@ -387,6 +387,10 @@
   height: 80px;
   z-index: 9999;
   pointer-events: auto;
+  /* Needed for absolute positioning of status dot */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .amx-mini .amx-mini-content {
@@ -407,19 +411,24 @@
   pointer-events: auto;
   user-select: none;
   -webkit-user-drag: none;
+  /* Keep logo centered regardless of status dot */
+  position: relative;
+  z-index: 1;
 }
 
 /* Minimal status dot - shows working state in pill mode */
-.amx-mini-status-dot {
-  position: absolute;
-  top: 4px;
-  right: 4px;
+.amx-mini .amx-mini-status-dot {
+  position: absolute !important;
+  top: 6px !important;
+  right: 6px !important;
+  left: auto !important;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   transition: background-color 0.3s ease;
   pointer-events: none;
-  z-index: 10;
+  z-index: 100;
+  flex-shrink: 0;
 }
 
 /* Bar state specific */
