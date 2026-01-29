@@ -3649,7 +3649,12 @@ export default function AppleFloatBar({
 
               // Workspace actions - handle workspace.search for live web data
               // This executes searches in Max's Monitor browser and returns results
-              if (actionName === 'workspace.search' && window.workspace) {
+              // NOTE: In chatty mode, native OpenAI web_search handles this, so skip the auto-continuation
+              // to avoid the "thinking twice" issue
+              const currentModeForSearch = permissionModeRef.current || 'chatty';
+              const skipWorkspaceSearch = currentModeForSearch === 'chatty';
+
+              if (actionName === 'workspace.search' && window.workspace && !skipWorkspaceSearch) {
                 const query = args.query;
                 if (query) {
                   logger.info('[Workspace] Executing search:', query);
