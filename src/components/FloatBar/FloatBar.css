@@ -422,8 +422,8 @@
   top: 6px !important;
   right: 6px !important;
   left: auto !important;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   transition: background-color 0.3s ease;
   pointer-events: none;
