@@ -1,0 +1,251 @@
+/**
+ * WebSearchIndicator Styles
+ * Animated indicator for web search activity
+ */
+
+.web-search-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.1) 0%,
+    rgba(147, 51, 234, 0.1) 100%
+  );
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 12px;
+  margin: 8px 0;
+  animation: slideIn 0.3s ease-out;
+  overflow: hidden;
+}
+
+.web-search-indicator.animating-out {
+  animation: slideOut 0.5s ease-in forwards;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 300px;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 300px;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0;
+    padding: 0;
+    margin: 0;
+  }
+}
+
+.search-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.globe-icon {
+  width: 20px;
+  height: 20px;
+  color: #3b82f6;
+  flex-shrink: 0;
+}
+
+.globe-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.globe-icon.pulsing {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+.search-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.search-dots {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.search-dots .dot {
+  width: 6px;
+  height: 6px;
+  background: #3b82f6;
+  border-radius: 50%;
+  animation: dotPulse 1.4s ease-in-out infinite;
+}
+
+.search-dots .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.search-dots .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes dotPulse {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.citations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.citation-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  animation: citationSlideIn 0.3s ease-out forwards;
+  opacity: 0;
+  transform: translateX(-10px);
+}
+
+@keyframes citationSlideIn {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.citation-favicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.citation-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.citation-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.citation-domain {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Dark mode adjustments - component is designed for dark mode by default */
+@media (prefers-color-scheme: light) {
+  .web-search-indicator {
+    background: linear-gradient(
+      135deg,
+      rgba(59, 130, 246, 0.15) 0%,
+      rgba(147, 51, 234, 0.15) 100%
+    );
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+
+  .search-text {
+    color: rgba(0, 0, 0, 0.8);
+  }
+
+  .citation-item {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  .citation-title {
+    color: rgba(0, 0, 0, 0.8);
+  }
+
+  .citation-domain {
+    color: rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* Compact mode for smaller displays */
+.web-search-indicator.compact {
+  padding: 8px 12px;
+  gap: 6px;
+}
+
+.web-search-indicator.compact .search-header {
+  gap: 8px;
+}
+
+.web-search-indicator.compact .globe-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.web-search-indicator.compact .search-text {
+  font-size: 12px;
+}
+
+.web-search-indicator.compact .citations-list {
+  gap: 4px;
+}
+
+.web-search-indicator.compact .citation-item {
+  padding: 6px 8px;
+}
+
+.web-search-indicator.compact .citation-favicon {
+  width: 14px;
+  height: 14px;
+}
+
+.web-search-indicator.compact .citation-title {
+  font-size: 11px;
+}
+
+.web-search-indicator.compact .citation-domain {
+  font-size: 9px;
+}

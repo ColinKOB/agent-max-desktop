@@ -125,8 +125,82 @@ import ComposerBar from './ComposerBar';
 import AppTutorial from '../tutorial/AppTutorial';
 import { processImageFile } from '../../utils/imageCompression';
 import { stripActionBlocks } from '../../utils/formatters';
+import WebSearchIndicator from '../WebSearchIndicator';
 
 const logger = createLogger('FloatBar');
+
+/**
+ * Detect if a query requires real-time data (prices, weather, etc.)
+ * Returns a search query if real-time data is needed, null otherwise.
+ */
+const detectRealTimeQuery = (text) => {
+  const lowerText = text.toLowerCase();
+
+  // Price queries - crypto, stocks
+  const pricePatterns = [
+    /(?:what(?:'s| is)|current|price of|how much is|value of)\s+(?:bitcoin|btc|ethereum|eth|crypto)/i,
+    /(?:bitcoin|btc|ethereum|eth|dogecoin|doge)\s+(?:price|worth|value|trading)/i,
+    /(?:stock|share)\s+price|price of\s+(?:\w+)\s+(?:stock|shares)/i,
+  ];
+
+  // Weather queries
+  const weatherPatterns = [
+    /(?:what(?:'s| is)|current|how's)\s+(?:the\s+)?weather/i,
+    /weather\s+(?:in|for|at)/i,
+    /(?:is it|will it)\s+(?:rain|snow|cold|hot|sunny)/i,
+    /temperature\s+(?:in|for|at|today|now)/i,
+  ];
+
+  // News/current events
+  const newsPatterns = [
+    /(?:latest|current|today's|recent)\s+(?:news|headlines)/i,
+    /what(?:'s| is)\s+happening\s+(?:in|with|at)/i,
+  ];
+
+  // Check for price queries
+  for (const pattern of pricePatterns) {
+    if (pattern.test(text)) {
+      // Extract the asset name for the search query
+      const btcMatch = text.match(/bitcoin|btc/i);
+      const ethMatch = text.match(/ethereum|eth/i);
+      const dogeMatch = text.match(/dogecoin|doge/i);
+
+      if (btcMatch) return 'Bitcoin BTC current price USD today';
+      if (ethMatch) return 'Ethereum ETH current price USD today';
+      if (dogeMatch) return 'Dogecoin DOGE current price USD today';
+
+      // Generic crypto/stock query
+      return `${text} current price USD`;
+    }
+  }
+
+  // Check for weather queries
+  for (const pattern of weatherPatterns) {
+    if (pattern.test(text)) {
+      return text; // Use the original query for weather
+    }
+  }
+
+  // Check for news queries
+  for (const pattern of newsPatterns) {
+    if (pattern.test(text)) {
+      return text; // Use the original query for news
+    }
+  }
+
+  return null;
+};
+
+/**
+ * DEPRECATED: Pre-fetch is no longer needed.
+ * The backend now uses OpenAI's native web_search for real-time queries.
+ * Keeping function stub for backwards compatibility.
+ */
+const prefetchRealTimeData = async (query) => {
+  // Real-time queries now handled by backend with gpt-4o-search-preview
+  logger.info('[RealTime] Pre-fetch disabled - using backend native web search');
+  return null;
+};
 
 // Pre-warm connections when user clicks pill (before typing)
 const warmConnections = async () => {
@@ -483,6 +557,12 @@ export default function AppleFloatBar({
   // AI-triggered option buttons state
   // When AI calls show_options tool, these get populated and displayed
   const [aiOptions, setAiOptions] = useState(null); // {options: [{id, label}], prompt: string, runId: string}
+
+  // Web search state - shows animated indicator when AI searches the web
+  const [webSearchState, setWebSearchState] = useState({
+    isSearching: false,
+    citations: []
+  });
 
   const [approvalDetails, setApprovalDetails] = useState({
     action: '',
@@ -3478,21 +3558,28 @@ export default function AppleFloatBar({
                 }
               }
 
-              // macOS native tool actions - detect JSON action blocks like {"action": "notes.list", "args": {}}
-              // These are returned by the AI when using macOS-specific tools
-              const macosActionMatch = responseText.match(
+              // Detect JSON action blocks like {"action": "notes.list", "args": {}}
+              // These are used by macOS tools and workspace.search
+              const actionMatch = responseText.match(
                 /\{"action":\s*"([^"]+)"(?:,\s*"args":\s*(\{[^}]*\}))?\}/
               );
-              if (macosActionMatch && window.macos?.executeTool) {
-                const actionName = macosActionMatch[1];
-                let args = {};
+
+              // Extract action name and args for all action types
+              let actionName = null;
+              let args = {};
+              if (actionMatch) {
+                actionName = actionMatch[1];
                 try {
-                  if (macosActionMatch[2]) {
-                    args = JSON.parse(macosActionMatch[2]);
+                  if (actionMatch[2]) {
+                    args = JSON.parse(actionMatch[2]);
                   }
                 } catch (e) {
-                  logger.warn('[macOS] Failed to parse args:', e);
+                  logger.warn('[Action] Failed to parse args:', e);
                 }
+              }
+
+              // macOS native tool actions (notes.*, safari.*, etc.)
+              if (actionMatch && window.macos?.executeTool) {
 
                 // Check if this is a macOS AppleScript tool (notes.*, safari.*, etc.)
                 const macosApps = ['notes', 'safari', 'mail', 'calendar', 'finder', 'reminders'];
@@ -3754,6 +3841,31 @@ export default function AppleFloatBar({
             options: optionsData.options || [],
             runId: optionsData.run_id || planIdRef.current
           });
+        } else if (event.type === 'web_search') {
+          // Web search activity indicator
+          const searchData = event.data || event;
+          console.log('[Chat] Web search event:', searchData);
+
+          if (searchData.status === 'searching') {
+            // AI started searching the web
+            setWebSearchState({
+              isSearching: true,
+              citations: []
+            });
+            setThinkingStatus('Searching the web...');
+          } else if (searchData.status === 'found' && searchData.citations) {
+            // Found new citations - add them to the list
+            setWebSearchState(prev => ({
+              ...prev,
+              citations: [...prev.citations, ...searchData.citations]
+            }));
+          } else if (searchData.status === 'complete') {
+            // Search complete - will auto-hide after animation
+            setWebSearchState(prev => ({
+              ...prev,
+              isSearching: false
+            }));
+          }
         }
       })
       .catch((error) => {
@@ -3814,6 +3926,8 @@ export default function AppleFloatBar({
       setMessage('');
       setIsThinking(true);
       setThinkingStatus('Thinking...');
+      // Reset web search state for new message
+      setWebSearchState({ isSearching: false, citations: [] });
       // Remember last user prompt for extraction
       try {
         lastUserPromptRef.current = text;
@@ -3993,8 +4107,17 @@ export default function AppleFloatBar({
           console.warn('[Chat] Semantic retrieval failed:', e);
         }
       }
+
+      // If we pre-fetched real-time data, include it in the message so AI has accurate info
+      let finalText = text;
+      if (realTimeData) {
+        // Prepend search results to the message so AI sees the real data first
+        finalText = `[LIVE WEB SEARCH RESULTS - USE THIS DATA FOR YOUR RESPONSE]\n\n${realTimeData}\n\n[END OF SEARCH RESULTS]\n\nUser question: ${text}\n\nIMPORTANT: Use the ACTUAL DATA from the search results above in your response. Do NOT guess or use outdated information.`;
+        logger.info('[RealTime] Injected search results into message');
+      }
+
       // Streaming call
-      sendChat(text, userContext, screenshotData);
+      sendChat(finalText, userContext, screenshotData);
     },
     [thoughts]
   );
@@ -4059,6 +4182,10 @@ export default function AppleFloatBar({
           console.warn('[Chat] Failed to save user message to memory:', err)
         );
       }
+
+      // NOTE: Real-time queries (prices, weather, news) are now handled by the backend
+      // using OpenAI's native gpt-4o-search-preview model with web_search tool.
+      // No pre-fetch needed - the backend detects these queries and uses web search automatically.
 
       // Build user context
       let userContext = {
@@ -8129,6 +8256,15 @@ export default function AppleFloatBar({
                   )}
                 </div>
               </div>
+            )}
+
+            {/* Web Search Indicator - shows when AI is searching the web */}
+            {(webSearchState.isSearching || webSearchState.citations.length > 0) && (
+              <WebSearchIndicator
+                isSearching={webSearchState.isSearching}
+                citations={webSearchState.citations}
+                onComplete={() => setWebSearchState({ isSearching: false, citations: [] })}
+              />
             )}
 
             {isThinking && !liveActivitySteps.length && (
