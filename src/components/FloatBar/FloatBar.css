@@ -409,6 +409,19 @@
   -webkit-user-drag: none;
 }
 
+/* Minimal status dot - shows working state in pill mode */
+.amx-mini-status-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+  pointer-events: none;
+  z-index: 10;
+}
+
 /* Bar state specific */
 .amx-bar {
   display: flex;

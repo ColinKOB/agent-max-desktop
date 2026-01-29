@@ -601,8 +601,8 @@ export default function AppleFloatBar({
   useEffect(() => {
     const fetchContextUsage = async () => {
       try {
-        // Get session ID from localStorage (same as PullAutonomousService does)
-        let sessionId = localStorage.getItem('agent_max_session_id');
+        // Get session ID from localStorage - use unified 'session_id' key
+        let sessionId = localStorage.getItem('session_id');
         if (!sessionId) {
           console.log('[FloatBar] No session ID yet, context usage will be 0');
           return;
@@ -1048,8 +1048,8 @@ export default function AppleFloatBar({
               if (pullServiceRef.current) {
                 usage = await pullServiceRef.current.getContextUsage();
               } else {
-                // Fallback: fetch directly via API
-                const sessionId = localStorage.getItem('agent_max_session_id');
+                // Fallback: fetch directly via API - use unified 'session_id' key
+                const sessionId = localStorage.getItem('session_id');
                 if (sessionId) {
                   const apiConfig = apiConfigManager.getConfig();
                   const response = await fetch(`${apiConfig.baseURL}/api/v2/runs/session/${sessionId}/context-usage`, {
@@ -1767,8 +1767,8 @@ export default function AppleFloatBar({
   useEffect(() => {
     // IMPORTANT: Clear the backend session ID on app startup for fresh context
     // This ensures context usage starts at 0% on each app restart
-    localStorage.removeItem('agent_max_session_id');
-    console.log('[Session] Cleared agent_max_session_id on mount for fresh context');
+    localStorage.removeItem('session_id');
+    console.log('[Session] Cleared session_id on mount for fresh context');
 
     // Also clear backend session state via pullAutonomous service
     if (pullServiceRef.current?.clearSession) {
@@ -4984,8 +4984,8 @@ export default function AppleFloatBar({
                     if (pullServiceRef.current) {
                       usage = await pullServiceRef.current.getContextUsage();
                     } else {
-                      // Fallback: fetch directly
-                      const sessionId = localStorage.getItem('agent_max_session_id');
+                      // Fallback: fetch directly - use unified 'session_id' key
+                      const sessionId = localStorage.getItem('session_id');
                       if (sessionId) {
                         const apiConfig = apiConfigManager.getConfig();
                         const response = await fetch(`${apiConfig.baseURL}/api/v2/runs/session/${sessionId}/context-usage`, {
@@ -5704,11 +5704,9 @@ export default function AppleFloatBar({
       isFull: false
     });
 
-    // FIX: Generate new session_id for conversation isolation
+    // FIX: Generate new session_id for conversation isolation (unified key)
     const newSessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     localStorage.setItem('session_id', newSessionId);
-    // Also update localStorage for pullAutonomous
-    localStorage.setItem('agent_max_session_id', newSessionId);
     logger.info('[Session] Generated new session_id for new conversation', { sessionId: newSessionId });
 
     // Clear session in pullAutonomous service (also clears backend)
@@ -6491,6 +6489,16 @@ export default function AppleFloatBar({
     return classes.join(' ');
   }, [isMini, isTransitioning]);
 
+  // Compute pill status dot color based on current state
+  // Colors: amber=thinking, blue=searching, green=done/ready, red=error, gray=offline
+  const pillStatusColor = useMemo(() => {
+    if (!apiConnected) return '#6b7280'; // gray - offline
+    if (webSearchState.isSearching) return '#3b82f6'; // blue - searching web
+    if (isThinking) return '#f59e0b'; // amber - thinking
+    if (runStatus === 'error') return '#ef4444'; // red - error
+    return '#22c55e'; // green - ready/done
+  }, [apiConnected, webSearchState.isSearching, isThinking, runStatus]);
+
   // Render mini pill (use original unchanged pill markup and classes)
   if (isMini) {
     return (
@@ -6506,6 +6514,11 @@ export default function AppleFloatBar({
           onClick={handleExpand}
           data-tutorial="pill"
         >
+          {/* Status dot - minimal indicator for working state */}
+          <div
+            className="amx-mini-status-dot"
+            style={{ backgroundColor: pillStatusColor }}
+          />
           <img
             src={LogoPng}
             alt="Agent Max"
