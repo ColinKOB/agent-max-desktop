@@ -597,7 +597,9 @@ export default function AppleFloatBar({
   const [showContextTooltip, setShowContextTooltip] = useState(false);
   const contextTooltipTimeoutRef = useRef(null);
 
-  // Fetch context usage on mount and periodically
+  // Fetch context usage on mount and periodically (as fallback to local tracking)
+  // NOTE: Primary tracking is now done locally via done event tokens (see event handler)
+  // Backend polling is kept as a fallback for when local state might be stale
   useEffect(() => {
     const fetchContextUsage = async () => {
       try {
@@ -620,14 +622,25 @@ export default function AppleFloatBar({
 
         if (response.ok) {
           const data = await response.json();
-          const usage = {
-            tokensUsed: data.tokens_used || 0,
-            contextWindow: data.context_window || 200000,
-            usagePercent: data.usage_percent || 0,
-            isFull: data.is_full || false
-          };
-          console.log('[FloatBar] Context usage fetched:', usage);
-          setContextUsage(usage);
+          const backendTokens = data.tokens_used || 0;
+
+          // FIX: Only update from backend if it has MORE tokens than local state
+          // This prevents backend returning 0 (due to memory loss) from overwriting local tracking
+          setContextUsage((prev) => {
+            if (backendTokens > prev.tokensUsed) {
+              const usage = {
+                tokensUsed: backendTokens,
+                contextWindow: data.context_window || 200000,
+                usagePercent: data.usage_percent || 0,
+                isFull: data.is_full || false
+              };
+              console.log('[FloatBar] Context usage updated from backend:', usage);
+              return usage;
+            }
+            // Keep local state if backend has fewer tokens (backend might have lost state)
+            console.log(`[FloatBar] Keeping local state (${prev.tokensUsed}) over backend (${backendTokens})`);
+            return prev;
+          });
         } else {
           console.log('[FloatBar] Context usage fetch failed:', response.status);
         }
@@ -639,8 +652,8 @@ export default function AppleFloatBar({
     // Fetch on mount
     fetchContextUsage();
 
-    // Also fetch every 5 seconds while app is active (to catch updates)
-    const interval = setInterval(fetchContextUsage, 5000);
+    // Also fetch every 30 seconds (reduced from 5s since local tracking is primary now)
+    const interval = setInterval(fetchContextUsage, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -1042,6 +1055,7 @@ export default function AppleFloatBar({
           );
 
           // Update context usage after run completes
+          // FIX: Only update if backend has MORE tokens (prevent overwriting local state with 0)
           const fetchContextUsageNow = async () => {
             try {
               let usage = null;
@@ -1068,8 +1082,15 @@ export default function AppleFloatBar({
                 }
               }
               if (usage) {
-                console.log('[FloatBar] Context usage after run:', usage);
-                setContextUsage(usage);
+                // Only update if backend has more tokens than local state
+                setContextUsage((prev) => {
+                  if (usage.tokensUsed > prev.tokensUsed) {
+                    console.log('[FloatBar] Context usage after run (updated from backend):', usage);
+                    return usage;
+                  }
+                  console.log(`[FloatBar] Keeping local context state (${prev.tokensUsed}) over backend (${usage.tokensUsed})`);
+                  return prev;
+                });
               }
             } catch (err) {
               console.debug('[FloatBar] Could not fetch context usage:', err);
@@ -3238,6 +3259,25 @@ export default function AppleFloatBar({
           planIdRef.current = null;
           const d = event.data || event || {};
 
+          // FIX: Update context usage from token counts in done event
+          // This enables the context meter to fill up in chatty mode
+          const tokensIn = d.tokens_in || 0;
+          const tokensOut = d.tokens_out || 0;
+          const totalMessageTokens = tokensIn + tokensOut;
+          if (totalMessageTokens > 0) {
+            setContextUsage((prev) => {
+              const newTokensUsed = prev.tokensUsed + totalMessageTokens;
+              const newUsagePercent = (newTokensUsed / prev.contextWindow) * 100;
+              console.log(`[ContextMeter] Added ${totalMessageTokens} tokens (in: ${tokensIn}, out: ${tokensOut}). Total: ${newTokensUsed} (${newUsagePercent.toFixed(1)}%)`);
+              return {
+                ...prev,
+                tokensUsed: newTokensUsed,
+                usagePercent: Math.min(newUsagePercent, 100),
+                isFull: newUsagePercent >= 100
+              };
+            });
+          }
+
           // Track message received with response time
           const responseTimeMs = Date.now() - messageSentAt;
           trackMessageReceived(responseTimeMs, totalOutputTokens);
@@ -4983,6 +5023,7 @@ export default function AppleFloatBar({
                 );
 
                 // Update context usage after run completes
+                // FIX: Only update if backend has MORE tokens (prevent overwriting local state with 0)
                 const fetchContextUsage = async () => {
                   try {
                     let usage;
@@ -5009,8 +5050,15 @@ export default function AppleFloatBar({
                       }
                     }
                     if (usage) {
-                      console.log('[FloatBar] Context usage updated:', usage);
-                      setContextUsage(usage);
+                      // Only update if backend has more tokens than local state
+                      setContextUsage((prev) => {
+                        if (usage.tokensUsed > prev.tokensUsed) {
+                          console.log('[FloatBar] Context usage updated from backend:', usage);
+                          return usage;
+                        }
+                        console.log(`[FloatBar] Keeping local context state (${prev.tokensUsed}) over backend (${usage.tokensUsed})`);
+                        return prev;
+                      });
                     }
                   } catch (err) {
                     console.debug('[FloatBar] Could not fetch context usage:', err);
