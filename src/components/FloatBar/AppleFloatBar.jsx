@@ -6958,7 +6958,9 @@ export default function AppleFloatBar({
                         : 'rgba(255,255,255,0.75)',
                   }}
                 >
-                  {Math.round(contextUsage.usagePercent)}%
+                  {contextUsage.usagePercent > 0 && contextUsage.usagePercent < 1
+                    ? '<1%'
+                    : `${Math.round(contextUsage.usagePercent)}%`}
                 </span>
               </button>
 
@@ -6979,7 +6981,9 @@ export default function AppleFloatBar({
                   <div className="context-tooltip-header">
                     <span className="context-tooltip-title">Context Memory</span>
                     <span className={`context-tooltip-percent ${contextUsage.usagePercent >= 90 ? 'critical' : contextUsage.usagePercent >= 75 ? 'warning' : 'low'}`}>
-                      {Math.round(contextUsage.usagePercent)}% used
+                      {contextUsage.usagePercent > 0 && contextUsage.usagePercent < 1
+                        ? '<1%'
+                        : `${Math.round(contextUsage.usagePercent)}%`} used
                     </span>
                   </div>
                   <div className="context-tooltip-bar">
