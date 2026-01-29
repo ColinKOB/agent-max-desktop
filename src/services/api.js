@@ -679,12 +679,47 @@ export const chatAPI = {
 
     // Prepare headers with configured API key
     const configuredKey = apiConfigManager.getApiKey && apiConfigManager.getApiKey();
-    const sessionId = localStorage.getItem('session_id');
+
+    // FIX: Ensure session_id exists before sending message
+    let sessionId = localStorage.getItem('session_id');
+    if (!sessionId) {
+      sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      localStorage.setItem('session_id', sessionId);
+      logger.info('[API] Generated session_id for message', { sessionId });
+    }
+
+    // FIX: Ensure user_id exists before sending message to prevent 401 errors
+    // If user_id is not set, generate one immediately
+    // IMPORTANT: Generate a valid UUID format (not local-...) to avoid Supabase type errors
+    let userId = localStorage.getItem('user_id');
+    if (!userId || userId === 'anonymous') {
+      const generateUserId = () => {
+        if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
+          return globalThis.crypto.randomUUID();
+        }
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = (Math.random() * 16) | 0;
+          const v = c === 'x' ? r : (r & 0x3) | 0x8;
+          return v.toString(16);
+        });
+      };
+      userId = generateUserId();
+      localStorage.setItem('user_id', userId);
+      logger.info('[API] Generated emergency user_id for message', { userId });
+
+      // Also ensure device_id is set for user creation
+      if (!localStorage.getItem('device_id')) {
+        const deviceId = generateUserId();
+        localStorage.setItem('device_id', deviceId);
+        logger.info('[API] Generated device_id', { deviceId });
+      }
+    }
+
     const baseHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'text/event-stream',
       'X-Events-Version': '2.1',
-      'X-User-Id': localStorage.getItem('user_id') || 'anonymous'
+      'X-User-Id': userId
     };
     if (configuredKey) baseHeaders['X-API-Key'] = configuredKey;
     if (sessionId) baseHeaders['X-Session-ID'] = sessionId; // FIX: Add session_id for conversation context

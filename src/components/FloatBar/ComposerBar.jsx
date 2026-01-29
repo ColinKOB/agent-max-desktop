@@ -337,8 +337,9 @@ const ComposerBar = React.memo(function ComposerBar({
 
         {/* Show stop button when AI is working, otherwise show send button */}
         {isExecuting ? (
-          <button className="apple-send-btn apple-stop-btn" onClick={handleStopAll} title="Stop AI">
-            <Square size={14} fill="currentColor" />
+          <button className="apple-send-btn apple-stop-btn" onClick={handleStopAll} title="Stop AI (click to stop immediately)">
+            <Square size={12} fill="currentColor" />
+            <span className="stop-label">Stop</span>
           </button>
         ) : (
           <button

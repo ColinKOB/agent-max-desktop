@@ -14,6 +14,9 @@ const execAsync = promisify(exec);
 // macOS AppleScript tools (Safari, Notes, Mail, Calendar, Finder, Reminders)
 const { executeMacOSTool, isMacOSTool } = require('./macosAppleScript.cjs');
 
+// Tool name normalization - maps aliases to canonical names
+const { normalizeTool } = require('./toolNormalizer.cjs');
+
 // Workspace manager for isolated AI browser
 const { workspaceManager } = require('../workspace/workspaceManager.cjs');
 
@@ -860,10 +863,15 @@ class PullExecutor {
         // Check for cancellation before executing step
         this.checkCancellation();
 
-        const tool = step.tool_name || step.tool;
+        const rawTool = step.tool_name || step.tool;
+        const tool = normalizeTool(rawTool);
         let args = step.args || {};
 
-        console.log(`[PullExecutor] Executing: ${tool}`);
+        if (rawTool !== tool) {
+            console.log(`[PullExecutor] Executing: ${rawTool} (normalized to ${tool})`);
+        } else {
+            console.log(`[PullExecutor] Executing: ${tool}`);
+        }
 
         // FIX: Handle case where args.filename contains a JSON string (AI formatting issue)
         // This happens when the AI returns {"filename": '{"path": "...", "content": "..."}'}
@@ -917,10 +925,10 @@ class PullExecutor {
         }
 
         // Handle different tool types
-        // Updated to support new dot notation names with backwards compatibility
+        // Tool names are normalized above - only canonical names need to be checked
 
         // === SHELL TOOLS ===
-        if (tool === 'shell.exec' || tool === 'shell.command' || tool === 'command' || tool === 'shell_exec') {
+        if (tool === 'shell.exec') {
             return await this.executeShellCommand(args, timeoutSec, step);
 
         // === FILE TOOLS ===
@@ -930,18 +938,18 @@ class PullExecutor {
             return await this.executeFileRead(args);
 
         // === WEB TOOLS ===
-        } else if (tool === 'web.fetch' || tool === 'web_fetch') {
+        } else if (tool === 'web.fetch') {
             const url = args.url || args.fetch_url;
             if (!url) {
                 return { success: false, error: 'web.fetch requires a url parameter', exit_code: 1 };
             }
             return await this.fetchUrlContent(url);
-        } else if (tool === 'browser' || tool === 'web_search') {
+        } else if (tool === 'browser') {
             // Legacy search tools - redirect to workspace.search
             return await this.executeBrowserSearch(args);
-        } else if (tool === 'web.delegate' || tool === 'delegate_to_web_agent') {
+        } else if (tool === 'web.delegate') {
             return await this.executeDelegateWebAgent(args);
-        } else if (tool === 'web.delegate_parallel' || tool === 'delegate_to_web_agents') {
+        } else if (tool === 'web.delegate_parallel') {
             return await this.executeDelegateWebAgents(args);
 
         // === CORE TOOLS ===
@@ -953,41 +961,41 @@ class PullExecutor {
             return await this.executeAskUser(args);
 
         // === SYSTEM TOOLS ===
-        } else if (tool === 'system.start_process' || tool === 'start_background_process') {
+        } else if (tool === 'system.start_process') {
             return await this.executeStartBackgroundProcess(args);
-        } else if (tool === 'system.monitor_process' || tool === 'monitor_process') {
+        } else if (tool === 'system.monitor_process') {
             return await this.executeMonitorProcess(args);
-        } else if (tool === 'system.stop_process' || tool === 'stop_process') {
+        } else if (tool === 'system.stop_process') {
             return await this.executeStopProcess(args);
-        } else if (tool === 'system.info' || tool === 'system_info') {
+        } else if (tool === 'system.info') {
             return await this.executeSystemInfo(args);
-        } else if (tool === 'system.notify' || tool === 'notify' || tool === 'notification') {
+        } else if (tool === 'system.notify') {
             return await this.executeNotification(args);
 
         // === DESKTOP TOOLS ===
-        } else if (tool === 'desktop.screenshot' || tool === 'screenshot') {
+        } else if (tool === 'desktop.screenshot') {
             return await this.executeScreenshot(args);
-        } else if (tool === 'desktop.mouse_click' || tool === 'mouse_click' || tool === 'mouse.click') {
+        } else if (tool === 'desktop.mouse_click') {
             return await this.executeMouseClick(args);
-        } else if (tool === 'desktop.mouse_move' || tool === 'mouse_move' || tool === 'mouse.move') {
+        } else if (tool === 'desktop.mouse_move') {
             return await this.executeMouseMove(args);
-        } else if (tool === 'desktop.type_text' || tool === 'type_text' || tool === 'type') {
+        } else if (tool === 'desktop.type_text') {
             return await this.executeTypeText(args);
-        } else if (tool === 'desktop.hotkey' || tool === 'hotkey' || tool === 'keyboard_shortcut') {
+        } else if (tool === 'desktop.hotkey') {
             return await this.executeHotkey(args);
 
         // === CLIPBOARD TOOLS ===
-        } else if (tool === 'clipboard.read' || tool === 'clipboard_read') {
+        } else if (tool === 'clipboard.read') {
             return await this.executeClipboardRead(args);
-        } else if (tool === 'clipboard.write' || tool === 'clipboard_write') {
+        } else if (tool === 'clipboard.write') {
             return await this.executeClipboardWrite(args);
 
         // === WINDOW TOOLS ===
-        } else if (tool === 'window.list_apps' || tool === 'list_apps' || tool === 'running_apps') {
+        } else if (tool === 'window.list_apps') {
             return await this.executeListApps(args);
-        } else if (tool === 'window.focus_app' || tool === 'focus_app' || tool === 'activate_app') {
+        } else if (tool === 'window.focus_app') {
             return await this.executeFocusApp(args);
-        } else if (tool === 'window.get_active' || tool === 'get_active_window' || tool === 'active_window') {
+        } else if (tool === 'window.get_active') {
             return await this.executeGetActiveWindow(args);
         } else if (tool === 'window.manage') {
             // New consolidated window management tool
@@ -997,15 +1005,15 @@ class PullExecutor {
             } else {
                 return await this.executeWindowArrange(args);
             }
-        } else if (tool === 'window_resize' || tool === 'resize_window') {
+        } else if (tool === 'window.resize') {
             return await this.executeWindowResize(args);
-        } else if (tool === 'window_arrange' || tool === 'arrange_windows') {
+        } else if (tool === 'window.arrange') {
             return await this.executeWindowArrange(args);
 
         // === UI TOOLS ===
-        } else if (tool === 'ui.show_options' || tool === 'show_options') {
+        } else if (tool === 'ui.show_options') {
             return await this.executeShowOptions(args);
-        } else if (tool === 'ui.comparison_table' || tool === 'comparison_table') {
+        } else if (tool === 'ui.comparison_table') {
             return await this.executeComparisonTable(args);
 
         // === LEGACY TOOLS (removed but handle gracefully) ===
@@ -1015,18 +1023,18 @@ class PullExecutor {
         } else if (tool === 'open_file') {
             // Deprecated - redirect to finder.open_file
             return await executeMacOSTool('finder.open_file', args);
-        } else if (tool === 'dictate' || tool === 'speak' || tool === 'say') {
-            // Deprecated but still handle
+        } else if (tool === 'dictate') {
+            // Deprecated but still handle (aliases: speak, say)
             return await this.executeDictate(args);
-        } else if (tool === 'play_sound' || tool === 'audio_play') {
-            // Deprecated but still handle
+        } else if (tool === 'play_sound') {
+            // Deprecated but still handle (alias: audio_play)
             return await this.executePlaySound(args);
-        } else if (tool === 'file_watch' || tool === 'watch_directory') {
-            // Deprecated but still handle
+        } else if (tool === 'file_watch') {
+            // Deprecated but still handle (alias: watch_directory)
             return await this.executeFileWatch(args);
 
         // === GOOGLE TOOLS ===
-        } else if (tool === 'google.command' || tool === 'google_command') {
+        } else if (tool === 'google.command') {
             const action = args.action || 'google.gmail.list_messages';
             return await this.executeGoogleAction(action, args);
         } else if (tool.startsWith('google.')) {
@@ -1260,16 +1268,54 @@ class PullExecutor {
                         // AUTO-FETCH: Automatically get page text after search
                         // This ensures the AI always sees the actual search results
                         // without needing to call workspace.get_text separately
-                        await new Promise(r => setTimeout(r, 2000)); // Wait for page to load
-                        const textResult = await workspaceManager.getPageText(args._tabId);
+
+                        // Wait for Google search results to load using element detection
+                        // Google uses #search for main results container
+                        const waitResult = await workspaceManager.waitForElement('#search, #rso, .g', {
+                            timeout: 8000,  // 8 second timeout
+                            interval: 300   // Check every 300ms
+                        });
+
+                        // Add a small extra wait for dynamic content to finish rendering
+                        await new Promise(r => setTimeout(r, 500));
+
+                        // Try to get page text with retry logic
                         let searchResultText = '';
-                        if (textResult.success && textResult.text) {
-                            // Truncate if too long (keep first 8000 chars for search results)
-                            const text = textResult.text;
-                            searchResultText = text.length > 8000
-                                ? text.slice(0, 8000) + '\n...[truncated]'
-                                : text;
+                        let extractionError = null;
+                        const maxRetries = 3;
+
+                        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                            const textResult = await workspaceManager.getPageText(args._tabId);
+
+                            if (textResult.success && textResult.text) {
+                                const text = textResult.text.trim();
+
+                                // Validate that we got actual search results (not empty or error page)
+                                // Google search results should have at least 200 chars of content
+                                if (text.length >= 200) {
+                                    // Truncate if too long (keep first 8000 chars for search results)
+                                    searchResultText = text.length > 8000
+                                        ? text.slice(0, 8000) + '\n...[truncated]'
+                                        : text;
+                                    break; // Success - exit retry loop
+                                } else {
+                                    extractionError = `Page text too short (${text.length} chars) - page may not have fully loaded`;
+                                }
+                            } else {
+                                extractionError = textResult.error || 'Failed to extract page text';
+                            }
+
+                            // Wait before retry (exponential backoff: 500ms, 1000ms, 2000ms)
+                            if (attempt < maxRetries) {
+                                await new Promise(r => setTimeout(r, 500 * attempt));
+                            }
                         }
+
+                        // If we still have no results after retries, include error info for AI
+                        if (!searchResultText) {
+                            searchResultText = `[WARNING: Could not extract search results. ${extractionError || 'Unknown error'}. The search page is open but text extraction failed. Try using workspace.get_text to manually retrieve the content, or take a screenshot to see what's on the page.]`;
+                        }
+
                         return {
                             success: true,
                             stdout: `Searched Google for: ${args.query}\n\n=== SEARCH RESULTS ===\n${searchResultText}\n=== END RESULTS ===`,

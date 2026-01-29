@@ -182,13 +182,47 @@ export function formatApiStatus(connected, latency) {
   if (!connected) {
     return 'Disconnected';
   }
-  
+
   if (latency) {
     if (latency < 100) return 'Connected (Excellent)';
     if (latency < 300) return 'Connected (Good)';
     if (latency < 1000) return 'Connected (Fair)';
     return 'Connected (Poor)';
   }
-  
+
   return 'Connected';
+}
+
+/**
+ * Strip internal JSON action blocks from content before displaying to user.
+ * These blocks like {"action": "workspace.search", "args": {...}} are used internally
+ * for executing macOS native tools but should not be shown in the UI.
+ * @param {string} content - Content that may contain action blocks
+ * @returns {string} Content with action blocks removed
+ */
+export function stripActionBlocks(content) {
+  // Extra safety: return empty string for any non-string input
+  if (content === null || content === undefined) return '';
+  if (typeof content !== 'string') return String(content);
+
+  try {
+    // Pattern to match JSON action blocks: {"action": "...", "args": {...}}
+    // This handles various formats including nested objects and whitespace
+    // Replace with a single space to avoid merging adjacent words
+    const actionBlockPattern = /\s*\{"action":\s*"[^"]+"\s*(?:,\s*"args":\s*\{[^}]*\})?\s*\}\s*/g;
+
+    // Also strip any "Action requested: ..." lines that precede the JSON
+    const actionRequestedPattern = /\s*Action requested:\s*[^\n]+\s*/gi;
+
+    let cleaned = content
+      .replace(actionBlockPattern, ' ')
+      .replace(actionRequestedPattern, ' ')
+      .replace(/\s+/g, ' ') // Normalize multiple spaces to single space
+      .trim();
+
+    return cleaned;
+  } catch (e) {
+    console.error('[stripActionBlocks] Error:', e);
+    return content; // Return original content if anything fails
+  }
 }

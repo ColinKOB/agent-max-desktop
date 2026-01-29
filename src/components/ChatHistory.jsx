@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { MessageSquare, User, Bot, Clock, RefreshCw, Search, AlertCircle } from 'lucide-react';
 import { conversationAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import { stripActionBlocks } from '../utils/formatters';
 
 export default function ChatHistory() {
   const [conversations, setConversations] = useState([]);
@@ -262,7 +263,7 @@ export default function ChatHistory() {
                           : 'bg-gray-800 text-gray-100'
                       }`}
                     >
-                      <pre className="whitespace-pre-wrap text-sm font-normal">{msg.content}</pre>
+                      <pre className="whitespace-pre-wrap text-sm font-normal">{stripActionBlocks(msg.content)}</pre>
 
                       {/* Show if this message triggered Google services */}
                       {msg.metadata?.google_services_used && (

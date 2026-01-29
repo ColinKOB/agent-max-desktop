@@ -5,6 +5,7 @@ import { getAllSessions } from '../services/supabaseMemory';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { stripActionBlocks } from '../utils/formatters';
 
 export default function ConversationHistory({ onLoadConversation }) {
   const [conversations, setConversations] = useState([]);
@@ -206,7 +207,7 @@ export default function ConversationHistory({ onLoadConversation }) {
                     a: ({href, children}) => <a href={href} target="_blank" rel="noreferrer" style={{ color: '#6366f1', textDecoration: 'underline' }}>{children}</a>,
                   }}
                 >
-                  {msg.content}
+                  {stripActionBlocks(msg.content)}
                 </ReactMarkdown>
               </div>
             </div>

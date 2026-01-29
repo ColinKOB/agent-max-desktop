@@ -76,6 +76,185 @@
   background: rgba(255,255,255,0.15);
 }
 
+/* Context usage warning pulse animation (at 75%+) */
+@keyframes contextWarningPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 8px 2px rgba(245, 158, 11, 0.6);
+  }
+}
+
+.apple-tool-btn.context-usage-btn.context-warning {
+  animation: contextWarningPulse 2s ease-in-out infinite;
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+/* Context usage critical pulse animation (at 90%+) */
+@keyframes contextCriticalPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 10px 3px rgba(239, 68, 68, 0.7);
+  }
+}
+
+.apple-tool-btn.context-usage-btn.context-critical {
+  animation: contextCriticalPulse 1.5s ease-in-out infinite;
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+/* Context tooltip styling */
+.context-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 220px;
+  background: linear-gradient(135deg, rgba(18, 20, 24, 0.98), rgba(24, 26, 30, 0.96));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: contextTooltipFadeIn 0.2s ease-out;
+  z-index: 100;
+  pointer-events: auto;
+}
+
+@keyframes contextTooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.context-tooltip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.context-tooltip-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.context-tooltip-percent {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.context-tooltip-percent.low {
+  color: rgba(59, 130, 246, 1);
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.context-tooltip-percent.warning {
+  color: rgba(245, 158, 11, 1);
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.context-tooltip-percent.critical {
+  color: rgba(239, 68, 68, 1);
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.context-tooltip-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.context-tooltip-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.context-tooltip-bar-fill.low {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.8), rgba(96, 165, 250, 0.9));
+}
+
+.context-tooltip-bar-fill.warning {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.8), rgba(251, 191, 36, 0.9));
+}
+
+.context-tooltip-bar-fill.critical {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.8), rgba(248, 113, 113, 0.9));
+}
+
+.context-tooltip-text {
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 6px;
+}
+
+.context-tooltip-tip {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.context-tooltip-action {
+  margin-top: 12px;
+}
+
+.context-fresh-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.15));
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 8px;
+  color: rgba(251, 191, 36, 1);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.context-fresh-btn:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(217, 119, 6, 0.25));
+  border-color: rgba(245, 158, 11, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+}
+
+.context-fresh-btn:active {
+  transform: translateY(0);
+}
+
+/* Context percentage badge next to icon */
+.context-percent-badge {
+  font-size: 9px;
+  font-weight: 600;
+  margin-left: 2px;
+  position: relative;
+  z-index: 3;
+  letter-spacing: -0.2px;
+}
+
 /* Remove blue-ish focus glow for toolbar buttons */
 .apple-tool-btn:focus,
 .apple-tool-btn:focus-visible {
@@ -408,10 +587,20 @@
   box-shadow: none;
 }
 
-/* Stop button variant - red gradient */
+/* Stop button variant - red gradient with label */
 .apple-send-btn.apple-stop-btn {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   animation: stopPulse 1.5s ease-in-out infinite;
+  width: auto;
+  padding: 0 12px;
+  gap: 6px;
+  min-width: 70px;
+}
+
+.apple-send-btn.apple-stop-btn .stop-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .apple-send-btn.apple-stop-btn:hover {

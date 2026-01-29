@@ -31,7 +31,10 @@ import {
   FileWarning,
   Scale,
   Gift,
-  Heart
+  Heart,
+  Plane,
+  FolderOpen,
+  Play
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { healthAPI, googleAPI, creditsAPI, subscriptionAPI } from '../../services/api';
@@ -309,6 +312,208 @@ function WelcomeStep({ onNext }) {
 }
 
 // ============================================================================
+// STEP: SEE MAX IN ACTION (Demo of Capabilities)
+// ============================================================================
+const DEMO_EXAMPLES = [
+  {
+    icon: Mail,
+    text: '"Draft an email to reschedule my meeting"',
+    color: '#3b82f6', // blue
+  },
+  {
+    icon: Plane,
+    text: '"Find flights to Tokyo for next week"',
+    color: '#22c55e', // green
+  },
+  {
+    icon: FolderOpen,
+    text: '"Organize my downloads folder"',
+    color: '#a855f7', // purple
+  },
+];
+
+function DemoStep({ onNext, onBack }) {
+  const [showExamples, setShowExamples] = useState(false);
+
+  useEffect(() => {
+    // Trigger example animations after a short delay
+    const timer = setTimeout(() => setShowExamples(true), 300);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div style={{
+      maxWidth: 380,
+      margin: '0 auto',
+      padding: '20px 16px',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        style={{ textAlign: 'center', marginBottom: 20, flexShrink: 0 }}
+      >
+        <h2 style={{ ...styles.heading, fontSize: 24, marginBottom: 8 }}>
+          What can Max do for you?
+        </h2>
+        <p style={{ ...styles.subheading, marginBottom: 0, fontSize: 14 }}>
+          Max is your AI assistant that can help with everyday tasks
+        </p>
+      </motion.div>
+
+      {/* Demo Animation Placeholder */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.2, duration: 0.4 }}
+        style={{
+          background: 'rgba(255, 255, 255, 0.03)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: 16,
+          padding: 20,
+          marginBottom: 20,
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Animated gradient background */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: `radial-gradient(circle at 50% 0%, ${BRAND_ORANGE_LIGHT} 0%, transparent 60%)`,
+          opacity: 0.5,
+        }} />
+
+        {/* Play icon with pulse effect */}
+        <motion.div
+          initial={{ scale: 0.8 }}
+          animate={{ scale: [1, 1.05, 1] }}
+          transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+          style={{
+            width: 60,
+            height: 60,
+            borderRadius: '50%',
+            background: BRAND_ORANGE,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 16px',
+            boxShadow: `0 4px 20px ${BRAND_ORANGE_SHADOW}`,
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          <Sparkles style={{ width: 28, height: 28, color: '#fff' }} />
+        </motion.div>
+
+        <div style={{
+          textAlign: 'center',
+          color: 'rgba(255, 255, 255, 0.7)',
+          fontSize: 13,
+          position: 'relative',
+          zIndex: 1,
+        }}>
+          Your personal AI that actually takes action
+        </div>
+      </motion.div>
+
+      {/* Example prompts */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        marginBottom: 16,
+      }}>
+        <div style={{
+          color: 'rgba(255, 255, 255, 0.5)',
+          fontSize: 12,
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          marginBottom: 4,
+        }}>
+          Examples
+        </div>
+
+        {DEMO_EXAMPLES.map((example, index) => {
+          const Icon = example.icon;
+
+          return (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, x: -20 }}
+              animate={showExamples ? { opacity: 1, x: 0 } : {}}
+              transition={{ delay: index * 0.1, duration: 0.3 }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '12px 14px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: 10,
+              }}
+            >
+              <div style={{
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                background: `${example.color}20`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <Icon style={{ width: 18, height: 18, color: example.color }} />
+              </div>
+              <span style={{
+                color: 'rgba(255, 255, 255, 0.85)',
+                fontSize: 13,
+                lineHeight: 1.4,
+                fontStyle: 'italic',
+              }}>
+                {example.text}
+              </span>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Buttons */}
+      <div style={{
+        display: 'flex',
+        gap: 10,
+        flexShrink: 0,
+        marginTop: 'auto',
+      }}>
+        <button onClick={onBack} style={styles.secondaryButton}>
+          Back
+        </button>
+        <motion.button
+          onClick={() => onNext()}
+          style={{
+            ...styles.primaryButton,
+            flex: 1,
+          }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          Get Started
+          <ArrowRight style={{ width: 18, height: 18 }} />
+        </motion.button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // STEP 1: LEGAL DISCLAIMER
 // ============================================================================
 function LegalStep({ onNext, onBack }) {
@@ -490,9 +695,9 @@ function LegalStep({ onNext, onBack }) {
 }
 
 // ============================================================================
-// STEP 2: NAME
+// STEP: NAME
 // ============================================================================
-function NameStep({ userData, onNext }) {
+function NameStep({ userData, onNext, onBack }) {
   const [name, setName] = useState(userData.name || '');
   const [saving, setSaving] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -568,26 +773,31 @@ function NameStep({ userData, onNext }) {
           }}
         />
 
-        <button
-          onClick={handleContinue}
-          disabled={!name.trim() || saving}
-          style={{
-            ...styles.primaryButton,
-            opacity: !name.trim() || saving ? 0.5 : 1,
-            cursor: !name.trim() || saving ? 'not-allowed' : 'pointer',
-            marginTop: 'auto',
-          }}
-        >
-          {saving ? 'Saving...' : 'Continue'}
-          {!saving && <ArrowRight style={{ width: 18, height: 18 }} />}
-        </button>
+        <div style={{ display: 'flex', gap: 10, marginTop: 'auto' }}>
+          <button onClick={onBack} style={styles.secondaryButton}>
+            Back
+          </button>
+          <button
+            onClick={handleContinue}
+            disabled={!name.trim() || saving}
+            style={{
+              ...styles.primaryButton,
+              flex: 1,
+              opacity: !name.trim() || saving ? 0.5 : 1,
+              cursor: !name.trim() || saving ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {saving ? 'Saving...' : 'Continue'}
+            {!saving && <ArrowRight style={{ width: 18, height: 18 }} />}
+          </button>
+        </div>
       </motion.div>
     </div>
   );
 }
 
 // ============================================================================
-// STEP 2: USE CASE (Rich Cards with Icons)
+// STEP: USE CASE (Rich Cards with Icons)
 // ============================================================================
 const USE_CASE_OPTIONS = [
   {
@@ -3173,12 +3383,14 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
     return () => { mounted = false; clearInterval(id); };
   }, []);
 
-  // Step order: Account (sign in/up) comes before Legal so returning users can sign in first
+  // Step order: Show value first, then collect info, then legal/account
+  // Progressive onboarding: Demo before legal to reduce friction
   const steps = [
     { id: 'welcome', component: WelcomeStep },
-    { id: 'account', component: AccountStep },      // Sign in/up FIRST
-    { id: 'legal', component: LegalStep },          // Then legal consent
-    { id: 'name', component: NameStep },
+    { id: 'demo', component: DemoStep },            // NEW: Show what Max can do first
+    { id: 'name', component: NameStep },            // Collect name early for personalization
+    { id: 'account', component: AccountStep },      // Sign in/up (deferred)
+    { id: 'legal', component: LegalStep },          // Legal consent (deferred)
     { id: 'usecase', component: UseCaseStep },
     { id: 'modes', component: ModeExplainerStep },  // Explain Chatty vs Autonomous
     { id: 'verify-email', component: EmailVerificationStep },

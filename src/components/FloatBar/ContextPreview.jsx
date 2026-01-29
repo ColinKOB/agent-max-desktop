@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import './ContextPreview.css';
+import { stripActionBlocks } from '../../utils/formatters';
 
 const ContextPreview = ({ pack, onToggle, isExpanded, onToggleExpand }) => {
   const [controls, setControls] = useState({
@@ -208,7 +209,7 @@ const ContextPreview = ({ pack, onToggle, isExpanded, onToggleExpand }) => {
                     {pack.recent_messages.map((msg, idx) => (
                       <div key={idx} className={`message-item ${msg.role}`}>
                         <span className="message-role">{msg.role}:</span>
-                        <span className="message-content">{msg.content}</span>
+                        <span className="message-content">{stripActionBlocks(msg.content)}</span>
                       </div>
                     ))}
                   </div>

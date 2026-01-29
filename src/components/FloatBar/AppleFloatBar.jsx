@@ -35,6 +35,7 @@ import {
   Globe,
   Table2,
   StickyNote,
+  RefreshCw,
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import {
@@ -123,6 +124,7 @@ import EmailRenderer from './EmailRenderer';
 import ComposerBar from './ComposerBar';
 import AppTutorial from '../tutorial/AppTutorial';
 import { processImageFile } from '../../utils/imageCompression';
+import { stripActionBlocks } from '../../utils/formatters';
 
 const logger = createLogger('FloatBar');
 
@@ -510,6 +512,10 @@ export default function AppleFloatBar({
     usagePercent: 0,
     isFull: false
   });
+
+  // Context tooltip hover state
+  const [showContextTooltip, setShowContextTooltip] = useState(false);
+  const contextTooltipTimeoutRef = useRef(null);
 
   // Fetch context usage on mount and periodically
   useEffect(() => {
@@ -1379,7 +1385,54 @@ export default function AppleFloatBar({
       window.askUser.respond({ cancelled: true });
     }
     setPendingAskUser(null);
+    setCurrentQuestionIndex(0);
+    setCollectedAnswers({});
+    setCustomTextInput('');
   }, []);
+
+  // Handle going back to a previous question in the wizard
+  const handleWizardBack = useCallback(() => {
+    if (currentQuestionIndex > 0 && pendingAskUser?.isBatched && pendingAskUser?.questions) {
+      const prevIndex = currentQuestionIndex - 1;
+      const prevQuestionId = pendingAskUser.questions[prevIndex]?.id;
+
+      // Remove the answer for the previous question so user can re-answer
+      const newAnswers = { ...collectedAnswers };
+      delete newAnswers[prevQuestionId];
+      setCollectedAnswers(newAnswers);
+
+      // Go back to the previous question
+      setCurrentQuestionIndex(prevIndex);
+      setCustomTextInput('');
+
+      console.log('[AppleFloatBar] Wizard going back to question:', prevIndex);
+    }
+  }, [currentQuestionIndex, pendingAskUser, collectedAnswers]);
+
+  // Jump to a specific question in the wizard (for clicking on progress dots)
+  const handleWizardJumpTo = useCallback((targetIndex) => {
+    if (!pendingAskUser?.isBatched || !pendingAskUser?.questions) return;
+    if (targetIndex < 0 || targetIndex >= pendingAskUser.questions.length) return;
+
+    // Only allow jumping to answered questions or the next unanswered question
+    const answeredCount = Object.keys(collectedAnswers).length;
+    if (targetIndex > answeredCount) return; // Can't skip ahead
+
+    // If jumping backwards, remove answers from targetIndex onwards
+    if (targetIndex < currentQuestionIndex) {
+      const newAnswers = { ...collectedAnswers };
+      for (let i = targetIndex; i < pendingAskUser.questions.length; i++) {
+        const qId = pendingAskUser.questions[i]?.id;
+        if (qId) delete newAnswers[qId];
+      }
+      setCollectedAnswers(newAnswers);
+    }
+
+    setCurrentQuestionIndex(targetIndex);
+    setCustomTextInput('');
+
+    console.log('[AppleFloatBar] Wizard jumped to question:', targetIndex);
+  }, [pendingAskUser, collectedAnswers, currentQuestionIndex]);
 
   // Listen for parallel web agents updates (worktree-style display)
   useEffect(() => {
@@ -2629,6 +2682,9 @@ export default function AppleFloatBar({
             // No tile enrichment active: show tokens in real-time
             streamBufferRef.current = (streamBufferRef.current || '') + content;
 
+            // Strip action blocks for display (but keep raw buffer for action detection)
+            const displayContent = stripActionBlocks(streamBufferRef.current);
+
             // Update or create assistant message in real-time
             setThoughts((prev) => {
               // Check if last message is an in-progress assistant message
@@ -2641,7 +2697,7 @@ export default function AppleFloatBar({
                 const updated = [...prev];
                 updated[updated.length - 1] = {
                   ...updated[updated.length - 1],
-                  content: streamBufferRef.current,
+                  content: displayContent,
                 };
                 return updated;
               } else {
@@ -2650,7 +2706,7 @@ export default function AppleFloatBar({
                   ...prev,
                   {
                     role: 'assistant',
-                    content: streamBufferRef.current,
+                    content: displayContent,
                     timestamp: Date.now(),
                     streaming: true,
                   },
@@ -3172,8 +3228,13 @@ export default function AppleFloatBar({
             }
           }
           const buffered = streamBufferRef.current || '';
-          const responseText =
+          let responseText =
             typeof finalResponse === 'string' && finalResponse.trim() ? finalResponse : buffered;
+
+          // Strip any JSON action blocks from the response before displaying
+          // These are internal commands like {"action": "workspace.search", ...} that shouldn't be shown
+          responseText = stripActionBlocks(responseText);
+
           if (!responseText) {
             try {
               console.warn(
@@ -3536,23 +3597,38 @@ export default function AppleFloatBar({
                       }
 
                       logger.info('[Workspace] Got search results:', resultText.substring(0, 200));
-                      toast.success('Search complete!');
+                      toast.success('Search complete - processing results...');
 
-                      // Add the search results as a system message so the AI can see them
-                      // This will be visible in the next response
+                      // Add the search results as a hidden system message (not displayed to user)
+                      // The AI will see this in context when we auto-continue
                       const searchResultMessage = {
                         role: 'system',
-                        content: `[Web Search Results for "${query}"]\n\n${resultText}\n\n[End of Search Results - Now respond to the user with the specific data you found above]`,
+                        content: `[Web Search Results for "${query}"]\n\n${resultText}\n\n[End of Search Results - Now provide your response using this data]`,
                         timestamp: Date.now(),
-                        isSearchResult: true
+                        isSearchResult: true,
+                        hidden: true  // Don't display in chat UI
                       };
 
-                      // Add to messages so AI sees it
-                      setMessages(prev => [...prev, searchResultMessage]);
+                      // Add to thoughts so AI sees it in context (but UI will filter hidden messages)
+                      setThoughts(prev => [...prev, searchResultMessage]);
 
-                      // Re-send to get AI to process the results
-                      // The AI will see the search results in context and can now answer
-                      logger.info('[Workspace] Search results added to context, AI will process on next turn');
+                      // Auto-continue: Trigger AI to respond with search context
+                      // Use a special hidden continuation that doesn't show a user message
+                      logger.info('[Workspace] Auto-continuing to process search results...');
+
+                      if (continueSendMessageRef.current) {
+                        // Delay to ensure search results are in state
+                        setTimeout(() => {
+                          // Mark this as a system continuation (no visible user message)
+                          // The AI will see the search results and continue responding
+                          const systemContinuation = '[System: Continue your response using the web search results above]';
+                          // Pass messageAlreadyAdded=true to skip adding a visible user message
+                          // The "user" message here is actually a hidden system continuation
+                          continueSendMessageRef.current(systemContinuation, null, null, true);
+                          setIsThinking(true);
+                          setThinkingStatus('Processing search results...');
+                        }, 150);
+                      }
                     } else {
                       logger.warn('[Workspace] No text retrieved from search');
                       toast.error('Could not retrieve search results');
@@ -5163,7 +5239,34 @@ export default function AppleFloatBar({
       setLiveActivitySteps([]);
       clearActivityLog(); // Also clear old activity log to prevent phantom old UI
 
-      const userId = localStorage.getItem('user_id');
+      // FIX: Ensure user_id exists before sending first message
+      // This prevents HTTP 400/401 errors when the app hasn't finished initializing
+      // IMPORTANT: Generate a valid UUID format to avoid Supabase type errors
+      let userId = localStorage.getItem('user_id');
+      if (!userId) {
+        // Generate a temporary user_id to allow the first message to go through
+        // This ensures the backend can process the request while initializeUser() completes
+        const generateUserId = () => {
+          if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
+            return globalThis.crypto.randomUUID();
+          }
+          return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === 'x' ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          });
+        };
+        userId = generateUserId();
+        localStorage.setItem('user_id', userId);
+        logger.info('[Session] Generated emergency user_id for first message', { userId });
+
+        // Also ensure device_id exists
+        if (!localStorage.getItem('device_id')) {
+          const deviceId = generateUserId();
+          localStorage.setItem('device_id', deviceId);
+          logger.info('[Session] Generated device_id', { deviceId });
+        }
+      }
 
       // CREDIT GATE: Check if user has credits before allowing any message
       if (userId) {
@@ -5983,8 +6086,9 @@ export default function AppleFloatBar({
   );
 
   // Index of last user message - for showing execution progress under the right message
+  // Filter out hidden messages to match the filtered render array
   const lastUserMessageIdx = useMemo(
-    () => thoughts.reduce((lastIdx, t, i) => (t.role === 'user' ? i : lastIdx), -1),
+    () => thoughts.filter(t => !t.hidden).reduce((lastIdx, t, i) => (t.role === 'user' ? i : lastIdx), -1),
     [thoughts]
   );
 
@@ -6570,68 +6674,138 @@ export default function AppleFloatBar({
             <button className="apple-tool-btn" onClick={handleSettings} title="Settings" data-tutorial="settings">
               <Settings size={16} />
             </button>
-            <button
-              className="apple-tool-btn context-usage-btn"
-              onClick={handleClear}
-              title={contextUsage.isFull ? "Context full - Start new conversation" : `New conversation (${contextUsage.usagePercent.toFixed(1)}% used)`}
-              data-tutorial="context"
-              style={{
-                position: 'relative',
-                overflow: 'hidden',
+            {/* Context Usage Button with Tooltip */}
+            <div
+              style={{ position: 'relative' }}
+              onMouseEnter={() => {
+                // Clear any pending hide timeout
+                if (contextTooltipTimeoutRef.current) {
+                  clearTimeout(contextTooltipTimeoutRef.current);
+                }
+                setShowContextTooltip(true);
+              }}
+              onMouseLeave={() => {
+                // Delay hiding to allow mouse to move to tooltip
+                contextTooltipTimeoutRef.current = setTimeout(() => {
+                  setShowContextTooltip(false);
+                }, 150);
               }}
             >
-              {/* Fill-up effect background */}
-              <div
-                className="context-fill"
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  // Show at least 15% height when there's any usage for visibility
-                  height: contextUsage.usagePercent > 0 ? `${Math.max(contextUsage.usagePercent, 15)}%` : '0%',
-                  background: contextUsage.usagePercent >= 85
-                    ? 'rgba(239, 68, 68, 0.8)' // Red - more visible
-                    : contextUsage.usagePercent >= 60
-                      ? 'rgba(245, 158, 11, 0.8)' // Yellow/amber
-                      : 'rgba(59, 130, 246, 0.7)', // Blue - more visible
-                  transition: 'height 0.5s ease-out, background 0.3s ease',
-                  pointerEvents: 'none',
-                  borderRadius: 'inherit',
-                  zIndex: 2, // Above the ::before background (which is z-index: 0)
-                }}
-              />
-              {/* Icon */}
-              <Edit3
-                size={16}
+              <button
+                className={`apple-tool-btn context-usage-btn${contextUsage.usagePercent >= 90 ? ' context-critical' : contextUsage.usagePercent >= 75 ? ' context-warning' : ''}`}
+                onClick={handleClear}
+                data-tutorial="context"
                 style={{
                   position: 'relative',
-                  zIndex: 3, // Above the fill
-                  color: contextUsage.usagePercent >= 85
-                    ? '#ef4444'
-                    : contextUsage.usagePercent >= 60
-                      ? '#f59e0b'
-                      : undefined
+                  overflow: 'hidden',
+                  width: 'auto',
+                  minWidth: 32,
+                  paddingLeft: 8,
+                  paddingRight: 8,
+                  gap: 4,
                 }}
-              />
-              {/* Show percentage when at 100% */}
-              {contextUsage.isFull && (
-                <span
+              >
+                {/* Fill-up effect background */}
+                <div
+                  className="context-fill"
                   style={{
                     position: 'absolute',
-                    bottom: -2,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    fontSize: 8,
-                    fontWeight: 600,
-                    color: '#ef4444',
-                    zIndex: 2,
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    // Show at least 15% height when there's any usage for visibility
+                    height: contextUsage.usagePercent > 0 ? `${Math.max(contextUsage.usagePercent, 15)}%` : '0%',
+                    background: contextUsage.usagePercent >= 85
+                      ? 'rgba(239, 68, 68, 0.8)' // Red - more visible
+                      : contextUsage.usagePercent >= 60
+                        ? 'rgba(245, 158, 11, 0.8)' // Yellow/amber
+                        : 'rgba(59, 130, 246, 0.7)', // Blue - more visible
+                    transition: 'height 0.5s ease-out, background 0.3s ease',
+                    pointerEvents: 'none',
+                    borderRadius: 'inherit',
+                    zIndex: 2, // Above the ::before background (which is z-index: 0)
+                  }}
+                />
+                {/* Icon */}
+                <Edit3
+                  size={14}
+                  style={{
+                    position: 'relative',
+                    zIndex: 3, // Above the fill
+                    color: contextUsage.usagePercent >= 85
+                      ? '#ef4444'
+                      : contextUsage.usagePercent >= 60
+                        ? '#f59e0b'
+                        : undefined,
+                    flexShrink: 0,
+                  }}
+                />
+                {/* Always visible percentage */}
+                <span
+                  className="context-percent-badge"
+                  style={{
+                    color: contextUsage.usagePercent >= 85
+                      ? '#ef4444'
+                      : contextUsage.usagePercent >= 60
+                        ? '#f59e0b'
+                        : 'rgba(255,255,255,0.75)',
                   }}
                 >
-                  100%
+                  {Math.round(contextUsage.usagePercent)}%
                 </span>
+              </button>
+
+              {/* Context Tooltip */}
+              {showContextTooltip && (
+                <div
+                  className="context-tooltip"
+                  onMouseEnter={() => {
+                    // Keep tooltip visible when hovering over it
+                    if (contextTooltipTimeoutRef.current) {
+                      clearTimeout(contextTooltipTimeoutRef.current);
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    setShowContextTooltip(false);
+                  }}
+                >
+                  <div className="context-tooltip-header">
+                    <span className="context-tooltip-title">Context Memory</span>
+                    <span className={`context-tooltip-percent ${contextUsage.usagePercent >= 90 ? 'critical' : contextUsage.usagePercent >= 75 ? 'warning' : 'low'}`}>
+                      {Math.round(contextUsage.usagePercent)}% used
+                    </span>
+                  </div>
+                  <div className="context-tooltip-bar">
+                    <div
+                      className={`context-tooltip-bar-fill ${contextUsage.usagePercent >= 90 ? 'critical' : contextUsage.usagePercent >= 75 ? 'warning' : 'low'}`}
+                      style={{ width: `${contextUsage.usagePercent}%` }}
+                    />
+                  </div>
+                  <div className="context-tooltip-text">
+                    Max remembers the last ~150,000 words of our conversation. When this fills up, older messages are forgotten.
+                  </div>
+                  <div className="context-tooltip-tip">
+                    Tip: Start a new conversation for fresh context.
+                  </div>
+                  {/* Show Start Fresh button when at 75% or more */}
+                  {contextUsage.usagePercent >= 75 && (
+                    <div className="context-tooltip-action">
+                      <button
+                        className="context-fresh-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowContextTooltip(false);
+                          handleClear();
+                        }}
+                      >
+                        <RefreshCw size={14} />
+                        Start Fresh Conversation
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
-            </button>
+            </div>
             <button className="apple-tool-btn" onClick={handleCollapse} title="Shrink">
               <Minimize2 size={16} />
             </button>
@@ -7183,8 +7357,9 @@ export default function AppleFloatBar({
               </div>
             )}
 
-            {thoughts.map((thought, idx) => {
+            {thoughts.filter(t => !t.hidden).map((thought, idx) => {
               // Render user message first, then execution progress checklist
+              // Filter out hidden messages (like search results injected for AI context)
               const isUserMessage = thought.role === 'user';
               // Use memoized lastUserMessageIdx (computed once above, not per message)
               const isLastUserMessage = isUserMessage && idx === lastUserMessageIdx;
@@ -7436,9 +7611,145 @@ export default function AppleFloatBar({
                     </div>
                   )}
 
-                  {/* Batched questions wizard */}
+                  {/* Batched questions wizard - Multi-Question Progress Wizard */}
                   {pendingAskUser.isBatched && pendingAskUser.questions ? (
                     <>
+                      {/* Progress dots navigation */}
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: 8,
+                        marginBottom: 16,
+                        padding: '8px 0',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                      }}>
+                        {pendingAskUser.questions.map((progressQ, idx) => {
+                          const isAnswered = collectedAnswers[progressQ.id] !== undefined;
+                          const isCurrent = idx === currentQuestionIndex;
+                          const canClick = idx <= Object.keys(collectedAnswers).length;
+
+                          return (
+                            <button
+                              key={progressQ.id}
+                              onClick={() => canClick && handleWizardJumpTo(idx)}
+                              disabled={!canClick}
+                              title={`Question ${idx + 1}${isAnswered ? ' (answered)' : isCurrent ? ' (current)' : ''}`}
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: '50%',
+                                border: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 12,
+                                fontWeight: 600,
+                                cursor: canClick ? 'pointer' : 'default',
+                                transition: 'all 0.2s ease',
+                                background: isCurrent
+                                  ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(99, 102, 241, 0.9))'
+                                  : isAnswered
+                                    ? 'rgba(34, 197, 94, 0.25)'
+                                    : 'rgba(255, 255, 255, 0.08)',
+                                color: isCurrent
+                                  ? '#fff'
+                                  : isAnswered
+                                    ? 'rgba(134, 239, 172, 0.95)'
+                                    : 'rgba(255, 255, 255, 0.4)',
+                                boxShadow: isCurrent
+                                  ? '0 0 12px rgba(59, 130, 246, 0.4)'
+                                  : 'none',
+                                transform: isCurrent ? 'scale(1.1)' : 'scale(1)',
+                              }}
+                              onMouseEnter={(e) => {
+                                if (canClick && !isCurrent) {
+                                  e.currentTarget.style.background = isAnswered
+                                    ? 'rgba(34, 197, 94, 0.35)'
+                                    : 'rgba(255, 255, 255, 0.15)';
+                                  e.currentTarget.style.transform = 'scale(1.05)';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isCurrent) {
+                                  e.currentTarget.style.background = isAnswered
+                                    ? 'rgba(34, 197, 94, 0.25)'
+                                    : 'rgba(255, 255, 255, 0.08)';
+                                  e.currentTarget.style.transform = 'scale(1)';
+                                }
+                              }}
+                            >
+                              {isAnswered && !isCurrent ? (
+                                <span style={{ fontSize: 14 }}>&#10003;</span>
+                              ) : (
+                                idx + 1
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Previous answers summary (show if any answers collected) */}
+                      {Object.keys(collectedAnswers).length > 0 && (
+                        <div style={{
+                          marginBottom: 16,
+                          padding: '10px 12px',
+                          background: 'rgba(34, 197, 94, 0.08)',
+                          borderRadius: 10,
+                          border: '1px solid rgba(34, 197, 94, 0.15)',
+                        }}>
+                          <div style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: 'rgba(134, 239, 172, 0.8)',
+                            marginBottom: 8,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                          }}>
+                            Your preferences so far:
+                          </div>
+                          <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 6,
+                          }}>
+                            {Object.entries(collectedAnswers).map(([qId, answerId]) => {
+                              const qMatch = pendingAskUser.questions.find(question => question.id === qId);
+                              if (!qMatch) return null;
+
+                              const isCustomAnswer = answerId?.startsWith('custom:');
+                              const displayLabel = isCustomAnswer
+                                ? answerId.replace('custom:', '')
+                                : qMatch?.options?.find(o => o.id === answerId)?.label || answerId;
+
+                              const qIndex = pendingAskUser.questions.findIndex(question => question.id === qId);
+
+                              return (
+                                <div
+                                  key={qId}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    gap: 8,
+                                    fontSize: 12,
+                                    color: 'rgba(255, 255, 255, 0.85)',
+                                  }}
+                                >
+                                  <span style={{
+                                    color: isCustomAnswer ? 'rgba(147, 197, 253, 0.9)' : 'rgba(134, 239, 172, 0.9)',
+                                    flexShrink: 0,
+                                  }}>
+                                    {isCustomAnswer ? '>' : '-'}
+                                  </span>
+                                  <span style={{ opacity: 0.6, flexShrink: 0 }}>Q{qIndex + 1}:</span>
+                                  <span style={{ fontWeight: 500 }}>{displayLabel}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Current question */}
                       {(() => {
                         const currentQ = pendingAskUser.questions[currentQuestionIndex];
@@ -7446,9 +7757,33 @@ export default function AppleFloatBar({
 
                         return (
                           <>
-                            <div style={{ marginBottom: 12, fontWeight: 500, fontSize: 14 }}>
+                            {/* Question header with number */}
+                            <div style={{
+                              marginBottom: 12,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                            }}>
+                              <span style={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: 'rgba(147, 197, 253, 0.8)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px',
+                              }}>
+                                Question {currentQuestionIndex + 1} of {pendingAskUser.questions.length}:
+                              </span>
+                            </div>
+                            <div style={{
+                              marginBottom: 14,
+                              fontWeight: 500,
+                              fontSize: 14,
+                              lineHeight: 1.5,
+                            }}>
                               {currentQ.question}
                             </div>
+
+                            {/* Options */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                               {currentQ.options?.map((option) => (
                                 <button
@@ -7556,43 +7891,63 @@ export default function AppleFloatBar({
                                       e.currentTarget.style.background = 'rgba(59, 130, 246, 0.8)';
                                     }}
                                   >
-                                    Next →
+                                    {currentQuestionIndex < pendingAskUser.questions.length - 1 ? 'Next' : 'Submit'} &rarr;
                                   </button>
                                 )}
                               </div>
                             </div>
 
-                            {/* Show collected answers so far */}
-                            {Object.keys(collectedAnswers).length > 0 && (
-                              <div style={{
-                                marginTop: 12,
-                                paddingTop: 8,
-                                borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                gap: 6,
+                            {/* Navigation footer with Back button */}
+                            <div style={{
+                              marginTop: 16,
+                              paddingTop: 12,
+                              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}>
+                              {/* Back button */}
+                              {currentQuestionIndex > 0 ? (
+                                <button
+                                  onClick={handleWizardBack}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    padding: '8px 12px',
+                                    background: 'transparent',
+                                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                                    borderRadius: 8,
+                                    color: 'rgba(255, 255, 255, 0.7)',
+                                    fontSize: 12,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                                    e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'transparent';
+                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                                    e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)';
+                                  }}
+                                >
+                                  &larr; Back
+                                </button>
+                              ) : (
+                                <div /> /* Spacer to maintain layout */
+                              )}
+
+                              {/* Progress text */}
+                              <span style={{
+                                fontSize: 11,
+                                color: 'rgba(255, 255, 255, 0.4)',
                               }}>
-                                {Object.entries(collectedAnswers).map(([qId, answerId]) => {
-                                  const q = pendingAskUser.questions.find(q => q.id === qId);
-                                  // Handle custom answers (prefixed with "custom:")
-                                  const isCustomAnswer = answerId?.startsWith('custom:');
-                                  const displayLabel = isCustomAnswer
-                                    ? answerId.replace('custom:', '')
-                                    : q?.options?.find(o => o.id === answerId)?.label || answerId;
-                                  return (
-                                    <span key={qId} style={{
-                                      padding: '4px 8px',
-                                      background: isCustomAnswer ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                                      borderRadius: 6,
-                                      fontSize: 11,
-                                      color: isCustomAnswer ? 'rgba(147, 197, 253, 0.9)' : 'rgba(134, 239, 172, 0.9)',
-                                    }}>
-                                      {isCustomAnswer ? '✎' : '✓'} {displayLabel}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            )}
+                                {Object.keys(collectedAnswers).length} of {pendingAskUser.questions.length} answered
+                              </span>
+                            </div>
                           </>
                         );
                       })()}
