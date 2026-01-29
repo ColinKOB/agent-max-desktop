@@ -758,6 +758,7 @@ export default function AppleFloatBar({
   const tilesRef = useRef(null); // fact tiles container
   const enrichTileIdRef = useRef(null); // current tile receiving enrichment
   const streamBufferRef = useRef(''); // accumulates tokens when not enriching a tile
+  const hasReceivedFinalTokenRef = useRef(false); // track if we've received first final token (for thinking status)
   const offlineRef = useRef(false); // suppress toast spam while offline
   const offlineDesktopToastRef = useRef(false);
   const continueSendMessageRef = useRef(null); // dispatcher to avoid TDZ
@@ -2487,6 +2488,7 @@ export default function AppleFloatBar({
           accumulatedResponseRef.current = ''; // Clear fs_command accumulator
           executedCommandsRef.current.clear(); // Clear executed commands tracking
           enrichTileIdRef.current = null;
+          hasReceivedFinalTokenRef.current = false; // Reset for new stream
           clearActivityLog(); // Start fresh activity feed for new task
           // Reset thought ref (bubble will be created lazily on first thinking event)
           thoughtIdRef.current = null;
@@ -2739,17 +2741,29 @@ export default function AppleFloatBar({
           // Skip thinking channel tokens - they shouldn't appear in the main message
           // These are internal status updates like "Analyzing your query..."
           if (channel === 'thinking' || channel === 'narration') {
-            // Update thinking status for the indicator instead
-            setThinkingStatus(content);
+            // Only update thinking status if we haven't received any final tokens yet
+            // After final content starts showing, thinking status is irrelevant and
+            // should NOT be updated (prevents confusing status text changes)
+            if (!hasReceivedFinalTokenRef.current) {
+              setThinkingStatus(content);
+            }
             return;
+          }
+
+          // Mark that we've received the first final token
+          // This prevents thinking channel tokens (like Google action status) from
+          // updating the thinking status after the response is already showing
+          if (!hasReceivedFinalTokenRef.current) {
+            hasReceivedFinalTokenRef.current = true;
+            console.log('[Chat] First final token received - hiding thinking indicator');
           }
 
           // Hide thinking indicator as soon as content starts arriving
           // This prevents the dots from lingering after content is visible
-          if (isThinking) {
-            setIsThinking(false);
-            setThinkingStatus('');
-          }
+          // FIX: Always clear thinking state on first final token, regardless of
+          // the stale closure value of isThinking. React state setter works correctly.
+          setIsThinking(false);
+          setThinkingStatus('');
 
           // Track tokens for credit calculation (approximate: ~4 chars per token)
           totalOutputTokens += Math.ceil(content.length / 4);
