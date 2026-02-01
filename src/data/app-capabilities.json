@@ -1,0 +1,2963 @@
+{
+  "categories": {
+    "productivity": {
+      "label": "Productivity",
+      "icon": "Briefcase",
+      "color": "#3b82f6",
+      "description": "Apps for getting work done, organizing tasks, and managing time"
+    },
+    "communication": {
+      "label": "Communication",
+      "icon": "MessageSquare",
+      "color": "#22c55e",
+      "description": "Messaging, video calls, and collaboration apps"
+    },
+    "creative": {
+      "label": "Creative",
+      "icon": "PenTool",
+      "color": "#ec4899",
+      "description": "Design, video, audio, and creative production apps"
+    },
+    "development": {
+      "label": "Development",
+      "icon": "Code2",
+      "color": "#f97316",
+      "description": "Coding, terminal, and development tools"
+    },
+    "browsers": {
+      "label": "Browsers",
+      "icon": "Globe",
+      "color": "#6366f1",
+      "description": "Web browsers for internet access"
+    },
+    "finance": {
+      "label": "Finance",
+      "icon": "DollarSign",
+      "color": "#10b981",
+      "description": "Accounting, spreadsheets, and financial management"
+    },
+    "entertainment": {
+      "label": "Entertainment",
+      "icon": "Music",
+      "color": "#8b5cf6",
+      "description": "Music, video, games, and media apps"
+    },
+    "utilities": {
+      "label": "Utilities",
+      "icon": "Settings",
+      "color": "#64748b",
+      "description": "System tools, file management, and productivity utilities"
+    },
+    "writing": {
+      "label": "Writing",
+      "icon": "FileText",
+      "color": "#0ea5e9",
+      "description": "Word processing, note-taking, and document editing"
+    },
+    "email": {
+      "label": "Email",
+      "icon": "Mail",
+      "color": "#ef4444",
+      "description": "Email clients and communication"
+    },
+    "health": {
+      "label": "Health & Wellness",
+      "icon": "Heart",
+      "color": "#ef4444",
+      "description": "Fitness tracking, meditation, and wellness apps"
+    },
+    "lifestyle": {
+      "label": "Lifestyle",
+      "icon": "Home",
+      "color": "#f97316",
+      "description": "Food delivery, travel, shopping, and lifestyle apps"
+    },
+    "business": {
+      "label": "Business",
+      "icon": "Briefcase",
+      "color": "#0ea5e9",
+      "description": "CRM, analytics, sales, and business management tools"
+    },
+    "education": {
+      "label": "Education",
+      "icon": "GraduationCap",
+      "color": "#8b5cf6",
+      "description": "Learning platforms, language apps, and research tools"
+    }
+  },
+  "apps": {
+    "Notion": {
+      "bundleId": "notion.id",
+      "category": "productivity",
+      "icon": "FileText",
+      "color": "#000000",
+      "prompts": [
+        "Search Notion for my project notes",
+        "Create a new Notion page called Meeting Notes",
+        "Get the content of my Tasks page in Notion"
+      ]
+    },
+    "Obsidian": {
+      "bundleId": "md.obsidian",
+      "category": "productivity",
+      "icon": "FileText",
+      "color": "#7c3aed",
+      "prompts": [
+        "Create a new note in Obsidian",
+        "Open my daily notes in Obsidian",
+        "Search for notes about meetings in Obsidian"
+      ]
+    },
+    "Bear": {
+      "bundleId": "net.shinyfrog.bear",
+      "category": "productivity",
+      "icon": "FileText",
+      "color": "#d84315",
+      "prompts": [
+        "Create a quick note in Bear",
+        "Search my Bear notes for project ideas",
+        "Open my pinned notes in Bear"
+      ]
+    },
+    "Notes": {
+      "bundleId": "com.apple.Notes",
+      "category": "productivity",
+      "icon": "FileText",
+      "color": "#ffcc00",
+      "prompts": [
+        "Create a note called 'Meeting Notes' with today's agenda",
+        "Search my notes for project ideas",
+        "Add this to my Shopping List note"
+      ]
+    },
+    "Evernote": {
+      "bundleId": "com.evernote.Evernote",
+      "category": "productivity",
+      "icon": "FileText",
+      "color": "#00a82d",
+      "prompts": [
+        "Create a new notebook in Evernote",
+        "Search Evernote for my travel plans",
+        "Clip this webpage to Evernote"
+      ]
+    },
+    "OneNote": {
+      "bundleId": "com.microsoft.onenote.mac",
+      "category": "productivity",
+      "icon": "FileText",
+      "color": "#7719aa",
+      "prompts": [
+        "Open my OneNote notebook",
+        "Create a new section in OneNote",
+        "Search OneNote for meeting notes"
+      ]
+    },
+    "Things": {
+      "bundleId": "com.culturedcode.ThingsMac",
+      "category": "productivity",
+      "icon": "CheckSquare",
+      "color": "#5ba4e5",
+      "prompts": [
+        "Add a new task to Things",
+        "Show my today list in Things",
+        "Create a new project in Things for Q1 goals"
+      ]
+    },
+    "Todoist": {
+      "bundleId": "com.todoist.mac.Todoist",
+      "category": "productivity",
+      "icon": "CheckSquare",
+      "color": "#e44332",
+      "prompts": [
+        "Add a task to Todoist: Review quarterly report",
+        "Show my Todoist inbox",
+        "Mark all tasks as complete in Todoist"
+      ]
+    },
+    "OmniFocus": {
+      "bundleId": "com.omnigroup.OmniFocus3",
+      "category": "productivity",
+      "icon": "CheckSquare",
+      "color": "#5e35b1",
+      "prompts": [
+        "Add a task to OmniFocus",
+        "Show my flagged items in OmniFocus",
+        "Review my projects in OmniFocus"
+      ]
+    },
+    "Reminders": {
+      "bundleId": "com.apple.reminders",
+      "category": "productivity",
+      "icon": "CheckSquare",
+      "color": "#007aff",
+      "prompts": [
+        "Remind me to call mom tomorrow at 5pm",
+        "Show my overdue reminders",
+        "Mark 'Buy groceries' as complete"
+      ]
+    },
+    "TickTick": {
+      "bundleId": "com.TickTick.task.mac",
+      "category": "productivity",
+      "icon": "CheckSquare",
+      "color": "#4772fa",
+      "prompts": [
+        "Add a task to TickTick",
+        "Show my TickTick habits",
+        "Create a new list in TickTick"
+      ]
+    },
+    "Fantastical": {
+      "bundleId": "com.flexibits.fantastical2.mac",
+      "category": "productivity",
+      "icon": "Calendar",
+      "color": "#f73c3c",
+      "prompts": [
+        "Schedule a meeting for tomorrow at 2pm in Fantastical",
+        "Show my week in Fantastical",
+        "Add a birthday reminder to Fantastical"
+      ]
+    },
+    "Calendar": {
+      "bundleId": "com.apple.iCal",
+      "category": "productivity",
+      "icon": "Calendar",
+      "color": "#ff3b30",
+      "prompts": [
+        "Schedule a meeting for tomorrow at 2pm",
+        "What's on my calendar today?",
+        "Find all meetings with John this month"
+      ]
+    },
+    "1Password": {
+      "bundleId": "com.1password.1password",
+      "category": "productivity",
+      "icon": "Lock",
+      "color": "#0073d1",
+      "prompts": [
+        "Open 1Password",
+        "Launch 1Password to find my login",
+        "Switch to 1Password"
+      ]
+    },
+    "Bitwarden": {
+      "bundleId": "com.bitwarden.desktop",
+      "category": "productivity",
+      "icon": "Lock",
+      "color": "#175ddc",
+      "prompts": [
+        "Search Bitwarden for my bank login",
+        "Generate a password in Bitwarden",
+        "Add a new login to Bitwarden"
+      ]
+    },
+    "LastPass": {
+      "bundleId": "com.lastpass.lastpassdesktop",
+      "category": "productivity",
+      "icon": "Lock",
+      "color": "#d32d27",
+      "prompts": [
+        "Find my password in LastPass",
+        "Open LastPass vault",
+        "Share a password via LastPass"
+      ]
+    },
+    "Alfred": {
+      "bundleId": "com.runningwithcrayons.Alfred",
+      "category": "productivity",
+      "icon": "Search",
+      "color": "#5c1f87",
+      "prompts": [
+        "Search my files using Alfred",
+        "Open Alfred and run a workflow",
+        "Find recent documents in Alfred"
+      ]
+    },
+    "Raycast": {
+      "bundleId": "com.raycast.macos",
+      "category": "productivity",
+      "icon": "Search",
+      "color": "#ff6363",
+      "prompts": [
+        "Open Raycast and search for extensions",
+        "Run a Raycast command",
+        "Open clipboard history in Raycast"
+      ]
+    },
+    "Slack": {
+      "bundleId": "com.tinyspeck.slackmacgap",
+      "category": "communication",
+      "icon": "MessageSquare",
+      "color": "#4a154b",
+      "prompts": [
+        "Send a message to #general on Slack saying hello",
+        "List all my Slack channels",
+        "Get the last 10 messages from #team-updates"
+      ]
+    },
+    "Discord": {
+      "bundleId": "com.hnc.Discord",
+      "category": "communication",
+      "icon": "MessageSquare",
+      "color": "#5865f2",
+      "prompts": [
+        "List my Discord servers",
+        "Send a message to my gaming channel on Discord",
+        "Get the recent messages from #general on Discord"
+      ]
+    },
+    "Microsoft Teams": {
+      "bundleId": "com.microsoft.teams",
+      "category": "communication",
+      "icon": "Users",
+      "color": "#6264a7",
+      "prompts": [
+        "Start a Teams meeting with my team",
+        "Check my Teams chat messages",
+        "Schedule a Teams call for tomorrow"
+      ]
+    },
+    "Zoom": {
+      "bundleId": "us.zoom.xos",
+      "category": "communication",
+      "icon": "Video",
+      "color": "#2d8cff",
+      "prompts": [
+        "Start a Zoom meeting",
+        "Join my scheduled Zoom call",
+        "Share my screen on Zoom"
+      ]
+    },
+    "Google Meet": {
+      "bundleId": "com.google.meet",
+      "category": "communication",
+      "icon": "Video",
+      "color": "#00897b",
+      "prompts": [
+        "Start a Google Meet call",
+        "Join the team standup on Meet",
+        "Schedule a Google Meet for the interview"
+      ]
+    },
+    "Messages": {
+      "bundleId": "com.apple.MobileSMS",
+      "category": "communication",
+      "icon": "MessageCircle",
+      "color": "#34c759",
+      "prompts": [
+        "Send a message to Mom saying I'll be late",
+        "Check my recent messages",
+        "Reply to John's message"
+      ]
+    },
+    "WhatsApp": {
+      "bundleId": "net.whatsapp.WhatsApp",
+      "category": "communication",
+      "icon": "MessageCircle",
+      "color": "#25d366",
+      "prompts": [
+        "Send a WhatsApp message to the family group",
+        "Check my WhatsApp notifications",
+        "Share a photo on WhatsApp"
+      ]
+    },
+    "Telegram": {
+      "bundleId": "ru.keepcoder.Telegram",
+      "category": "communication",
+      "icon": "Send",
+      "color": "#0088cc",
+      "prompts": [
+        "Open Telegram and check messages",
+        "Send a file via Telegram",
+        "Join the crypto channel on Telegram"
+      ]
+    },
+    "Signal": {
+      "bundleId": "org.whispersystems.signal-desktop",
+      "category": "communication",
+      "icon": "Shield",
+      "color": "#3a76f0",
+      "prompts": [
+        "Send a secure message on Signal",
+        "Check my Signal conversations",
+        "Start a Signal call with Alex"
+      ]
+    },
+    "FaceTime": {
+      "bundleId": "com.apple.FaceTime",
+      "category": "communication",
+      "icon": "Video",
+      "color": "#32ade6",
+      "prompts": [
+        "Start a FaceTime call with grandma",
+        "Answer the incoming FaceTime",
+        "Create a FaceTime link to share"
+      ]
+    },
+    "Skype": {
+      "bundleId": "com.skype.skype",
+      "category": "communication",
+      "icon": "Video",
+      "color": "#00aff0",
+      "prompts": [
+        "Start a Skype call",
+        "Check my Skype messages",
+        "Schedule a Skype meeting"
+      ]
+    },
+    "Webex": {
+      "bundleId": "com.cisco.webexmeetingsapp",
+      "category": "communication",
+      "icon": "Video",
+      "color": "#00bceb",
+      "prompts": [
+        "Join my Webex meeting",
+        "Start a Webex call",
+        "Share my screen in Webex"
+      ]
+    },
+    "Figma": {
+      "bundleId": "com.figma.Desktop",
+      "category": "creative",
+      "icon": "PenTool",
+      "color": "#f24e1e",
+      "prompts": [
+        "Open my latest Figma project",
+        "Create a new design file in Figma",
+        "Search Figma for the mobile app mockups"
+      ]
+    },
+    "Sketch": {
+      "bundleId": "com.bohemiancoding.sketch3",
+      "category": "creative",
+      "icon": "PenTool",
+      "color": "#f7b500",
+      "prompts": [
+        "Open Sketch and create a new artboard",
+        "Export my Sketch designs as PNG",
+        "Find the icon library in Sketch"
+      ]
+    },
+    "Adobe Photoshop": {
+      "bundleId": "com.adobe.Photoshop",
+      "category": "creative",
+      "icon": "Image",
+      "color": "#31a8ff",
+      "prompts": [
+        "Open this image in Photoshop",
+        "Create a new Photoshop document",
+        "Apply filters to my photo in Photoshop"
+      ]
+    },
+    "Adobe Illustrator": {
+      "bundleId": "com.adobe.Illustrator",
+      "category": "creative",
+      "icon": "PenTool",
+      "color": "#ff9a00",
+      "prompts": [
+        "Open Illustrator and create a new logo",
+        "Convert this image to vector in Illustrator",
+        "Export my design as SVG from Illustrator"
+      ]
+    },
+    "Adobe XD": {
+      "bundleId": "com.adobe.xd",
+      "category": "creative",
+      "icon": "Layout",
+      "color": "#ff61f6",
+      "prompts": [
+        "Open my prototype in Adobe XD",
+        "Create a new XD wireframe",
+        "Share my XD design for feedback"
+      ]
+    },
+    "Canva": {
+      "bundleId": "com.canva.CanvaDesktop",
+      "category": "creative",
+      "icon": "Palette",
+      "color": "#00c4cc",
+      "prompts": [
+        "Create a presentation in Canva",
+        "Design a social media post in Canva",
+        "Open Canva and find Instagram templates"
+      ]
+    },
+    "Affinity Designer": {
+      "bundleId": "com.seriflabs.affinitydesigner",
+      "category": "creative",
+      "icon": "PenTool",
+      "color": "#1b72be",
+      "prompts": [
+        "Open Affinity Designer for vector work",
+        "Create a new illustration in Affinity",
+        "Export my Affinity project"
+      ]
+    },
+    "Affinity Photo": {
+      "bundleId": "com.seriflabs.affinityphoto",
+      "category": "creative",
+      "icon": "Image",
+      "color": "#7e4dd2",
+      "prompts": [
+        "Edit my photo in Affinity Photo",
+        "Remove the background from this image",
+        "Apply photo adjustments in Affinity"
+      ]
+    },
+    "Final Cut Pro": {
+      "bundleId": "com.apple.FinalCut",
+      "category": "creative",
+      "icon": "Film",
+      "color": "#a855f7",
+      "prompts": [
+        "Open Final Cut Pro",
+        "Launch Final Cut Pro for editing",
+        "Switch to Final Cut Pro"
+      ]
+    },
+    "iMovie": {
+      "bundleId": "com.apple.iMovieApp",
+      "category": "creative",
+      "icon": "Film",
+      "color": "#a855f7",
+      "prompts": [
+        "Create a new movie project in iMovie",
+        "Add music to my iMovie video",
+        "Export my iMovie project"
+      ]
+    },
+    "DaVinci Resolve": {
+      "bundleId": "com.blackmagic-design.DaVinciResolve",
+      "category": "creative",
+      "icon": "Film",
+      "color": "#ff6d00",
+      "prompts": [
+        "Color grade my video in DaVinci Resolve",
+        "Import footage into DaVinci",
+        "Create a new project in DaVinci Resolve"
+      ]
+    },
+    "Adobe Premiere Pro": {
+      "bundleId": "com.adobe.PremierePro",
+      "category": "creative",
+      "icon": "Film",
+      "color": "#9999ff",
+      "prompts": [
+        "Open Premiere Pro and start editing",
+        "Add transitions to my video in Premiere",
+        "Export my video from Premiere Pro"
+      ]
+    },
+    "Logic Pro": {
+      "bundleId": "com.apple.logic10",
+      "category": "creative",
+      "icon": "Music",
+      "color": "#777777",
+      "prompts": [
+        "Open Logic Pro and create a new track",
+        "Add drums to my Logic project",
+        "Mix my song in Logic Pro"
+      ]
+    },
+    "GarageBand": {
+      "bundleId": "com.apple.garageband10",
+      "category": "creative",
+      "icon": "Music",
+      "color": "#ff9500",
+      "prompts": [
+        "Start a new song in GarageBand",
+        "Record a guitar track in GarageBand",
+        "Add loops to my GarageBand project"
+      ]
+    },
+    "Audacity": {
+      "bundleId": "org.audacityteam.audacity",
+      "category": "creative",
+      "icon": "Mic",
+      "color": "#00cc00",
+      "prompts": [
+        "Edit my podcast in Audacity",
+        "Remove noise from audio in Audacity",
+        "Export my recording as MP3"
+      ]
+    },
+    "Blender": {
+      "bundleId": "org.blenderfoundation.blender",
+      "category": "creative",
+      "icon": "Box",
+      "color": "#ea7600",
+      "prompts": [
+        "Open Blender and create a 3D model",
+        "Render my Blender scene",
+        "Add textures to my model in Blender"
+      ]
+    },
+    "Visual Studio Code": {
+      "bundleId": "com.microsoft.VSCode",
+      "category": "development",
+      "icon": "Code2",
+      "color": "#007acc",
+      "prompts": [
+        "Open VS Code and find the login component",
+        "Search for TODO comments in my codebase",
+        "Create a new file in VS Code"
+      ]
+    },
+    "Xcode": {
+      "bundleId": "com.apple.dt.Xcode",
+      "category": "development",
+      "icon": "Code2",
+      "color": "#147efb",
+      "prompts": [
+        "Open my iOS project in Xcode",
+        "Build and run my app in the simulator",
+        "Fix the build error in Xcode"
+      ]
+    },
+    "IntelliJ IDEA": {
+      "bundleId": "com.jetbrains.intellij",
+      "category": "development",
+      "icon": "Code2",
+      "color": "#fe315d",
+      "prompts": [
+        "Open my Java project in IntelliJ",
+        "Run the tests in IntelliJ",
+        "Refactor this class in IntelliJ"
+      ]
+    },
+    "WebStorm": {
+      "bundleId": "com.jetbrains.WebStorm",
+      "category": "development",
+      "icon": "Code2",
+      "color": "#00cdd7",
+      "prompts": [
+        "Open WebStorm and debug my app",
+        "Run npm install in WebStorm",
+        "Find all React components in WebStorm"
+      ]
+    },
+    "PyCharm": {
+      "bundleId": "com.jetbrains.pycharm",
+      "category": "development",
+      "icon": "Code2",
+      "color": "#21d789",
+      "prompts": [
+        "Open my Python project in PyCharm",
+        "Run the Flask server in PyCharm",
+        "Debug my script in PyCharm"
+      ]
+    },
+    "Terminal": {
+      "bundleId": "com.apple.Terminal",
+      "category": "development",
+      "icon": "Terminal",
+      "color": "#000000",
+      "prompts": [
+        "Open Terminal and run git status",
+        "SSH into my server",
+        "Run the deployment script in Terminal"
+      ]
+    },
+    "iTerm2": {
+      "bundleId": "com.googlecode.iterm2",
+      "category": "development",
+      "icon": "Terminal",
+      "color": "#000000",
+      "prompts": [
+        "Open iTerm and start a new session",
+        "Split the iTerm window",
+        "Run docker-compose up in iTerm"
+      ]
+    },
+    "Warp": {
+      "bundleId": "dev.warp.Warp-Stable",
+      "category": "development",
+      "icon": "Terminal",
+      "color": "#01a4ff",
+      "prompts": [
+        "Open Warp and run my build command",
+        "Search command history in Warp",
+        "Create a new Warp workflow"
+      ]
+    },
+    "Hyper": {
+      "bundleId": "co.zeit.hyper",
+      "category": "development",
+      "icon": "Terminal",
+      "color": "#000000",
+      "prompts": [
+        "Open Hyper terminal",
+        "Run npm start in Hyper",
+        "Open a new tab in Hyper"
+      ]
+    },
+    "GitHub Desktop": {
+      "bundleId": "com.github.GitHubClient",
+      "category": "development",
+      "icon": "GitBranch",
+      "color": "#24292e",
+      "prompts": [
+        "Commit my changes in GitHub Desktop",
+        "Push to the main branch",
+        "Create a new branch in GitHub Desktop"
+      ]
+    },
+    "Sourcetree": {
+      "bundleId": "com.torusknot.SourceTreeNotMAS",
+      "category": "development",
+      "icon": "GitBranch",
+      "color": "#0052cc",
+      "prompts": [
+        "Open Sourcetree and view my commits",
+        "Merge the feature branch in Sourcetree",
+        "Stash my changes in Sourcetree"
+      ]
+    },
+    "GitKraken": {
+      "bundleId": "com.axosoft.gitkraken",
+      "category": "development",
+      "icon": "GitBranch",
+      "color": "#179287",
+      "prompts": [
+        "Open GitKraken and pull latest changes",
+        "Resolve merge conflicts in GitKraken",
+        "View the commit history in GitKraken"
+      ]
+    },
+    "Postman": {
+      "bundleId": "com.postmanlabs.mac",
+      "category": "development",
+      "icon": "Send",
+      "color": "#ff6c37",
+      "prompts": [
+        "Test the API endpoint in Postman",
+        "Create a new request in Postman",
+        "Import the API collection to Postman"
+      ]
+    },
+    "Insomnia": {
+      "bundleId": "com.insomnia.app",
+      "category": "development",
+      "icon": "Send",
+      "color": "#5849be",
+      "prompts": [
+        "Send a GET request in Insomnia",
+        "Test the authentication endpoint in Insomnia",
+        "Create a new workspace in Insomnia"
+      ]
+    },
+    "Docker Desktop": {
+      "bundleId": "com.docker.docker",
+      "category": "development",
+      "icon": "Box",
+      "color": "#2496ed",
+      "prompts": [
+        "Start my Docker containers",
+        "View running containers in Docker",
+        "Build a new Docker image"
+      ]
+    },
+    "Sublime Text": {
+      "bundleId": "com.sublimetext.4",
+      "category": "development",
+      "icon": "FileCode",
+      "color": "#ff9800",
+      "prompts": [
+        "Open this file in Sublime Text",
+        "Search and replace in Sublime",
+        "Install a new Sublime package"
+      ]
+    },
+    "Nova": {
+      "bundleId": "com.panic.Nova",
+      "category": "development",
+      "icon": "Code2",
+      "color": "#5a36ff",
+      "prompts": [
+        "Open my project in Nova",
+        "Run the build task in Nova",
+        "Search my codebase in Nova"
+      ]
+    },
+    "TablePlus": {
+      "bundleId": "com.tinyapp.TablePlus",
+      "category": "development",
+      "icon": "Database",
+      "color": "#ffa32c",
+      "prompts": [
+        "Connect to my database in TablePlus",
+        "Run a SQL query in TablePlus",
+        "Export the table data from TablePlus"
+      ]
+    },
+    "MongoDB Compass": {
+      "bundleId": "com.mongodb.compass",
+      "category": "development",
+      "icon": "Database",
+      "color": "#13aa52",
+      "prompts": [
+        "Connect to MongoDB in Compass",
+        "Query the users collection",
+        "View indexes in MongoDB Compass"
+      ]
+    },
+    "Safari": {
+      "bundleId": "com.apple.Safari",
+      "category": "browsers",
+      "icon": "Compass",
+      "color": "#007aff",
+      "prompts": [
+        "Search the web for Python tutorials",
+        "Go to amazon.com and find headphones",
+        "What's on the current web page?"
+      ]
+    },
+    "Google Chrome": {
+      "bundleId": "com.google.Chrome",
+      "category": "browsers",
+      "icon": "Globe",
+      "color": "#4285f4",
+      "prompts": [
+        "Search for the best restaurants near me",
+        "Compare prices for AirPods across different stores",
+        "Go to youtube.com and find music videos"
+      ]
+    },
+    "Firefox": {
+      "bundleId": "org.mozilla.firefox",
+      "category": "browsers",
+      "icon": "Globe",
+      "color": "#ff7139",
+      "prompts": [
+        "Open Firefox and check my saved passwords",
+        "Search the web in Firefox",
+        "Open developer tools in Firefox"
+      ]
+    },
+    "Arc": {
+      "bundleId": "company.thebrowser.Browser",
+      "category": "browsers",
+      "icon": "Globe",
+      "color": "#d026ff",
+      "prompts": [
+        "Open Arc and create a new space",
+        "Search my Arc tabs",
+        "Pin this tab in Arc"
+      ]
+    },
+    "Brave": {
+      "bundleId": "com.brave.Browser",
+      "category": "browsers",
+      "icon": "Shield",
+      "color": "#fb542b",
+      "prompts": [
+        "Open Brave browser",
+        "Check my Brave rewards",
+        "Enable shields in Brave"
+      ]
+    },
+    "Microsoft Edge": {
+      "bundleId": "com.microsoft.edgemac",
+      "category": "browsers",
+      "icon": "Globe",
+      "color": "#0078d7",
+      "prompts": [
+        "Open Edge and sync my bookmarks",
+        "Use vertical tabs in Edge",
+        "Search the web in Edge"
+      ]
+    },
+    "Opera": {
+      "bundleId": "com.operasoftware.Opera",
+      "category": "browsers",
+      "icon": "Globe",
+      "color": "#ff1b2d",
+      "prompts": [
+        "Open Opera browser",
+        "Enable VPN in Opera",
+        "Check my Opera flow"
+      ]
+    },
+    "Vivaldi": {
+      "bundleId": "com.vivaldi.Vivaldi",
+      "category": "browsers",
+      "icon": "Globe",
+      "color": "#ef3939",
+      "prompts": [
+        "Open Vivaldi browser",
+        "Stack my Vivaldi tabs",
+        "Customize Vivaldi theme"
+      ]
+    },
+    "QuickBooks": {
+      "bundleId": "com.intuit.QuickBooks",
+      "category": "finance",
+      "icon": "DollarSign",
+      "color": "#2ca01c",
+      "prompts": [
+        "Open QuickBooks and create an invoice",
+        "View my profit and loss in QuickBooks",
+        "Record an expense in QuickBooks"
+      ]
+    },
+    "Numbers": {
+      "bundleId": "com.apple.iWork.Numbers",
+      "category": "finance",
+      "icon": "Table",
+      "color": "#0bd46a",
+      "prompts": [
+        "Create a budget spreadsheet in Numbers",
+        "Open my expense tracker in Numbers",
+        "Add a chart to my Numbers document"
+      ]
+    },
+    "Microsoft Excel": {
+      "bundleId": "com.microsoft.Excel",
+      "category": "finance",
+      "icon": "Table",
+      "color": "#217346",
+      "prompts": [
+        "Open Excel and create a pivot table",
+        "Format my Excel spreadsheet",
+        "Write a VLOOKUP formula in Excel"
+      ]
+    },
+    "Xero": {
+      "bundleId": "com.xero.xero",
+      "category": "finance",
+      "icon": "DollarSign",
+      "color": "#13b5ea",
+      "prompts": [
+        "Check my bank balance in Xero",
+        "Create an invoice in Xero",
+        "Run a financial report in Xero"
+      ]
+    },
+    "FreshBooks": {
+      "bundleId": "com.freshbooks.FreshBooks",
+      "category": "finance",
+      "icon": "DollarSign",
+      "color": "#0075dd",
+      "prompts": [
+        "Send an invoice via FreshBooks",
+        "Track time in FreshBooks",
+        "View my FreshBooks dashboard"
+      ]
+    },
+    "Spotify": {
+      "bundleId": "com.spotify.client",
+      "category": "entertainment",
+      "icon": "Music",
+      "color": "#1db954",
+      "prompts": [
+        "Open Spotify",
+        "Launch Spotify for music",
+        "Switch to Spotify"
+      ]
+    },
+    "Apple Music": {
+      "bundleId": "com.apple.Music",
+      "category": "entertainment",
+      "icon": "Music",
+      "color": "#fa233b",
+      "prompts": [
+        "Play my favorites mix on Apple Music",
+        "Add this song to my library",
+        "Show my recently played in Apple Music"
+      ]
+    },
+    "YouTube Music": {
+      "bundleId": "com.google.YouTubeMusic",
+      "category": "entertainment",
+      "icon": "Music",
+      "color": "#ff0000",
+      "prompts": [
+        "Play my liked songs on YouTube Music",
+        "Search for workout playlists",
+        "Create a new playlist on YouTube Music"
+      ]
+    },
+    "Netflix": {
+      "bundleId": "com.netflix.Netflix",
+      "category": "entertainment",
+      "icon": "Tv",
+      "color": "#e50914",
+      "prompts": [
+        "Open Netflix and continue watching",
+        "Search for documentaries on Netflix",
+        "Add this show to my Netflix list"
+      ]
+    },
+    "Disney+": {
+      "bundleId": "com.disney.disneyplus",
+      "category": "entertainment",
+      "icon": "Tv",
+      "color": "#0063e5",
+      "prompts": [
+        "Open Disney+ and play Star Wars",
+        "Search for Marvel movies on Disney+",
+        "Continue watching on Disney+"
+      ]
+    },
+    "VLC": {
+      "bundleId": "org.videolan.vlc",
+      "category": "entertainment",
+      "icon": "PlayCircle",
+      "color": "#ff8800",
+      "prompts": [
+        "Play my video file in VLC",
+        "Open VLC and add subtitles",
+        "Convert video format using VLC"
+      ]
+    },
+    "IINA": {
+      "bundleId": "com.colliderli.iina",
+      "category": "entertainment",
+      "icon": "PlayCircle",
+      "color": "#383838",
+      "prompts": [
+        "Play this movie in IINA",
+        "Open IINA and load subtitles",
+        "Adjust playback speed in IINA"
+      ]
+    },
+    "Plex": {
+      "bundleId": "com.plexapp.plexamp",
+      "category": "entertainment",
+      "icon": "Tv",
+      "color": "#e5a00d",
+      "prompts": [
+        "Browse my Plex library",
+        "Play the latest episode on Plex",
+        "Continue watching on Plex"
+      ]
+    },
+    "Steam": {
+      "bundleId": "com.valvesoftware.steam",
+      "category": "entertainment",
+      "icon": "Gamepad2",
+      "color": "#1b2838",
+      "prompts": [
+        "Open Steam and check my game library",
+        "Search for deals on Steam",
+        "Launch my favorite game on Steam"
+      ]
+    },
+    "Finder": {
+      "bundleId": "com.apple.finder",
+      "category": "utilities",
+      "icon": "Folder",
+      "color": "#007aff",
+      "prompts": [
+        "What files are in my Downloads folder?",
+        "Move this file to the Documents folder",
+        "Find all PDFs on my Desktop"
+      ]
+    },
+    "Preview": {
+      "bundleId": "com.apple.Preview",
+      "category": "utilities",
+      "icon": "Image",
+      "color": "#1badf8",
+      "prompts": [
+        "Open this PDF in Preview",
+        "Annotate the document in Preview",
+        "Combine PDFs using Preview"
+      ]
+    },
+    "QuickTime": {
+      "bundleId": "com.apple.QuickTimePlayerX",
+      "category": "utilities",
+      "icon": "PlayCircle",
+      "color": "#007aff",
+      "prompts": [
+        "Record my screen with QuickTime",
+        "Play this video in QuickTime",
+        "Trim my video using QuickTime"
+      ]
+    },
+    "CleanMyMac": {
+      "bundleId": "com.macpaw.CleanMyMac4",
+      "category": "utilities",
+      "icon": "Trash2",
+      "color": "#66b3ff",
+      "prompts": [
+        "Run a cleanup scan in CleanMyMac",
+        "Free up disk space with CleanMyMac",
+        "Uninstall unused apps with CleanMyMac"
+      ]
+    },
+    "DaisyDisk": {
+      "bundleId": "com.daisydiskapp.DaisyDisk",
+      "category": "utilities",
+      "icon": "HardDrive",
+      "color": "#ff6b00",
+      "prompts": [
+        "Scan my disk with DaisyDisk",
+        "Find large files with DaisyDisk",
+        "Free up storage using DaisyDisk"
+      ]
+    },
+    "Rectangle": {
+      "bundleId": "com.knollsoft.Rectangle",
+      "category": "utilities",
+      "icon": "Layout",
+      "color": "#42a5f5",
+      "prompts": [
+        "Snap this window to the left",
+        "Tile my windows using Rectangle",
+        "Maximize this window"
+      ]
+    },
+    "Magnet": {
+      "bundleId": "id.crowdcafe.magnet",
+      "category": "utilities",
+      "icon": "Layout",
+      "color": "#ff5722",
+      "prompts": [
+        "Organize my windows with Magnet",
+        "Snap to the right half of the screen",
+        "Create a window layout"
+      ]
+    },
+    "Dropbox": {
+      "bundleId": "com.getdropbox.dropbox",
+      "category": "utilities",
+      "icon": "Cloud",
+      "color": "#0061ff",
+      "prompts": [
+        "Upload this file to Dropbox",
+        "Share a Dropbox folder",
+        "Sync my Dropbox files"
+      ]
+    },
+    "Google Drive": {
+      "bundleId": "com.google.drivefs",
+      "category": "utilities",
+      "icon": "Cloud",
+      "color": "#4285f4",
+      "prompts": [
+        "Open Google Drive",
+        "Launch Google Drive",
+        "Switch to Google Drive"
+      ]
+    },
+    "OneDrive": {
+      "bundleId": "com.microsoft.OneDrive",
+      "category": "utilities",
+      "icon": "Cloud",
+      "color": "#0078d4",
+      "prompts": [
+        "Sync my files with OneDrive",
+        "Share a OneDrive link",
+        "Check OneDrive storage"
+      ]
+    },
+    "Pages": {
+      "bundleId": "com.apple.iWork.Pages",
+      "category": "writing",
+      "icon": "FileText",
+      "color": "#ff9500",
+      "prompts": [
+        "Create a new document in Pages",
+        "Open my resume in Pages",
+        "Export my Pages document as PDF"
+      ]
+    },
+    "Microsoft Word": {
+      "bundleId": "com.microsoft.Word",
+      "category": "writing",
+      "icon": "FileText",
+      "color": "#2b579a",
+      "prompts": [
+        "Open Microsoft Word",
+        "Launch Word for editing",
+        "Switch to Microsoft Word"
+      ]
+    },
+    "Google Docs": {
+      "bundleId": "com.google.Docs",
+      "category": "writing",
+      "icon": "FileText",
+      "color": "#4285f4",
+      "prompts": [
+        "Create a new Google Doc for my meeting notes",
+        "List my recent Google Docs",
+        "Open Google Docs"
+      ]
+    },
+    "Ulysses": {
+      "bundleId": "com.ulyssesapp.mac",
+      "category": "writing",
+      "icon": "Feather",
+      "color": "#2d4dff",
+      "prompts": [
+        "Start writing in Ulysses",
+        "Export my Ulysses document",
+        "Organize my writing in Ulysses"
+      ]
+    },
+    "iA Writer": {
+      "bundleId": "pro.writer.mac",
+      "category": "writing",
+      "icon": "Type",
+      "color": "#1e88e5",
+      "prompts": [
+        "Open iA Writer for distraction-free writing",
+        "Export my iA Writer document",
+        "Focus mode in iA Writer"
+      ]
+    },
+    "Scrivener": {
+      "bundleId": "com.literatureandlatte.scrivener3",
+      "category": "writing",
+      "icon": "BookOpen",
+      "color": "#6b4c9a",
+      "prompts": [
+        "Open my novel project in Scrivener",
+        "Organize chapters in Scrivener",
+        "Set a writing goal in Scrivener"
+      ]
+    },
+    "PDF Expert": {
+      "bundleId": "com.readdle.PDFExpert-Mac",
+      "category": "writing",
+      "icon": "FileText",
+      "color": "#1a68c9",
+      "prompts": [
+        "Edit this PDF in PDF Expert",
+        "Sign the document in PDF Expert",
+        "Merge PDFs with PDF Expert"
+      ]
+    },
+    "Adobe Acrobat": {
+      "bundleId": "com.adobe.Acrobat.Pro",
+      "category": "writing",
+      "icon": "FileText",
+      "color": "#ff0000",
+      "prompts": [
+        "Open the PDF in Adobe Acrobat",
+        "Add comments to this PDF",
+        "Fill out the form in Acrobat"
+      ]
+    },
+    "Mail": {
+      "bundleId": "com.apple.mail",
+      "category": "email",
+      "icon": "Mail",
+      "color": "#007aff",
+      "prompts": [
+        "Send an email to john@example.com about the project",
+        "Show me my unread emails",
+        "Search for emails about the invoice"
+      ]
+    },
+    "Outlook": {
+      "bundleId": "com.microsoft.Outlook",
+      "category": "email",
+      "icon": "Mail",
+      "color": "#0078d4",
+      "prompts": [
+        "Check my Outlook calendar",
+        "Send a meeting invite via Outlook",
+        "Search for the contract email in Outlook"
+      ]
+    },
+    "Spark": {
+      "bundleId": "com.readdle.SparkDesktop",
+      "category": "email",
+      "icon": "Mail",
+      "color": "#007aff",
+      "prompts": [
+        "Check my Spark inbox",
+        "Snooze this email in Spark",
+        "Schedule an email to send later"
+      ]
+    },
+    "Airmail": {
+      "bundleId": "it.bloop.airmail2",
+      "category": "email",
+      "icon": "Mail",
+      "color": "#007aff",
+      "prompts": [
+        "Check my Airmail unified inbox",
+        "Archive emails in Airmail",
+        "Create a new email in Airmail"
+      ]
+    },
+    "Superhuman": {
+      "bundleId": "com.superhuman.electron",
+      "category": "email",
+      "icon": "Zap",
+      "color": "#6366f1",
+      "prompts": [
+        "Open Superhuman and reach inbox zero",
+        "Reply to all my emails quickly",
+        "Snooze this email until tomorrow"
+      ]
+    },
+    "Mimestream": {
+      "bundleId": "com.mimestream.Mimestream",
+      "category": "email",
+      "icon": "Mail",
+      "color": "#5856d6",
+      "prompts": [
+        "Check my Gmail in Mimestream",
+        "Send an email via Mimestream",
+        "Search my emails"
+      ]
+    },
+    "YNAB": {
+      "bundleId": "com.youneedabudget.ynab",
+      "category": "finance",
+      "icon": "PiggyBank",
+      "color": "#85c3e9",
+      "prompts": [
+        "Open YNAB and check my budget",
+        "Add a transaction to YNAB",
+        "Review my spending categories"
+      ]
+    },
+    "Copilot": {
+      "bundleId": "com.copilot.app",
+      "category": "finance",
+      "icon": "Wallet",
+      "color": "#38bdf8",
+      "prompts": [
+        "Open Copilot and view my finances",
+        "Check my spending trends",
+        "Review my investment portfolio"
+      ]
+    },
+    "Robinhood": {
+      "bundleId": "com.robinhood.Robinhood",
+      "category": "finance",
+      "icon": "TrendingUp",
+      "color": "#00c805",
+      "prompts": [
+        "Open Robinhood and check my portfolio",
+        "View stock prices in Robinhood",
+        "Check my crypto holdings"
+      ]
+    },
+    "Mint": {
+      "bundleId": "com.mint.internal",
+      "category": "finance",
+      "icon": "Wallet",
+      "color": "#00b67a",
+      "prompts": [
+        "Open Mint and check my budget",
+        "View my recent transactions",
+        "Check my credit score in Mint"
+      ]
+    },
+    "Photos": {
+      "bundleId": "com.apple.Photos",
+      "category": "entertainment",
+      "icon": "Image",
+      "color": "#ff2d55",
+      "prompts": [
+        "Open Photos and view my recent pictures",
+        "Search for photos from my vacation",
+        "Create a new album in Photos"
+      ]
+    },
+    "Podcasts": {
+      "bundleId": "com.apple.podcasts",
+      "category": "entertainment",
+      "icon": "Headphones",
+      "color": "#9b5de5",
+      "prompts": [
+        "Play my podcast queue",
+        "Search for new podcasts",
+        "Resume my last podcast episode"
+      ]
+    },
+    "Books": {
+      "bundleId": "com.apple.iBooksX",
+      "category": "entertainment",
+      "icon": "BookOpen",
+      "color": "#ff9500",
+      "prompts": [
+        "Open Books and continue reading",
+        "Browse audiobooks",
+        "Search my book library"
+      ]
+    },
+    "TV": {
+      "bundleId": "com.apple.TV",
+      "category": "entertainment",
+      "icon": "Tv",
+      "color": "#000000",
+      "prompts": [
+        "Open Apple TV and continue watching",
+        "Browse Apple TV+ shows",
+        "Watch the latest episode"
+      ]
+    },
+    "System Settings": {
+      "bundleId": "com.apple.systempreferences",
+      "category": "utilities",
+      "icon": "Settings",
+      "color": "#8e8e93",
+      "prompts": [
+        "Open System Settings",
+        "Change my display brightness",
+        "Update my privacy settings"
+      ]
+    },
+    "Activity Monitor": {
+      "bundleId": "com.apple.ActivityMonitor",
+      "category": "utilities",
+      "icon": "Activity",
+      "color": "#00c853",
+      "prompts": [
+        "Open Activity Monitor",
+        "Check which app is using the most CPU",
+        "View memory usage"
+      ]
+    },
+    "Disk Utility": {
+      "bundleId": "com.apple.DiskUtility",
+      "category": "utilities",
+      "icon": "HardDrive",
+      "color": "#8e8e93",
+      "prompts": [
+        "Open Disk Utility",
+        "Check my disk health",
+        "Erase a USB drive"
+      ]
+    },
+    "Time Machine": {
+      "bundleId": "com.apple.TimeMachine",
+      "category": "utilities",
+      "icon": "History",
+      "color": "#34c759",
+      "prompts": [
+        "Open Time Machine settings",
+        "Start a backup now",
+        "Browse my backups"
+      ]
+    },
+    "Shortcuts": {
+      "bundleId": "com.apple.shortcuts",
+      "category": "utilities",
+      "icon": "Workflow",
+      "color": "#ff3b30",
+      "prompts": [
+        "Open Shortcuts",
+        "Run my morning routine shortcut",
+        "Create a new automation"
+      ]
+    },
+    "TextEdit": {
+      "bundleId": "com.apple.TextEdit",
+      "category": "writing",
+      "icon": "FileText",
+      "color": "#8e8e93",
+      "prompts": [
+        "Open TextEdit for quick notes",
+        "Create a new text document",
+        "Edit a plain text file"
+      ]
+    },
+    "Keynote": {
+      "bundleId": "com.apple.iWork.Keynote",
+      "category": "productivity",
+      "icon": "Presentation",
+      "color": "#007aff",
+      "prompts": [
+        "Create a new presentation in Keynote",
+        "Open my slide deck",
+        "Export my Keynote as PDF"
+      ]
+    },
+    "Microsoft PowerPoint": {
+      "bundleId": "com.microsoft.Powerpoint",
+      "category": "productivity",
+      "icon": "Presentation",
+      "color": "#d24726",
+      "prompts": [
+        "Create a new PowerPoint presentation",
+        "Open my recent slides",
+        "Add a new slide to my deck"
+      ]
+    },
+    "Linear": {
+      "bundleId": "com.linear",
+      "category": "productivity",
+      "icon": "LayoutList",
+      "color": "#5e6ad2",
+      "prompts": [
+        "Open Linear and check my issues",
+        "Create a new task in Linear",
+        "View my team's sprint"
+      ]
+    },
+    "Asana": {
+      "bundleId": "com.asana.app",
+      "category": "productivity",
+      "icon": "CheckSquare",
+      "color": "#f06a6a",
+      "prompts": [
+        "Check my Asana tasks",
+        "Create a new project in Asana",
+        "Update my task status"
+      ]
+    },
+    "Trello": {
+      "bundleId": "com.trello.desktop",
+      "category": "productivity",
+      "icon": "Layout",
+      "color": "#0079bf",
+      "prompts": [
+        "Open my Trello boards",
+        "Add a card to my project board",
+        "Move a card to done"
+      ]
+    },
+    "Loom": {
+      "bundleId": "com.loom.desktop",
+      "category": "communication",
+      "icon": "Video",
+      "color": "#625df5",
+      "prompts": [
+        "Record a Loom video",
+        "Share my last Loom recording",
+        "View my Loom library"
+      ]
+    },
+    "Notion Calendar": {
+      "bundleId": "com.notion.Calendar",
+      "category": "productivity",
+      "icon": "Calendar",
+      "color": "#000000",
+      "prompts": [
+        "Check my schedule in Notion Calendar",
+        "Schedule a meeting",
+        "View my week"
+      ]
+    },
+    "Cron": {
+      "bundleId": "com.cron.electron",
+      "category": "productivity",
+      "icon": "Calendar",
+      "color": "#000000",
+      "prompts": [
+        "Open Cron calendar",
+        "Schedule a meeting for next week",
+        "Check my availability"
+      ]
+    },
+    "Craft": {
+      "bundleId": "com.lukilabs.lukiapp",
+      "category": "productivity",
+      "icon": "FileText",
+      "color": "#0066ff",
+      "prompts": [
+        "Create a new Craft document",
+        "Search my Craft workspace",
+        "Share my Craft page"
+      ]
+    },
+    "GoodNotes": {
+      "bundleId": "com.goodiware.GoodNotes5",
+      "category": "productivity",
+      "icon": "PenTool",
+      "color": "#ffcd00",
+      "prompts": [
+        "Open GoodNotes",
+        "Create a new notebook",
+        "Search my handwritten notes"
+      ]
+    },
+    "Notability": {
+      "bundleId": "com.gingerlabs.Notability",
+      "category": "productivity",
+      "icon": "PenTool",
+      "color": "#34c759",
+      "prompts": [
+        "Open Notability",
+        "Record a lecture in Notability",
+        "Annotate a PDF"
+      ]
+    },
+    "Hulu": {
+      "bundleId": "com.hulu.plus",
+      "category": "entertainment",
+      "icon": "Tv",
+      "color": "#1ce783",
+      "prompts": [
+        "Open Hulu and continue watching",
+        "Search for shows on Hulu",
+        "Browse Hulu originals"
+      ]
+    },
+    "Amazon Prime Video": {
+      "bundleId": "com.amazon.aiv.AIVApp",
+      "category": "entertainment",
+      "icon": "Tv",
+      "color": "#00a8e1",
+      "prompts": [
+        "Open Prime Video",
+        "Continue watching my show",
+        "Browse movies on Prime"
+      ]
+    },
+    "HBO Max": {
+      "bundleId": "com.hbo.hbonow",
+      "category": "entertainment",
+      "icon": "Tv",
+      "color": "#5822b4",
+      "prompts": [
+        "Open HBO Max",
+        "Watch the latest episode",
+        "Browse HBO originals"
+      ]
+    },
+    "Twitch": {
+      "bundleId": "tv.twitch.TwitchApp",
+      "category": "entertainment",
+      "icon": "Tv",
+      "color": "#9146ff",
+      "prompts": [
+        "Open Twitch",
+        "Watch my favorite streamer",
+        "Browse live streams"
+      ]
+    },
+    "Grammarly": {
+      "bundleId": "com.grammarly.ProjectLlama",
+      "category": "writing",
+      "icon": "SpellCheck",
+      "color": "#15c39a",
+      "prompts": [
+        "Check my writing with Grammarly",
+        "Open Grammarly editor",
+        "Fix grammar issues"
+      ]
+    },
+    "Contacts": {
+      "bundleId": "com.apple.AddressBook",
+      "category": "productivity",
+      "icon": "Users",
+      "color": "#ff9500",
+      "prompts": [
+        "Search my Contacts for anyone named John",
+        "Get the full details for Sarah in my Contacts",
+        "Create a new contact for Dr. Smith with phone 555-1234"
+      ]
+    },
+    "Maps": {
+      "bundleId": "com.apple.Maps",
+      "category": "utilities",
+      "icon": "MapPin",
+      "color": "#34c759",
+      "prompts": [
+        "Get directions to the nearest coffee shop",
+        "How long will it take to drive to the airport?",
+        "Find restaurants near me"
+      ]
+    },
+    "Weather": {
+      "bundleId": "com.apple.weather",
+      "category": "utilities",
+      "icon": "Cloud",
+      "color": "#5ac8fa",
+      "prompts": [
+        "What's the weather like today?",
+        "Will it rain tomorrow?",
+        "Show the 10-day forecast"
+      ]
+    },
+    "Stocks": {
+      "bundleId": "com.apple.stocks",
+      "category": "finance",
+      "icon": "TrendingUp",
+      "color": "#34c759",
+      "prompts": [
+        "What's the Apple stock price?",
+        "How are my stocks doing today?",
+        "Show me the S&P 500 chart"
+      ]
+    },
+    "News": {
+      "bundleId": "com.apple.news",
+      "category": "entertainment",
+      "icon": "Newspaper",
+      "color": "#ff3b30",
+      "prompts": [
+        "What's in the news today?",
+        "Show me tech news",
+        "Find articles about AI"
+      ]
+    },
+    "Voice Memos": {
+      "bundleId": "com.apple.VoiceMemos",
+      "category": "utilities",
+      "icon": "Mic",
+      "color": "#ff3b30",
+      "prompts": [
+        "Start a voice recording",
+        "Play my latest voice memo",
+        "Record a quick note"
+      ]
+    },
+    "Freeform": {
+      "bundleId": "com.apple.freeform",
+      "category": "productivity",
+      "icon": "PenTool",
+      "color": "#007aff",
+      "prompts": [
+        "Create a new Freeform board for brainstorming",
+        "Open my whiteboard in Freeform",
+        "Add sticky notes to my Freeform board"
+      ]
+    },
+    "Google Calendar": {
+      "bundleId": "com.google.calendar",
+      "category": "productivity",
+      "icon": "Calendar",
+      "color": "#4285f4",
+      "prompts": [
+        "What's on my Google Calendar today?",
+        "Schedule a meeting for 3pm tomorrow",
+        "Find a free time slot this week"
+      ]
+    },
+    "Google Sheets": {
+      "bundleId": "com.google.Sheets",
+      "category": "finance",
+      "icon": "Table",
+      "color": "#0f9d58",
+      "prompts": [
+        "Create a new Google Sheet for my budget",
+        "Open my expense tracker spreadsheet",
+        "Add a row to my inventory sheet"
+      ]
+    },
+    "Google Slides": {
+      "bundleId": "com.google.Slides",
+      "category": "productivity",
+      "icon": "Presentation",
+      "color": "#f4b400",
+      "prompts": [
+        "Create a new Google Slides presentation",
+        "Open my pitch deck in Slides",
+        "Add a new slide to my presentation"
+      ]
+    },
+    "Gmail": {
+      "bundleId": "com.google.Gmail",
+      "category": "email",
+      "icon": "Mail",
+      "color": "#ea4335",
+      "prompts": [
+        "Check my Gmail inbox",
+        "Send an email to the team about the meeting",
+        "Search for emails from John"
+      ]
+    },
+    "ChatGPT": {
+      "bundleId": "com.openai.chat",
+      "category": "productivity",
+      "icon": "MessageSquare",
+      "color": "#10a37f",
+      "prompts": [
+        "Ask ChatGPT to explain this code",
+        "Open ChatGPT for help with writing",
+        "Get ChatGPT's help with my project"
+      ]
+    },
+    "Claude": {
+      "bundleId": "com.anthropic.claude",
+      "category": "productivity",
+      "icon": "MessageSquare",
+      "color": "#d97706",
+      "prompts": [
+        "Ask Claude to review my document",
+        "Open Claude for coding help",
+        "Get Claude's feedback on my idea"
+      ]
+    },
+    "Pixelmator Pro": {
+      "bundleId": "com.pixelmatorteam.pixelmator.x",
+      "category": "creative",
+      "icon": "Image",
+      "color": "#30d158",
+      "prompts": [
+        "Remove the background from this photo",
+        "Apply ML Enhance to my image",
+        "Resize this image for Instagram"
+      ]
+    },
+    "Framer": {
+      "bundleId": "com.framer.desktop",
+      "category": "creative",
+      "icon": "Layout",
+      "color": "#0055ff",
+      "prompts": [
+        "Open my website project in Framer",
+        "Preview my Framer site",
+        "Publish my Framer website"
+      ]
+    },
+    "Airtable": {
+      "bundleId": "com.airtable.desktop",
+      "category": "productivity",
+      "icon": "Database",
+      "color": "#fcb400",
+      "prompts": [
+        "Open my Airtable base",
+        "Add a record to my projects table",
+        "Search Airtable for client info"
+      ]
+    },
+    "Notion Web Clipper": {
+      "bundleId": "com.notion.WebClipper",
+      "category": "productivity",
+      "icon": "Bookmark",
+      "color": "#000000",
+      "prompts": [
+        "Save this webpage to Notion",
+        "Clip this article to my reading list",
+        "Save this recipe to Notion"
+      ]
+    },
+    "Day One": {
+      "bundleId": "com.bloombuilt.dayone-mac",
+      "category": "productivity",
+      "icon": "BookOpen",
+      "color": "#ffc107",
+      "prompts": [
+        "Create a new journal entry in Day One",
+        "Search my journal for travel memories",
+        "Add a photo to today's entry"
+      ]
+    },
+    "Drafts": {
+      "bundleId": "com.agiletortoise.Drafts-OSX",
+      "category": "productivity",
+      "icon": "FileText",
+      "color": "#007aff",
+      "prompts": [
+        "Create a new draft with my idea",
+        "Send my draft to Reminders as a task",
+        "Search my drafts for meeting notes"
+      ]
+    },
+    "Cardhop": {
+      "bundleId": "com.flexibits.cardhop.mac",
+      "category": "productivity",
+      "icon": "Users",
+      "color": "#ff6b6b",
+      "prompts": [
+        "Find all contacts who work at Google",
+        "Add a new contact from this business card",
+        "Update John's phone number"
+      ]
+    },
+    "DEVONthink": {
+      "bundleId": "com.devon-technologies.think3",
+      "category": "productivity",
+      "icon": "Database",
+      "color": "#1e90ff",
+      "prompts": [
+        "Search DEVONthink for contract documents",
+        "Import this PDF to DEVONthink",
+        "Find related documents in DEVONthink"
+      ]
+    },
+    "Pocket Casts": {
+      "bundleId": "au.com.pocketcasts.MacOS",
+      "category": "entertainment",
+      "icon": "Headphones",
+      "color": "#f43e37",
+      "prompts": [
+        "Play the latest episode of The Daily",
+        "Subscribe to this podcast",
+        "Mark all episodes as played"
+      ]
+    },
+    "Downie": {
+      "bundleId": "com.charliemonroe.Downie-4",
+      "category": "utilities",
+      "icon": "Download",
+      "color": "#8b5cf6",
+      "prompts": [
+        "Download this YouTube video",
+        "Save this video as audio only",
+        "Download this entire playlist"
+      ]
+    },
+    "Keyboard Maestro": {
+      "bundleId": "com.stairways.keyboardmaestro.engine",
+      "category": "utilities",
+      "icon": "Keyboard",
+      "color": "#ff6b6b",
+      "prompts": [
+        "Run my Morning Routine macro",
+        "Trigger the window arrangement macro",
+        "Execute my text expansion macro"
+      ]
+    },
+    "BetterTouchTool": {
+      "bundleId": "com.hegenberg.BetterTouchTool",
+      "category": "utilities",
+      "icon": "MousePointer",
+      "color": "#ffa500",
+      "prompts": [
+        "Snap this window to the corner",
+        "Run my custom gesture action",
+        "Switch to my Work preset"
+      ]
+    },
+    "Hazel": {
+      "bundleId": "com.noodlesoft.Hazel",
+      "category": "utilities",
+      "icon": "FolderSync",
+      "color": "#8b4513",
+      "prompts": [
+        "Run Hazel rules on my Downloads folder",
+        "Organize my Desktop files",
+        "Clean up old files automatically"
+      ]
+    },
+    "TextExpander": {
+      "bundleId": "com.smileonmymac.textexpander",
+      "category": "utilities",
+      "icon": "Type",
+      "color": "#4caf50",
+      "prompts": [
+        "Create a snippet for my email signature",
+        "Expand my meeting template",
+        "Search my snippets for address"
+      ]
+    },
+    "Bartender": {
+      "bundleId": "com.surteesstudios.Bartender",
+      "category": "utilities",
+      "icon": "Menu",
+      "color": "#ffcc00",
+      "prompts": [
+        "Show all hidden menu bar items",
+        "Switch to Presentation mode",
+        "Rearrange my menu bar icons"
+      ]
+    },
+    "Paste": {
+      "bundleId": "com.wiheads.paste",
+      "category": "utilities",
+      "icon": "Clipboard",
+      "color": "#ff7043",
+      "prompts": [
+        "Show my clipboard history",
+        "Search for copied code snippets",
+        "Pin this item to quick access"
+      ]
+    },
+    "PopClip": {
+      "bundleId": "com.pilotmoon.popclip",
+      "category": "utilities",
+      "icon": "MousePointer2",
+      "color": "#ffeb3b",
+      "prompts": [
+        "Translate selected text",
+        "Send selection to Things as a task",
+        "Look up this word in Dictionary"
+      ]
+    },
+    "Timing": {
+      "bundleId": "com.timingapp.Timing2",
+      "category": "productivity",
+      "icon": "Clock",
+      "color": "#2196f3",
+      "prompts": [
+        "Start tracking time for client work",
+        "Show my productivity report for this week",
+        "How much time did I spend coding today?"
+      ]
+    },
+    "Fork": {
+      "bundleId": "com.DanPristupov.Fork",
+      "category": "development",
+      "icon": "GitBranch",
+      "color": "#6c5ce7",
+      "prompts": [
+        "Open my repo in Fork",
+        "View the commit history",
+        "Resolve merge conflicts in Fork"
+      ]
+    },
+    "Dash": {
+      "bundleId": "com.kapeli.dashdoc",
+      "category": "development",
+      "icon": "Book",
+      "color": "#8b5cf6",
+      "prompts": [
+        "Look up React useState documentation",
+        "Search Python docs for list methods",
+        "Download the Swift docset"
+      ]
+    },
+    "Transmit": {
+      "bundleId": "com.panic.Transmit",
+      "category": "development",
+      "icon": "Upload",
+      "color": "#0066ff",
+      "prompts": [
+        "Connect to my FTP server",
+        "Upload files to my website",
+        "Sync my local folder to the server"
+      ]
+    },
+    "Coderunner": {
+      "bundleId": "com.krill.CodeRunner",
+      "category": "development",
+      "icon": "Play",
+      "color": "#ff6b6b",
+      "prompts": [
+        "Run this Python script",
+        "Test this JavaScript code",
+        "Execute the selected code"
+      ]
+    },
+    "Sequel Pro": {
+      "bundleId": "com.sequelpro.SequelPro",
+      "category": "development",
+      "icon": "Database",
+      "color": "#ff6b00",
+      "prompts": [
+        "Connect to my MySQL database",
+        "Run a query on the users table",
+        "Export the database"
+      ]
+    },
+    "Charles": {
+      "bundleId": "com.xk72.Charles",
+      "category": "development",
+      "icon": "Activity",
+      "color": "#5856d6",
+      "prompts": [
+        "Start recording network traffic",
+        "Inspect the API request",
+        "Throttle network speed for testing"
+      ]
+    },
+    "Proxyman": {
+      "bundleId": "com.proxyman.NSProxy",
+      "category": "development",
+      "icon": "Activity",
+      "color": "#007aff",
+      "prompts": [
+        "Capture HTTP traffic",
+        "View request headers",
+        "Mock this API response"
+      ]
+    },
+    "ScreenFloat": {
+      "bundleId": "com.eternalstorms.ScreenFloat",
+      "category": "utilities",
+      "icon": "Image",
+      "color": "#ff9500",
+      "prompts": [
+        "Take a floating screenshot",
+        "Extract text from this screenshot",
+        "Pin this image on screen"
+      ]
+    },
+    "CleanShot X": {
+      "bundleId": "com.theveloper.cleanshot",
+      "category": "utilities",
+      "icon": "Camera",
+      "color": "#6366f1",
+      "prompts": [
+        "Take a scrolling screenshot",
+        "Record my screen",
+        "Annotate this screenshot"
+      ]
+    },
+    "Ghostty": {
+      "bundleId": "com.mitchellh.ghostty",
+      "category": "development",
+      "icon": "Terminal",
+      "color": "#1a1a2e",
+      "prompts": [
+        "Open a new Ghostty terminal",
+        "Run git status in Ghostty",
+        "Start a new terminal session"
+      ]
+    },
+    "Windsurf": {
+      "bundleId": "com.codeium.windsurf",
+      "category": "development",
+      "icon": "Code2",
+      "color": "#00bcd4",
+      "prompts": [
+        "Open my project in Windsurf",
+        "Search codebase for function",
+        "Get AI help with this code"
+      ]
+    },
+    "Cursor": {
+      "bundleId": "com.todesktop.230313mzl4w4u92",
+      "category": "development",
+      "icon": "Code2",
+      "color": "#7c3aed",
+      "prompts": [
+        "Open my project in Cursor",
+        "Ask Cursor to fix this bug",
+        "Generate code with Cursor AI"
+      ]
+    },
+    "LM Studio": {
+      "bundleId": "com.lmstudio.app",
+      "category": "productivity",
+      "icon": "Cpu",
+      "color": "#10b981",
+      "prompts": [
+        "Run a local LLM in LM Studio",
+        "Chat with Llama in LM Studio",
+        "Download a new model"
+      ]
+    },
+    "Setapp": {
+      "bundleId": "com.macpaw.setapp",
+      "category": "utilities",
+      "icon": "Package",
+      "color": "#00c853",
+      "prompts": [
+        "Browse Setapp apps",
+        "Search for a productivity app",
+        "Check my Setapp subscription"
+      ]
+    },
+    "Reeder": {
+      "bundleId": "com.reederapp.5.macOS",
+      "category": "entertainment",
+      "icon": "Rss",
+      "color": "#ff9500",
+      "prompts": [
+        "Check my RSS feeds in Reeder",
+        "Mark all articles as read",
+        "Save this article for later"
+      ]
+    },
+    "NetNewsWire": {
+      "bundleId": "com.ranchero.NetNewsWire-Evergreen",
+      "category": "entertainment",
+      "icon": "Rss",
+      "color": "#f97316",
+      "prompts": [
+        "Show unread articles",
+        "Subscribe to this RSS feed",
+        "Refresh all feeds"
+      ]
+    },
+    "Banktivity": {
+      "bundleId": "com.iggsoftware.Banktivity8",
+      "category": "finance",
+      "icon": "Building",
+      "color": "#2196f3",
+      "prompts": [
+        "Download latest transactions",
+        "Generate a spending report",
+        "Check my account balances"
+      ]
+    },
+    "MoneyMoney": {
+      "bundleId": "de.iffigence.MoneyMoney",
+      "category": "finance",
+      "icon": "Euro",
+      "color": "#4caf50",
+      "prompts": [
+        "Sync my bank accounts",
+        "Categorize recent transactions",
+        "Show monthly spending breakdown"
+      ]
+    },
+    "Amphetamine": {
+      "bundleId": "com.if.Amphetamine",
+      "category": "utilities",
+      "icon": "Coffee",
+      "color": "#00bcd4",
+      "prompts": [
+        "Keep my Mac awake for 2 hours",
+        "Prevent sleep during download",
+        "Disable screen saver temporarily"
+      ]
+    },
+    "Hand Mirror": {
+      "bundleId": "com.handmirror.app",
+      "category": "utilities",
+      "icon": "User",
+      "color": "#ff69b4",
+      "prompts": [
+        "Quick check before my video call",
+        "Open the camera preview",
+        "Check my appearance"
+      ]
+    },
+    "Tot": {
+      "bundleId": "com.iconfactory.Tot",
+      "category": "productivity",
+      "icon": "StickyNote",
+      "color": "#ff6b6b",
+      "prompts": [
+        "Save this to Tot",
+        "Show my Tot notes",
+        "Clear a Tot dot"
+      ]
+    },
+    "Pastebot": {
+      "bundleId": "com.tapbots.Pastebot",
+      "category": "utilities",
+      "icon": "Clipboard",
+      "color": "#007aff",
+      "prompts": [
+        "Show clipboard history",
+        "Create a paste sequence",
+        "Search my clipboard"
+      ]
+    },
+    "Rocket Typist": {
+      "bundleId": "net.witt-software.RocketTypist2",
+      "category": "utilities",
+      "icon": "Rocket",
+      "color": "#ff6b6b",
+      "prompts": [
+        "Insert my email template",
+        "Create a new text snippet",
+        "Expand my abbreviation"
+      ]
+    },
+    "Headspace": {
+      "bundleId": "com.getsomeheadspace.headspace",
+      "category": "health",
+      "icon": "Heart",
+      "color": "#f47d31",
+      "prompts": [
+        "Start a 10-minute meditation",
+        "Play sleep sounds in Headspace",
+        "Begin my morning mindfulness routine"
+      ]
+    },
+    "Calm": {
+      "bundleId": "com.calm.mac",
+      "category": "health",
+      "icon": "Moon",
+      "color": "#3a7ccc",
+      "prompts": [
+        "Start a guided meditation in Calm",
+        "Play sleep stories",
+        "Begin a breathing exercise"
+      ]
+    },
+    "Strava": {
+      "bundleId": "com.strava.desktop",
+      "category": "health",
+      "icon": "Activity",
+      "color": "#fc4c02",
+      "prompts": [
+        "View my recent workouts on Strava",
+        "Check my weekly running stats",
+        "See my activity feed"
+      ]
+    },
+    "Nike Run Club": {
+      "bundleId": "com.nike.nrc",
+      "category": "health",
+      "icon": "Footprints",
+      "color": "#000000",
+      "prompts": [
+        "View my running history",
+        "Check my monthly running stats",
+        "See my achievements"
+      ]
+    },
+    "MyFitnessPal": {
+      "bundleId": "com.myfitnesspal.mac",
+      "category": "health",
+      "icon": "Apple",
+      "color": "#0070f3",
+      "prompts": [
+        "Log my breakfast",
+        "Track my calories for today",
+        "Check my nutrition summary"
+      ]
+    },
+    "NordVPN": {
+      "bundleId": "com.nordvpn.macos",
+      "category": "utilities",
+      "icon": "Shield",
+      "color": "#4687ff",
+      "prompts": [
+        "Connect to the fastest server",
+        "Switch to a US server",
+        "Enable NordVPN protection"
+      ]
+    },
+    "ExpressVPN": {
+      "bundleId": "com.expressvpn.ExpressVPN",
+      "category": "utilities",
+      "icon": "Shield",
+      "color": "#d7263d",
+      "prompts": [
+        "Connect to ExpressVPN",
+        "Switch to a UK server",
+        "Check my VPN connection status"
+      ]
+    },
+    "1Blocker": {
+      "bundleId": "com.1blocker.1blocker",
+      "category": "utilities",
+      "icon": "ShieldOff",
+      "color": "#1e90ff",
+      "prompts": [
+        "Block ads on this site",
+        "Enable privacy protection",
+        "Check blocked trackers"
+      ]
+    },
+    "Kindle": {
+      "bundleId": "com.amazon.Kindle",
+      "category": "entertainment",
+      "icon": "BookOpen",
+      "color": "#ff9900",
+      "prompts": [
+        "Continue reading my book",
+        "Sync my Kindle library",
+        "Browse my Kindle books"
+      ]
+    },
+    "Audible": {
+      "bundleId": "com.audible.Audible",
+      "category": "entertainment",
+      "icon": "Headphones",
+      "color": "#ff9900",
+      "prompts": [
+        "Play my current audiobook",
+        "Set a sleep timer for 30 minutes",
+        "Browse my Audible library"
+      ]
+    },
+    "Instapaper": {
+      "bundleId": "com.instapaper.Instapaper",
+      "category": "productivity",
+      "icon": "Bookmark",
+      "color": "#000000",
+      "prompts": [
+        "Save this article for later",
+        "Read my saved articles",
+        "View my Instapaper archive"
+      ]
+    },
+    "Readwise Reader": {
+      "bundleId": "io.readwise.reader",
+      "category": "productivity",
+      "icon": "BookOpen",
+      "color": "#ffd700",
+      "prompts": [
+        "Open my reading list",
+        "Review my highlights",
+        "Browse saved articles"
+      ]
+    },
+    "DoorDash": {
+      "bundleId": "com.doordash.consumer",
+      "category": "lifestyle",
+      "icon": "Utensils",
+      "color": "#ff3008",
+      "prompts": [
+        "Order from my favorite restaurant",
+        "Check my delivery status",
+        "Browse nearby restaurants"
+      ]
+    },
+    "Uber Eats": {
+      "bundleId": "com.ubercab.UberEats",
+      "category": "lifestyle",
+      "icon": "Utensils",
+      "color": "#06c167",
+      "prompts": [
+        "Order food delivery",
+        "Track my delivery",
+        "Browse restaurant deals"
+      ]
+    },
+    "Airbnb": {
+      "bundleId": "com.airbnb.desktop",
+      "category": "lifestyle",
+      "icon": "Home",
+      "color": "#ff5a5f",
+      "prompts": [
+        "Search for stays in Paris",
+        "Check my upcoming reservations",
+        "View saved homes"
+      ]
+    },
+    "Salesforce": {
+      "bundleId": "com.salesforce.salesforce",
+      "category": "business",
+      "icon": "Cloud",
+      "color": "#00a1e0",
+      "prompts": [
+        "Check my sales pipeline",
+        "View recent opportunities",
+        "Search contacts in Salesforce"
+      ]
+    },
+    "HubSpot": {
+      "bundleId": "com.hubspot.desktop",
+      "category": "business",
+      "icon": "Users",
+      "color": "#ff7a59",
+      "prompts": [
+        "Get my HubSpot contacts",
+        "Search HubSpot for contacts named John",
+        "Show my HubSpot deals"
+      ]
+    },
+    "Zendesk": {
+      "bundleId": "com.zendesk.mac",
+      "category": "business",
+      "icon": "HelpCircle",
+      "color": "#03363d",
+      "prompts": [
+        "List my open Zendesk tickets",
+        "Search Zendesk tickets for password reset",
+        "Create a new Zendesk ticket about login issues"
+      ]
+    },
+    "Monday.com": {
+      "bundleId": "com.monday.desktop",
+      "category": "productivity",
+      "icon": "LayoutDashboard",
+      "color": "#ff3d57",
+      "prompts": [
+        "Check my Monday boards",
+        "Update task status",
+        "View team workload"
+      ]
+    },
+    "ClickUp": {
+      "bundleId": "com.clickup.desktop",
+      "category": "productivity",
+      "icon": "CheckSquare",
+      "color": "#7b68ee",
+      "prompts": [
+        "View my ClickUp tasks",
+        "Create a new task",
+        "Check team assignments"
+      ]
+    },
+    "Jira": {
+      "bundleId": "com.atlassian.jira",
+      "category": "development",
+      "icon": "Bug",
+      "color": "#0052cc",
+      "prompts": [
+        "View my Jira issues",
+        "Create a new bug report",
+        "Check sprint progress"
+      ]
+    },
+    "Confluence": {
+      "bundleId": "com.atlassian.confluence",
+      "category": "productivity",
+      "icon": "FileText",
+      "color": "#0052cc",
+      "prompts": [
+        "Search Confluence for documentation",
+        "View recent pages",
+        "Edit my team's wiki"
+      ]
+    },
+    "DocuSign": {
+      "bundleId": "com.docusign.desktop",
+      "category": "business",
+      "icon": "FileSignature",
+      "color": "#ffbd00",
+      "prompts": [
+        "Sign a document in DocuSign",
+        "Send a contract for signature",
+        "Check pending signatures"
+      ]
+    },
+    "Tableau": {
+      "bundleId": "com.tableau.desktop",
+      "category": "business",
+      "icon": "BarChart",
+      "color": "#e97627",
+      "prompts": [
+        "Open my Tableau dashboard",
+        "View sales analytics",
+        "Create a new visualization"
+      ]
+    },
+    "Power BI": {
+      "bundleId": "com.microsoft.powerbi",
+      "category": "business",
+      "icon": "BarChart",
+      "color": "#f2c811",
+      "prompts": [
+        "Open my Power BI reports",
+        "View business analytics",
+        "Refresh dashboard data"
+      ]
+    },
+    "Miro": {
+      "bundleId": "com.realtimeboard.miro",
+      "category": "productivity",
+      "icon": "Layout",
+      "color": "#ffd02f",
+      "prompts": [
+        "Open my Miro board",
+        "Start a brainstorming session",
+        "Create a new whiteboard"
+      ]
+    },
+    "FigJam": {
+      "bundleId": "com.figma.FigJam",
+      "category": "productivity",
+      "icon": "PenTool",
+      "color": "#f24e1e",
+      "prompts": [
+        "Open my FigJam board",
+        "Start a collaborative session",
+        "Add sticky notes to the board"
+      ]
+    },
+    "Duolingo": {
+      "bundleId": "com.duolingo.Duolingo",
+      "category": "education",
+      "icon": "Languages",
+      "color": "#58cc02",
+      "prompts": [
+        "Start my daily Duolingo lesson",
+        "Practice Spanish vocabulary",
+        "Check my streak"
+      ]
+    },
+    "Anki": {
+      "bundleId": "net.ankiweb.dtop",
+      "category": "education",
+      "icon": "Brain",
+      "color": "#1d8ceb",
+      "prompts": [
+        "Review my Anki flashcards",
+        "Create a new flashcard deck",
+        "Check my study statistics"
+      ]
+    },
+    "Quizlet": {
+      "bundleId": "com.quizlet.mac",
+      "category": "education",
+      "icon": "BookOpen",
+      "color": "#4255ff",
+      "prompts": [
+        "Study my Quizlet flashcards",
+        "Search for study sets",
+        "Take a practice test"
+      ]
+    },
+    "Coursera": {
+      "bundleId": "com.coursera.desktop",
+      "category": "education",
+      "icon": "GraduationCap",
+      "color": "#0056d2",
+      "prompts": [
+        "Continue my Coursera course",
+        "View my enrolled courses",
+        "Watch the next lecture"
+      ]
+    },
+    "Khan Academy": {
+      "bundleId": "org.khanacademy.desktop",
+      "category": "education",
+      "icon": "GraduationCap",
+      "color": "#14bf96",
+      "prompts": [
+        "Continue my learning path",
+        "Practice math problems",
+        "Watch video lessons"
+      ]
+    },
+    "Zotero": {
+      "bundleId": "org.zotero.zotero",
+      "category": "education",
+      "icon": "Library",
+      "color": "#cc2936",
+      "prompts": [
+        "Search my research library",
+        "Add a citation to my paper",
+        "Organize my references"
+      ]
+    },
+    "Mendeley": {
+      "bundleId": "com.elsevier.mendeley",
+      "category": "education",
+      "icon": "Library",
+      "color": "#b50c0c",
+      "prompts": [
+        "Add this paper to my library",
+        "Generate citations",
+        "Search my research collection"
+      ]
+    },
+    "Noteful": {
+      "bundleId": "com.noteful.app",
+      "category": "education",
+      "icon": "PenTool",
+      "color": "#5c6bc0",
+      "prompts": [
+        "Take notes from the lecture",
+        "Annotate my PDF",
+        "Create a study note"
+      ]
+    },
+    "TIDAL": {
+      "bundleId": "com.tidal.desktop",
+      "category": "entertainment",
+      "icon": "Music",
+      "color": "#000000",
+      "prompts": [
+        "Play my TIDAL playlist",
+        "Browse Hi-Res audio tracks",
+        "Discover new music on TIDAL"
+      ]
+    },
+    "Deezer": {
+      "bundleId": "com.deezer.desktop",
+      "category": "entertainment",
+      "icon": "Music",
+      "color": "#a238ff",
+      "prompts": [
+        "Play my Deezer Flow",
+        "Browse music recommendations",
+        "Create a new playlist"
+      ]
+    },
+    "SoundCloud": {
+      "bundleId": "com.soundcloud.desktop",
+      "category": "entertainment",
+      "icon": "Music",
+      "color": "#ff5500",
+      "prompts": [
+        "Discover new music on SoundCloud",
+        "Play my liked tracks",
+        "Follow my favorite artists"
+      ]
+    },
+    "OBS Studio": {
+      "bundleId": "com.obsproject.obs-studio",
+      "category": "creative",
+      "icon": "Video",
+      "color": "#302e31",
+      "prompts": [
+        "Start streaming with OBS",
+        "Record my screen",
+        "Configure streaming settings"
+      ]
+    },
+    "Ableton Live": {
+      "bundleId": "com.ableton.live",
+      "category": "creative",
+      "icon": "Music",
+      "color": "#000000",
+      "prompts": [
+        "Open my Ableton project",
+        "Create a new beat",
+        "Mix my track in Ableton"
+      ]
+    },
+    "FL Studio": {
+      "bundleId": "com.image-line.flstudio",
+      "category": "creative",
+      "icon": "Music",
+      "color": "#f89821",
+      "prompts": [
+        "Open my FL Studio project",
+        "Create a new pattern",
+        "Mix my track in FL Studio"
+      ]
+    },
+    "Pro Tools": {
+      "bundleId": "com.avid.protools",
+      "category": "creative",
+      "icon": "Music",
+      "color": "#714eb3",
+      "prompts": [
+        "Open my Pro Tools session",
+        "Record audio tracks",
+        "Mix and master my project"
+      ]
+    },
+    "Adobe After Effects": {
+      "bundleId": "com.adobe.AfterEffects",
+      "category": "creative",
+      "icon": "Film",
+      "color": "#9999ff",
+      "prompts": [
+        "Create motion graphics",
+        "Add visual effects to my video",
+        "Render my composition"
+      ]
+    },
+    "ScreenFlow": {
+      "bundleId": "net.telestream.screenflow10",
+      "category": "creative",
+      "icon": "Video",
+      "color": "#e74c3c",
+      "prompts": [
+        "Record my screen with ScreenFlow",
+        "Edit my tutorial video",
+        "Add callouts to my recording"
+      ]
+    },
+    "Camtasia": {
+      "bundleId": "com.techsmith.camtasia",
+      "category": "creative",
+      "icon": "Video",
+      "color": "#36b37e",
+      "prompts": [
+        "Record a screen tutorial",
+        "Edit my video in Camtasia",
+        "Add annotations to my video"
+      ]
+    },
+    "Paramount+": {
+      "bundleId": "com.paramount.paramountplus",
+      "category": "entertainment",
+      "icon": "Tv",
+      "color": "#0064ff",
+      "prompts": [
+        "Watch Paramount+ shows",
+        "Continue my series",
+        "Browse movies on Paramount+"
+      ]
+    },
+    "Peacock": {
+      "bundleId": "com.peacock.tv",
+      "category": "entertainment",
+      "icon": "Tv",
+      "color": "#000000",
+      "prompts": [
+        "Watch Peacock shows",
+        "Stream live sports",
+        "Browse NBC content"
+      ]
+    },
+    "Crunchyroll": {
+      "bundleId": "com.crunchyroll.crunchyroll",
+      "category": "entertainment",
+      "icon": "Tv",
+      "color": "#f47521",
+      "prompts": [
+        "Watch anime on Crunchyroll",
+        "Continue my series",
+        "Browse new anime releases"
+      ]
+    },
+    "Funimation": {
+      "bundleId": "com.funimation.desktop",
+      "category": "entertainment",
+      "icon": "Tv",
+      "color": "#5b0bb5",
+      "prompts": [
+        "Watch dubbed anime",
+        "Continue my watchlist",
+        "Browse anime movies"
+      ]
+    },
+    "MLB TV": {
+      "bundleId": "com.mlb.mlbtv",
+      "category": "entertainment",
+      "icon": "Trophy",
+      "color": "#002d72",
+      "prompts": [
+        "Watch the live baseball game",
+        "Check game schedules",
+        "View highlights"
+      ]
+    },
+    "ESPN": {
+      "bundleId": "com.espn.desktop",
+      "category": "entertainment",
+      "icon": "Trophy",
+      "color": "#d00000",
+      "prompts": [
+        "Watch live sports on ESPN",
+        "Check sports scores",
+        "View game highlights"
+      ]
+    },
+    "Masterclass": {
+      "bundleId": "com.masterclass.mac",
+      "category": "education",
+      "icon": "Star",
+      "color": "#000000",
+      "prompts": [
+        "Watch my next Masterclass lesson",
+        "Browse available courses",
+        "Continue learning from experts"
+      ]
+    },
+    "Skillshare": {
+      "bundleId": "com.skillshare.desktop",
+      "category": "education",
+      "icon": "Lightbulb",
+      "color": "#00ff84",
+      "prompts": [
+        "Watch a creative class",
+        "Continue my course",
+        "Discover new skills to learn"
+      ]
+    },
+    "LinkedIn Learning": {
+      "bundleId": "com.linkedin.learning",
+      "category": "education",
+      "icon": "GraduationCap",
+      "color": "#0a66c2",
+      "prompts": [
+        "Continue my LinkedIn course",
+        "Browse professional courses",
+        "Learn a new business skill"
+      ]
+    },
+    "Udemy": {
+      "bundleId": "com.udemy.desktop",
+      "category": "education",
+      "icon": "BookOpen",
+      "color": "#a435f0",
+      "prompts": [
+        "Watch my Udemy course",
+        "Continue learning",
+        "Browse course recommendations"
+      ]
+    },
+    "1Password 8": {
+      "bundleId": "com.1password.8",
+      "category": "productivity",
+      "icon": "Lock",
+      "color": "#0094f5",
+      "prompts": [
+        "Find my login credentials",
+        "Generate a secure password",
+        "Share a password with my team"
+      ]
+    },
+    "Dashlane": {
+      "bundleId": "com.dashlane.Dashlane",
+      "category": "productivity",
+      "icon": "Lock",
+      "color": "#0e6562",
+      "prompts": [
+        "Search Dashlane for my password",
+        "Generate a secure password",
+        "Check my password health"
+      ]
+    },
+    "Krisp": {
+      "bundleId": "ai.krisp.krispMac",
+      "category": "utilities",
+      "icon": "Mic",
+      "color": "#5b5bf0",
+      "prompts": [
+        "Enable noise cancellation",
+        "Mute background noise",
+        "Turn on Krisp for my call"
+      ]
+    },
+    "CleanMyMac X": {
+      "bundleId": "com.macpaw.CleanMyMac4",
+      "category": "utilities",
+      "icon": "Trash2",
+      "color": "#66b3ff",
+      "prompts": [
+        "Scan for junk files",
+        "Free up disk space",
+        "Check for malware"
+      ]
+    },
+    "AppCleaner": {
+      "bundleId": "com.freemacsoft.AppCleaner",
+      "category": "utilities",
+      "icon": "Trash",
+      "color": "#3498db",
+      "prompts": [
+        "Uninstall an app completely",
+        "Remove app leftovers",
+        "Clean up unused apps"
+      ]
+    },
+    "Notion AI": {
+      "bundleId": "notion.ai",
+      "category": "productivity",
+      "icon": "Sparkles",
+      "color": "#000000",
+      "prompts": [
+        "Help me write a summary",
+        "Generate ideas for my project",
+        "Improve my writing"
+      ]
+    },
+    "Perplexity": {
+      "bundleId": "ai.perplexity.mac",
+      "category": "productivity",
+      "icon": "Search",
+      "color": "#20808d",
+      "prompts": [
+        "Search for information on AI",
+        "Research a topic for me",
+        "Find the latest news about tech"
+      ]
+    },
+    "Copilot": {
+      "bundleId": "com.microsoft.Copilot",
+      "category": "productivity",
+      "icon": "Sparkles",
+      "color": "#0078d4",
+      "prompts": [
+        "Help me write an email",
+        "Summarize this document",
+        "Generate ideas for my presentation"
+      ]
+    },
+    "Amazon": {
+      "bundleId": "com.amazon.Amazon",
+      "category": "lifestyle",
+      "icon": "ShoppingCart",
+      "color": "#ff9900",
+      "prompts": [
+        "Track my Amazon orders",
+        "Search for products",
+        "Check my delivery status"
+      ]
+    },
+    "Etsy": {
+      "bundleId": "com.etsy.Etsy",
+      "category": "lifestyle",
+      "icon": "ShoppingBag",
+      "color": "#f56400",
+      "prompts": [
+        "Browse handmade gifts",
+        "Check my orders",
+        "Search for unique items"
+      ]
+    },
+    "Yelp": {
+      "bundleId": "com.yelp.mac",
+      "category": "lifestyle",
+      "icon": "Star",
+      "color": "#d32323",
+      "prompts": [
+        "Find restaurants near me",
+        "Check reviews for this place",
+        "Search for local businesses"
+      ]
+    }
+  },
+  "version": "1.2.0",
+  "lastUpdated": "2026-01-31"
+}

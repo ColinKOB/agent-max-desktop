@@ -14,11 +14,11 @@ Many of these prompts imply deep integration that may not exist:
 |-----|------------------|---------|--------|
 | **Notion** | "Create a new page in Notion for my meeting notes" | Can Max actually create Notion pages via API? | ❓ Untested |
 | **Calendar** | "Schedule a meeting for tomorrow at 2pm" | Does Max have calendar write access? | ❓ Untested |
-| **Reminders** | "Remind me to call mom tomorrow at 5pm" | Can it create reminders? | ❓ Untested |
+| **Reminders** | "Remind me to call mom tomorrow at 5pm" | Can it create reminders? | ✅ Working (AppleScript) |
 | **Things/Todoist/OmniFocus** | "Add a task to [app]" | Task creation API? | ❓ Untested |
 | **Slack** | "Send a message to #general on Slack" | Slack API integration? | ❓ Untested |
 | **Mail** | "Send an email to john@example.com about the project" | Can it actually send emails? | ❓ Untested |
-| **Contacts** | "Find John's phone number in Contacts" | Contacts API access? | ❓ Untested |
+| **Contacts** | "Find John's phone number in Contacts" | Contacts API access? | ✅ Working (AppleScript) |
 | **Notes** | "Create a note called 'Meeting Notes'" | AppleScript/API? | ❓ Untested |
 | **Salesforce/HubSpot/Zendesk** | Various CRM operations | No integrations visible | ❓ Untested |
 | **Google Sheets/Docs/Slides** | "Create a new Google Sheet for my budget" | Google API integration status? | ❓ Untested |
@@ -130,6 +130,13 @@ From `CreateAgentPremium.jsx`:
 - **Actual Result:** Max claimed success, verification AppleScript hung (needs manual check)
 - **Status:** ⚠️ Unverified
 
+### Test 14: Reminders - Create Reminder (Re-test)
+- **Date:** 2026-02-01
+- **Input:** "Create a reminder called Test Reminder in the Reminders app for tomorrow at 10am"
+- **Expected Result:** Reminder created
+- **Actual Result:** Max successfully created reminder "Test Reminder" for tomorrow at 10:00 AM
+- **Status:** ✅ Pass
+
 ### Test 5: Notion - Create Page
 - **Date:** 2026-01-31
 - **Input:** "Open the Notion app and create a new page called 'Agent Max Test Page'..."
@@ -158,12 +165,46 @@ From `CreateAgentPremium.jsx`:
 - **Actual Result:** Request failed silently - no response generated
 - **Status:** ❌ Fail
 
-### Test 9: Contacts - Find Contact
+### Test 9: Contacts - Find Contact (Original Test)
 - **Date:** 2026-01-31
 - **Input:** "Find the phone number for anyone named 'John' in my Contacts app"
 - **Expected Result:** Return contact info
 - **Actual Result:** Max admitted "I don't have direct access to your Contacts app"
-- **Status:** ❌ Fail
+- **Status:** ❌ Fail (FIXED - see Test 12)
+
+### Test 12: Contacts - Search (After Integration)
+- **Date:** 2026-02-01
+- **Input:** "Search my macOS Contacts for anyone named Chris"
+- **Expected Result:** Return matching contacts
+- **Actual Result:** Successfully found 8 contacts: Chris Katity, Mrs. Christine Gustke, Aunt Christine Best (x2), Atlantic Christian School, Christopher Joseph Henry, Annabel Seachrist, Christian Piper
+- **Status:** ✅ Pass
+
+### Test 13: Contacts - Get Full Details
+- **Date:** 2026-02-01
+- **Input:** "Get full details for the contact named Christopher Joseph Henry"
+- **Expected Result:** Return full contact details
+- **Actual Result:** Successfully retrieved name, mobile phone (626-349-8714), FaceTime status
+- **Status:** ✅ Pass
+
+### Test 15: Contacts - Search (After Tool Definition Fix)
+- **Date:** 2026-02-01
+- **Input:** "Search my macOS Contacts for anyone named Colin"
+- **Expected Result:** Return matching contacts with details
+- **Actual Result:** Successfully found 2 contacts: Colin O'Brien (with 5 phone numbers and emails), Colin OBrien
+- **Status:** ✅ Pass
+
+### Test 16: Integration Tools Available
+- **Date:** 2026-02-01
+- **Input:** "What integrations do you have access to?"
+- **Expected Result:** List all available tools
+- **Actual Result:** AI correctly listed all tools including:
+  - Apple Contacts (search, get, create, list, get_groups, get_group_members)
+  - Notion (search, create_page, get_page)
+  - Slack (send_message, list_channels, get_history)
+  - Discord (send_message, list_servers, list_channels)
+  - HubSpot (get_contacts, search_contacts, get_deals, create_contact)
+  - Zendesk (list_tickets, get_ticket, search, create_ticket)
+- **Status:** ✅ Pass
 
 ### Test 10: Google Sheets - Create Spreadsheet
 - **Date:** 2026-01-31
@@ -290,12 +331,12 @@ Based on detailed research, these apps have official APIs and CAN be integrated:
 
 | App | Difficulty | User Value | Status |
 |-----|-----------|-----------|--------|
-| Contacts | Low | High | ✅ IMPLEMENTED (AppleScript) |
-| Notion | Low-Medium | High | ✅ IMPLEMENTED (@notionhq/client) |
-| Slack | Low-Medium | High | ✅ IMPLEMENTED (@slack/web-api) |
-| Discord | Low-Medium | Medium | ✅ IMPLEMENTED (discord.js) |
-| Zendesk | Low-Medium | Medium | ✅ IMPLEMENTED (node-zendesk) |
-| HubSpot | Medium | Medium | ✅ IMPLEMENTED (@hubspot/api-client) |
+| Contacts | Low | High | ✅ VERIFIED WORKING (AppleScript + Tool Definitions) |
+| Notion | Low-Medium | High | ✅ IMPLEMENTED (@notionhq/client) - Needs API key |
+| Slack | Low-Medium | High | ✅ IMPLEMENTED (@slack/web-api) - Needs bot token |
+| Discord | Low-Medium | Medium | ✅ IMPLEMENTED (discord.js) - Needs bot token |
+| Zendesk | Low-Medium | Medium | ✅ IMPLEMENTED (node-zendesk) - Needs API token |
+| HubSpot | Medium | Medium | ✅ IMPLEMENTED (@hubspot/api-client) - Needs API token |
 | Salesforce | Medium | Medium | ⏳ Planned (jsforce) |
 | Signal | High/Risky | Low | ❌ Skipped (ToS risk) |
 
@@ -304,12 +345,20 @@ Based on detailed research, these apps have official APIs and CAN be integrated:
 ### 🔧 IMPLEMENTATION COMPLETED
 
 All integrations follow this architecture:
+
+**Desktop App (electron):**
 1. **Settings UI** - `src/pages/SettingsEnhanced.jsx` - API token input fields
 2. **Secure storage** - `electron/main/main.cjs` - AES-256-GCM encrypted tokens
 3. **IPC handlers** - `electron/main/main.cjs` - `integration:*` handlers
 4. **Client wrappers** - `electron/integrations/*.cjs` - API client modules
 5. **Tool execution** - `electron/autonomous/pullExecutor.cjs` - Tool handlers
 6. **Tool aliases** - `electron/autonomous/toolNormalizer.cjs` - Name mapping
+7. **AppleScript tools** - `electron/autonomous/macosAppleScript.cjs` - Native macOS automation
+
+**Backend (Agent_Max):**
+8. **Tool definitions** - `core/tool_definitions.py` - Define tools for AI (parameters, descriptions)
+9. **Tool instructions** - `core/tool_instructions.py` - Detailed usage examples
+10. **System prompts** - `core/prompts/unified_prompts.py` - Capability list
 
 ### ⚠️ Needs Further Testing:
 - Reminders app (AppleScript likely works)
