@@ -1891,6 +1891,282 @@ return "Reminders activated"`;
 };
 
 // ============================================================================
+// CONTACTS TOOLS
+// ============================================================================
+
+const contactsTools = {
+    async search(args) {
+        const query = args.query || args.name;
+        if (!query) return { success: false, error: 'Missing required argument: query or name', exit_code: 1 };
+        const limit = args.limit || 10;
+
+        const escapedQuery = query.replace(/"/g, '\\"');
+
+        const script = `
+tell application "Contacts"
+    set resultList to ""
+    set personCount to 0
+    set matchingPeople to people whose name contains "${escapedQuery}"
+
+    repeat with p in matchingPeople
+        if personCount < ${limit} then
+            set pName to name of p
+            set pPhones to ""
+            set pEmails to ""
+
+            -- Get phone numbers
+            repeat with ph in phones of p
+                set pPhones to pPhones & (label of ph) & ": " & (value of ph) & ", "
+            end repeat
+
+            -- Get email addresses
+            repeat with em in emails of p
+                set pEmails to pEmails & (label of em) & ": " & (value of em) & ", "
+            end repeat
+
+            set resultList to resultList & "• " & pName
+            if pPhones is not "" then
+                set resultList to resultList & "\\n  Phone: " & pPhones
+            end if
+            if pEmails is not "" then
+                set resultList to resultList & "\\n  Email: " & pEmails
+            end if
+            set resultList to resultList & "\\n\\n"
+            set personCount to personCount + 1
+        end if
+    end repeat
+
+    if resultList is "" then
+        return "No contacts found matching: ${escapedQuery}"
+    else
+        return "Found " & personCount & " contact(s):\\n\\n" & resultList
+    end if
+end tell`;
+        return await runAppleScriptMultiline(script);
+    },
+
+    async get(args) {
+        const name = args.name;
+        if (!name) return { success: false, error: 'Missing required argument: name', exit_code: 1 };
+
+        const escapedName = name.replace(/"/g, '\\"');
+
+        const script = `
+tell application "Contacts"
+    set matchingPeople to people whose name contains "${escapedName}"
+
+    if (count of matchingPeople) = 0 then
+        return "Contact not found: ${escapedName}"
+    end if
+
+    set p to item 1 of matchingPeople
+    set pName to name of p
+    set resultText to "Name: " & pName & "\\n"
+
+    -- Get organization
+    try
+        set pOrg to organization of p
+        if pOrg is not missing value and pOrg is not "" then
+            set resultText to resultText & "Organization: " & pOrg & "\\n"
+        end if
+    end try
+
+    -- Get job title
+    try
+        set pTitle to job title of p
+        if pTitle is not missing value and pTitle is not "" then
+            set resultText to resultText & "Title: " & pTitle & "\\n"
+        end if
+    end try
+
+    -- Get phone numbers
+    set resultText to resultText & "\\nPhone Numbers:\\n"
+    set hasPhones to false
+    repeat with ph in phones of p
+        set resultText to resultText & "  " & (label of ph) & ": " & (value of ph) & "\\n"
+        set hasPhones to true
+    end repeat
+    if not hasPhones then
+        set resultText to resultText & "  (none)\\n"
+    end if
+
+    -- Get email addresses
+    set resultText to resultText & "\\nEmail Addresses:\\n"
+    set hasEmails to false
+    repeat with em in emails of p
+        set resultText to resultText & "  " & (label of em) & ": " & (value of em) & "\\n"
+        set hasEmails to true
+    end repeat
+    if not hasEmails then
+        set resultText to resultText & "  (none)\\n"
+    end if
+
+    -- Get addresses
+    set resultText to resultText & "\\nAddresses:\\n"
+    set hasAddresses to false
+    repeat with addr in addresses of p
+        set addrLabel to label of addr
+        set addrStreet to street of addr
+        set addrCity to city of addr
+        set addrState to state of addr
+        set addrZip to zip of addr
+        set addrCountry to country of addr
+        set resultText to resultText & "  " & addrLabel & ": " & addrStreet & ", " & addrCity & ", " & addrState & " " & addrZip & ", " & addrCountry & "\\n"
+        set hasAddresses to true
+    end repeat
+    if not hasAddresses then
+        set resultText to resultText & "  (none)\\n"
+    end if
+
+    -- Get birthday
+    try
+        set pBday to birth date of p
+        if pBday is not missing value then
+            set resultText to resultText & "\\nBirthday: " & (pBday as string) & "\\n"
+        end if
+    end try
+
+    -- Get notes
+    try
+        set pNotes to note of p
+        if pNotes is not missing value and pNotes is not "" then
+            set resultText to resultText & "\\nNotes: " & pNotes & "\\n"
+        end if
+    end try
+
+    return resultText
+end tell`;
+        return await runAppleScriptMultiline(script);
+    },
+
+    async create(args) {
+        const firstName = args.first_name || args.firstName;
+        const lastName = args.last_name || args.lastName || '';
+        const phone = args.phone;
+        const email = args.email;
+        const organization = args.organization || args.company || '';
+        const jobTitle = args.job_title || args.jobTitle || args.title || '';
+
+        if (!firstName) return { success: false, error: 'Missing required argument: first_name', exit_code: 1 };
+
+        const escapedFirstName = firstName.replace(/"/g, '\\"');
+        const escapedLastName = lastName.replace(/"/g, '\\"');
+        const escapedOrg = organization.replace(/"/g, '\\"');
+        const escapedTitle = jobTitle.replace(/"/g, '\\"');
+        const escapedPhone = phone ? phone.replace(/"/g, '\\"') : '';
+        const escapedEmail = email ? email.replace(/"/g, '\\"') : '';
+
+        const script = `
+tell application "Contacts"
+    set newPerson to make new person with properties {first name:"${escapedFirstName}"${lastName ? `, last name:"${escapedLastName}"` : ''}${organization ? `, organization:"${escapedOrg}"` : ''}${jobTitle ? `, job title:"${escapedTitle}"` : ''}}
+
+    ${phone ? `tell newPerson
+        make new phone at end of phones with properties {label:"mobile", value:"${escapedPhone}"}
+    end tell` : ''}
+
+    ${email ? `tell newPerson
+        make new email at end of emails with properties {label:"home", value:"${escapedEmail}"}
+    end tell` : ''}
+
+    save
+    return "Contact created: ${escapedFirstName}${lastName ? ` ${escapedLastName}` : ''}"
+end tell`;
+        return await runAppleScriptMultiline(script);
+    },
+
+    async list(args) {
+        const limit = args.limit || 20;
+
+        const script = `
+tell application "Contacts"
+    set resultList to ""
+    set personCount to 0
+
+    repeat with p in people
+        if personCount < ${limit} then
+            set pName to name of p
+            set resultList to resultList & "• " & pName & "\\n"
+            set personCount to personCount + 1
+        else
+            exit repeat
+        end if
+    end repeat
+
+    if resultList is "" then
+        return "No contacts found"
+    else
+        return "Contacts (" & personCount & "):\\n" & resultList
+    end if
+end tell`;
+        return await runAppleScriptMultiline(script);
+    },
+
+    async get_groups(args) {
+        const script = `
+tell application "Contacts"
+    set groupList to ""
+    repeat with g in groups
+        set gName to name of g
+        set gCount to count of people of g
+        set groupList to groupList & "• " & gName & " (" & gCount & " contacts)\\n"
+    end repeat
+
+    if groupList is "" then
+        return "No groups found"
+    else
+        return "Contact Groups:\\n" & groupList
+    end if
+end tell`;
+        return await runAppleScriptMultiline(script);
+    },
+
+    async get_group_members(args) {
+        const groupName = args.group || args.name;
+        if (!groupName) return { success: false, error: 'Missing required argument: group', exit_code: 1 };
+        const limit = args.limit || 20;
+
+        const escapedGroup = groupName.replace(/"/g, '\\"');
+
+        const script = `
+tell application "Contacts"
+    try
+        set targetGroup to group "${escapedGroup}"
+        set resultList to ""
+        set personCount to 0
+
+        repeat with p in people of targetGroup
+            if personCount < ${limit} then
+                set pName to name of p
+                set resultList to resultList & "• " & pName & "\\n"
+                set personCount to personCount + 1
+            else
+                exit repeat
+            end if
+        end repeat
+
+        if resultList is "" then
+            return "No contacts in group: ${escapedGroup}"
+        else
+            return "Contacts in ${escapedGroup} (" & personCount & "):\\n" & resultList
+        end if
+    on error
+        return "Group not found: ${escapedGroup}"
+    end try
+end tell`;
+        return await runAppleScriptMultiline(script);
+    },
+
+    async activate(args) {
+        const script = `
+tell application "Contacts"
+    activate
+end tell
+return "Contacts activated"`;
+        return await runAppleScriptMultiline(script);
+    }
+};
+
+// ============================================================================
 // MAIN EXECUTOR
 // ============================================================================
 
@@ -1939,6 +2215,9 @@ async function executeMacOSTool(tool, args) {
         case 'reminders':
             toolSet = remindersTools;
             break;
+        case 'contacts':
+            toolSet = contactsTools;
+            break;
         default:
             return {
                 success: false,
@@ -1980,7 +2259,7 @@ async function executeMacOSTool(tool, args) {
  * Check if a tool name is a macOS AppleScript tool
  */
 function isMacOSTool(tool) {
-    const macOSApps = ['safari', 'chrome', 'notes', 'mail', 'calendar', 'finder', 'reminders'];
+    const macOSApps = ['safari', 'chrome', 'notes', 'mail', 'calendar', 'finder', 'reminders', 'contacts'];
     const parts = tool.split('.');
     return parts.length >= 2 && macOSApps.includes(parts[0]);
 }
@@ -1997,5 +2276,6 @@ module.exports = {
     mailTools,
     calendarTools,
     finderTools,
-    remindersTools
+    remindersTools,
+    contactsTools
 };

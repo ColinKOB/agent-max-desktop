@@ -236,6 +236,90 @@ export default function SettingsEnhanced() {
   // Delete account confirmation
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Third-party integrations state
+  const [integrationStatus, setIntegrationStatus] = useState({
+    notion: false,
+    slack: false,
+    discord: false,
+    hubspot: false,
+    zendesk: false
+  });
+  const [integrationLoading, setIntegrationLoading] = useState({});
+  const [integrationTokens, setIntegrationTokens] = useState({
+    notion: '',
+    slack: '',
+    discord: '',
+    hubspot: '',
+    zendesk: { subdomain: '', email: '', token: '' }
+  });
+
+  // Load integration status on mount
+  useEffect(() => {
+    const loadIntegrationStatus = async () => {
+      try {
+        if (window.electron?.integrations?.getAllStatus) {
+          const status = await window.electron.integrations.getAllStatus();
+          setIntegrationStatus(status);
+        }
+      } catch (e) {
+        console.error('[Settings] Failed to load integration status:', e);
+      }
+    };
+    loadIntegrationStatus();
+  }, []);
+
+  // Integration connect/disconnect handlers
+  const handleIntegrationConnect = async (service) => {
+    setIntegrationLoading(prev => ({ ...prev, [service]: true }));
+    try {
+      const creds = service === 'zendesk'
+        ? integrationTokens.zendesk
+        : { token: integrationTokens[service] };
+
+      // Test connection first
+      const testResult = await window.electron.integrations.test(service, creds);
+      if (!testResult.success) {
+        toast.error(testResult.error || `Failed to connect to ${service}`);
+        return;
+      }
+
+      // If test passes, save and connect
+      const result = await window.electron.integrations.connect(service, creds);
+      if (result.success) {
+        setIntegrationStatus(prev => ({ ...prev, [service]: true }));
+        toast.success(`Connected to ${service}!`);
+        // Clear the token input for security
+        setIntegrationTokens(prev => ({
+          ...prev,
+          [service]: service === 'zendesk' ? { subdomain: '', email: '', token: '' } : ''
+        }));
+      } else {
+        toast.error(result.error || `Failed to connect to ${service}`);
+      }
+    } catch (e) {
+      toast.error(`Error connecting to ${service}: ${e.message}`);
+    } finally {
+      setIntegrationLoading(prev => ({ ...prev, [service]: false }));
+    }
+  };
+
+  const handleIntegrationDisconnect = async (service) => {
+    setIntegrationLoading(prev => ({ ...prev, [service]: true }));
+    try {
+      const result = await window.electron.integrations.disconnect(service);
+      if (result.success) {
+        setIntegrationStatus(prev => ({ ...prev, [service]: false }));
+        toast.success(`Disconnected from ${service}`);
+      } else {
+        toast.error(result.error || `Failed to disconnect from ${service}`);
+      }
+    } catch (e) {
+      toast.error(`Error disconnecting from ${service}: ${e.message}`);
+    } finally {
+      setIntegrationLoading(prev => ({ ...prev, [service]: false }));
+    }
+  };
+
   // Sign out handler
   const handleSignOut = () => {
     localStorage.removeItem('user_email');
@@ -626,6 +710,7 @@ export default function SettingsEnhanced() {
                 <p>Connect external services to Agent Max</p>
               </header>
 
+              {/* Google Account */}
               <div className="integration-card glass-panel">
                 <div className="integration-header">
                   <div className="integration-icon google">
@@ -661,12 +746,327 @@ export default function SettingsEnhanced() {
                       className="connect-btn"
                       onClick={() => {
                         toast('Google sign-in will open in a new window', { icon: 'info' });
-                        // Trigger Google OAuth flow - this would normally be handled by your auth system
                         window.location.href = '#/login?oauth=google';
                       }}
                     >
                       <Link size={16} />
                       <span>Connect</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Notion */}
+              <div className="integration-card glass-panel">
+                <div className="integration-header">
+                  <div className="integration-icon notion">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                      <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.296c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.166V6.354c0-.606-.233-.933-.748-.886l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952l1.448.327s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.62c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933zM2.876 1.015l13.356-.98c1.635-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.401-1.652z"/>
+                    </svg>
+                  </div>
+                  <div className="integration-info">
+                    <h4>Notion</h4>
+                    <p className="integration-status">
+                      {integrationStatus.notion ? (
+                        <span className="status-connected">Connected</span>
+                      ) : (
+                        <span className="status-disconnected">Not connected</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="integration-body">
+                  {!integrationStatus.notion && (
+                    <div className="integration-input-group">
+                      <input
+                        type="password"
+                        placeholder="Notion Integration Token"
+                        value={integrationTokens.notion}
+                        onChange={(e) => setIntegrationTokens(prev => ({ ...prev, notion: e.target.value }))}
+                        className="integration-input"
+                      />
+                      <p className="integration-help">
+                        Create an internal integration at <a href="https://www.notion.so/my-integrations" target="_blank" rel="noopener noreferrer">notion.so/my-integrations</a>
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="integration-actions">
+                  {integrationStatus.notion ? (
+                    <button
+                      className="disconnect-btn"
+                      onClick={() => handleIntegrationDisconnect('notion')}
+                      disabled={integrationLoading.notion}
+                    >
+                      <Unlink size={16} />
+                      <span>{integrationLoading.notion ? 'Disconnecting...' : 'Disconnect'}</span>
+                    </button>
+                  ) : (
+                    <button
+                      className="connect-btn"
+                      onClick={() => handleIntegrationConnect('notion')}
+                      disabled={integrationLoading.notion || !integrationTokens.notion}
+                    >
+                      <Link size={16} />
+                      <span>{integrationLoading.notion ? 'Connecting...' : 'Connect'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Slack */}
+              <div className="integration-card glass-panel">
+                <div className="integration-header">
+                  <div className="integration-icon slack">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                      <path fill="#E01E5A" d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z"/>
+                      <path fill="#36C5F0" d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z"/>
+                      <path fill="#2EB67D" d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312z"/>
+                      <path fill="#ECB22E" d="M15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
+                    </svg>
+                  </div>
+                  <div className="integration-info">
+                    <h4>Slack</h4>
+                    <p className="integration-status">
+                      {integrationStatus.slack ? (
+                        <span className="status-connected">Connected</span>
+                      ) : (
+                        <span className="status-disconnected">Not connected</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="integration-body">
+                  {!integrationStatus.slack && (
+                    <div className="integration-input-group">
+                      <input
+                        type="password"
+                        placeholder="Slack Bot Token (xoxb-...)"
+                        value={integrationTokens.slack}
+                        onChange={(e) => setIntegrationTokens(prev => ({ ...prev, slack: e.target.value }))}
+                        className="integration-input"
+                      />
+                      <p className="integration-help">
+                        Create a Slack App at <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer">api.slack.com/apps</a>
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="integration-actions">
+                  {integrationStatus.slack ? (
+                    <button
+                      className="disconnect-btn"
+                      onClick={() => handleIntegrationDisconnect('slack')}
+                      disabled={integrationLoading.slack}
+                    >
+                      <Unlink size={16} />
+                      <span>{integrationLoading.slack ? 'Disconnecting...' : 'Disconnect'}</span>
+                    </button>
+                  ) : (
+                    <button
+                      className="connect-btn"
+                      onClick={() => handleIntegrationConnect('slack')}
+                      disabled={integrationLoading.slack || !integrationTokens.slack}
+                    >
+                      <Link size={16} />
+                      <span>{integrationLoading.slack ? 'Connecting...' : 'Connect'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Discord */}
+              <div className="integration-card glass-panel">
+                <div className="integration-header">
+                  <div className="integration-icon discord">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="#5865F2">
+                      <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                    </svg>
+                  </div>
+                  <div className="integration-info">
+                    <h4>Discord</h4>
+                    <p className="integration-status">
+                      {integrationStatus.discord ? (
+                        <span className="status-connected">Connected</span>
+                      ) : (
+                        <span className="status-disconnected">Not connected</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="integration-body">
+                  {!integrationStatus.discord && (
+                    <div className="integration-input-group">
+                      <input
+                        type="password"
+                        placeholder="Discord Bot Token"
+                        value={integrationTokens.discord}
+                        onChange={(e) => setIntegrationTokens(prev => ({ ...prev, discord: e.target.value }))}
+                        className="integration-input"
+                      />
+                      <p className="integration-help">
+                        Create a bot at <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer">discord.com/developers</a>
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="integration-actions">
+                  {integrationStatus.discord ? (
+                    <button
+                      className="disconnect-btn"
+                      onClick={() => handleIntegrationDisconnect('discord')}
+                      disabled={integrationLoading.discord}
+                    >
+                      <Unlink size={16} />
+                      <span>{integrationLoading.discord ? 'Disconnecting...' : 'Disconnect'}</span>
+                    </button>
+                  ) : (
+                    <button
+                      className="connect-btn"
+                      onClick={() => handleIntegrationConnect('discord')}
+                      disabled={integrationLoading.discord || !integrationTokens.discord}
+                    >
+                      <Link size={16} />
+                      <span>{integrationLoading.discord ? 'Connecting...' : 'Connect'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* HubSpot */}
+              <div className="integration-card glass-panel">
+                <div className="integration-header">
+                  <div className="integration-icon hubspot">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="#FF7A59">
+                      <path d="M18.164 7.93V5.507a2.074 2.074 0 0 0 1.198-1.883v-.062a2.074 2.074 0 0 0-2.074-2.074h-.062a2.074 2.074 0 0 0-2.074 2.074v.062a2.074 2.074 0 0 0 1.198 1.883V7.93a5.744 5.744 0 0 0-3.123 1.533L6.03 4.283a2.32 2.32 0 1 0-.973 1.078l6.966 5.051a5.732 5.732 0 0 0-.037 6.07l-2.127 2.127a1.73 1.73 0 1 0 1.05 1.05l2.127-2.127a5.744 5.744 0 1 0 5.127-9.602zM17.226 16.8a2.843 2.843 0 1 1 0-5.686 2.843 2.843 0 0 1 0 5.686z"/>
+                    </svg>
+                  </div>
+                  <div className="integration-info">
+                    <h4>HubSpot</h4>
+                    <p className="integration-status">
+                      {integrationStatus.hubspot ? (
+                        <span className="status-connected">Connected</span>
+                      ) : (
+                        <span className="status-disconnected">Not connected</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="integration-body">
+                  {!integrationStatus.hubspot && (
+                    <div className="integration-input-group">
+                      <input
+                        type="password"
+                        placeholder="HubSpot Private App Token"
+                        value={integrationTokens.hubspot}
+                        onChange={(e) => setIntegrationTokens(prev => ({ ...prev, hubspot: e.target.value }))}
+                        className="integration-input"
+                      />
+                      <p className="integration-help">
+                        Create a Private App in HubSpot Settings &gt; Integrations &gt; Private Apps
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="integration-actions">
+                  {integrationStatus.hubspot ? (
+                    <button
+                      className="disconnect-btn"
+                      onClick={() => handleIntegrationDisconnect('hubspot')}
+                      disabled={integrationLoading.hubspot}
+                    >
+                      <Unlink size={16} />
+                      <span>{integrationLoading.hubspot ? 'Disconnecting...' : 'Disconnect'}</span>
+                    </button>
+                  ) : (
+                    <button
+                      className="connect-btn"
+                      onClick={() => handleIntegrationConnect('hubspot')}
+                      disabled={integrationLoading.hubspot || !integrationTokens.hubspot}
+                    >
+                      <Link size={16} />
+                      <span>{integrationLoading.hubspot ? 'Connecting...' : 'Connect'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Zendesk */}
+              <div className="integration-card glass-panel">
+                <div className="integration-header">
+                  <div className="integration-icon zendesk">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="#03363D">
+                      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 21.5c-5.238 0-9.5-4.262-9.5-9.5S6.762 2.5 12 2.5s9.5 4.262 9.5 9.5-4.262 9.5-9.5 9.5zm-5-7.5h10v5H7v-5zm0-7l10 7H7V7z"/>
+                    </svg>
+                  </div>
+                  <div className="integration-info">
+                    <h4>Zendesk</h4>
+                    <p className="integration-status">
+                      {integrationStatus.zendesk ? (
+                        <span className="status-connected">Connected</span>
+                      ) : (
+                        <span className="status-disconnected">Not connected</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="integration-body">
+                  {!integrationStatus.zendesk && (
+                    <div className="integration-input-group zendesk-inputs">
+                      <input
+                        type="text"
+                        placeholder="Subdomain (e.g., company)"
+                        value={integrationTokens.zendesk.subdomain}
+                        onChange={(e) => setIntegrationTokens(prev => ({
+                          ...prev,
+                          zendesk: { ...prev.zendesk, subdomain: e.target.value }
+                        }))}
+                        className="integration-input"
+                      />
+                      <input
+                        type="email"
+                        placeholder="Email"
+                        value={integrationTokens.zendesk.email}
+                        onChange={(e) => setIntegrationTokens(prev => ({
+                          ...prev,
+                          zendesk: { ...prev.zendesk, email: e.target.value }
+                        }))}
+                        className="integration-input"
+                      />
+                      <input
+                        type="password"
+                        placeholder="API Token"
+                        value={integrationTokens.zendesk.token}
+                        onChange={(e) => setIntegrationTokens(prev => ({
+                          ...prev,
+                          zendesk: { ...prev.zendesk, token: e.target.value }
+                        }))}
+                        className="integration-input"
+                      />
+                      <p className="integration-help">
+                        Generate an API token in Zendesk Admin &gt; Channels &gt; API
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="integration-actions">
+                  {integrationStatus.zendesk ? (
+                    <button
+                      className="disconnect-btn"
+                      onClick={() => handleIntegrationDisconnect('zendesk')}
+                      disabled={integrationLoading.zendesk}
+                    >
+                      <Unlink size={16} />
+                      <span>{integrationLoading.zendesk ? 'Disconnecting...' : 'Disconnect'}</span>
+                    </button>
+                  ) : (
+                    <button
+                      className="connect-btn"
+                      onClick={() => handleIntegrationConnect('zendesk')}
+                      disabled={integrationLoading.zendesk || !integrationTokens.zendesk.subdomain || !integrationTokens.zendesk.email || !integrationTokens.zendesk.token}
+                    >
+                      <Link size={16} />
+                      <span>{integrationLoading.zendesk ? 'Connecting...' : 'Connect'}</span>
                     </button>
                   )}
                 </div>

@@ -1216,6 +1216,138 @@
   color: #ef4444;
 }
 
+.connect-btn:disabled,
+.disconnect-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Integration card layout for inputs */
+.integration-card {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.integration-card .integration-header {
+  width: 100%;
+}
+
+.integration-body {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.integration-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.integration-input-group.zendesk-inputs {
+  gap: 10px;
+}
+
+.integration-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.85);
+  transition: all 0.2s;
+}
+
+.integration-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.integration-input::placeholder {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+.integration-help {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.5);
+  margin: 0;
+}
+
+.integration-help a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.integration-help a:hover {
+  text-decoration: underline;
+}
+
+.integration-card .integration-actions {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* Integration icon colors */
+.integration-icon.notion {
+  background: white;
+  color: #000;
+}
+
+.integration-icon.slack {
+  background: white;
+}
+
+.integration-icon.discord {
+  background: white;
+}
+
+.integration-icon.hubspot {
+  background: white;
+}
+
+.integration-icon.zendesk {
+  background: white;
+}
+
+/* Dark mode integration inputs */
+.dark .integration-input {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.dark .integration-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.dark .integration-input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+.dark .integration-help {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.dark .integration-icon {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .integration-icon.notion,
+.dark .integration-icon.slack,
+.dark .integration-icon.discord,
+.dark .integration-icon.hubspot,
+.dark .integration-icon.zendesk,
+.dark .integration-icon.google {
+  background: rgba(255, 255, 255, 0.9);
+}
+
 /* Dark mode for new sections */
 .dark .notification-settings h3,
 .dark .account-info h3,

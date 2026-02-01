@@ -111,6 +111,36 @@ contextBridge.exposeInMainWorld('electron', {
     toggle: (enabled) => ipcRenderer.invoke('hands-on-desktop:toggle', enabled),
     status: () => ipcRenderer.invoke('hands-on-desktop:status'),
   },
+
+  // App Discovery for personalized onboarding
+  appDiscovery: {
+    // Get full user context (installed apps + desktop files + platform info)
+    getUserContext: () => ipcRenderer.invoke('get-user-apps'),
+    // Get just installed applications
+    getInstalledApps: () => ipcRenderer.invoke('get-installed-apps'),
+    // Get just desktop file context (file counts by category)
+    getDesktopContext: () => ipcRenderer.invoke('get-desktop-context'),
+    // Check if a specific app is installed (by name or bundle ID)
+    isAppInstalled: (appName) => ipcRenderer.invoke('is-app-installed', appName),
+    // Clear the cache to force a fresh scan
+    clearCache: () => ipcRenderer.invoke('clear-app-cache'),
+  },
+
+  // Third-Party Integrations (Notion, Slack, Discord, HubSpot, Zendesk)
+  integrations: {
+    // Get connection status for all integrations
+    getAllStatus: () => ipcRenderer.invoke('integration:get-all-status'),
+    // Get connection status for a specific integration
+    getStatus: (service) => ipcRenderer.invoke('integration:get-status', service),
+    // Test connection before saving credentials
+    test: (service, credentials) => ipcRenderer.invoke('integration:test', { service, credentials }),
+    // Connect an integration (save credentials and initialize)
+    connect: (service, credentials) => ipcRenderer.invoke('integration:connect', { service, credentials }),
+    // Disconnect an integration (remove credentials)
+    disconnect: (service) => ipcRenderer.invoke('integration:disconnect', service),
+    // Execute an integration action (used by pullExecutor)
+    execute: (service, action, args) => ipcRenderer.invoke('integration:execute', { service, action, args }),
+  },
 });
 
 // Also expose as electronAPI for compatibility

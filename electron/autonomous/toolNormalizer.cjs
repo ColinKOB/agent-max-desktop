@@ -70,7 +70,51 @@ const TOOL_ALIASES = {
     'watch_directory': 'file_watch',
 
     // === GOOGLE TOOLS ===
-    'google_command': 'google.command'
+    'google_command': 'google.command',
+
+    // === CONTACTS TOOLS ===
+    'search_contacts': 'contacts.search',
+    'find_contact': 'contacts.search',
+    'get_contact': 'contacts.get',
+    'contact_info': 'contacts.get',
+    'create_contact': 'contacts.create',
+    'add_contact': 'contacts.create',
+    'list_contacts': 'contacts.list',
+    'contact_groups': 'contacts.get_groups',
+
+    // === NOTION TOOLS ===
+    'notion_search': 'notion.search',
+    'search_notion': 'notion.search',
+    'notion_create_page': 'notion.create_page',
+    'create_notion_page': 'notion.create_page',
+    'notion_get_page': 'notion.get_page',
+    'notion_query': 'notion.query_database',
+
+    // === SLACK TOOLS ===
+    'slack_send': 'slack.send_message',
+    'send_slack': 'slack.send_message',
+    'slack_message': 'slack.send_message',
+    'slack_channels': 'slack.list_channels',
+    'slack_search': 'slack.search',
+
+    // === DISCORD TOOLS ===
+    'discord_send': 'discord.send_message',
+    'send_discord': 'discord.send_message',
+    'discord_message': 'discord.send_message',
+    'discord_servers': 'discord.list_servers',
+    'discord_channels': 'discord.list_channels',
+
+    // === HUBSPOT TOOLS ===
+    'hubspot_contacts': 'hubspot.get_contacts',
+    'hubspot_deals': 'hubspot.get_deals',
+    'hubspot_search': 'hubspot.search',
+    'hubspot_create_contact': 'hubspot.create_contact',
+
+    // === ZENDESK TOOLS ===
+    'zendesk_tickets': 'zendesk.list_tickets',
+    'zendesk_ticket': 'zendesk.get_ticket',
+    'zendesk_search': 'zendesk.search',
+    'zendesk_create': 'zendesk.create_ticket'
 };
 
 /**

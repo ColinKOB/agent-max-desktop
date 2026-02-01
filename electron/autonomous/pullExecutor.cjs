@@ -1042,7 +1042,7 @@ class PullExecutor {
 
         // === MACOS NATIVE TOOLS ===
         } else if (isMacOSTool(tool)) {
-            // macOS AppleScript tools: safari.*, notes.*, mail.*, calendar.*, finder.*, reminders.*
+            // macOS AppleScript tools: safari.*, notes.*, mail.*, calendar.*, finder.*, reminders.*, contacts.*
             return await executeMacOSTool(tool, args);
 
         // === WORKSPACE TOOLS ===
@@ -1053,11 +1053,59 @@ class PullExecutor {
         } else if (tool.startsWith('spreadsheet.')) {
             return await this.executeSpreadsheetTool(tool, args);
 
+        // === THIRD-PARTY INTEGRATION TOOLS ===
+        } else if (tool.startsWith('notion.')) {
+            return await this.executeIntegrationTool('notion', tool, args);
+        } else if (tool.startsWith('slack.')) {
+            return await this.executeIntegrationTool('slack', tool, args);
+        } else if (tool.startsWith('discord.')) {
+            return await this.executeIntegrationTool('discord', tool, args);
+        } else if (tool.startsWith('hubspot.')) {
+            return await this.executeIntegrationTool('hubspot', tool, args);
+        } else if (tool.startsWith('zendesk.')) {
+            return await this.executeIntegrationTool('zendesk', tool, args);
+
         } else {
             return {
                 success: false,
                 error: `Unsupported tool: ${tool}`,
                 exit_code: -1
+            };
+        }
+    }
+
+    /**
+     * Execute a third-party integration tool via IPC to main process
+     */
+    async executeIntegrationTool(service, tool, args) {
+        const { ipcRenderer } = require('electron');
+        const action = tool.split('.').slice(1).join('.'); // e.g., 'notion.create_page' -> 'create_page'
+
+        console.log(`[PullExecutor] Integration tool: ${service}.${action}`, args);
+
+        try {
+            // Call main process to execute the integration action
+            const result = await ipcRenderer.invoke('integration:execute', { service, action, args });
+
+            if (result.success) {
+                return {
+                    success: true,
+                    output: typeof result.data === 'string' ? result.data : JSON.stringify(result.data, null, 2),
+                    exit_code: 0
+                };
+            } else {
+                return {
+                    success: false,
+                    error: result.error || `${service}.${action} failed`,
+                    exit_code: 1
+                };
+            }
+        } catch (error) {
+            console.error(`[PullExecutor] Integration tool error:`, error);
+            return {
+                success: false,
+                error: error.message || `Failed to execute ${service}.${action}`,
+                exit_code: 1
             };
         }
     }

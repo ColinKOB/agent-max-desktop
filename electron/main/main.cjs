@@ -89,6 +89,9 @@ const spreadsheetApiServer = require('../spreadsheet/spreadsheetApiServer.cjs');
 const notesApiServer = require('../notes/notesApiServer.cjs');
 const testingApiServer = require('../testing/testingApiServer.cjs');
 
+// App Discovery Service for personalized onboarding
+const appDiscovery = require('./services/appDiscovery.cjs');
+
 // Virtual Display Workspace (legacy - native Swift module)
 // NOTE: The native CGVirtualDisplay approach is deprecated.
 // We now use Electron BrowserWindow for the AI workspace (see workspaceManager.cjs)
@@ -2023,3 +2026,565 @@ ipcMain.handle('notes-status', () => {
 ipcMain.handle('notes-detailed-status', () => {
   return notesManager.getDetailedStatus();
 });
+
+// ===========================================
+// APP DISCOVERY IPC HANDLERS
+// For personalized onboarding
+// ===========================================
+
+// Get full user context (installed apps + desktop files)
+// Enhanced to include app icons for personalized onboarding
+ipcMain.handle('get-user-apps', async () => {
+  console.log('[AppDiscovery] IPC: get-user-apps called');
+  try {
+    const context = await appDiscovery.getUserContext();
+
+    // Extract icons for installed apps (for onboarding personalization)
+    // Only extract icons for apps in our capability list to optimize performance
+    if (context.installedApps && context.installedApps.length > 0) {
+      console.log('[AppDiscovery] Extracting app icons...');
+      const iconExtractionStart = Date.now();
+
+      // Process icons in parallel with a limit to avoid overwhelming the system
+      const BATCH_SIZE = 10;
+      const appsWithIcons = [];
+
+      for (let i = 0; i < context.installedApps.length; i += BATCH_SIZE) {
+        const batch = context.installedApps.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.all(
+          batch.map(async (appInfo) => {
+            try {
+              // Try to read the app's actual icon from its .icns file
+              // This gives us the real colorful app icons instead of generic document icons
+              const fs = require('fs');
+              const path = require('path');
+              const { nativeImage } = require('electron');
+
+              let iconDataUrl = null;
+
+              // Try to find and read the app's .icns file from Info.plist
+              const infoPlistPath = path.join(appInfo.path, 'Contents', 'Info.plist');
+              const debugThis = i === 0 && batch.indexOf(appInfo) < 2;
+              const { execSync } = require('child_process');
+              const os = require('os');
+
+              if (fs.existsSync(infoPlistPath)) {
+                try {
+                  const plistContent = fs.readFileSync(infoPlistPath, 'utf8');
+
+                  // Parse icon filename from plist XML using regex
+                  // Look for CFBundleIconFile or CFBundleIconName
+                  let iconFileName = null;
+                  const iconFileMatch = plistContent.match(/<key>CFBundleIconFile<\/key>\s*<string>([^<]+)<\/string>/);
+                  const iconNameMatch = plistContent.match(/<key>CFBundleIconName<\/key>\s*<string>([^<]+)<\/string>/);
+
+                  iconFileName = iconFileMatch?.[1] || iconNameMatch?.[1];
+
+                  if (iconFileName) {
+                    // Add .icns extension if not present
+                    const iconFile = iconFileName.endsWith('.icns') ? iconFileName : `${iconFileName}.icns`;
+                    const iconPath = path.join(appInfo.path, 'Contents', 'Resources', iconFile);
+
+                    if (fs.existsSync(iconPath)) {
+                      // Use sips (macOS built-in) to convert .icns to PNG
+                      // nativeImage doesn't support .icns format
+                      const tempPngPath = path.join(os.tmpdir(), `app-icon-${Date.now()}-${Math.random().toString(36).slice(2)}.png`);
+                      try {
+                        execSync(`sips -s format png "${iconPath}" --out "${tempPngPath}" -z 64 64 2>/dev/null`, { stdio: 'pipe' });
+                        if (fs.existsSync(tempPngPath)) {
+                          const pngBuffer = fs.readFileSync(tempPngPath);
+                          if (pngBuffer && pngBuffer.length > 0) {
+                            iconDataUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+                          }
+                          // Clean up temp file
+                          fs.unlinkSync(tempPngPath);
+                        }
+                      } catch (sipsError) {
+                        // sips failed, will fall back to app.getFileIcon
+                        if (debugThis) console.log(`[AppDiscovery] sips failed for ${appInfo.name}:`, sipsError.message);
+                      }
+                    }
+                  }
+                } catch (plistError) {
+                  // Plist parsing failed, continue to fallback
+                  if (debugThis) {
+                    console.log(`[AppDiscovery] Plist error for ${appInfo.name}:`, plistError.message);
+                  }
+                }
+              }
+
+              // Fallback to app.getFileIcon if .icns extraction failed
+              // This handles system apps with icons in Assets.car
+              if (!iconDataUrl) {
+                try {
+                  const icon = await app.getFileIcon(appInfo.path, { size: 'large' });
+                  const iconSize = icon.getSize();
+                  if (iconSize.width > 0 && iconSize.height > 0) {
+                    const pngBuffer = icon.toPNG();
+                    if (pngBuffer && pngBuffer.length > 0) {
+                      iconDataUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+                    }
+                  }
+                } catch (fallbackError) {
+                  // Silently continue to next fallback
+                }
+              }
+
+              // Final fallback: Use Python/PyObjC to extract icon via NSWorkspace
+              // This reliably works for system apps with icons in Assets.car (like Calendar)
+              if (!iconDataUrl) {
+                try {
+                  const scriptPath = path.join(__dirname, 'scripts', 'extract-icon.py');
+                  const tempPngPath = path.join(os.tmpdir(), `app-icon-pyobjc-${Date.now()}-${Math.random().toString(36).slice(2)}.png`);
+
+                  execSync(`python3 "${scriptPath}" "${appInfo.path}" "${tempPngPath}" 64`, {
+                    stdio: 'pipe',
+                    timeout: 3000
+                  });
+
+                  if (fs.existsSync(tempPngPath)) {
+                    const pngBuffer = fs.readFileSync(tempPngPath);
+                    if (pngBuffer && pngBuffer.length > 0) {
+                      iconDataUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+                    }
+                    fs.unlinkSync(tempPngPath);
+                  }
+                } catch (pyError) {
+                  // Python fallback failed, icon will be null
+                }
+              }
+
+              // Log first few to verify
+              if (i === 0 && batch.indexOf(appInfo) < 3) {
+                console.log(`[AppDiscovery] Icon for ${appInfo.name}: dataUrl length=${iconDataUrl?.length || 0}`);
+              }
+
+              return { ...appInfo, iconDataUrl };
+            } catch (iconError) {
+              // If icon extraction fails, just return the app without icon
+              console.warn(`[AppDiscovery] Could not extract icon for ${appInfo.name}:`, iconError.message);
+              return { ...appInfo, iconDataUrl: null };
+            }
+          })
+        );
+        appsWithIcons.push(...batchResults);
+      }
+
+      const iconExtractionTime = Date.now() - iconExtractionStart;
+      const iconsExtracted = appsWithIcons.filter(a => a.iconDataUrl).length;
+      console.log(`[AppDiscovery] Icon extraction completed in ${iconExtractionTime}ms (${iconsExtracted}/${appsWithIcons.length} icons)`);
+
+      context.installedApps = appsWithIcons;
+    }
+
+    return { success: true, ...context };
+  } catch (error) {
+    console.error('[AppDiscovery] Error in get-user-apps:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Get just installed apps (lightweight)
+ipcMain.handle('get-installed-apps', async () => {
+  console.log('[AppDiscovery] IPC: get-installed-apps called');
+  try {
+    const apps = await appDiscovery.scanInstalledApps();
+    return { success: true, apps };
+  } catch (error) {
+    console.error('[AppDiscovery] Error in get-installed-apps:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Get just desktop file context
+ipcMain.handle('get-desktop-context', async () => {
+  console.log('[AppDiscovery] IPC: get-desktop-context called');
+  try {
+    const context = await appDiscovery.scanDesktopFiles();
+    return { success: true, ...context };
+  } catch (error) {
+    console.error('[AppDiscovery] Error in get-desktop-context:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Check if a specific app is installed
+ipcMain.handle('is-app-installed', async (_event, appName) => {
+  console.log('[AppDiscovery] IPC: is-app-installed called for:', appName);
+  try {
+    const installed = await appDiscovery.isAppInstalled(appName);
+    return { success: true, installed };
+  } catch (error) {
+    console.error('[AppDiscovery] Error in is-app-installed:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Clear the app discovery cache (for manual refresh)
+ipcMain.handle('clear-app-cache', () => {
+  console.log('[AppDiscovery] IPC: clear-app-cache called');
+  appDiscovery.clearCache();
+  return { success: true };
+});
+
+// ============================================================================
+// THIRD-PARTY INTEGRATIONS
+// ============================================================================
+
+// Import integration clients
+const { notionClient, slackClient, discordClient, hubspotClient, zendeskClient } = require('../integrations/index.cjs');
+
+// Simple encrypted storage for integration tokens (using electron-store or file-based)
+// Note: fs is already imported at top of file
+const cryptoModule = require('crypto');
+const integrationTokensPath = path.join(app.getPath('userData'), 'integration-tokens.enc');
+
+// Simple encryption for tokens (device-bound)
+function encryptToken(token) {
+  const key = cryptoModule.scryptSync(app.getPath('userData'), 'salt', 32);
+  const iv = cryptoModule.randomBytes(16);
+  const cipher = cryptoModule.createCipheriv('aes-256-gcm', key, iv);
+  let encrypted = cipher.update(token, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  const authTag = cipher.getAuthTag();
+  return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
+}
+
+function decryptToken(encryptedToken) {
+  try {
+    const parts = encryptedToken.split(':');
+    const iv = Buffer.from(parts[0], 'hex');
+    const authTag = Buffer.from(parts[1], 'hex');
+    const encrypted = parts[2];
+    const key = cryptoModule.scryptSync(app.getPath('userData'), 'salt', 32);
+    const decipher = cryptoModule.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(authTag);
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (e) {
+    return null;
+  }
+}
+
+function loadIntegrationTokens() {
+  try {
+    if (fs.existsSync(integrationTokensPath)) {
+      const encrypted = fs.readFileSync(integrationTokensPath, 'utf8');
+      const decrypted = decryptToken(encrypted);
+      return decrypted ? JSON.parse(decrypted) : {};
+    }
+  } catch (e) {
+    console.error('[Integrations] Failed to load tokens:', e.message);
+  }
+  return {};
+}
+
+function saveIntegrationTokens(tokens) {
+  try {
+    const encrypted = encryptToken(JSON.stringify(tokens));
+    fs.writeFileSync(integrationTokensPath, encrypted, 'utf8');
+  } catch (e) {
+    console.error('[Integrations] Failed to save tokens:', e.message);
+  }
+}
+
+// Initialize integrations from stored tokens on startup
+(async function initIntegrations() {
+  const tokens = loadIntegrationTokens();
+
+  if (tokens.notion) {
+    try {
+      notionClient.initNotion(tokens.notion);
+      console.log('[Integrations] Notion initialized');
+    } catch (e) {
+      console.error('[Integrations] Notion init failed:', e.message);
+    }
+  }
+
+  if (tokens.slack) {
+    try {
+      slackClient.initSlack(tokens.slack);
+      console.log('[Integrations] Slack initialized');
+    } catch (e) {
+      console.error('[Integrations] Slack init failed:', e.message);
+    }
+  }
+
+  if (tokens.discord) {
+    try {
+      await discordClient.initDiscord(tokens.discord);
+      console.log('[Integrations] Discord initialized');
+    } catch (e) {
+      console.error('[Integrations] Discord init failed:', e.message);
+    }
+  }
+
+  if (tokens.hubspot) {
+    try {
+      hubspotClient.initHubSpot(tokens.hubspot);
+      console.log('[Integrations] HubSpot initialized');
+    } catch (e) {
+      console.error('[Integrations] HubSpot init failed:', e.message);
+    }
+  }
+
+  if (tokens.zendesk) {
+    try {
+      zendeskClient.initZendesk(tokens.zendesk);
+      console.log('[Integrations] Zendesk initialized');
+    } catch (e) {
+      console.error('[Integrations] Zendesk init failed:', e.message);
+    }
+  }
+})();
+
+// Get status of all integrations
+ipcMain.handle('integration:get-all-status', async () => {
+  return {
+    notion: notionClient.isConnected(),
+    slack: slackClient.isConnected(),
+    discord: discordClient.isConnected(),
+    hubspot: hubspotClient.isConnected(),
+    zendesk: zendeskClient.isConnected()
+  };
+});
+
+// Get status of a specific integration
+ipcMain.handle('integration:get-status', async (_event, service) => {
+  switch (service) {
+    case 'notion': return { connected: notionClient.isConnected() };
+    case 'slack': return { connected: slackClient.isConnected() };
+    case 'discord': return { connected: discordClient.isConnected() };
+    case 'hubspot': return { connected: hubspotClient.isConnected() };
+    case 'zendesk': return { connected: zendeskClient.isConnected() };
+    default: return { connected: false, error: 'Unknown service' };
+  }
+});
+
+// Test connection before saving
+ipcMain.handle('integration:test', async (_event, { service, credentials }) => {
+  console.log(`[Integrations] Testing ${service} connection...`);
+
+  switch (service) {
+    case 'notion':
+      return await notionClient.testConnection(credentials.token);
+    case 'slack':
+      return await slackClient.testConnection(credentials.token);
+    case 'discord':
+      return await discordClient.testConnection(credentials.token);
+    case 'hubspot':
+      return await hubspotClient.testConnection(credentials.token);
+    case 'zendesk':
+      return await zendeskClient.testConnection(credentials);
+    default:
+      return { success: false, error: 'Unknown service' };
+  }
+});
+
+// Connect an integration (save token and initialize)
+ipcMain.handle('integration:connect', async (_event, { service, credentials }) => {
+  console.log(`[Integrations] Connecting ${service}...`);
+  const tokens = loadIntegrationTokens();
+
+  try {
+    switch (service) {
+      case 'notion':
+        notionClient.initNotion(credentials.token);
+        tokens.notion = credentials.token;
+        break;
+      case 'slack':
+        slackClient.initSlack(credentials.token);
+        tokens.slack = credentials.token;
+        break;
+      case 'discord':
+        await discordClient.initDiscord(credentials.token);
+        tokens.discord = credentials.token;
+        break;
+      case 'hubspot':
+        hubspotClient.initHubSpot(credentials.token);
+        tokens.hubspot = credentials.token;
+        break;
+      case 'zendesk':
+        zendeskClient.initZendesk(credentials);
+        tokens.zendesk = credentials; // subdomain, email, token object
+        break;
+      default:
+        return { success: false, error: 'Unknown service' };
+    }
+
+    saveIntegrationTokens(tokens);
+    console.log(`[Integrations] ${service} connected successfully`);
+    return { success: true };
+  } catch (error) {
+    console.error(`[Integrations] ${service} connection failed:`, error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Disconnect an integration
+ipcMain.handle('integration:disconnect', async (_event, service) => {
+  console.log(`[Integrations] Disconnecting ${service}...`);
+  const tokens = loadIntegrationTokens();
+
+  switch (service) {
+    case 'notion':
+      notionClient.disconnect();
+      delete tokens.notion;
+      break;
+    case 'slack':
+      slackClient.disconnect();
+      delete tokens.slack;
+      break;
+    case 'discord':
+      await discordClient.disconnect();
+      delete tokens.discord;
+      break;
+    case 'hubspot':
+      hubspotClient.disconnect();
+      delete tokens.hubspot;
+      break;
+    case 'zendesk':
+      zendeskClient.disconnect();
+      delete tokens.zendesk;
+      break;
+    default:
+      return { success: false, error: 'Unknown service' };
+  }
+
+  saveIntegrationTokens(tokens);
+  return { success: true };
+});
+
+// Execute integration tool (called from pullExecutor)
+ipcMain.handle('integration:execute', async (_event, { service, action, args }) => {
+  console.log(`[Integrations] Executing ${service}.${action}`, args);
+
+  try {
+    switch (service) {
+      case 'notion':
+        return await executeNotionAction(action, args);
+      case 'slack':
+        return await executeSlackAction(action, args);
+      case 'discord':
+        return await executeDiscordAction(action, args);
+      case 'hubspot':
+        return await executeHubSpotAction(action, args);
+      case 'zendesk':
+        return await executeZendeskAction(action, args);
+      default:
+        return { success: false, error: 'Unknown service' };
+    }
+  } catch (error) {
+    console.error(`[Integrations] ${service}.${action} failed:`, error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Notion action handlers
+async function executeNotionAction(action, args) {
+  switch (action) {
+    case 'search':
+      return { success: true, data: await notionClient.search(args.query, args) };
+    case 'create_page':
+      return { success: true, data: await notionClient.createPage(args) };
+    case 'get_page':
+      return { success: true, data: await notionClient.getPage(args.page_id || args.pageId) };
+    case 'query_database':
+      return { success: true, data: await notionClient.queryDatabase(args.database_id || args.databaseId, args) };
+    case 'append':
+      return { success: true, data: await notionClient.appendToPage(args.page_id || args.pageId, args.content) };
+    default:
+      return { success: false, error: `Unknown Notion action: ${action}` };
+  }
+}
+
+// Slack action handlers
+async function executeSlackAction(action, args) {
+  switch (action) {
+    case 'send_message':
+      return { success: true, data: await slackClient.sendMessage(args.channel, args.text || args.message, args) };
+    case 'list_channels':
+      return { success: true, data: await slackClient.listChannels(args) };
+    case 'list_users':
+      return { success: true, data: await slackClient.listUsers(args) };
+    case 'get_history':
+      return { success: true, data: await slackClient.getChannelHistory(args.channel, args) };
+    case 'search':
+      return { success: true, data: await slackClient.searchMessages(args.query, args) };
+    default:
+      return { success: false, error: `Unknown Slack action: ${action}` };
+  }
+}
+
+// Discord action handlers
+async function executeDiscordAction(action, args) {
+  switch (action) {
+    case 'send_message':
+      return { success: true, data: await discordClient.sendMessage(args.channel_id || args.channelId, args.content || args.message, args) };
+    case 'list_servers':
+      return { success: true, data: await discordClient.listServers() };
+    case 'list_channels':
+      return { success: true, data: await discordClient.listChannels(args.guild_id || args.guildId || args.server_id, args) };
+    case 'get_messages':
+      return { success: true, data: await discordClient.getMessages(args.channel_id || args.channelId, args) };
+    case 'send_dm':
+      return { success: true, data: await discordClient.sendDM(args.user_id || args.userId, args.content || args.message) };
+    default:
+      return { success: false, error: `Unknown Discord action: ${action}` };
+  }
+}
+
+// HubSpot action handlers
+async function executeHubSpotAction(action, args) {
+  switch (action) {
+    case 'get_contacts':
+      return { success: true, data: await hubspotClient.getContacts(args) };
+    case 'get_contact':
+      return { success: true, data: await hubspotClient.getContact(args.contact_id || args.contactId) };
+    case 'search_contacts':
+      return { success: true, data: await hubspotClient.searchContacts(args.query, args) };
+    case 'create_contact':
+      return { success: true, data: await hubspotClient.createContact(args) };
+    case 'get_deals':
+      return { success: true, data: await hubspotClient.getDeals(args) };
+    case 'get_deal':
+      return { success: true, data: await hubspotClient.getDeal(args.deal_id || args.dealId) };
+    case 'search_deals':
+      return { success: true, data: await hubspotClient.searchDeals(args.query, args) };
+    case 'create_deal':
+      return { success: true, data: await hubspotClient.createDeal(args) };
+    case 'get_companies':
+      return { success: true, data: await hubspotClient.getCompanies(args) };
+    case 'get_pipelines':
+      return { success: true, data: await hubspotClient.getPipelines() };
+    case 'search':
+      return { success: true, data: await hubspotClient.search(args.object_type || args.objectType, args.query, args) };
+    default:
+      return { success: false, error: `Unknown HubSpot action: ${action}` };
+  }
+}
+
+// Zendesk action handlers
+async function executeZendeskAction(action, args) {
+  switch (action) {
+    case 'list_tickets':
+      return { success: true, data: await zendeskClient.listTickets(args) };
+    case 'get_ticket':
+      return { success: true, data: await zendeskClient.getTicket(args.ticket_id || args.ticketId) };
+    case 'search':
+      return { success: true, data: await zendeskClient.searchTickets(args.query, args) };
+    case 'create_ticket':
+      return { success: true, data: await zendeskClient.createTicket(args) };
+    case 'update_ticket':
+      return { success: true, data: await zendeskClient.updateTicket(args.ticket_id || args.ticketId, args) };
+    case 'add_comment':
+      return { success: true, data: await zendeskClient.addComment(args.ticket_id || args.ticketId, args.comment, args.public) };
+    case 'get_stats':
+      return { success: true, data: await zendeskClient.getTicketStats() };
+    case 'list_users':
+      return { success: true, data: await zendeskClient.listUsers(args) };
+    default:
+      return { success: false, error: `Unknown Zendesk action: ${action}` };
+  }
+}
