@@ -1242,6 +1242,124 @@ class PullExecutor {
     }
 
     /**
+     * Execute ui.show_options tool - displays option buttons for user selection
+     * Shows clickable buttons in the chat UI that the user can select from.
+     *
+     * The user's selection is sent as a chat message, which the AI can then process.
+     * This is a fire-and-forget operation - we display the options and return immediately.
+     * The AI will receive the user's selection as a new message in the conversation.
+     *
+     * @param {Object} args - { prompt: string, options: [{id, label}], allow_custom: boolean }
+     */
+    async executeShowOptions(args) {
+        const { BrowserWindow } = require('electron');
+
+        const prompt = args.prompt || 'Choose an option:';
+        const options = args.options || [];
+        const allowCustom = args.allow_custom || false;
+
+        console.log(`[PullExecutor] show_options: "${prompt}" with ${options.length} options`);
+
+        if (!options.length) {
+            return {
+                success: false,
+                error: 'No options provided',
+                exit_code: 1
+            };
+        }
+
+        // Find the main window
+        const mainWindow = BrowserWindow.getAllWindows().find(w => !w.isDestroyed());
+        if (!mainWindow) {
+            return {
+                success: false,
+                error: 'No window available to show options',
+                exit_code: 1
+            };
+        }
+
+        // Send show_options event to renderer - frontend handles display
+        // User clicks option -> sends as chat message -> AI receives as new message
+        mainWindow.webContents.send('ai-stream-event', {
+            type: 'show_options',
+            data: {
+                prompt,
+                options,
+                allow_custom: allowCustom,
+                run_id: this.currentRunId || Date.now().toString()
+            }
+        });
+
+        // Return success - the user's selection will come as a new chat message
+        return {
+            success: true,
+            stdout: `Displayed ${options.length} options to user: ${options.map(o => o.label || o.id).join(', ')}`,
+            exit_code: 0
+        };
+    }
+
+    /**
+     * Execute ui.comparison_table tool - displays a formatted comparison table
+     * Renders a markdown table in the chat for comparing items/options.
+     *
+     * @param {Object} args - { title: string, columns: string[], rows: [{label, values: []}], highlight_best: boolean }
+     */
+    async executeComparisonTable(args) {
+        const { BrowserWindow } = require('electron');
+
+        const title = args.title || 'Comparison';
+        const columns = args.columns || [];
+        const rows = args.rows || [];
+
+        console.log(`[PullExecutor] comparison_table: "${title}" with ${rows.length} rows`);
+
+        if (!columns.length || !rows.length) {
+            return {
+                success: false,
+                error: 'Comparison table requires columns and rows',
+                exit_code: 1
+            };
+        }
+
+        const mainWindow = BrowserWindow.getAllWindows().find(w => !w.isDestroyed());
+        if (!mainWindow) {
+            return {
+                success: false,
+                error: 'No window available',
+                exit_code: 1
+            };
+        }
+
+        // Build markdown table
+        let tableMarkdown = `### ${title}\n\n`;
+        tableMarkdown += '| ' + columns.join(' | ') + ' |\n';
+        tableMarkdown += '|' + columns.map(() => '---').join('|') + '|\n';
+
+        for (const row of rows) {
+            const values = row.values || [];
+            // Include row label as first column if provided
+            const rowData = row.label ? [row.label, ...values] : values;
+            tableMarkdown += '| ' + rowData.join(' | ') + ' |\n';
+        }
+
+        // Send as a content message event to display in chat
+        mainWindow.webContents.send('ai-stream-event', {
+            type: 'content',
+            data: {
+                content: tableMarkdown,
+                is_artifact: true,
+                artifact_type: 'comparison_table'
+            }
+        });
+
+        return {
+            success: true,
+            stdout: `Displayed comparison table: ${title} (${columns.length} columns, ${rows.length} rows)`,
+            exit_code: 0
+        };
+    }
+
+    /**
      * Execute workspace tools for isolated AI browser
      * Maps workspace.* tool names to workspaceManager methods
      *
@@ -1766,15 +1884,16 @@ class PullExecutor {
                     // Returns base64-encoded PNG image for vision analysis
                     try {
                         const frame = await workspaceManager.captureFrame();
-                        if (frame && frame.success && frame.data) {
+                        // captureFrame() returns a data URL string or null
+                        if (frame && typeof frame === 'string') {
                             return {
                                 success: true,
                                 stdout: JSON.stringify({
                                     type: 'screenshot',
                                     format: 'base64_png',
-                                    data: frame.data,
-                                    width: frame.width || 1280,
-                                    height: frame.height || 800,
+                                    data: frame,
+                                    width: 1280,
+                                    height: 800,
                                     message: 'Screenshot captured successfully. The image will be analyzed by vision AI.'
                                 }),
                                 stderr: '',
@@ -1783,7 +1902,7 @@ class PullExecutor {
                         } else {
                             return {
                                 success: false,
-                                error: 'Failed to capture screenshot - workspace may not be active',
+                                error: 'Failed to capture screenshot - workspace may not be active or page not loaded',
                                 exit_code: 1
                             };
                         }
