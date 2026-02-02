@@ -33,6 +33,94 @@ function isMacOS() {
 }
 
 /**
+ * Categorize AppleScript errors to help AI recovery
+ * Returns error type and suggested recovery action
+ */
+function categorizeAppleScriptError(errorMessage) {
+    const lowerError = (errorMessage || '').toLowerCase();
+
+    // App not running (-600 error)
+    if (lowerError.includes('-600') || lowerError.includes('not running')) {
+        return {
+            type: 'APP_NOT_RUNNING',
+            recoverable: true,
+            suggestion: 'The app was not running. It should start automatically on retry.'
+        };
+    }
+
+    // Permission denied
+    if (lowerError.includes('not allowed') || lowerError.includes('permission') ||
+        lowerError.includes('accessibility') || lowerError.includes('not authorized')) {
+        return {
+            type: 'PERMISSION_DENIED',
+            recoverable: false,
+            suggestion: 'User needs to grant accessibility permissions in System Settings > Privacy & Security.'
+        };
+    }
+
+    // Safari JavaScript disabled
+    if (lowerError.includes('javascript') && (lowerError.includes('allow') || lowerError.includes('enable'))) {
+        return {
+            type: 'SAFARI_JS_DISABLED',
+            recoverable: true,
+            suggestion: 'Safari JavaScript from Apple Events is disabled. Falling back to workspace browser.'
+        };
+    }
+
+    // Element not found
+    if (lowerError.includes('not found') || lowerError.includes("can't get") ||
+        lowerError.includes('does not exist') || lowerError.includes('missing value')) {
+        return {
+            type: 'ELEMENT_NOT_FOUND',
+            recoverable: true,
+            suggestion: 'The element or item was not found. Try a different selector or search term.'
+        };
+    }
+
+    // Timeout
+    if (lowerError.includes('timeout') || lowerError.includes('timed out')) {
+        return {
+            type: 'TIMEOUT',
+            recoverable: true,
+            suggestion: 'Operation timed out. The app may be slow or unresponsive. Try again.'
+        };
+    }
+
+    // Missing required argument
+    if (lowerError.includes('missing required argument')) {
+        return {
+            type: 'MISSING_ARGUMENT',
+            recoverable: false,
+            suggestion: 'A required parameter was not provided. Check tool documentation.'
+        };
+    }
+
+    // Default: unknown error
+    return {
+        type: 'UNKNOWN',
+        recoverable: true,
+        suggestion: 'Unknown error. Try a different approach or tool.'
+    };
+}
+
+/**
+ * Enhance error response with recovery context
+ */
+function enhanceErrorResponse(result, toolName) {
+    if (!result.success && result.error) {
+        const category = categorizeAppleScriptError(result.error);
+        return {
+            ...result,
+            error_type: category.type,
+            recoverable: category.recoverable,
+            recovery_suggestion: category.suggestion,
+            tool: toolName
+        };
+    }
+    return result;
+}
+
+/**
  * Execute AppleScript and return result
  */
 async function runAppleScript(script) {
@@ -2403,16 +2491,22 @@ async function executeMacOSTool(tool, args) {
     try {
         const result = await toolSet[action](args);
         console.log(`[macosAppleScript] Result:`, result);
+
+        // Enhance error responses with recovery context
+        if (!result.success) {
+            return enhanceErrorResponse(result, tool);
+        }
         return result;
     } catch (error) {
         console.error(`[macosAppleScript] Error:`, error);
-        return {
+        const errorResult = {
             success: false,
             error: error.message,
             stdout: '',
             stderr: error.message,
             exit_code: 1
         };
+        return enhanceErrorResponse(errorResult, tool);
     }
 }
 
