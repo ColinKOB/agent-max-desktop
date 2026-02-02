@@ -11,6 +11,20 @@ const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
 
+// Lazy-load workspace manager for Safari fallback
+let _workspaceManager = null;
+function getWorkspaceManager() {
+    if (!_workspaceManager) {
+        try {
+            const { workspaceManager } = require('../workspace/workspaceManager.cjs');
+            _workspaceManager = workspaceManager;
+        } catch (e) {
+            console.error('[macosAppleScript] Could not load workspaceManager:', e.message);
+        }
+    }
+    return _workspaceManager;
+}
+
 /**
  * Check if running on macOS
  */
@@ -79,9 +93,9 @@ async function runAppleScriptMultiline(script) {
         // Write script to temp file
         await fs.writeFile(tempFile, script, 'utf8');
 
-        // Execute from temp file
+        // Execute from temp file (60s timeout for Calendar/Reminders operations)
         const { stdout, stderr } = await execAsync(`osascript "${tempFile}"`, {
-            timeout: 30000,
+            timeout: 60000,
             maxBuffer: 10 * 1024 * 1024
         });
 
@@ -159,6 +173,115 @@ async function checkChromeForFallback() {
         };
     }
     return null; // Chrome is available
+}
+
+/**
+ * Use workspace browser as fallback when Safari JS is disabled and Chrome unavailable
+ * Opens the Safari URL in workspace and executes the operation there
+ */
+async function useWorkspaceFallback(safariUrl, operation) {
+    const workspaceManager = getWorkspaceManager();
+    if (!workspaceManager) {
+        return {
+            success: false,
+            error: 'Workspace fallback not available',
+            exit_code: 1
+        };
+    }
+
+    try {
+        console.log('[Safari] Using workspace fallback for:', operation, '| Safari URL:', safariUrl);
+
+        // Validate Safari URL early
+        if (!safariUrl || safariUrl === 'missing value' || !safariUrl.startsWith('http')) {
+            console.log('[Safari] Warning: Invalid Safari URL, cannot navigate:', safariUrl);
+            return {
+                success: false,
+                error: `Could not get Safari URL to load in workspace. Got: ${safariUrl}`,
+                exit_code: 1
+            };
+        }
+
+        // Create workspace if not active
+        if (!workspaceManager.getIsActive()) {
+            console.log('[Safari] Creating workspace for fallback...');
+            const createResult = await workspaceManager.create(1280, 800);
+            console.log('[Safari] Workspace create result:', JSON.stringify(createResult));
+            if (!createResult.success) {
+                return { success: false, error: 'Failed to create workspace', exit_code: 1 };
+            }
+            // Wait longer for workspace to fully initialize with tab
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+            console.log('[Safari] Workspace already active, activeTabId:', workspaceManager.activeTabId);
+        }
+
+        // Ensure there's an active tab - if not, create one with the target URL
+        if (!workspaceManager.activeTabId || !workspaceManager.tabs?.has(workspaceManager.activeTabId)) {
+            console.log('[Safari] No active tab found, creating new tab with URL:', safariUrl);
+            const tabResult = await workspaceManager.createTab(safariUrl);
+            console.log('[Safari] createTab result:', JSON.stringify(tabResult));
+            if (!tabResult.success) {
+                return { success: false, error: `Failed to create tab: ${tabResult.error}`, exit_code: 1 };
+            }
+            // Wait for page to load
+            await new Promise(resolve => setTimeout(resolve, 3000));
+        } else {
+            // Navigate existing tab to the Safari URL
+            console.log('[Safari] Navigating workspace to Safari URL:', safariUrl);
+            console.log('[Safari] Workspace isActive:', workspaceManager.getIsActive(), 'activeTabId:', workspaceManager.activeTabId);
+            const navResult = await workspaceManager.navigateTo(safariUrl);
+            console.log('[Safari] Navigation result:', JSON.stringify(navResult));
+            if (!navResult.success) {
+                // If navigation fails, try creating a new tab
+                console.log('[Safari] Navigation failed, trying to create new tab...');
+                const tabResult = await workspaceManager.createTab(safariUrl);
+                console.log('[Safari] createTab result:', JSON.stringify(tabResult));
+                if (!tabResult.success) {
+                    return { success: false, error: `Workspace navigation failed: ${navResult.error}`, exit_code: 1 };
+                }
+            }
+            // Wait for page to load - longer wait for complex pages
+            await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+
+        // Execute the requested operation
+        if (operation === 'get_page_text') {
+            const result = await workspaceManager.getPageText();
+            console.log('[Safari] getPageText result:', result?.success ? 'success' : 'failed');
+            if (result.success) {
+                return {
+                    success: true,
+                    stdout: result.text + `\n\n(Retrieved from ${safariUrl} via Agent Max workspace browser)`,
+                    stderr: '',
+                    exit_code: 0,
+                    fallback_browser: 'workspace'
+                };
+            }
+        } else if (operation === 'get_page_source') {
+            // Use executeScript to get HTML
+            const result = await workspaceManager.executeScript('document.documentElement.outerHTML');
+            console.log('[Safari] executeScript result:', result?.success ? 'success' : 'failed');
+            if (result.success) {
+                let html = result.result || '';
+                if (html.length > 10000) {
+                    html = html.substring(0, 10000) + '\n... [truncated]';
+                }
+                return {
+                    success: true,
+                    stdout: html + `\n\n(Retrieved from ${safariUrl} via Agent Max workspace browser)`,
+                    stderr: '',
+                    exit_code: 0,
+                    fallback_browser: 'workspace'
+                };
+            }
+        }
+
+        return { success: false, error: 'Workspace operation failed', exit_code: 1 };
+    } catch (e) {
+        console.error('[Safari] Workspace fallback error:', e);
+        return { success: false, error: `Workspace error: ${e.message}`, exit_code: 1 };
+    }
 }
 
 const chromeTools = {
@@ -599,24 +722,31 @@ tell application "Safari"
 end tell`;
         const result = await runAppleScriptMultiline(script);
 
-        // If Safari fails due to JavaScript disabled, fall back to Chrome
+        // If Safari fails due to JavaScript disabled, fall back to Chrome or Workspace
         if (!result.success && isSafariJSDisabledError(result)) {
-            console.log('[Safari] JavaScript disabled for get_page_source, falling back to Chrome...');
-            // Check if Chrome is available
-            const chromeCheck = await checkChromeForFallback();
-            if (chromeCheck) return chromeCheck;
+            console.log('[Safari] JavaScript disabled for get_page_source, trying fallbacks...');
 
-            // First, get the current URL from Safari and navigate Chrome to it
+            // Get the current Safari URL first
             const urlResult = await safariTools.get_current_url({});
-            if (urlResult.success && urlResult.stdout) {
-                await chromeTools.navigate({ url: urlResult.stdout.trim() });
-                // Wait for page to load
-                await new Promise(resolve => setTimeout(resolve, 2000));
+            const safariUrl = urlResult.success ? urlResult.stdout.trim() : null;
+
+            // Try Chrome first
+            const chromeAvailable = await isChromeAvailable();
+            if (chromeAvailable) {
+                console.log('[Safari] Falling back to Chrome...');
+                if (safariUrl) {
+                    await chromeTools.navigate({ url: safariUrl });
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+                const chromeResult = await chromeTools.get_page_source(args);
+                chromeResult.fallback_browser = 'chrome';
+                chromeResult.stdout = (chromeResult.stdout || '') + '\n\n(Retrieved via Chrome fallback)';
+                return chromeResult;
             }
-            const chromeResult = await chromeTools.get_page_source(args);
-            chromeResult.fallback_browser = 'chrome';
-            chromeResult.stdout = (chromeResult.stdout || '') + '\n\n(Retrieved via Chrome fallback)';
-            return chromeResult;
+
+            // Chrome not available, try workspace fallback
+            console.log('[Safari] Chrome not available, using workspace fallback...');
+            return await useWorkspaceFallback(safariUrl, 'get_page_source');
         }
 
         return result;
@@ -630,22 +760,31 @@ tell application "Safari"
 end tell`;
         const result = await runAppleScriptMultiline(script);
 
-        // If Safari fails due to JavaScript disabled, fall back to Chrome
+        // If Safari fails due to JavaScript disabled, fall back to Chrome or Workspace
         if (!result.success && isSafariJSDisabledError(result)) {
-            console.log('[Safari] JavaScript disabled for get_page_text, falling back to Chrome...');
-            // Check if Chrome is available
-            const chromeCheck = await checkChromeForFallback();
-            if (chromeCheck) return chromeCheck;
+            console.log('[Safari] JavaScript disabled for get_page_text, trying fallbacks...');
 
+            // Get the current Safari URL first
             const urlResult = await safariTools.get_current_url({});
-            if (urlResult.success && urlResult.stdout) {
-                await chromeTools.navigate({ url: urlResult.stdout.trim() });
-                await new Promise(resolve => setTimeout(resolve, 2000));
+            const safariUrl = urlResult.success ? urlResult.stdout.trim() : null;
+
+            // Try Chrome first
+            const chromeAvailable = await isChromeAvailable();
+            if (chromeAvailable) {
+                console.log('[Safari] Falling back to Chrome...');
+                if (safariUrl) {
+                    await chromeTools.navigate({ url: safariUrl });
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+                const chromeResult = await chromeTools.get_page_text(args);
+                chromeResult.fallback_browser = 'chrome';
+                chromeResult.stdout = (chromeResult.stdout || '') + '\n\n(Retrieved via Chrome fallback)';
+                return chromeResult;
             }
-            const chromeResult = await chromeTools.get_page_text(args);
-            chromeResult.fallback_browser = 'chrome';
-            chromeResult.stdout = (chromeResult.stdout || '') + '\n\n(Retrieved via Chrome fallback)';
-            return chromeResult;
+
+            // Chrome not available, try workspace fallback
+            console.log('[Safari] Chrome not available, using workspace fallback...');
+            return await useWorkspaceFallback(safariUrl, 'get_page_text');
         }
 
         return result;
@@ -1130,14 +1269,42 @@ return "Mail activated"`;
 
 const calendarTools = {
     async get_today(args) {
-        // Simple version that just lists calendars - event iteration is too slow
+        // Get today's events using date range filtering
         const script = `
 tell application "Calendar"
-    set calNames to {}
+    activate
+    set today to current date
+    set startOfDay to today - (time of today)
+    set endOfDay to startOfDay + (24 * 60 * 60)
+
+    set eventList to ""
+    set eventCount to 0
+    set maxEvents to 15
+
     repeat with cal in calendars
-        set end of calNames to name of cal
+        if eventCount >= maxEvents then exit repeat
+        try
+            set calName to name of cal
+            -- Get events within today's date range
+            set todayEvents to (every event of cal whose start date >= startOfDay and start date < endOfDay)
+            repeat with ev in todayEvents
+                if eventCount >= maxEvents then exit repeat
+                try
+                    set evSummary to summary of ev
+                    set evStart to start date of ev
+                    set timeStr to time string of evStart
+                    set eventList to eventList & "• " & timeStr & " - " & evSummary & " [" & calName & "]" & return
+                    set eventCount to eventCount + 1
+                end try
+            end repeat
+        end try
     end repeat
-    return "Available calendars: " & (calNames as string) & return & return & "Note: Use calendar.list_calendars for details or calendar.create_event to add events."
+
+    if eventCount = 0 then
+        return "No events on your calendar today."
+    else
+        return "Today's events:" & return & eventList
+    end if
 end tell`;
         return await runAppleScriptMultiline(script);
     },
@@ -1148,6 +1315,7 @@ end tell`;
         // More robust script that handles calendars with many events
         const script = `
 tell application "Calendar"
+    activate
     set today to current date
     set startOfDay to today - (time of today)
     set endDate to startOfDay + (${days} * 24 * 60 * 60)
@@ -1215,6 +1383,7 @@ end tell`;
 
         const script = `
 tell application "Calendar"
+    activate
     ${calScript}
     ${dateScript}
     ${endScript}
@@ -1235,6 +1404,7 @@ end tell`;
         const escapedQuery = query.replace(/"/g, '\\"');
         const script = `
 tell application "Calendar"
+    activate
     set resultList to ""
     set evCount to 0
     repeat with cal in calendars
@@ -1263,6 +1433,7 @@ end tell`;
         const escapedTitle = title.replace(/"/g, '\\"');
         const script = `
 tell application "Calendar"
+    activate
     repeat with cal in calendars
         set matchingEvents to (events of cal whose summary is "${escapedTitle}")
         if (count of matchingEvents) > 0 then
@@ -1278,6 +1449,7 @@ end tell`;
     async list_calendars(args) {
         const script = `
 tell application "Calendar"
+    activate
     set calList to ""
     repeat with cal in calendars
         set calList to calList & "- " & (name of cal) & "\\n"
@@ -1597,6 +1769,7 @@ const remindersTools = {
 
         const script = `
 tell application "Reminders"
+    activate
     try
         set targetList to list "${listName}"
     on error
@@ -1623,6 +1796,7 @@ end tell`;
 
         const script = `
 tell application "Reminders"
+    activate
     set matchingReminders to reminders ${listFilter} whose name is "${escapedTitle}"
     if (count of matchingReminders) > 0 then
         set completed of item 1 of matchingReminders to true
@@ -1642,6 +1816,7 @@ end tell`;
 
         const script = `
 tell application "Reminders"
+    activate
     set matchingReminders to reminders whose name is "${escapedTitle}"
     if (count of matchingReminders) > 0 then
         set completed of item 1 of matchingReminders to false
@@ -1661,6 +1836,7 @@ end tell`;
 
         const script = `
 tell application "Reminders"
+    activate
     set matchingReminders to reminders whose name is "${escapedTitle}"
     if (count of matchingReminders) > 0 then
         delete item 1 of matchingReminders
@@ -1676,32 +1852,29 @@ end tell`;
         const listName = args.list || 'Reminders';  // Default to "Reminders" list
         const limit = args.limit || 10;
 
-        // Always query a specific list to avoid timeout from iterating all lists
+        // Get all names at once (much faster than iterating)
         const script = `
 tell application "Reminders"
+    activate
     try
         set targetList to list "${listName}"
-        set resultList to "Incomplete reminders in ${listName}:" & return
-        set reminderCount to 0
+        set reminderNames to name of (reminders of targetList whose completed is false)
 
-        -- Get first N incomplete reminders
-        repeat with r in reminders of targetList
-            if completed of r is false then
-                set reminderCount to reminderCount + 1
-                if reminderCount <= ${limit} then
-                    set resultList to resultList & "- " & name of r & return
-                end if
-                -- Break early to avoid timeout
-                if reminderCount >= ${limit * 2} then exit repeat
-            end if
-        end repeat
-
-        if reminderCount = 0 then
+        if (count of reminderNames) = 0 then
             return "No incomplete reminders in ${listName}"
         end if
 
-        if reminderCount > ${limit} then
-            set resultList to resultList & "... and more"
+        set resultList to "Incomplete reminders in ${listName}:" & return
+        set totalCount to count of reminderNames
+        set displayCount to totalCount
+        if displayCount > ${limit} then set displayCount to ${limit}
+
+        repeat with i from 1 to displayCount
+            set resultList to resultList & "- " & (item i of reminderNames) & return
+        end repeat
+
+        if totalCount > ${limit} then
+            set resultList to resultList & "... and " & (totalCount - ${limit}) & " more"
         end if
 
         return resultList
@@ -1716,31 +1889,29 @@ end tell`;
         const listName = args.list || 'Reminders';  // Default to "Reminders" list
         const limit = args.limit || 10;
 
-        // Always query a specific list to avoid timeout
+        // Get all names at once (much faster than iterating)
         const script = `
 tell application "Reminders"
+    activate
     try
         set targetList to list "${listName}"
-        set resultList to "Completed reminders in ${listName}:" & return
-        set reminderCount to 0
+        set reminderNames to name of (reminders of targetList whose completed is true)
 
-        repeat with r in reminders of targetList
-            if completed of r is true then
-                set reminderCount to reminderCount + 1
-                if reminderCount <= ${limit} then
-                    set resultList to resultList & "✓ " & name of r & return
-                end if
-                -- Break early to avoid timeout
-                if reminderCount >= ${limit * 2} then exit repeat
-            end if
-        end repeat
-
-        if reminderCount = 0 then
+        if (count of reminderNames) = 0 then
             return "No completed reminders in ${listName}"
         end if
 
-        if reminderCount > ${limit} then
-            set resultList to resultList & "... and more"
+        set resultList to "Completed reminders in ${listName}:" & return
+        set totalCount to count of reminderNames
+        set displayCount to totalCount
+        if displayCount > ${limit} then set displayCount to ${limit}
+
+        repeat with i from 1 to displayCount
+            set resultList to resultList & "✓ " & (item i of reminderNames) & return
+        end repeat
+
+        if totalCount > ${limit} then
+            set resultList to resultList & "... and " & (totalCount - ${limit}) & " more"
         end if
 
         return resultList
@@ -1754,43 +1925,33 @@ end tell`;
     async get_today(args) {
         const listName = args.list || 'Reminders';  // Default to "Reminders" list
 
-        // Query a specific list to avoid timeout
+        // Use 'whose' clause with date filtering for faster performance
         const script = `
 tell application "Reminders"
+    activate
     try
         set targetList to list "${listName}"
-        set resultList to "Reminders due today in ${listName}:" & return
-        set foundAny to false
         set today to current date
         set startOfDay to today - (time of today)
         set endOfDay to startOfDay + (24 * 60 * 60)
-        set checkCount to 0
 
-        repeat with r in reminders of targetList
-            set checkCount to checkCount + 1
-            -- Break early to avoid timeout
-            if checkCount > 100 then exit repeat
+        -- Get reminders due today using whose clause
+        set todayReminders to (reminders of targetList whose completed is false and due date >= startOfDay and due date < endOfDay)
+        set reminderNames to name of todayReminders
 
-            try
-                if completed of r is false then
-                    set rDue to due date of r
-                    if rDue is not missing value then
-                        if rDue >= startOfDay and rDue < endOfDay then
-                            set resultList to resultList & "• " & name of r & return
-                            set foundAny to true
-                        end if
-                    end if
-                end if
-            end try
-        end repeat
-
-        if not foundAny then
+        if (count of reminderNames) = 0 then
             return "No reminders due today in ${listName}"
         end if
 
+        set resultList to "Reminders due today in ${listName}:" & return
+        repeat with reminderName in reminderNames
+            set resultList to resultList & "• " & reminderName & return
+        end repeat
+
         return resultList
     on error errMsg
-        return "Error: " & errMsg
+        -- Fallback: some reminders may not have due dates, handle gracefully
+        return "No reminders due today in ${listName} (or error: " & errMsg & ")"
     end try
 end tell`;
         return await runAppleScriptMultiline(script);
