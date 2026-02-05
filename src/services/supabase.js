@@ -654,8 +654,6 @@ export async function storeMessage(
       role,
       content,
       redacted_content: redactedContent || content,
-      topic: 'chat',
-      extension: 'text',
       ...metadata,
     });
 

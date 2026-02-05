@@ -808,6 +808,65 @@ export async function getAllSessions() {
   return [];
 }
 
+/**
+ * Delete a session and all its messages
+ */
+export async function deleteSession(sessionId) {
+  const userId = localStorage.getItem('user_id');
+  if (!userId) throw new Error('User not initialized');
+
+  const isPendingOrLocal = String(sessionId).startsWith('pending-session-') ||
+                           String(sessionId).startsWith('local-session-');
+
+  if (isOnline && supabase && !isPendingOrLocal) {
+    // Delete messages first (foreign key safety)
+    const { error: msgErr } = await supabase
+      .from('messages')
+      .delete()
+      .eq('session_id', sessionId);
+    if (msgErr) logger.warn('Failed to delete messages:', msgErr);
+
+    // Then delete session
+    const { error: sessErr } = await supabase
+      .from('sessions')
+      .delete()
+      .eq('id', sessionId)
+      .eq('user_id', userId);
+    if (sessErr) throw sessErr;
+
+    logger.info('Session deleted', { sessionId });
+    return;
+  }
+
+  // Electron fallback
+  if (window.electron?.memory?.deleteSession) {
+    return await window.electron.memory.deleteSession(sessionId);
+  }
+}
+
+/**
+ * Rename a session (update its title)
+ */
+export async function renameSession(sessionId, newTitle) {
+  const userId = localStorage.getItem('user_id');
+  if (!userId) throw new Error('User not initialized');
+
+  const isPendingOrLocal = String(sessionId).startsWith('pending-session-') ||
+                           String(sessionId).startsWith('local-session-');
+
+  if (isOnline && supabase && !isPendingOrLocal) {
+    const { error } = await supabase
+      .from('sessions')
+      .update({ title: newTitle, updated_at: new Date().toISOString() })
+      .eq('id', sessionId)
+      .eq('user_id', userId);
+    if (error) throw error;
+
+    logger.info('Session renamed', { sessionId, newTitle });
+    return;
+  }
+}
+
 // ============================================================================
 // CONSENT OPERATIONS
 // ============================================================================

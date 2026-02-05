@@ -2,48 +2,52 @@ import { useState, useEffect } from 'react';
 import SettingsSimple from './SettingsSimple.jsx';
 import { BillingSettings } from '../components/billing/BillingSettings.jsx';
 import ConversationHistory from '../components/ConversationHistory.jsx';
-import DeepDiveTab from '../components/settings/DeepDiveTab.jsx';
 import { WorkspaceActivityLog } from '../components/workspace/WorkspaceActivityLog.tsx';
 import logo from '../assets/AgentMaxLogo.png';
 
 export default function SettingsApp() {
   const [activeTab, setActiveTab] = useState('settings');
-  const [selectedDeepDiveId, setSelectedDeepDiveId] = useState(null);
 
-  // Check URL for deep dive navigation (works with both hash and search params)
+  // Check URL for navigation (section param)
   useEffect(() => {
-    const parseDeepDiveId = () => {
-      // Check hash first (HashRouter style: #/settings?deepdive=ID)
+    const parseSection = () => {
+      // Check hash first (HashRouter style: #/settings?section=billing)
       const hash = window.location.hash;
-      if (hash.includes('deepdive=')) {
-        const match = hash.match(/deepdive=([^&]+)/);
+      if (hash.includes('section=')) {
+        const match = hash.match(/section=([^&]+)/);
         if (match) return match[1];
       }
-      // Also check search params (direct URL style: /settings?deepdive=ID)
+      // Also check search params
       const search = window.location.search;
-      if (search.includes('deepdive=')) {
-        const match = search.match(/deepdive=([^&]+)/);
+      if (search.includes('section=')) {
+        const match = search.match(/section=([^&]+)/);
         if (match) return match[1];
       }
       return null;
     };
 
     const handleNavigation = () => {
-      const deepDiveId = parseDeepDiveId();
-      if (deepDiveId) {
-        console.log('[Settings] Navigating to Deep Dive:', deepDiveId);
-        setSelectedDeepDiveId(deepDiveId);
-        setActiveTab('deepdive');
+      // Check for section param (billing, settings, history, etc.)
+      const section = parseSection();
+      if (section) {
+        // Map 'credits' to 'billing' for backwards compatibility
+        const tabId = section === 'credits' ? 'billing' : section;
+        const validTabs = ['settings', 'billing', 'history', 'activity'];
+        if (validTabs.includes(tabId)) {
+          console.log('[Settings] Navigating to section:', tabId);
+          setActiveTab(tabId);
+          return;
+        }
       }
     };
 
     // Check on mount
     handleNavigation();
-    
+
     // Listen for hash changes
     window.addEventListener('hashchange', handleNavigation);
     window.addEventListener('popstate', handleNavigation);
-    
+
     return () => {
       window.removeEventListener('hashchange', handleNavigation);
       window.removeEventListener('popstate', handleNavigation);
@@ -53,7 +57,6 @@ export default function SettingsApp() {
   const tabs = [
     { id: 'settings', label: 'Settings' },
     { id: 'billing', label: 'Billing' },
-    { id: 'deepdive', label: 'Deep Dive' },
     { id: 'history', label: 'History' },
     { id: 'activity', label: "Max's Activity", icon: '🤖' },
   ];
@@ -72,35 +75,11 @@ export default function SettingsApp() {
         );
       case 'history':
         return (
-          <div style={{ minHeight: '100%', padding: '24px' }}>
-            <div style={{ maxWidth: 900, margin: '0 auto' }}>
-              <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16, color: 'rgba(255,255,255,0.95)' }}>History</h1>
-              <div style={{
-                border: '1px solid rgba(255,255,255,0.15)',
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.05) 100%)',
-                borderRadius: 12,
-                padding: 20,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.08)',
-                backdropFilter: 'blur(10px)',
-                WebkitBackdropFilter: 'blur(10px)'
-              }}>
-                <ConversationHistory onLoadConversation={() => {}} />
-              </div>
+          <div style={{ height: 'calc(100vh - 80px)', padding: '16px 24px 24px' }}>
+            <div style={{ maxWidth: 900, margin: '0 auto', height: '100%' }}>
+              <ConversationHistory onLoadConversation={() => {}} />
             </div>
           </div>
-        );
-      case 'deepdive':
-        return (
-          <DeepDiveTab
-            selectedDeepDiveId={selectedDeepDiveId}
-            onClose={() => {
-              setSelectedDeepDiveId(null);
-              // Navigate back to main chat if opened from there
-              if (window.opener || window.electronAPI) {
-                window.close();
-              }
-            }}
-          />
         );
       case 'activity':
         return (
@@ -137,7 +116,9 @@ export default function SettingsApp() {
         background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)'
+        boxShadow: '0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+        WebkitAppRegion: 'drag',
+        paddingTop: 8,
       }}>
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -154,7 +135,7 @@ export default function SettingsApp() {
           </div>
 
           {/* Tabs */}
-          <nav aria-label="Settings navigation">
+          <nav aria-label="Settings navigation" style={{ WebkitAppRegion: 'no-drag' }}>
             <ul style={{ display: 'flex', gap: 8, listStyle: 'none', margin: 0, padding: 0 }}>
               {tabs.map((t) => (
                 <li key={t.id}>

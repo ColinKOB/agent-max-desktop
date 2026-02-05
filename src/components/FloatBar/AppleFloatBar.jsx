@@ -1949,6 +1949,19 @@ export default function AppleFloatBar({
               });
             }
 
+            // Estimate context usage from loaded messages (~4 chars per token)
+            const totalChars = conv.messages.reduce((sum, m) => sum + (m.content?.length || 0), 0);
+            const estimatedTokens = Math.round(totalChars / 4) + 500; // +500 for system prompt
+            setContextUsage((prev) => {
+              const newPercent = (estimatedTokens / prev.contextWindow) * 100;
+              return {
+                ...prev,
+                tokensUsed: estimatedTokens,
+                usagePercent: Math.min(newPercent, 100),
+                isFull: newPercent >= 100,
+              };
+            });
+
             // Expand the floatbar to show the conversation
             setIsMini(false);
             isMiniRef.current = false;
@@ -1956,6 +1969,7 @@ export default function AppleFloatBar({
               messageCount: loadedThoughts.length,
               convId: conv.id,
               sessionId: originalSessionId,
+              estimatedTokens,
             });
             toast.success(`Continuing conversation (${loadedThoughts.length} messages)`);
           }

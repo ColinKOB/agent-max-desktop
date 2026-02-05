@@ -217,7 +217,8 @@ export function stripActionBlocks(content) {
     let cleaned = content
       .replace(actionBlockPattern, ' ')
       .replace(actionRequestedPattern, ' ')
-      .replace(/\s+/g, ' ') // Normalize multiple spaces to single space
+      .replace(/[^\S\n]+/g, ' ') // Normalize multiple spaces to single space (preserve newlines for markdown)
+      .replace(/\n{3,}/g, '\n\n') // Collapse 3+ newlines to 2 (standard markdown paragraph break)
       .trim();
 
     return cleaned;
