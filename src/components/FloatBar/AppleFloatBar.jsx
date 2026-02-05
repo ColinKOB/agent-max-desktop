@@ -54,6 +54,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import { CreditDisplay } from '../CreditDisplay';
 import { supabase, checkResponseCache, storeResponseCache } from '../../services/supabase';
+import profileCacheService from '../../services/profileCacheService';
 import { createLogger } from '../../services/logger';
 import apiConfigManager from '../../config/apiConfig';
 import LogoPng from '../../assets/AgentMaxLogo.png';
@@ -83,7 +84,6 @@ import './FloatBar.css';
 import memoryAPI from '../../services/memoryAPI';
 import ContextPreview from './ContextPreview';
 import MemoryToast from '../MemoryToast';
-import { qualifiesAsDeepDive, createDeepDive } from '../../services/deepDiveService';
 import { OnboardingFlow } from '../onboarding/OnboardingFlow';
 import {
   trackMessageSent,
@@ -777,6 +777,44 @@ export default function AppleFloatBar({
   const [runExecLogs, setRunExecLogs] = useState([]);
   const [artifactSummary, setArtifactSummary] = useState(null);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
+
+  // Credit depletion state - shows overlay when user has no credits
+  const [noCreditsState, setNoCreditsState] = useState({ depleted: false, resetDate: null });
+
+  // Credit refresh trigger - increment to force CreditDisplay to refetch
+  const [creditRefreshTrigger, setCreditRefreshTrigger] = useState(0);
+
+  // Track previous isThinking state to detect when AI stops
+  const prevIsThinkingRef = useRef(isThinking);
+
+  // Function to trigger credit refresh (call when AI finishes working)
+  const triggerCreditRefresh = useCallback(() => {
+    setCreditRefreshTrigger(prev => prev + 1);
+  }, []);
+
+  // Auto-refresh credits when AI stops thinking (isThinking goes from true to false)
+  useEffect(() => {
+    if (prevIsThinkingRef.current === true && isThinking === false) {
+      // AI just finished working - refresh credits after a short delay to let backend process
+      console.log('[CreditRefresh] AI stopped thinking, refreshing credits in 1s...');
+      setTimeout(() => {
+        triggerCreditRefresh();
+      }, 1000);
+    }
+    prevIsThinkingRef.current = isThinking;
+  }, [isThinking, triggerCreditRefresh]);
+
+  // Handle credit updates from CreditDisplay component
+  const handleCreditsChange = useCallback((newCredits) => {
+    if (newCredits > 0) {
+      // User has credits - hide overlay
+      setNoCreditsState({ depleted: false, resetDate: null });
+    } else {
+      // User has no credits - show overlay
+      setNoCreditsState({ depleted: true, resetDate: null });
+    }
+  }, []);
+
   // User input state - for when AI needs user response during execution
   const [userInputRequest, setUserInputRequest] = useState(null); // {requestId, prompt, defaultValue}
   // Handle user input response submission
@@ -847,6 +885,64 @@ export default function AppleFloatBar({
       toast.error(`Resume failed: ${err?.message || err}`);
     }
   }, [executionPlan]);
+
+  // Check credit status after task completion - updates noCreditsState if depleted
+  // Uses local SQLite cache first for fast reads, then syncs with Supabase in background
+  const checkCreditsAfterTask = useCallback(async () => {
+    try {
+      const userId = localStorage.getItem('user_id');
+      if (!userId) return;
+
+      // Use profile cache service (local-first, fast reads)
+      const userData = await profileCacheService.getProfile(userId);
+
+      if (!userData) {
+        // Fallback to direct Supabase call if cache fails
+        const { data: supabaseData, error } = await supabase
+          .from('users')
+          .select('credits, subscription_tier, credit_reset_date')
+          .eq('id', userId)
+          .single();
+
+        if (error) {
+          console.warn('[CreditCheck] Error checking credits:', error);
+          return;
+        }
+
+        const currentCredits = supabaseData?.credits || 0;
+        if (currentCredits <= 0) {
+          const resetDate = supabaseData?.credit_reset_date
+            ? new Date(supabaseData.credit_reset_date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              })
+            : 'soon';
+          setNoCreditsState({ depleted: true, resetDate });
+        } else {
+          setNoCreditsState({ depleted: false, resetDate: null });
+        }
+        return;
+      }
+
+      const currentCredits = userData?.credits || 0;
+      if (currentCredits <= 0) {
+        // User has no credits remaining - show overlay
+        const resetDate = userData?.credit_reset_date
+          ? new Date(userData.credit_reset_date).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+            })
+          : 'soon';
+        setNoCreditsState({ depleted: true, resetDate });
+        logger.info('[CreditCheck] Credits depleted, showing overlay', { resetDate });
+      } else {
+        // User has credits - ensure overlay is hidden
+        setNoCreditsState({ depleted: false, resetDate: null });
+      }
+    } catch (err) {
+      console.warn('[CreditCheck] Failed to check credits:', err);
+    }
+  }, []);
 
   // Drag-and-drop handlers for files/images
   const handleDragEnter = useCallback((e) => {
@@ -1115,6 +1211,9 @@ export default function AppleFloatBar({
           }
 
           toast.success('Task completed', { duration: 3000 });
+
+          // Check if credits were depleted during task execution
+          checkCreditsAfterTask();
         } else if (status.status === 'failed' || status.status === 'error') {
           setIsThinking(false);
           setThinkingStatus('');
@@ -1138,7 +1237,7 @@ export default function AppleFloatBar({
       setIsThinking(false);
       setThinkingStatus('');
     }
-  }, [pendingRunTracker, thinkingStatus]);
+  }, [pendingRunTracker, thinkingStatus, checkCreditsAfterTask]);
 
   const handleIntentReject = useCallback(async (reason) => {
     const tracker = pendingRunTracker;
@@ -1647,7 +1746,7 @@ export default function AppleFloatBar({
   }, []);
 
   // Store
-  const { clearMessages, apiConnected, currentUser, profile, setApiConnected } = useStore();
+  const { clearMessages, apiConnected, currentUser, profile, setApiConnected, messages: storeMessages } = useStore();
 
   const userFirstName = useMemo(() => {
     // Prefer the saved profile name from onboarding/settings
@@ -1803,6 +1902,12 @@ export default function AppleFloatBar({
       startSession()
         .then(() => console.log('[Session] New session started on mount'))
         .catch((err) => console.warn('[Session] Failed to start session:', err));
+    }
+    // Sync user_id to executor for memory API access
+    const userId = localStorage.getItem('user_id');
+    if (userId && window.executor?.setUserContext) {
+      window.executor.setUserContext({ userId: userId });
+      console.log('[FloatBar] Synced userId to executor:', userId.slice(-8));
     }
     // Sync Google email to executor for autonomous Gmail access
     const googleEmail = localStorage.getItem('google_user_email');
@@ -2083,16 +2188,13 @@ export default function AppleFloatBar({
   // messageAlreadyAdded: true if optimistic UI already added the message to chat
   const continueAfterPreview = useCallback(
     async (text, messageAlreadyAdded = false) => {
-      // Update status to show we're retrieving context
-      if (messageAlreadyAdded) {
-        setThinkingStatus('Searching memory...');
-      }
+      // SPEED OPTIMIZATION: Skip the slow memoryAPI.query() call entirely
+      // The memory retrieval was adding 1-3 seconds of latency for minimal value
+      // Context is now fetched in continueSendMessage via parallel Supabase calls
+      // AI can use memory.search tool if it needs to look up past conversations
 
-      const pack = await doRetrieveContext(text);
       if (autoSend) {
-        // Call immediately for instant UI feedback (memory is automatic now)
-        // Pass pack directly to avoid stale state
-        // IMPORTANT: Also pass any user-attached images/files
+        // Process attachments
         let imageData = null;
         if (attachments.length > 0) {
           // Convert first image attachment to base64 for the API
@@ -2110,12 +2212,11 @@ export default function AppleFloatBar({
             text = text + fileContents;
             console.log('[Attachments] Appending file contents to message');
           }
-          // Attachments already cleared immediately after optimistic message
         }
         try {
           if (continueSendMessageRef.current) {
-            // Pass the messageAlreadyAdded flag to avoid duplicate UI updates
-            continueSendMessageRef.current(text, imageData, pack, messageAlreadyAdded);
+            // Pass null for memoryPack - context will be fetched in continueSendMessage
+            continueSendMessageRef.current(text, imageData, null, messageAlreadyAdded);
           }
         } catch (e) {
           console.warn('continueSendMessage not available', e);
@@ -2127,7 +2228,7 @@ export default function AppleFloatBar({
         }
       }
     },
-    [autoSend, doRetrieveContext, memoryPreviewEnabled, attachments]
+    [autoSend, memoryPreviewEnabled, attachments]
   );
 
   // Handle expand/collapse
@@ -2705,10 +2806,16 @@ export default function AppleFloatBar({
           const latencyMs = event.latency_ms ?? result.latency_ms ?? 0;
           const confidence = event.confidence ?? result.confidence ?? 1.0;
 
+          // Skip tiles for simple tools - the AI response already includes this info
+          // These tiles are redundant and clutter the UI
+          const skipTileTools = ['time', 'date'];
+          if (skipTileTools.includes(toolName)) {
+            logger.info(`[FactTile] Skipping tile for ${toolName} (included in response)`);
+            return;
+          }
+
           // Map tool name to friendly title
           const titleMap = {
-            time: 'Current Time',
-            date: 'Today',
             math: 'Calculation',
             unit_conversion: 'Conversion',
             next_meeting: 'Calendar',
@@ -3254,8 +3361,23 @@ export default function AppleFloatBar({
             dispatchExecution({ type: 'STEP_UPDATE', currentStep: step, totalSteps });
           }
 
-          setThinkingStatus(message);
-          appendThought(message);
+          // Skip internal routing/analysis messages - these are noise for users
+          // These are developer/debug messages that don't provide value to end users
+          const skipPatterns = [
+            /^🎯\s*Using.*mode/i,           // "🎯 Using Full context mode"
+            /^🔍\s*Analyzing/i,              // "🔍 Analyzing your query..."
+            /^💡\s*(Found|No relevant)/i,   // "💡 Found X facts..." or "💡 No relevant context"
+            /^⚡\s*Generating/i,             // "⚡ Generating response with GPT..."
+            /confidence:\s*\d+%/i,           // Any confidence percentage
+            /Retrieving.*context/i,          // "Retrieving relevant context..."
+            /Reflecting on context/i,        // "Reflecting on context..."
+          ];
+          const shouldSkip = skipPatterns.some(pattern => pattern.test(message));
+
+          if (!shouldSkip) {
+            setThinkingStatus(message);
+            appendThought(message);
+          }
         } else if (event.type === 'step') {
           // Step completed - could show intermediate steps
           const stepData = event.data || event;
@@ -3384,37 +3506,6 @@ export default function AppleFloatBar({
             }
           } catch {}
 
-          // Check if response qualifies as a Deep Dive (>150 words)
-          let deepDiveEntry = null;
-          const wordCount = responseText
-            ? responseText
-                .trim()
-                .split(/\s+/)
-                .filter((w) => w.length > 0).length
-            : 0;
-          console.log(`[Chat] Response word count: ${wordCount} (threshold: 150)`);
-
-          if (responseText && qualifiesAsDeepDive(responseText)) {
-            try {
-              const userPrompt = lastUserPromptRef.current || '';
-              // IMPORTANT: createDeepDive is async - must await to get the actual entry
-              deepDiveEntry = await createDeepDive(userPrompt, responseText);
-              console.log(`[Chat] Created Deep Dive:`, deepDiveEntry);
-              logger.info(
-                `[Chat] Created Deep Dive: ${deepDiveEntry.id} (${deepDiveEntry.wordCount} words)`
-              );
-              // Dispatch event for settings tab to update
-              window.dispatchEvent(new Event('deep-dive-updated'));
-            } catch (err) {
-              console.error('[Chat] Failed to create Deep Dive:', err);
-              logger.warn('[Chat] Failed to create Deep Dive:', err);
-            }
-          } else {
-            console.log(
-              `[Chat] Response does not qualify for Deep Dive (${wordCount} < 150 words)`
-            );
-          }
-
           setThoughts((prev) => {
             // Check if last message is a streaming assistant message
             if (
@@ -3424,40 +3515,19 @@ export default function AppleFloatBar({
             ) {
               // Mark the streaming message as complete
               const updated = [...prev];
-
-              // If this is a Deep Dive, show summary + link instead of full response
-              if (deepDiveEntry) {
-                updated[updated.length - 1] = {
-                  ...updated[updated.length - 1],
-                  content: deepDiveEntry.summary,
-                  streaming: false,
-                  isDeepDive: true,
-                  deepDiveId: deepDiveEntry.id,
-                  fullContent: responseText, // Keep full content for reference
-                };
-              } else {
-                updated[updated.length - 1] = {
-                  ...updated[updated.length - 1],
-                  content: responseText || updated[updated.length - 1].content,
-                  streaming: false,
-                };
-              }
+              updated[updated.length - 1] = {
+                ...updated[updated.length - 1],
+                content: responseText || updated[updated.length - 1].content,
+                streaming: false,
+              };
               return updated;
             } else if (responseText) {
               // No streaming message exists, create a final one
-              const messageData = {
+              return [...prev, {
                 role: 'assistant',
-                content: deepDiveEntry ? deepDiveEntry.summary : responseText,
+                content: responseText,
                 timestamp: Date.now(),
-              };
-
-              if (deepDiveEntry) {
-                messageData.isDeepDive = true;
-                messageData.deepDiveId = deepDiveEntry.id;
-                messageData.fullContent = responseText;
-              }
-
-              return [...prev, messageData];
+              }];
             }
             return prev;
           });
@@ -3811,6 +3881,8 @@ export default function AppleFloatBar({
           streamBufferRef.current = '';
           setIsThinking(false);
           setThinkingStatus('');
+          // Clear web search indicator when response completes
+          setWebSearchState({ isSearching: false, citations: [] });
           // Collapse the Thought bubble after completion
           collapseCurrentThought();
         } else if (event.type === 'error') {
@@ -3889,6 +3961,8 @@ export default function AppleFloatBar({
           streamBufferRef.current = '';
           setIsThinking(false);
           setThinkingStatus('');
+          // Clear web search indicator on error
+          setWebSearchState({ isSearching: false, citations: [] });
           // Collapse the Thought bubble if it exists
           collapseCurrentThought();
         } else if (event.type === 'show_options') {
@@ -3958,11 +4032,15 @@ export default function AppleFloatBar({
         // Credits are stored directly in users.credits column (not metadata)
         const currentCredits = userData?.credits || 0;
         if (currentCredits <= 0) {
-          toast.error('No credits remaining! Please purchase more.');
-          const openSettings = window.electron?.openSettings || window.electronAPI?.openSettings;
-          if (openSettings) {
-            await openSettings({ route: '#/settings?section=credits' });
-          }
+          // Show the no-credits overlay instead of opening settings
+          const resetDate = userData?.credit_reset_date
+            ? new Date(userData.credit_reset_date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              })
+            : null;
+          setNoCreditsState({ depleted: true, resetDate });
+          toast.error('No credits remaining', { duration: 3000 });
           return;
         }
         // Log that message was sent (credit deduction happens after response)
@@ -4162,6 +4240,24 @@ export default function AppleFloatBar({
           } catch (e) {
             console.warn('[Chat] Embedding semantic search failed:', e);
           }
+
+          // Phase 5: Include conversation summaries for NEW conversations only
+          // This gives context about what was discussed in previous sessions
+          if (thoughts.length <= 1) {
+            try {
+              const summaryContext = await profileCacheService.buildSummaryContext(
+                localStorage.getItem('user_id'),
+                3 // Include last 3 conversation summaries
+              );
+              if (summaryContext && summaryContext.trim()) {
+                userContext.semantic_context =
+                  (userContext.semantic_context || '') + `\n\n**Recent Conversation History:**\n${summaryContext}`;
+                console.log('[Chat] Included conversation summary context for new conversation');
+              }
+            } catch (e) {
+              console.warn('[Chat] Failed to load conversation summaries:', e);
+            }
+          }
         } catch (e) {
           console.warn('[Chat] Semantic retrieval failed:', e);
         }
@@ -4264,29 +4360,17 @@ export default function AppleFloatBar({
           // OPTIMIZED: Fetch ALL context in parallel for maximum speed
           // Previously these were sequential, adding ~400-800ms latency
           // ==========================================
-          setThinkingStatus('Fetching context...');
-
-          const deepMemory = localStorage.getItem('pref_deep_memory_search') === '1';
-          const useHybridSearch = localStorage.getItem('use_hybrid_search') !== '0';
-
-          // Start ALL async operations in parallel
-          const [profile, facts, preferences, recentMsgs, hybridResults] = await Promise.all([
+          // SPEED OPTIMIZATION: Removed hybridSearchContext (embedding + vector search)
+          // This was adding 500ms-1s of latency. AI can use memory.search tool if needed.
+          // Only fetch essential user context from Supabase (fast, cached)
+          const [profile, facts, preferences, recentMsgs] = await Promise.all([
             getProfile().catch(() => null),
             getFacts().catch(() => null),
             getPreferences().catch(() => null),
             sessionId ? getRecentMessages(20, sessionId).catch(() => []) : Promise.resolve([]),
-            // Pre-fetch hybrid search in parallel (this is the slow one - embedding generation)
-            useHybridSearch
-              ? hybridSearchContext(text, userId, {
-                  includeMessages: true,
-                  includeFacts: true,
-                  messageLimit: deepMemory ? 10 : 6,
-                  factLimit: deepMemory ? 5 : 3,
-                }).catch(() => ({ messages: [], facts: [], stats: {} }))
-              : Promise.resolve(null),
           ]);
 
-          logger.info('[Parallel] All context fetched in parallel');
+          logger.info('[Context] Fetched user profile, facts, preferences in parallel');
 
           userContext.profile = profile;
           userContext.facts = facts;
@@ -4538,53 +4622,10 @@ export default function AppleFloatBar({
                     }
                   }
 
-                  // 2) Search conversation history using hybrid search (semantic + keyword)
-                  // NOTE: hybridResults already fetched in parallel Promise.all above
-                  if (
-                    hybridResults &&
-                    (hybridResults.messages?.length > 0 || hybridResults.facts?.length > 0)
-                  ) {
-                    console.log('[Semantic] Using pre-fetched hybrid search results:', {
-                      messages: hybridResults.messages?.length || 0,
-                      facts: hybridResults.facts?.length || 0,
-                      source: hybridResults.stats?.source || 'parallel-prefetch',
-                    });
-
-                    // Convert hybrid search results to items format
-                    const messageItems = (hybridResults.messages || []).map((m) => ({
-                      text: m.content?.slice(0, 200) || '',
-                      score: m.score || 0,
-                      timestamp: m.created_at,
-                      session: m.session_id,
-                      source: m.source || 'hybrid',
-                    }));
-
-                    const factItems = (hybridResults.facts || []).map((f) => ({
-                      text: `${f.key}: ${f.value}`,
-                      score: f.score || 0,
-                      category: f.category,
-                      source: 'fact-hybrid',
-                    }));
-
-                    // Merge and sort all items
-                    items = [...items, ...messageItems, ...factItems]
-                      .filter(Boolean)
-                      .sort((a, b) => (b.score || 0) - (a.score || 0))
-                      .slice(0, limit);
-
-                    if (memoryDebugEnabled) {
-                      logger.info('[Semantic][Hybrid] pre-fetched results', {
-                        total: items.length,
-                        sources: items.reduce((acc, it) => {
-                          acc[it.source] = (acc[it.source] || 0) + 1;
-                          return acc;
-                        }, {}),
-                      });
-                    }
-                  }
-
-                  // Fallback to keyword-based search if hybrid disabled or failed
-                  if (!useHybridSearch || items.length === 0) {
+                  // 2) Fast keyword-based local search for conversation history
+                  // SPEED OPTIMIZATION: Removed slow hybrid/embedding search
+                  // AI can use memory.search tool for deeper semantic search if needed
+                  if (items.length === 0) {
                     const sessions = await getAllSessions();
                     console.log(
                       `[Semantic] Using keyword search on ${sessions.length} local sessions`
@@ -5126,6 +5167,9 @@ export default function AppleFloatBar({
                 }
 
                 toast.success('Task completed', { duration: 3000 });
+
+                // Check if credits were depleted during task execution
+                checkCreditsAfterTask();
               } else if (status.status === 'failed' || status.status === 'error') {
                 setIsThinking(false);
                 setThinkingStatus('');
@@ -5475,14 +5519,22 @@ export default function AppleFloatBar({
           if (!error && userData) {
             const currentCredits = userData?.credits || 0;
             if (currentCredits <= 0) {
-              // Rollback optimistic message and show error
+              // Rollback optimistic message and show overlay instead of opening settings
               rollbackOptimisticMessage(text);
-              toast.error('No credits remaining! Please purchase more to continue.');
-              const openSettings =
-                window.electron?.openSettings || window.electronAPI?.openSettings;
-              if (openSettings) {
-                await openSettings({ route: '#/settings?section=credits' });
-              }
+              setThinkingStatus('');
+              setIsThinking(false);
+
+              // Get reset date if available
+              const resetDate = userData?.credit_reset_date
+                ? new Date(userData.credit_reset_date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                : null;
+
+              // Show the no-credits overlay on the input area
+              setNoCreditsState({ depleted: true, resetDate });
+              toast.error('No credits remaining', { duration: 3000 });
               return; // Block the message
             }
           }
@@ -5595,6 +5647,16 @@ export default function AppleFloatBar({
           return;
         }
         if (data.requires_approval) {
+          // In chatty mode, auto-approve write requests - the LLM will suggest switching to autonomous mode
+          // instead of actually performing the action (chatty is read-only by design)
+          const isChattyWrite = data.markers?.includes('chatty_write_request');
+          if (isChattyWrite) {
+            logger.info('[Safety] Auto-approving chatty write request - LLM will suggest autonomous mode');
+            commitOptimisticMessage();
+            await continueAfterPreview(text, true);
+            return;
+          }
+
           // In autonomous mode, auto-approve ALL actions (user explicitly chose this mode)
           const currentMode = permissionModeRef.current;
           const isAutoMode = currentMode === 'autonomous';
@@ -5750,7 +5812,33 @@ export default function AppleFloatBar({
     const messageCount = thoughts.length;
     trackConversationCleared(messageCount);
 
-    // Clear chat transcript and tiles
+    // Phase 5: Generate and save conversation summary in BACKGROUND (non-blocking)
+    // This uses GPT-5 mini which is fast (~1-2 seconds) but we don't wait for it
+    const userId = localStorage.getItem('user_id');
+    const currentSessionId = localStorage.getItem('session_id');
+    const conversationToSummarize = [...thoughts]; // Copy before clearing
+    if (userId && currentSessionId && conversationToSummarize.length >= 2) {
+      // Fire and forget - don't await, let it run in background
+      (async () => {
+        try {
+          const { summary, topics } = await profileCacheService.generateConversationSummary(conversationToSummarize);
+          if (summary) {
+            await profileCacheService.saveConversationSummary(
+              userId,
+              currentSessionId,
+              summary,
+              conversationToSummarize.length,
+              topics
+            );
+            logger.info('[Session] Conversation summary saved in background', { sessionId: currentSessionId.slice(-6) });
+          }
+        } catch (err) {
+          logger.warn('[Session] Background summary generation failed', err);
+        }
+      })();
+    }
+
+    // Clear chat transcript and tiles immediately (don't wait for summary)
     setThoughts([]);
     setFactTiles([]);
     enrichTileIdRef.current = null;
@@ -6158,13 +6246,9 @@ export default function AppleFloatBar({
         }
       } catch {}
 
-      // Check if there are Deep Dive messages - they need minimum height for summary + button
-      const hasDeepDive = thoughts.some((t) => t.isDeepDive);
-      const effectiveMinHeight = hasDeepDive ? Math.max(minHeight, 280) : minHeight;
-
       // Use bufferedHeight to ensure no clipping; cap by hard max height
       const targetHeight = Math.max(
-        effectiveMinHeight,
+        minHeight,
         Math.min(screenLimit, bufferedHeight, MAX_EXPANDED_HEIGHT)
       );
 
@@ -6268,11 +6352,11 @@ export default function AppleFloatBar({
   // Last thought for scroll key generation
   const lastThought = useMemo(() => thoughts[thoughts.length - 1], [thoughts]);
 
-  // Key for detecting when we need to scroll (content changes, streaming state, deep dive)
+  // Key for detecting when we need to scroll (content changes, streaming state)
   const lastThoughtKey = useMemo(
     () =>
       lastThought
-        ? `${lastThought.streaming}-${lastThought.isDeepDive || false}-${(lastThought.content || '').length}`
+        ? `${lastThought.streaming}-${(lastThought.content || '').length}`
         : '',
     [lastThought]
   );
@@ -6800,7 +6884,7 @@ export default function AppleFloatBar({
           <div
             className="apple-toolbar"
             ref={toolbarRef}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <div style={{ flexGrow: 1 }} />
             {/* Mode Badge - now also opens Tools menu */}
@@ -6809,7 +6893,7 @@ export default function AppleFloatBar({
               onClick={handleTools}
               title={`Mode: ${resolveMode()}`}
               style={{
-                fontSize: '0.78rem',
+                fontSize: '0.74rem',
                 color: 'rgba(255,255,255,0.8)',
                 background:
                   resolveMode() === 'autonomous'
@@ -6818,8 +6902,8 @@ export default function AppleFloatBar({
                       ? 'rgba(147,197,253,0.18)'
                       : 'rgba(34,197,94,0.18)',
                 border: '1px solid rgba(255,255,255,0.14)',
-                padding: '4px 8px',
-                borderRadius: 8,
+                padding: '3px 7px',
+                borderRadius: 7,
                 textTransform: 'capitalize',
                 cursor: 'pointer',
               }}
@@ -6843,13 +6927,13 @@ export default function AppleFloatBar({
                   : 'Backend offline. Click to retry connection.'
               }
               style={{
-                fontSize: '0.74rem',
+                fontSize: '0.72rem',
                 color: backendConnected ? 'rgba(34,197,94,0.95)' : 'rgba(248,113,113,0.95)',
                 background: backendConnected ? 'rgba(34,197,94,0.12)' : 'rgba(248,113,113,0.12)',
                 border: `1px solid ${backendConnected ? 'rgba(34,197,94,0.25)' : 'rgba(248,113,113,0.25)'}`,
-                width: 32,
-                height: 32,
-                borderRadius: 8,
+                width: 30,
+                height: 30,
+                borderRadius: 7,
                 cursor: backendConnected ? 'default' : 'pointer',
                 transition: 'all 0.15s ease',
                 display: 'inline-flex',
@@ -6857,11 +6941,13 @@ export default function AppleFloatBar({
                 justifyContent: 'center',
               }}
             >
-              {backendConnected ? <Wifi size={16} /> : <WifiOff size={16} />}
+              {backendConnected ? <Wifi size={15} /> : <WifiOff size={15} />}
             </div>
             <CreditDisplay
               userId={currentUser?.id || localStorage.getItem('user_id')}
               variant="tool"
+              onCreditsChange={handleCreditsChange}
+              refreshTrigger={creditRefreshTrigger}
             />
             <div style={{ position: 'relative' }}>
               <button
@@ -6874,12 +6960,12 @@ export default function AppleFloatBar({
                   borderColor: (workspaceActive || spreadsheetActive || notesActive || monitorMenuOpen) ? 'rgba(245, 158, 11, 0.4)' : undefined,
                 }}
               >
-                <Monitor size={16} style={{ color: (workspaceActive || spreadsheetActive || notesActive || monitorMenuOpen) ? '#f59e0b' : undefined }} />
+                <Monitor size={15} style={{ color: (workspaceActive || spreadsheetActive || notesActive || monitorMenuOpen) ? '#f59e0b' : undefined }} />
               </button>
 {/* Tools menu is now an overlay - see tools-overlay below */}
             </div>
             <button className="apple-tool-btn" onClick={handleSettings} title="Settings" data-tutorial="settings">
-              <Settings size={16} />
+              <Settings size={15} />
             </button>
             {/* Context Usage Button with Tooltip */}
             <div
@@ -6906,10 +6992,10 @@ export default function AppleFloatBar({
                   position: 'relative',
                   overflow: 'hidden',
                   width: 'auto',
-                  minWidth: 32,
-                  paddingLeft: 8,
-                  paddingRight: 8,
-                  gap: 4,
+                  minWidth: 30,
+                  paddingLeft: 7,
+                  paddingRight: 7,
+                  gap: 3,
                 }}
               >
                 {/* Fill-up effect background */}
@@ -6935,7 +7021,7 @@ export default function AppleFloatBar({
                 />
                 {/* Icon */}
                 <Edit3
-                  size={14}
+                  size={13}
                   style={{
                     position: 'relative',
                     zIndex: 3, // Above the fill
@@ -6956,6 +7042,8 @@ export default function AppleFloatBar({
                       : contextUsage.usagePercent >= 60
                         ? '#f59e0b'
                         : 'rgba(255,255,255,0.75)',
+                    background: 'none',
+                    backgroundColor: 'transparent',
                   }}
                 >
                   {contextUsage.usagePercent > 0 && contextUsage.usagePercent < 1
@@ -6964,8 +7052,8 @@ export default function AppleFloatBar({
                 </span>
               </button>
 
-              {/* Context Tooltip */}
-              {showContextTooltip && (
+              {/* Context Tooltip - only show after at least one message */}
+              {showContextTooltip && storeMessages.length > 0 && (
                 <div
                   className="context-tooltip"
                   onMouseEnter={() => {
@@ -7018,7 +7106,7 @@ export default function AppleFloatBar({
               )}
             </div>
             <button className="apple-tool-btn" onClick={handleCollapse} title="Shrink">
-              <Minimize2 size={16} />
+              <Minimize2 size={15} />
             </button>
           </div>
 
@@ -7711,63 +7799,6 @@ export default function AppleFloatBar({
                           {thought.memoryLabel}
                         </div>
                       )}
-                      {/* Deep Dive link for long responses */}
-                      {thought.role === 'assistant' && thought.isDeepDive && thought.deepDiveId && (
-                        <div
-                          style={{
-                            marginTop: 12,
-                            paddingTop: 10,
-                            paddingBottom: 4,
-                            borderTop: '1px solid rgba(255,255,255,0.1)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                          }}
-                        >
-                          <button
-                            onClick={() => {
-                              // Open settings with Deep Dive tab
-                              if (window.electronAPI?.openSettings) {
-                                window.electronAPI.openSettings({
-                                  route: `/settings?deepdive=${thought.deepDiveId}`,
-                                });
-                              } else {
-                                // Fallback: navigate in same window
-                                window.location.hash = `/settings?deepdive=${thought.deepDiveId}`;
-                              }
-                            }}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              padding: '6px 12px',
-                              background:
-                                'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15))',
-                              border: '1px solid rgba(139, 92, 246, 0.3)',
-                              borderRadius: 8,
-                              color: '#c4b5fd',
-                              fontSize: 12,
-                              fontWeight: 500,
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease',
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background =
-                                'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.25))';
-                              e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.5)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background =
-                                'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15))';
-                              e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
-                            }}
-                          >
-                            <span>📖</span>
-                            <span>See full response in Deep Dive</span>
-                            <ChevronRight size={14} />
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
                   {/* Show execution progress checklist after user message */}
@@ -8444,6 +8475,13 @@ export default function AppleFloatBar({
             handleCancelRun={handleCancelRun}
             aiOptions={aiOptions}
             setAiOptions={setAiOptions}
+            noCreditsState={noCreditsState}
+            onPurchaseCredits={() => {
+              const openSettings = window.electron?.openSettings || window.electronAPI?.openSettings;
+              if (openSettings) {
+                openSettings({ route: '#/settings?section=billing' });
+              }
+            }}
           />
 
         </div>
