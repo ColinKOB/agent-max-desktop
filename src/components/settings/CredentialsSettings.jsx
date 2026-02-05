@@ -6,7 +6,10 @@
  */
 
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import credentialsManager from '../../services/credentialsManager';
+
+const FIGTREE = 'Figtree, system-ui, -apple-system, sans-serif';
 
 // Common services with icons
 const COMMON_SERVICES = [
@@ -24,14 +27,12 @@ const COMMON_SERVICES = [
 // Styles
 const styles = {
   section: {
-    border: '1px solid rgba(255,255,255,0.15)',
-    background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.05) 100%)',
-    borderRadius: 12,
+    border: '1px solid rgba(255,255,255,0.14)',
+    borderLeft: '2px solid #e8853b',
+    background: 'rgba(255,255,255,0.06)',
+    borderRadius: 6,
     padding: 20,
-    marginBottom: 24,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.08)',
-    backdropFilter: 'blur(10px)',
-    WebkitBackdropFilter: 'blur(10px)'
+    marginBottom: 24
   },
   heading: {
     fontSize: 16,
@@ -40,11 +41,12 @@ const styles = {
     color: 'rgba(255,255,255,0.95)',
     display: 'flex',
     alignItems: 'center',
-    gap: 8
+    gap: 8,
+    fontFamily: FIGTREE,
   },
   subheading: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(168,152,130,0.8)',
     marginBottom: 16
   },
   input: {
@@ -52,28 +54,26 @@ const styles = {
     background: 'rgba(255,255,255,0.08)',
     color: 'rgba(255,255,255,0.95)',
     border: '1px solid rgba(255,255,255,0.15)',
-    borderRadius: 8,
+    borderRadius: 4,
     padding: '10px 12px',
     fontSize: 14,
-    backdropFilter: 'blur(5px)',
-    WebkitBackdropFilter: 'blur(5px)',
     outline: 'none',
     transition: 'border-color 0.2s'
   },
   inputFocus: {
-    borderColor: 'rgba(100, 149, 237, 0.6)'
+    borderColor: 'rgba(232, 133, 59, 0.5)'
   },
   label: {
     display: 'block',
     fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(168,152,130,0.9)',
     marginBottom: 6
   },
   button: {
-    background: 'rgba(100, 149, 237, 0.3)',
+    background: 'rgba(232, 133, 59, 0.3)',
     color: 'rgba(255,255,255,0.95)',
-    border: '1px solid rgba(100, 149, 237, 0.5)',
-    borderRadius: 8,
+    border: '1px solid rgba(232, 133, 59, 0.5)',
+    borderRadius: 4,
     padding: '10px 16px',
     fontSize: 14,
     fontWeight: 600,
@@ -95,24 +95,25 @@ const styles = {
   credentialCard: {
     background: 'rgba(255,255,255,0.05)',
     border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 10,
+    borderRadius: 4,
     padding: 16,
     marginBottom: 12,
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
+    transition: 'transform 0.15s ease, border-color 0.15s ease',
   },
   serviceIcon: {
     width: 40,
     height: 40,
     borderRadius: 8,
-    background: 'rgba(100, 149, 237, 0.2)',
+    background: 'rgba(232, 133, 59, 0.2)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: 16,
     fontWeight: 700,
-    color: 'rgba(100, 149, 237, 1)',
+    color: '#e8853b',
     marginRight: 12
   },
   modal: {
@@ -122,19 +123,18 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000,
-    backdropFilter: 'blur(4px)'
+    zIndex: 1000
   },
   modalContent: {
-    background: 'linear-gradient(135deg, rgba(30,30,35,0.98) 0%, rgba(20,20,25,0.98) 100%)',
+    background: 'rgba(26,26,31,0.98)',
     border: '1px solid rgba(255,255,255,0.15)',
-    borderRadius: 16,
+    borderRadius: 8,
     padding: 24,
     width: '100%',
     maxWidth: 450,
     maxHeight: '80vh',
     overflow: 'auto',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+    boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
   }
 };
 
@@ -306,18 +306,20 @@ export default function CredentialsSettings() {
         </div>
       ) : credentials.length === 0 ? (
         <div style={{
-          textAlign: 'center',
-          padding: 32,
+          padding: '20px 16px',
           background: 'rgba(255,255,255,0.03)',
-          borderRadius: 10,
-          marginBottom: 16
+          borderRadius: 4,
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
         }}>
-          <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.4 }}>🔐</div>
-          <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: 16 }}>
-            No credentials saved yet
-          </p>
-          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginBottom: 0 }}>
-            Add credentials so the AI can log into websites during research tasks
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, margin: 0 }}>
+            No credentials saved yet. Add one so Max can log into websites during research.
           </p>
         </div>
       ) : (
@@ -366,10 +368,18 @@ export default function CredentialsSettings() {
       </button>
 
       {/* Add/Edit Modal */}
+      <AnimatePresence>
       {showAddModal && (
         <div style={styles.modal} onClick={handleCloseModal}>
-          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20, color: 'rgba(255,255,255,0.95)' }}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            style={styles.modalContent}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20, color: 'rgba(255,255,255,0.95)', fontFamily: FIGTREE }}>
               {editingCredential ? 'Edit Credential' : 'Add New Credential'}
             </h3>
 
@@ -455,7 +465,18 @@ export default function CredentialsSettings() {
                       padding: 4
                     }}
                   >
-                    {showPassword.form ? '🙈' : '👁️'}
+                    {showPassword.form ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                      </svg>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    )}
                   </button>
                 </div>
               </div>
@@ -477,7 +498,7 @@ export default function CredentialsSettings() {
                 <div style={{
                   background: 'rgba(239, 68, 68, 0.1)',
                   border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: 8,
+                  borderRadius: 4,
                   padding: 12,
                   marginBottom: 16,
                   color: 'rgb(252, 165, 165)',
@@ -501,33 +522,23 @@ export default function CredentialsSettings() {
                 </button>
               </div>
             </form>
-          </div>
+          </motion.div>
         </div>
       )}
+      </AnimatePresence>
 
       {/* Security Notice */}
       <div style={{
         marginTop: 16,
-        padding: 12,
-        background: 'rgba(251, 191, 36, 0.1)',
-        border: '1px solid rgba(251, 191, 36, 0.2)',
-        borderRadius: 8,
+        padding: '10px 14px',
+        background: 'rgba(255,255,255,0.03)',
+        borderLeft: '2px solid rgba(251, 191, 36, 0.5)',
+        borderRadius: 0,
         fontSize: 12,
-        color: 'rgba(251, 191, 36, 0.9)',
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 10
+        color: 'rgba(255,255,255,0.5)',
+        lineHeight: 1.5,
       }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-          <line x1="12" y1="9" x2="12" y2="13"/>
-          <line x1="12" y1="17" x2="12.01" y2="17"/>
-        </svg>
-        <div>
-          <strong>Security Note:</strong> Credentials are encrypted and stored locally on your device.
-          They are only used by the AI in its isolated workspace and never shared or transmitted externally.
-          For maximum security, consider using app-specific passwords where available.
-        </div>
+        <strong style={{ color: 'rgba(251, 191, 36, 0.8)' }}>Security:</strong> Credentials are encrypted locally and only used in the isolated workspace. Consider app-specific passwords where available.
       </div>
     </section>
   );

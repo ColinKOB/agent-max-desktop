@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import SettingsSimple from './SettingsSimple.jsx';
 import { BillingSettings } from '../components/billing/BillingSettings.jsx';
 import ConversationHistory from '../components/ConversationHistory.jsx';
 import { WorkspaceActivityLog } from '../components/workspace/WorkspaceActivityLog.tsx';
 import logo from '../assets/AgentMaxLogo.png';
+
+const FIGTREE = 'Figtree, system-ui, -apple-system, sans-serif';
 
 export default function SettingsApp() {
   const [activeTab, setActiveTab] = useState('settings');
@@ -58,7 +61,7 @@ export default function SettingsApp() {
     { id: 'settings', label: 'Settings' },
     { id: 'billing', label: 'Billing' },
     { id: 'history', label: 'History' },
-    { id: 'activity', label: "Max's Activity", icon: '🤖' },
+    { id: 'activity', label: "Max's Activity" },
   ];
 
   const renderContent = () => {
@@ -100,7 +103,7 @@ export default function SettingsApp() {
 
   return (
     <div style={{
-      background: 'linear-gradient(135deg, rgba(26,26,31,0.95) 0%, rgba(18,18,22,0.95) 100%)',
+      background: '#141418',
       color: 'rgba(255,255,255,0.95)',
       height: '100vh',
       display: 'flex',
@@ -112,68 +115,74 @@ export default function SettingsApp() {
         position: 'sticky',
         top: 0,
         zIndex: 10,
-        borderBottom: '1px solid rgba(255,255,255,0.16)',
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+        borderBottom: '1px solid rgba(255,255,255,0.12)',
+        background: 'rgba(255,255,255,0.04)',
         WebkitAppRegion: 'drag',
         paddingTop: 8,
       }}>
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <img
               src={logo}
               alt="Agent Max"
               style={{
-                height: 24,
-                width: 24,
-                filter: 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3))'
+                height: 26,
+                width: 26,
               }}
             />
-            <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: 'rgba(255,255,255,0.95)' }}>Agent Max</h1>
+            <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: 'rgba(255,255,255,0.95)', fontFamily: FIGTREE }}>Agent Max</h1>
           </div>
 
           {/* Tabs */}
           <nav aria-label="Settings navigation" style={{ WebkitAppRegion: 'no-drag' }}>
-            <ul style={{ display: 'flex', gap: 8, listStyle: 'none', margin: 0, padding: 0 }}>
+            <ul style={{ display: 'flex', gap: 4, listStyle: 'none', margin: 0, padding: 0 }}>
               {tabs.map((t) => (
-                <li key={t.id}>
+                <li key={t.id} style={{ position: 'relative' }}>
                   <button
                     onClick={() => setActiveTab(t.id)}
                     aria-current={activeTab === t.id ? 'page' : undefined}
                     style={{
                       padding: '8px 14px',
-                      borderRadius: 8,
-                      border: activeTab === t.id ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.12)',
-                      background: activeTab === t.id
-                        ? 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.10) 100%)'
-                        : 'rgba(255,255,255,0.05)',
-                      color: activeTab === t.id ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.7)',
+                      borderRadius: 0,
+                      border: 'none',
+                      background: 'transparent',
+                      color: activeTab === t.id ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.55)',
                       cursor: 'pointer',
                       fontWeight: 600,
-                      fontSize: 14,
-                      boxShadow: activeTab === t.id
-                        ? '0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)'
-                        : 'none',
-                      transition: 'all 0.15s ease',
+                      fontSize: 13,
+                      fontFamily: FIGTREE,
+                      boxShadow: 'none',
+                      transition: 'color 0.15s ease, background 0.15s ease',
+                      position: 'relative',
                     }}
                     onMouseEnter={(e) => {
                       if (activeTab !== t.id) {
-                        e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
+                        e.currentTarget.style.color = 'rgba(255,255,255,0.85)';
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (activeTab !== t.id) {
-                        e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
+                        e.currentTarget.style.color = 'rgba(255,255,255,0.55)';
                       }
                     }}
                   >
-                    {t.icon && <span style={{ marginRight: 4 }}>{t.icon}</span>}
                     {t.label}
                   </button>
+                  {activeTab === t.id && (
+                    <motion.div
+                      layoutId="activeTabIndicator"
+                      style={{
+                        position: 'absolute',
+                        bottom: -1,
+                        left: 8,
+                        right: 8,
+                        height: 2,
+                        background: '#e8853b',
+                        borderRadius: 1,
+                      }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    />
+                  )}
                 </li>
               ))}
             </ul>
@@ -189,7 +198,20 @@ export default function SettingsApp() {
         paddingBottom: '24px',
         scrollbarWidth: 'thin',
         scrollbarColor: 'rgba(255,255,255,0.15) transparent'
-      }}>{renderContent()}</main>
+      }}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            style={{ height: '100%' }}
+          >
+            {renderContent()}
+          </motion.div>
+        </AnimatePresence>
+      </main>
     </div>
   );
 }

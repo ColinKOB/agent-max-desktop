@@ -5,10 +5,9 @@
 
 /* Orange/Amber accent color variables (matches WorkspacePiP) */
 :root {
-  --max-accent: #f59e0b;
-  --max-accent-light: #fbbf24;
-  --max-accent-dark: #d97706;
-  --max-accent-glow: rgba(245, 158, 11, 0.4);
+  --max-accent: #e8853b;
+  --max-accent-light: #f0a06a;
+  --max-accent-dark: #d4732e;
 }
 
 .activity-log-container {
@@ -16,7 +15,7 @@
   flex-direction: column;
   height: 100%;
   background: rgba(20, 20, 25, 0.95);
-  border-radius: 12px;
+  border-radius: 6px;
   overflow: hidden;
 }
 
@@ -26,8 +25,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background: linear-gradient(135deg, rgba(30, 30, 35, 0.95) 0%, rgba(40, 35, 25, 0.95) 100%);
-  border-bottom: 1px solid var(--max-accent-dark);
+  background: rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .activity-log-title {
@@ -37,7 +36,8 @@
 }
 
 .activity-log-icon {
-  font-size: 24px;
+  display: flex;
+  align-items: center;
 }
 
 .activity-log-title h3 {
@@ -45,15 +45,15 @@
   color: var(--max-accent);
   font-size: 18px;
   font-weight: 600;
-  text-shadow: 0 0 10px var(--max-accent-glow);
+  font-family: 'Figtree', system-ui, -apple-system, sans-serif;
 }
 
 .activity-log-count {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.1);
+  color: rgba(168, 152, 130, 0.9);
+  background: rgba(168, 152, 130, 0.1);
   padding: 2px 8px;
-  border-radius: 10px;
+  border-radius: 4px;
 }
 
 .activity-log-actions {
@@ -65,7 +65,7 @@
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.8);
   font-size: 14px;
@@ -98,8 +98,8 @@
   flex: 1;
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
   color: rgba(255, 255, 255, 0.9);
   font-size: 13px;
   cursor: pointer;
@@ -113,7 +113,6 @@
 .activity-log-filter:focus {
   outline: none;
   border-color: var(--max-accent);
-  box-shadow: 0 0 0 2px var(--max-accent-glow);
 }
 
 .activity-log-filter option {
@@ -129,7 +128,7 @@
   justify-content: center;
   gap: 16px;
   padding: 48px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(168, 152, 130, 0.8);
 }
 
 .activity-log-spinner {
@@ -156,29 +155,13 @@
 
 /* Empty State */
 .activity-log-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 64px 24px;
-  text-align: center;
-}
-
-.activity-log-empty-icon {
-  font-size: 48px;
-  opacity: 0.5;
+  padding: 32px 20px;
 }
 
 .activity-log-empty p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 14px;
-}
-
-.activity-log-empty-hint {
-  color: rgba(255, 255, 255, 0.4) !important;
-  font-size: 12px !important;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 13px;
 }
 
 /* Activity List */
@@ -194,7 +177,7 @@
   padding: 12px;
   margin-bottom: 8px;
   background: rgba(255, 255, 255, 0.03);
-  border-radius: 8px;
+  border-radius: 4px;
   border-left: 3px solid transparent;
   transition: all 0.15s ease;
 }
@@ -237,7 +220,7 @@
 
 .activity-entry-time {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(168, 152, 130, 0.9);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Mono', Monaco, monospace;
 }
 
@@ -258,7 +241,7 @@
 
 .activity-entry-url {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(168, 152, 130, 0.65);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Mono', Monaco, monospace;
   overflow: hidden;
   text-overflow: ellipsis;

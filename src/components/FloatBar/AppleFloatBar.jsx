@@ -484,6 +484,26 @@ function executionReducer(state, action) {
   }
 }
 
+// Fun loading phrases that rotate during generic thinking states
+const FUN_PHRASES = [
+  'Preparing for lightspeed...',
+  'Warming up the neurons...',
+  'Consulting the oracle...',
+  'Brewing something good...',
+  'Crunching the numbers...',
+  'Reading between the lines...',
+  'Connecting the dots...',
+  'Summoning the answer...',
+  'Dusting off the archives...',
+  'Sharpening the pencils...',
+  'Loading the good stuff...',
+  'Assembling the pieces...',
+  'Tuning the frequencies...',
+  'Spinning up the gears...',
+  'Plotting the course...',
+];
+const GENERIC_STATUSES = new Set(['Thinking...', 'Building context...', 'Working...']);
+
 export default function AppleFloatBar({
   showWelcome,
   onWelcomeComplete,
@@ -511,6 +531,28 @@ export default function AppleFloatBar({
   const [memoryProposals, setMemoryProposals] = useState([]);
   const [showMemoryToast, setShowMemoryToast] = useState(false);
   const [thinkingStatus, setThinkingStatus] = useState('');
+  const [funPhrase, setFunPhrase] = useState(FUN_PHRASES[0]);
+  const funPhraseRef = useRef(null);
+
+  // Rotate fun phrases when in a generic thinking state
+  useEffect(() => {
+    const isGeneric = GENERIC_STATUSES.has(thinkingStatus) || (!thinkingStatus && isThinking);
+    if (isGeneric) {
+      // Pick a random starting phrase
+      setFunPhrase(FUN_PHRASES[Math.floor(Math.random() * FUN_PHRASES.length)]);
+      funPhraseRef.current = setInterval(() => {
+        setFunPhrase(prev => {
+          let next;
+          do { next = FUN_PHRASES[Math.floor(Math.random() * FUN_PHRASES.length)]; } while (next === prev);
+          return next;
+        });
+      }, 3000);
+    } else {
+      if (funPhraseRef.current) clearInterval(funPhraseRef.current);
+    }
+    return () => { if (funPhraseRef.current) clearInterval(funPhraseRef.current); };
+  }, [thinkingStatus, isThinking]);
+
   const [parallelAgents, setParallelAgents] = useState(null); // Parallel web agents state
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [factTiles, setFactTiles] = useState([]);
@@ -8424,11 +8466,11 @@ export default function AppleFloatBar({
                   ) : (
                     <>
                       <div className="typing-indicator">
-                        <span className="typing-dot"></span>
-                        <span className="typing-dot"></span>
-                        <span className="typing-dot"></span>
+                        <div className="morph-shape" />
                       </div>
-                      <span className="typing-text">{thinkingStatus || 'Thinking...'}</span>
+                      <span className="typing-text">
+                        {GENERIC_STATUSES.has(thinkingStatus) || !thinkingStatus ? funPhrase : thinkingStatus}
+                      </span>
                     </>
                   )
                 )}

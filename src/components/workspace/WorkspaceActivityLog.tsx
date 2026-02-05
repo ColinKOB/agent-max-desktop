@@ -196,7 +196,9 @@ export function WorkspaceActivityLog({
       {/* Header */}
       <div className="activity-log-header">
         <div className="activity-log-title">
-          <span className="activity-log-icon">🤖</span>
+          <svg className="activity-log-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e8853b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 8V4H8"/><rect x="5" y="8" width="14" height="12" rx="2"/><path d="M9 14h0"/><path d="M15 14h0"/>
+          </svg>
           <h3>Max's Activity</h3>
           <span className="activity-log-count">{entries.length} actions</span>
         </div>
@@ -206,14 +208,18 @@ export function WorkspaceActivityLog({
             onClick={fetchActivityLog}
             title="Refresh"
           >
-            🔄
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
           </button>
           <button
             className="activity-log-btn activity-log-clear"
             onClick={handleClearLog}
             title="Clear History"
           >
-            🗑️
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
           </button>
         </div>
       </div>
@@ -257,11 +263,7 @@ export function WorkspaceActivityLog({
       {/* Empty State */}
       {!error && entries.length === 0 && (
         <div className="activity-log-empty">
-          <div className="activity-log-empty-icon">📭</div>
-          <p>No activity recorded yet</p>
-          <p className="activity-log-empty-hint">
-            Activity will appear here when Max uses the browser workspace
-          </p>
+          <p>No activity yet</p>
         </div>
       )}
 

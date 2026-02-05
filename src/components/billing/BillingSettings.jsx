@@ -1,7 +1,7 @@
 /**
  * Billing Settings Component
  *
- * Professional billing interface with achievement stats and subscription tiers
+ * Matches agentmax.app website styling - dark theme with warm orange accent
  */
 import { useState, useEffect } from 'react';
 import {
@@ -10,14 +10,8 @@ import {
   Crown,
   Check,
   Loader2,
-  MessageSquare,
-  Clock,
-  FileText,
-  Code,
   TrendingUp,
-  Calendar,
   Shield,
-  ExternalLink,
   XCircle,
   AlertTriangle,
 } from 'lucide-react';
@@ -35,9 +29,7 @@ const TIERS = [
     monthlyPrice: 10,
     yearlyPrice: 100,
     creditsPerWeek: 150,
-    color: 'from-blue-500 to-cyan-500',
-    bgColor: 'bg-gradient-to-br from-blue-50 to-cyan-50',
-    borderColor: 'border-blue-200',
+    description: 'Perfect for light tasks throughout the month.',
     features: [
       '150 credits per week',
       '~600 credits per month',
@@ -54,9 +46,7 @@ const TIERS = [
     yearlyPrice: 180,
     creditsPerWeek: 250,
     popular: true,
-    color: 'from-violet-500 to-purple-600',
-    bgColor: 'bg-gradient-to-br from-violet-50 to-purple-50',
-    borderColor: 'border-violet-300',
+    description: 'Perfect for occasional deep dives and daily work.',
     features: [
       '250 credits per week',
       '~1,000 credits per month',
@@ -73,9 +63,7 @@ const TIERS = [
     monthlyPrice: 30,
     yearlyPrice: 300,
     creditsPerWeek: 600,
-    color: 'from-amber-500 to-orange-500',
-    bgColor: 'bg-gradient-to-br from-amber-50 to-orange-50',
-    borderColor: 'border-amber-200',
+    description: 'For those who want a true sidekick and the latest features.',
     features: [
       '600 credits per week',
       '~2,400 credits per month',
@@ -139,13 +127,13 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
       const hash = window.location.hash;
       if (hash.includes('purchase=success')) {
         console.log('[BillingSettings] Purchase success detected, refreshing credits...');
-        toast.success('🎉 Purchase successful! Your credits have been added.', { duration: 5000 });
+        toast.success('Purchase successful! Your credits have been added.', { duration: 5000 });
         // Clean up URL
         window.location.hash = '#/settings';
         // Reload stats after a short delay to allow webhook to process
         setTimeout(() => loadUserStats(), 2000);
       } else if (hash.includes('purchase=cancel')) {
-        toast('Purchase cancelled', { icon: '❌', duration: 3000 });
+        toast('Purchase cancelled', { duration: 3000 });
         window.location.hash = '#/settings';
       }
     };
@@ -371,7 +359,6 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
       console.error('[BillingSettings] Subscription failed:', error);
       toast.error('Unable to open checkout. Please try again or contact support@agentmax.ai', {
         duration: 5000,
-        icon: '📧',
       });
     } finally {
       setPurchasing(false);
@@ -382,7 +369,7 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
     return (
       <div className="billing-page">
         <div className="billing-loading">
-          <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+          <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#e8853b' }} />
           <p>Loading your dashboard...</p>
         </div>
       </div>
@@ -394,58 +381,36 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
       {/* Hero Stats Section */}
       <div className="billing-hero">
         <div className="hero-content">
-          <h1 className="hero-title">Your Agent Max Journey</h1>
-          <p className="hero-subtitle">Here's what you've accomplished with your AI assistant</p>
+          <h1 className="hero-title">Usage</h1>
         </div>
 
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon bg-gradient-to-br from-violet-500 to-purple-600">
-              <MessageSquare className="w-5 h-5 text-white" />
-            </div>
-            <div className="stat-info">
-              <span className="stat-value">{stats.totalConversations}</span>
-              <span className="stat-label">Conversations</span>
-            </div>
+        <div className="stats-layout">
+          {/* Primary metric */}
+          <div className="stat-primary">
+            <span className="stat-value-large">{stats.totalConversations}</span>
+            <span className="stat-label-primary">conversations</span>
           </div>
 
-          <div className="stat-card">
-            <div className="stat-icon bg-gradient-to-br from-emerald-500 to-teal-600">
-              <Check className="w-5 h-5 text-white" />
+          {/* Secondary metrics - compact inline row */}
+          <div className="stat-secondary-row">
+            <div className="stat-secondary">
+              <span className="stat-secondary-value">{stats.tasksCompleted}</span>
+              <span className="stat-secondary-label">tasks</span>
             </div>
-            <div className="stat-info">
-              <span className="stat-value">{stats.tasksCompleted}</span>
-              <span className="stat-label">Tasks Completed</span>
+            <span className="stat-divider">/</span>
+            <div className="stat-secondary">
+              <span className="stat-secondary-value">{stats.hoursTimeSaved}h</span>
+              <span className="stat-secondary-label">saved</span>
             </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon bg-gradient-to-br from-blue-500 to-cyan-600">
-              <Clock className="w-5 h-5 text-white" />
+            <span className="stat-divider">/</span>
+            <div className="stat-secondary">
+              <span className="stat-secondary-value">{stats.filesCreated}</span>
+              <span className="stat-secondary-label">files</span>
             </div>
-            <div className="stat-info">
-              <span className="stat-value">{stats.hoursTimeSaved}h</span>
-              <span className="stat-label">Time Saved</span>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon bg-gradient-to-br from-amber-500 to-orange-600">
-              <FileText className="w-5 h-5 text-white" />
-            </div>
-            <div className="stat-info">
-              <span className="stat-value">{stats.filesCreated}</span>
-              <span className="stat-label">Files Created</span>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon bg-gradient-to-br from-pink-500 to-rose-600">
-              <Code className="w-5 h-5 text-white" />
-            </div>
-            <div className="stat-info">
-              <span className="stat-value">{stats.codeGenerated.toLocaleString()}</span>
-              <span className="stat-label">Lines of Code</span>
+            <span className="stat-divider">/</span>
+            <div className="stat-secondary">
+              <span className="stat-secondary-value">{stats.codeGenerated.toLocaleString()}</span>
+              <span className="stat-secondary-label">lines</span>
             </div>
           </div>
         </div>
@@ -453,13 +418,13 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
         {/* Current Credits Display */}
         <div className="credits-banner">
           <div className="credits-info">
-            <TrendingUp className="w-5 h-5 text-violet-600" />
+            <TrendingUp className="w-5 h-5" style={{ color: '#e8853b' }} />
             <span>Current Balance:</span>
             <strong>{stats.currentCredits} credits</strong>
           </div>
           {stats.currentTier && (
             <div className="current-plan">
-              <Shield className="w-4 h-4" />
+              <Shield className="w-4 h-4" style={{ color: '#e8853b' }} />
               <span>
                 {stats.currentTier.charAt(0).toUpperCase() + stats.currentTier.slice(1)} Plan
               </span>
@@ -473,7 +438,7 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
             <div className="subscription-status-card">
               <div className="subscription-header">
                 <h3>
-                  <Shield className="w-5 h-5" />
+                  <Shield className="w-5 h-5" style={{ color: '#e8853b' }} />
                   Your Subscription
                 </h3>
                 {stats.cancelAtPeriodEnd && (
@@ -577,27 +542,20 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
       {/* Subscription Section */}
       <div className="subscription-section">
         <div className="section-header">
-          <h2>Choose Your Plan</h2>
-          <p>Unlock more potential with Agent Max</p>
+          <h2>Plans</h2>
         </div>
 
         {/* Billing Toggle */}
         <div className="billing-toggle">
+          <span className={`toggle-label ${billingCycle === 'monthly' ? 'active' : ''}`}>Monthly</span>
           <button
-            className={`toggle-option ${billingCycle === 'monthly' ? 'active' : ''}`}
-            onClick={() => setBillingCycle('monthly')}
+            className={`toggle-switch ${billingCycle === 'yearly' ? 'on' : ''}`}
+            onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'yearly' : 'monthly')}
+            aria-label="Toggle billing cycle"
           >
-            <Calendar className="w-4 h-4" />
-            Monthly
+            <span className="toggle-knob" />
           </button>
-          <button
-            className={`toggle-option ${billingCycle === 'yearly' ? 'active' : ''}`}
-            onClick={() => setBillingCycle('yearly')}
-          >
-            <Sparkles className="w-4 h-4" />
-            Yearly
-            <span className="save-badge">Save 17%</span>
-          </button>
+          <span className={`toggle-label ${billingCycle === 'yearly' ? 'active' : ''}`}>Annually</span>
         </div>
 
         {/* Tier Cards */}
@@ -605,43 +563,29 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
           {TIERS.map((tier) => {
             const Icon = tier.icon;
             const price = billingCycle === 'yearly' ? tier.yearlyPrice : tier.monthlyPrice;
-            const isSelected = selectedTier === tier.id;
             const isCurrentPlan = stats.currentTier === tier.id;
 
             return (
               <div
                 key={tier.id}
-                className={`tier-card ${tier.popular ? 'popular' : ''} ${isSelected ? 'selected' : ''} ${isCurrentPlan ? 'current' : ''}`}
+                className={`tier-card ${tier.popular ? 'popular' : ''} ${isCurrentPlan ? 'current' : ''}`}
               >
-                {tier.popular && <div className="popular-badge">Most Popular</div>}
-                {isCurrentPlan && <div className="current-badge">Current Plan</div>}
+                {tier.popular && <div className="popular-glow" />}
 
-                <div className={`tier-icon bg-gradient-to-br ${tier.color}`}>
-                  <Icon className="w-6 h-6 text-white" />
+                <div className="tier-card-header">
+                  <div className="tier-name-row">
+                    <Icon className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.4)' }} />
+                    <h3 className="tier-name">{tier.name}</h3>
+                  </div>
+                  {tier.popular && <span className="popular-badge">Popular</span>}
                 </div>
-
-                <h3 className="tier-name">{tier.name}</h3>
 
                 <div className="tier-price">
                   <span className="price-amount">${price}</span>
-                  <span className="price-period">
-                    /{billingCycle === 'yearly' ? 'year' : 'month'}
-                  </span>
+                  <span className="price-period">/{billingCycle === 'yearly' ? 'year' : 'month'}</span>
                 </div>
 
-                <div className="tier-credits">
-                  <Zap className="w-4 h-4 text-amber-500" />
-                  <span>{tier.creditsPerWeek} credits/week</span>
-                </div>
-
-                <ul className="tier-features">
-                  {tier.features.map((feature, idx) => (
-                    <li key={idx}>
-                      <Check className="w-4 h-4 text-emerald-500" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
+                <p className="tier-description">{tier.description}</p>
 
                 <button
                   className={`tier-cta ${tier.popular ? 'primary' : 'secondary'}`}
@@ -659,6 +603,18 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
                     <>Get {tier.name}</>
                   )}
                 </button>
+
+                <div className="tier-features-section">
+                  <span className="features-label">What's Included:</span>
+                  <ul className="tier-features">
+                    {tier.features.map((feature, idx) => (
+                      <li key={idx}>
+                        <Check className="w-4 h-4 feature-check" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             );
           })}
@@ -667,15 +623,15 @@ export function BillingSettings({ tenantId = 'test-tenant-001', userId: propUser
         {/* Trust Indicators */}
         <div className="trust-section">
           <div className="trust-item">
-            <Shield className="w-5 h-5 text-emerald-600" />
+            <Shield className="w-4 h-4" />
             <span>Secure payments via Stripe</span>
           </div>
           <div className="trust-item">
-            <Check className="w-5 h-5 text-emerald-600" />
+            <Check className="w-4 h-4" />
             <span>Cancel anytime</span>
           </div>
           <div className="trust-item">
-            <TrendingUp className="w-5 h-5 text-emerald-600" />
+            <TrendingUp className="w-4 h-4" />
             <span>Credits never expire</span>
           </div>
         </div>

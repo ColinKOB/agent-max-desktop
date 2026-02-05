@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { GoogleConnect } from '../components/GoogleConnect';
 import CredentialsSettings from '../components/settings/CredentialsSettings';
 import telemetry from '../services/telemetry';
@@ -6,6 +7,50 @@ import apiConfigManager from '../config/apiConfig';
 import packageJson from '../../package.json';
 import logo from '../assets/AgentMaxLogo.png';
 import { isGoogleComingSoon } from '../config/featureGates';
+
+const FIGTREE = 'Figtree, system-ui, -apple-system, sans-serif';
+
+// Custom toggle switch - squared-off design
+function ToggleSwitch({ checked, onChange, id, ariaLabel }) {
+  return (
+    <button
+      id={id}
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      onClick={() => onChange(!checked)}
+      style={{
+        width: 44, height: 24, borderRadius: 12, padding: 2,
+        background: checked ? '#e8853b' : 'rgba(255,255,255,0.12)',
+        border: `1px solid ${checked ? 'rgba(232,133,59,0.5)' : 'rgba(255,255,255,0.1)'}`,
+        cursor: 'pointer',
+        transition: 'background 0.2s ease, border-color 0.2s ease',
+        display: 'flex', alignItems: 'center',
+        justifyContent: checked ? 'flex-end' : 'flex-start',
+        flexShrink: 0,
+        WebkitAppearance: 'none',
+        appearance: 'none',
+        outline: 'none',
+      }}
+    >
+      <motion.span
+        layout
+        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+        style={{
+          width: 18, height: 18, borderRadius: '50%',
+          background: '#fff',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+        }}
+      />
+    </button>
+  );
+}
+
+// Section animation
+const sectionVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.2 } },
+};
 
 export default function SettingsSimple() {
   // Preferences
@@ -29,12 +74,12 @@ export default function SettingsSimple() {
       const storedDeepMemory = localStorage.getItem('pref_deep_memory_search');
       const storedTelemetry = localStorage.getItem('telemetry_enabled');
       const storedDisableFallbacks = localStorage.getItem('disable_legacy_fallbacks');
-      
+
       // Load existing values or persist defaults for new users
       if (storedTheme) {
         setTheme(storedTheme);
       }
-      
+
       // Analytics: default ON for beta testers
       if (storedAnalytics !== null) {
         setAnalytics(storedAnalytics === '1');
@@ -42,7 +87,7 @@ export default function SettingsSimple() {
         // First load - persist the default (ON)
         localStorage.setItem('pref_analytics', '1');
       }
-      
+
       // Deep memory search: default ON for beta testers
       if (storedDeepMemory !== null) {
         setDeepMemorySearch(storedDeepMemory === '1');
@@ -50,7 +95,7 @@ export default function SettingsSimple() {
         // First load - persist the default (ON)
         localStorage.setItem('pref_deep_memory_search', '1');
       }
-      
+
       // Telemetry: default ON for beta testers
       if (storedTelemetry !== null) {
         setTelemetryEnabled(storedTelemetry === 'true');
@@ -59,7 +104,7 @@ export default function SettingsSimple() {
         localStorage.setItem('telemetry_enabled', 'true');
         telemetry.setEnabled(true);
       }
-      
+
       if (storedDisableFallbacks === '1' || storedDisableFallbacks === 'true') setDisableLegacyFallbacks(true);
 
       // Browser preference: default to 'both' (Max can use either workspace or Safari)
@@ -135,104 +180,97 @@ export default function SettingsSimple() {
     } catch {}
   };
 
+  // Shared select style
+  const selectStyle = {
+    width: '100%',
+    background: 'rgba(255,255,255,0.08)',
+    color: 'rgba(255,255,255,0.95)',
+    border: '1px solid rgba(255,255,255,0.15)',
+    borderRadius: 4,
+    padding: '10px 12px',
+    outline: 'none',
+    fontSize: 13,
+    transition: 'border-color 0.15s ease',
+  };
+
   return (
     <div style={{ color: 'rgba(255,255,255,0.95)', minHeight: '100%', padding: '24px' }}>
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 16, color: 'rgba(255,255,255,0.95)' }}>Settings</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20, color: 'rgba(255,255,255,0.95)', fontFamily: FIGTREE }}>
+          Settings
+        </h1>
 
         {/* Preferences */}
-        <section style={{
-          border: '1px solid rgba(255,255,255,0.15)',
-          background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.05) 100%)',
-          borderRadius: 12,
-          padding: 20,
-          marginBottom: 24,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.08)',
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)'
-        }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.95)' }}>Preferences</h2>
-          <div style={{ display: 'grid', gap: 16 }}>
+        <motion.section
+          initial="hidden"
+          animate="visible"
+          variants={sectionVariants}
+          style={{
+            borderLeft: '2px solid rgba(168,152,130,0.4)',
+            border: '1px solid rgba(255,255,255,0.10)',
+            borderLeftWidth: 2,
+            borderLeftColor: 'rgba(168,152,130,0.4)',
+            background: 'rgba(255,255,255,0.04)',
+            borderRadius: 6,
+            padding: 20,
+            marginBottom: 24
+          }}
+        >
+          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14, color: 'rgba(255,255,255,0.95)', fontFamily: FIGTREE }}>Preferences</h2>
+          <div style={{ display: 'grid', gap: 18 }}>
             <div>
-              <label htmlFor="pref-theme" style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 6 }}>Theme</label>
+              <label htmlFor="pref-theme" style={{ display: 'block', fontSize: 14, color: 'rgba(168,152,130,0.9)', marginBottom: 6, fontWeight: 600 }}>Theme</label>
               <select
                 id="pref-theme"
                 value={theme}
                 onChange={(e) => handleThemeChange(e.target.value)}
                 aria-label="Theme selector"
-                style={{
-                  width: '100%',
-                  background: 'rgba(255,255,255,0.08)',
-                  color: 'rgba(255,255,255,0.95)',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  borderRadius: 8,
-                  padding: '10px 12px',
-                  backdropFilter: 'blur(5px)',
-                  WebkitBackdropFilter: 'blur(5px)'
-                }}
+                style={selectStyle}
               >
                 <option value="light" style={{ background: '#1a1a1f', color: 'rgba(255,255,255,0.95)' }}>Light</option>
                 <option value="dark" style={{ background: '#1a1a1f', color: 'rgba(255,255,255,0.95)' }}>Dark</option>
                 <option value="system" style={{ background: '#1a1a1f', color: 'rgba(255,255,255,0.95)' }}>System</option>
               </select>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
               <div>
-                <label htmlFor="pref-telemetry" style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 4 }}>Telemetry</label>
-                <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>Send anonymized event data to improve reliability. In production builds this is off by default.</p>
+                <label htmlFor="pref-telemetry" style={{ display: 'block', fontSize: 14, color: 'rgba(168,152,130,0.9)', marginBottom: 4, fontWeight: 600 }}>Telemetry</label>
+                <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>Send anonymized event data to improve reliability. In production builds this is off by default.</p>
               </div>
-              <input
+              <ToggleSwitch
                 id="pref-telemetry"
-                type="checkbox"
                 checked={telemetryEnabled}
-                onChange={(e) => handleTelemetryChange(e.target.checked)}
-                aria-label="Enable telemetry"
-                style={{
-                  width: 18,
-                  height: 18,
-                  accentColor: 'rgba(255,255,255,0.7)'
-                }}
+                onChange={handleTelemetryChange}
+                ariaLabel="Enable telemetry"
               />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
               <div>
-                <label htmlFor="pref-analytics" style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 4 }}>Usage analytics</label>
-                <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>Help improve Agent Max by sending anonymous usage data.</p>
+                <label htmlFor="pref-analytics" style={{ display: 'block', fontSize: 14, color: 'rgba(168,152,130,0.9)', marginBottom: 4, fontWeight: 600 }}>Usage analytics</label>
+                <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>Help improve Agent Max by sending anonymous usage data.</p>
               </div>
-              <input
+              <ToggleSwitch
                 id="pref-analytics"
-                type="checkbox"
                 checked={analytics}
-                onChange={(e) => handleAnalyticsChange(e.target.checked)}
-                aria-label="Enable anonymous analytics"
-                style={{
-                  width: 18,
-                  height: 18,
-                  accentColor: 'rgba(255,255,255,0.7)'
-                }}
+                onChange={handleAnalyticsChange}
+                ariaLabel="Enable anonymous analytics"
               />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
               <div>
-                <label htmlFor="pref-deep-memory" style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 4 }}>Deep memory search</label>
-                <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>Use more extensive semantic search for better recall (may be slower).</p>
+                <label htmlFor="pref-deep-memory" style={{ display: 'block', fontSize: 14, color: 'rgba(168,152,130,0.9)', marginBottom: 4, fontWeight: 600 }}>Deep memory search</label>
+                <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>Use more extensive semantic search for better recall (may be slower).</p>
               </div>
-              <input
+              <ToggleSwitch
                 id="pref-deep-memory"
-                type="checkbox"
                 checked={deepMemorySearch}
-                onChange={(e) => handleDeepMemoryChange(e.target.checked)}
-                aria-label="Enable deep memory search"
-                style={{
-                  width: 18,
-                  height: 18,
-                  accentColor: 'rgba(255,255,255,0.7)'
-                }}
+                onChange={handleDeepMemoryChange}
+                ariaLabel="Enable deep memory search"
               />
             </div>
             <div>
-              <label htmlFor="pref-browser" style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 6 }}>Browser mode</label>
-              <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)', marginBottom: 8 }}>
+              <label htmlFor="pref-browser" style={{ display: 'block', fontSize: 14, color: 'rgba(168,152,130,0.9)', marginBottom: 6, fontWeight: 600 }}>Browser mode</label>
+              <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>
                 Choose how Max browses the web. "Max's Monitor" is an isolated browser window. "Your Safari" uses your personal browser.
               </p>
               <select
@@ -240,16 +278,7 @@ export default function SettingsSimple() {
                 value={browserPreference}
                 onChange={(e) => handleBrowserPreferenceChange(e.target.value)}
                 aria-label="Browser mode selector"
-                style={{
-                  width: '100%',
-                  background: 'rgba(255,255,255,0.08)',
-                  color: 'rgba(255,255,255,0.95)',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  borderRadius: 8,
-                  padding: '10px 12px',
-                  backdropFilter: 'blur(5px)',
-                  WebkitBackdropFilter: 'blur(5px)'
-                }}
+                style={selectStyle}
               >
                 <option value="both" style={{ background: '#1a1a1f', color: 'rgba(255,255,255,0.95)' }}>Both (Max chooses)</option>
                 <option value="workspace_only" style={{ background: '#1a1a1f', color: 'rgba(255,255,255,0.95)' }}>Max's Monitor only</option>
@@ -257,68 +286,58 @@ export default function SettingsSimple() {
               </select>
             </div>
           </div>
-        </section>
+        </motion.section>
 
         {/* Integrations */}
-        <section style={{
-          border: '1px solid rgba(255,255,255,0.15)',
-          background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.05) 100%)',
-          borderRadius: 12,
-          padding: 20,
-          marginBottom: 24,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.08)',
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)'
-        }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.95)' }}>Integrations</h2>
+        <motion.section
+          initial="hidden"
+          animate="visible"
+          variants={sectionVariants}
+          style={{
+            border: '1px solid rgba(255,255,255,0.10)',
+            borderLeftWidth: 2,
+            borderLeftColor: 'rgba(168,152,130,0.4)',
+            background: 'rgba(255,255,255,0.04)',
+            borderRadius: 6,
+            padding: 20,
+            marginBottom: 24
+          }}
+        >
+          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.95)', fontFamily: FIGTREE }}>Integrations</h2>
 
           {isGoogleComingSoon(userEmail) ? (
             /* Coming Soon UI for non-beta users */
             <div style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 10,
-              padding: 20,
-              textAlign: 'center'
+              background: 'rgba(255,255,255,0.03)',
+              borderLeft: '2px solid rgba(255,255,255,0.15)',
+              padding: '16px 18px',
+              borderRadius: 0,
             }}>
-              <div style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.8)', fontFamily: FIGTREE }}>
+                  Google Integration
+                </span>
                 <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  background: 'rgba(251, 146, 60, 0.2)',
-                  color: 'rgb(251, 146, 60)',
-                  padding: '4px 10px',
-                  borderRadius: 12,
-                  fontSize: 12,
-                  fontWeight: 600
+                  fontSize: 11,
+                  color: 'rgba(255,255,255,0.4)',
+                  fontWeight: 500,
+                  letterSpacing: '0.3px',
+                  textTransform: 'uppercase',
                 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polyline points="12,6 12,12 16,14"/>
-                  </svg>
-                  Coming Soon
+                  Coming soon
                 </span>
               </div>
-              <h3 style={{ fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,0.95)', marginBottom: 8 }}>
-                Google Integration
-              </h3>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 16, maxWidth: 320, margin: '0 auto 16px' }}>
-                Connect your Google account to unlock powerful integrations with Gmail, Calendar, Docs, Sheets, and YouTube.
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', margin: '0 0 12px 0', lineHeight: 1.5 }}>
+                Gmail, Calendar, Docs, Sheets, and YouTube access for research and task execution.
               </p>
-              <div style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-                gap: 8
-              }}>
+              <div style={{ display: 'flex', gap: 6 }}>
                 {['Gmail', 'Calendar', 'Docs', 'Sheets', 'YouTube'].map((service) => (
                   <span key={service} style={{
-                    background: 'rgba(255,255,255,0.08)',
-                    color: 'rgba(255,255,255,0.7)',
-                    padding: '4px 10px',
-                    borderRadius: 6,
-                    fontSize: 12
+                    background: 'rgba(255,255,255,0.06)',
+                    color: 'rgba(255,255,255,0.4)',
+                    padding: '3px 8px',
+                    borderRadius: 2,
+                    fontSize: 11,
                   }}>
                     {service}
                   </span>
@@ -334,65 +353,56 @@ export default function SettingsSimple() {
               <GoogleConnect />
             </>
           )}
-        </section>
+        </motion.section>
 
         {/* AI Workspace Credentials */}
-        <CredentialsSettings />
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={sectionVariants}
+        >
+          <CredentialsSettings />
+        </motion.div>
 
         {/* About */}
-        <section style={{
-          border: '1px solid rgba(255,255,255,0.15)',
-          background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.05) 100%)',
-          borderRadius: 12,
-          padding: 20,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.08)',
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)'
-        }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.95)' }}>About</h2>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            marginBottom: 16
-          }}>
+        <motion.section
+          initial="hidden"
+          animate="visible"
+          variants={sectionVariants}
+          style={{
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+            padding: '20px 0 0 0',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
             <img
               src={logo}
               alt="Agent Max Logo"
-              style={{
-                height: 48,
-                width: 48,
-                filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35))'
-              }}
+              style={{ height: 28, width: 28 }}
             />
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: 'rgba(255,255,255,0.95)', fontFamily: FIGTREE }}>Agent Max</h2>
+            </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>Version</span>
-              <span style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: 'rgba(255,255,255,0.95)',
-                background: 'rgba(255,255,255,0.12)',
-                padding: '4px 12px',
-                borderRadius: 6,
-                border: '1px solid rgba(255,255,255,0.15)'
-              }}>
+              <span style={{ fontSize: 13, color: 'rgba(168,152,130,0.7)' }}>Version</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.8)', fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>
                 {packageJson.version}
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>Build</span>
-              <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)' }}>
+              <span style={{ fontSize: 13, color: 'rgba(168,152,130,0.7)' }}>Build</span>
+              <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
                 {import.meta.env.MODE === 'production' ? 'Production' : 'Development'}
               </span>
             </div>
-            <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-              © 2025 Agent Max. Made with ❤️ by Colin O'Brien.
+            <div style={{ marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
+              &copy; 2026 Agent Max
             </div>
           </div>
-        </section>
+        </motion.section>
       </div>
     </div>
   );
 }
-

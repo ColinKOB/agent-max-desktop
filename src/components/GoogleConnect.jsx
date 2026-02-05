@@ -378,8 +378,8 @@ export function GoogleConnect({ compact = false }) {
             <path fill="none" d="M0 0h48v48H0z"/>
           </svg>
         </div>
-        <h2 className="text-2xl font-bold mb-2">Connect Google Account</h2>
-        <p className="text-gray-900 dark:text-gray-400 mb-6">
+        <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'Figtree, system-ui, -apple-system, sans-serif' }}>Connect Google Account</h2>
+        <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '1.5rem' }}>
           Enable AI-powered assistance with Gmail, Calendar, Docs, Sheets, and YouTube.
         </p>
       </div>
@@ -391,9 +391,9 @@ export function GoogleConnect({ compact = false }) {
             <div className="services-grid mb-6">
               {services.map((service) => (
                 <div key={service.name} className="service-card">
-                  <service.icon className="w-4 h-4 mb-2 text-blue-600" />
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{service.name}</h3>
-                  <p className="text-sm text-gray-900 dark:text-gray-300">{service.description}</p>
+                  <service.icon className="w-4 h-4 mb-2" style={{ color: '#e8853b' }} />
+                  <h3 style={{ fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}>{service.name}</h3>
+                  <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>{service.description}</p>
                 </div>
               ))}
             </div>
@@ -413,7 +413,7 @@ export function GoogleConnect({ compact = false }) {
                   background: '#ef4444',
                   color: 'white',
                   border: 'none',
-                  borderRadius: 8,
+                  borderRadius: 4,
                   fontWeight: 600,
                 }}
               >
@@ -442,7 +442,7 @@ export function GoogleConnect({ compact = false }) {
           </button>
 
           {loading && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-4 text-center">
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: '1rem', textAlign: 'center' }}>
               A browser window has opened. Please authorize Agent Max to access your Google
               services.
             </p>
@@ -451,24 +451,24 @@ export function GoogleConnect({ compact = false }) {
       ) : (
         <div className="connected-section">
           <div className="status-card">
-            <CheckCircle className={compact ? "w-8 h-8 text-green-600 mb-2" : "w-12 h-12 text-green-600 mb-4"} />
-            <h3 className={compact ? "text-lg font-semibold mb-1" : "text-xl font-semibold mb-2"}>Connected Successfully</h3>
-            <p className={compact ? "text-sm text-gray-600 dark:text-gray-400 mb-2" : "text-gray-600 dark:text-gray-400 mb-4"}>
-              Signed in as: <span className="font-semibold">{userEmail}</span>
+            <CheckCircle className={compact ? "w-8 h-8 mb-2" : "w-12 h-12 mb-4"} style={{ color: '#e8853b' }} />
+            <h3 style={{ fontSize: compact ? 18 : 20, fontWeight: 600, marginBottom: compact ? 4 : 8, color: 'rgba(255,255,255,0.95)', fontFamily: 'Figtree, system-ui, -apple-system, sans-serif' }}>Connected Successfully</h3>
+            <p style={{ fontSize: compact ? 13 : 14, color: 'rgba(255,255,255,0.5)', marginBottom: compact ? 8 : 16 }}>
+              Signed in as: <span style={{ fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>{userEmail}</span>
             </p>
 
             {/* Only show full services list in non-compact mode */}
             {!compact && (
-              <div className="connected-services mb-6">
-                <h4 className="font-semibold mb-3">Available Services:</h4>
+              <div className="connected-services" style={{ marginBottom: '1.5rem' }}>
+                <h4 style={{ fontWeight: 600, marginBottom: 12, color: 'rgba(255,255,255,0.85)' }}>Available Services:</h4>
                 <div className="services-list">
                   {services.map((service) => (
                     <div key={service.name} className="service-item">
                       <div className="service-info">
-                        <service.icon className="w-5 h-5 text-green-600" />
-                        <div className="flex-1">
-                          <span className="font-medium">{service.name}</span>
-                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                        <service.icon className="w-5 h-5" style={{ color: '#e8853b' }} />
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontWeight: 500, color: 'rgba(255,255,255,0.9)' }}>{service.name}</span>
+                          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
                             {service.description}
                           </p>
                         </div>
@@ -497,13 +497,13 @@ export function GoogleConnect({ compact = false }) {
 
             {/* Compact mode: show simplified service icons */}
             {compact && (
-              <div className="flex justify-center gap-2 mb-3">
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
                 {services.slice(0, 3).map((service) => (
-                  <div key={service.name} className="p-2 rounded-lg bg-green-50 dark:bg-green-900/20">
-                    <service.icon className="w-4 h-4 text-green-600" />
+                  <div key={service.name} style={{ padding: 8, borderRadius: 8, background: 'rgba(232,133,59,0.15)' }}>
+                    <service.icon className="w-4 h-4" style={{ color: '#e8853b' }} />
                   </div>
                 ))}
-                <div className="p-2 rounded-lg bg-green-50 dark:bg-green-900/20 text-xs text-green-600 font-medium flex items-center">
+                <div style={{ padding: 8, borderRadius: 8, background: 'rgba(232,133,59,0.15)', fontSize: 12, color: '#e8853b', fontWeight: 500, display: 'flex', alignItems: 'center' }}>
                   +2
                 </div>
               </div>
@@ -546,7 +546,8 @@ export function GoogleConnect({ compact = false }) {
 
         .service-card {
           padding: 1.5rem;
-          border: 2px solid #e5e7eb;
+          border: 1px solid rgba(255,255,255,0.1);
+          background: rgba(255,255,255,0.04);
           border-radius: 12px;
           text-align: center;
           transition: all 0.2s;
@@ -558,16 +559,15 @@ export function GoogleConnect({ compact = false }) {
         }
 
         .service-card:hover {
-          border-color: #3b82f6;
-          transform: translateY(-2px);
+          border-color: rgba(232,133,59,0.3);
         }
 
         .connect-button {
           width: 100%;
           padding: 1rem 2rem;
-          background: white;
-          color: #1f2937;
-          border: 2px solid #e5e7eb;
+          background: rgba(255,255,255,0.08);
+          color: rgba(255,255,255,0.95);
+          border: 1px solid rgba(255,255,255,0.15);
           border-radius: 12px;
           font-size: 1rem;
           font-weight: 600;
@@ -577,13 +577,11 @@ export function GoogleConnect({ compact = false }) {
           justify-content: center;
           gap: 0.75rem;
           transition: all 0.2s;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
         .connect-button:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-          border-color: #4285F4;
+          background: rgba(255,255,255,0.12);
+          border-color: rgba(255,255,255,0.25);
         }
 
         .connect-button:disabled {
@@ -593,9 +591,9 @@ export function GoogleConnect({ compact = false }) {
 
         .disconnect-button {
           padding: 0.75rem 1.5rem;
-          background: #ef4444;
-          color: white;
-          border: none;
+          background: rgba(239, 68, 68, 0.3);
+          color: rgba(255,255,255,0.9);
+          border: 1px solid rgba(239, 68, 68, 0.4);
           border-radius: 8px;
           font-weight: 600;
           cursor: pointer;
@@ -603,17 +601,17 @@ export function GoogleConnect({ compact = false }) {
         }
 
         .disconnect-button:hover {
-          background: #dc2626;
+          background: rgba(239, 68, 68, 0.45);
         }
 
         .status-card {
           padding: 2rem;
-          border: 2px solid #10b981;
+          border: 1px solid rgba(232,133,59,0.25);
           border-radius: 16px;
           text-align: center;
-          background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+          background: rgba(232,133,59,0.06);
         }
-        
+
         .compact .status-card {
           padding: 1rem 1.25rem;
           border-radius: 12px;
@@ -635,13 +633,14 @@ export function GoogleConnect({ compact = false }) {
           justify-content: space-between;
           gap: 0.75rem;
           padding: 1rem;
-          background: white;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
           border-radius: 8px;
           transition: all 0.2s;
         }
 
         .service-item:hover {
-          transform: translateY(-1px);
+          border-color: rgba(255,255,255,0.15);
         }
 
         .service-info {
@@ -653,7 +652,7 @@ export function GoogleConnect({ compact = false }) {
 
         .test-button {
           padding: 0.5rem;
-          background: #f3f4f6;
+          background: rgba(255,255,255,0.08);
           border: none;
           border-radius: 6px;
           cursor: pointer;
@@ -661,11 +660,11 @@ export function GoogleConnect({ compact = false }) {
           display: flex;
           align-items: center;
           justify-content: center;
+          color: rgba(255,255,255,0.5);
         }
 
         .test-button:hover:not(:disabled) {
-          background: #e5e7eb;
-          transform: scale(1.05);
+          background: rgba(255,255,255,0.15);
         }
 
         .test-button:disabled {
@@ -678,8 +677,9 @@ export function GoogleConnect({ compact = false }) {
           align-items: center;
           gap: 0.5rem;
           padding: 1rem;
-          background: #fee2e2;
-          color: #dc2626;
+          background: rgba(239, 68, 68, 0.1);
+          color: rgb(252, 165, 165);
+          border: 1px solid rgba(239, 68, 68, 0.3);
           border-radius: 8px;
           font-weight: 500;
         }
@@ -696,35 +696,6 @@ export function GoogleConnect({ compact = false }) {
         @keyframes spin {
           to {
             transform: rotate(360deg);
-          }
-        }
-
-        @media (prefers-color-scheme: dark) {
-          .service-card {
-            border-color: #374151;
-            background: #1f2937;
-          }
-
-          .service-card:hover {
-            border-color: #3b82f6;
-            background: #111827;
-          }
-
-          .status-card {
-            background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
-            border-color: #10b981;
-          }
-
-          .service-item {
-            background: #1f2937;
-          }
-
-          .test-button {
-            background: #374151;
-          }
-
-          .test-button:hover:not(:disabled) {
-            background: #4b5563;
           }
         }
       `}</style>

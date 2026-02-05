@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Trash2, MessageSquare, ArrowLeft, ExternalLink, Pencil, Check, X } from 'lucide-react';
 import { getAllSessions, deleteSession, renameSession } from '../services/supabaseMemory';
 import { conversationAPI } from '../services/api';
@@ -6,6 +7,8 @@ import { stripActionBlocks } from '../utils/formatters';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+
+const FIGTREE = 'Figtree, system-ui, -apple-system, sans-serif';
 
 // =============================================================================
 // HELPERS
@@ -89,13 +92,13 @@ const markdownComponents = {
   h1: ({ children }) => <h1 style={{ fontSize: 16, fontWeight: 700, color: '#fff', margin: '1em 0 0.5em 0' }}>{children}</h1>,
   h2: ({ children }) => <h2 style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: '1em 0 0.4em 0', paddingBottom: '0.25em', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>{children}</h2>,
   h3: ({ children }) => <h3 style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.95)', margin: '0.8em 0 0.3em 0' }}>{children}</h3>,
-  hr: () => <hr style={{ border: 'none', height: 1, background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', margin: '1em 0' }} />,
-  blockquote: ({ children }) => <blockquote style={{ margin: '0.5em 0', padding: '0.4em 0.8em', borderLeft: '3px solid rgba(59,130,246,0.5)', background: 'rgba(59,130,246,0.08)', borderRadius: '0 8px 8px 0', color: 'rgba(255,255,255,0.85)', fontStyle: 'italic' }}>{children}</blockquote>,
+  hr: () => <hr style={{ border: 'none', height: 1, background: 'rgba(255,255,255,0.1)', margin: '1em 0' }} />,
+  blockquote: ({ children }) => <blockquote style={{ margin: '0.5em 0', padding: '0.4em 0.8em', borderLeft: '3px solid rgba(232,133,59,0.5)', background: 'rgba(232,133,59,0.08)', borderRadius: '0 4px 4px 0', color: 'rgba(255,255,255,0.85)', fontStyle: 'italic' }}>{children}</blockquote>,
   code: ({ inline, children }) => inline
     ? <code style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 4px', borderRadius: 4, fontSize: 12, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{children}</code>
-    : <code style={{ display: 'block', background: 'rgba(255,255,255,0.06)', padding: 8, borderRadius: 6, fontSize: 12, overflowX: 'auto', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{children}</code>,
-  pre: ({ children }) => <pre style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', padding: 12, borderRadius: 8, margin: '8px 0', overflowX: 'auto' }}>{children}</pre>,
-  a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer" style={{ color: '#8ab4ff', textDecoration: 'underline' }}>{children}</a>,
+    : <code style={{ display: 'block', background: 'rgba(255,255,255,0.06)', padding: 8, borderRadius: 4, fontSize: 12, overflowX: 'auto', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{children}</code>,
+  pre: ({ children }) => <pre style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', padding: 12, borderRadius: 4, margin: '8px 0', overflowX: 'auto' }}>{children}</pre>,
+  a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer" style={{ color: '#e8853b', textDecoration: 'underline' }}>{children}</a>,
 };
 
 // =============================================================================
@@ -284,22 +287,22 @@ export default function ConversationHistory({ onLoadConversation }) {
             Back
           </button>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.95)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.95)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: FIGTREE }}>
               {selectedConv.title}
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
+            <div style={{ fontSize: 11, color: 'rgba(168,152,130,0.7)', marginTop: 2 }}>
               {selectedConv.message_count || selectedConv.messages?.length || 0} messages
             </div>
           </div>
           <button
             onClick={handleContinue}
             style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8,
-              background: 'rgba(59, 130, 246, 0.9)', border: 'none', color: '#fff',
+              display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 4,
+              background: '#e8853b', border: 'none', color: '#fff',
               fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0,
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59, 130, 246, 1)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(59, 130, 246, 0.9)'; e.currentTarget.style.transform = 'none'; }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#d4732e'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#e8853b'; }}
           >
             <ExternalLink size={14} />
             Continue
@@ -313,8 +316,11 @@ export default function ConversationHistory({ onLoadConversation }) {
         }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {selectedConv.messages?.map((msg, idx) => (
-              <div
+              <motion.div
                 key={idx}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.15 }}
                 style={{
                   display: 'flex', flexDirection: 'column',
                   alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
@@ -322,7 +328,7 @@ export default function ConversationHistory({ onLoadConversation }) {
               >
                 <div style={{
                   fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px',
-                  color: 'rgba(255,255,255,0.35)', marginBottom: 4,
+                  color: 'rgba(168,152,130,0.7)', marginBottom: 4,
                   paddingLeft: msg.role === 'user' ? 0 : 2,
                   paddingRight: msg.role === 'user' ? 2 : 0,
                 }}>
@@ -331,14 +337,13 @@ export default function ConversationHistory({ onLoadConversation }) {
                 <div style={{
                   maxWidth: msg.role === 'user' ? '85%' : '100%',
                   padding: '10px 14px',
-                  borderRadius: 12,
+                  borderRadius: 6,
                   ...(msg.role === 'user' ? {
-                    background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.08) 100%)',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                    background: 'rgba(255,255,255,0.08)',
+                    border: '1px solid rgba(255,255,255,0.12)',
                   } : {
                     background: 'rgba(255,255,255,0.03)',
-                    borderRadius: 12,
+                    borderRadius: 6,
                   }),
                   fontSize: 13, lineHeight: 1.55, color: 'rgba(255,255,255,0.92)',
                 }}>
@@ -346,7 +351,7 @@ export default function ConversationHistory({ onLoadConversation }) {
                     {stripActionBlocks(msg.content || '')}
                   </ReactMarkdown>
                 </div>
-              </div>
+              </motion.div>
             ))}
             <div ref={messagesEndRef} />
           </div>
@@ -372,7 +377,7 @@ export default function ConversationHistory({ onLoadConversation }) {
           onChange={e => setSearchQuery(e.target.value)}
           placeholder="Search conversations..."
           style={{
-            width: '100%', padding: '10px 12px 10px 34px', borderRadius: 10,
+            width: '100%', padding: '10px 12px 10px 34px', borderRadius: 6,
             background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
             color: 'rgba(255,255,255,0.95)', fontSize: 13, outline: 'none',
             transition: 'border-color 0.15s', boxSizing: 'border-box',
@@ -405,7 +410,7 @@ export default function ConversationHistory({ onLoadConversation }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} style={{
-                padding: '14px 16px', borderRadius: 10,
+                padding: '14px 16px', borderRadius: 6,
                 background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
               }}>
                 <div style={{
@@ -426,16 +431,13 @@ export default function ConversationHistory({ onLoadConversation }) {
         ) : filteredConversations.length === 0 ? (
           // Empty state
           <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-            justifyContent: 'center', padding: '60px 20px', textAlign: 'center',
+            display: 'flex', alignItems: 'center', gap: 12,
+            padding: '24px 16px', color: 'rgba(255,255,255,0.4)',
           }}>
-            <MessageSquare size={40} style={{ color: 'rgba(255,255,255,0.12)', marginBottom: 16 }} />
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}>
-              {searchQuery ? 'No matching conversations' : 'No conversations yet'}
-            </div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>
-              {searchQuery ? 'Try a different search term' : 'Start chatting with Agent Max to see your history here'}
-            </div>
+            <MessageSquare size={18} style={{ flexShrink: 0, opacity: 0.5 }} />
+            <span style={{ fontSize: 13 }}>
+              {searchQuery ? 'No matches found' : 'No conversations yet'}
+            </span>
           </div>
         ) : (
           // Time-grouped conversation list
@@ -444,26 +446,30 @@ export default function ConversationHistory({ onLoadConversation }) {
               <div key={group.label}>
                 <div style={{
                   fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px',
-                  color: 'rgba(255,255,255,0.35)', padding: '14px 4px 6px 4px',
+                  color: 'rgba(168,152,130,0.7)', padding: '14px 4px 6px 4px', fontFamily: FIGTREE,
                 }}>
                   {group.label}
                 </div>
-                {group.conversations.map(conv => {
+                {group.conversations.map((conv, idx) => {
                   const isHovered = hoveredId === conv.id;
                   const isDeleting = deleteConfirm === conv.id;
                   const isRenaming = renamingId === conv.id;
 
                   return (
-                    <button
+                    <div
                       key={conv.id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => !isRenaming && handleSelectConv(conv)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !isRenaming) handleSelectConv(conv); }}
                       onMouseEnter={() => setHoveredId(conv.id)}
                       onMouseLeave={() => { setHoveredId(null); if (deleteConfirm === conv.id) setDeleteConfirm(null); }}
                       style={{
                         width: '100%', textAlign: 'left', display: 'block',
-                        padding: '12px 14px', borderRadius: 10, marginBottom: 2,
+                        padding: '12px 14px', borderRadius: 6, marginBottom: 8,
                         background: isHovered ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)',
                         border: `1px solid ${isHovered ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.06)'}`,
+                        borderLeft: isHovered ? '2px solid #e8853b' : '2px solid transparent',
                         cursor: 'pointer', transition: 'all 0.15s', color: 'inherit',
                         position: 'relative',
                       }}
@@ -499,7 +505,7 @@ export default function ConversationHistory({ onLoadConversation }) {
                             {conv.title}
                           </span>
                         )}
-                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        <span style={{ fontSize: 11, color: 'rgba(168,152,130,0.65)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                           {formatTimeAgo(conv.updated_at)}
                         </span>
                       </div>
@@ -507,7 +513,7 @@ export default function ConversationHistory({ onLoadConversation }) {
                       {/* Preview */}
                       {getPreview(conv.messages) && (
                         <div style={{
-                          fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 1.4,
+                          fontSize: 12, color: 'rgba(168,152,130,0.7)', lineHeight: 1.4,
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 6,
                         }}>
                           {getPreview(conv.messages)}
@@ -516,7 +522,7 @@ export default function ConversationHistory({ onLoadConversation }) {
 
                       {/* Bottom row: meta + actions */}
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'rgba(168,152,130,0.65)' }}>
                           <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                             <MessageSquare size={10} />
                             {conv.message_count}
@@ -583,7 +589,7 @@ export default function ConversationHistory({ onLoadConversation }) {
                           )}
                         </div>
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>

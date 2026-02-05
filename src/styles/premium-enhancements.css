@@ -149,18 +149,16 @@ select:focus {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Premium toggle switches */
+/* Premium toggle switches - use accent color, no gradients */
 button[role="switch"],
 .toggle-switch {
-  background: rgba(255, 255, 255, 0.1) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  backdrop-filter: blur(10px);
+  backdrop-filter: none;
 }
 
 button[role="switch"][aria-checked="true"],
 .toggle-switch.enabled {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-  border-color: transparent !important;
+  background: #e8853b !important;
+  border-color: rgba(232, 133, 59, 0.5) !important;
 }
 
 /* Floating elements with premium shadow */
@@ -200,7 +198,7 @@ button[role="switch"][aria-checked="true"],
 
 /* Premium badges */
 .badge,
-[class*="badge"] {
+[class*="badge"]:not(.context-percent-badge) {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
   border: 1px solid rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(10px);
