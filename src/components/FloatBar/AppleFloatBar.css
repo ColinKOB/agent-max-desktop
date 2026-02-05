@@ -55,7 +55,7 @@
 .apple-toolbar, .apple-tool-btn, .apple-input-area, .apple-input, .apple-send-btn { -webkit-app-region: no-drag; }
 
 .apple-toolbar { display: flex; justify-content: flex-end; gap: 6px; padding: 0 4px 0; position: relative; z-index: 10; flex-shrink: 0; }
-.apple-tool-btn { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.9); display:flex; align-items:center; justify-content:center; cursor:pointer; transition: all 0.15s ease; }
+.apple-tool-btn { width: 30px; height: 30px; border-radius: 7px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.9); display:flex; align-items:center; justify-content:center; cursor:pointer; transition: all 0.15s ease; }
 .apple-tool-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.25); transform: translateY(-1px); color: white; }
 
 /* Context usage button - needs transparent background for fill effect */
@@ -253,6 +253,18 @@
   position: relative;
   z-index: 3;
   letter-spacing: -0.2px;
+  background: none !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.context-percent-badge::before,
+.context-percent-badge::after {
+  display: none !important;
+  content: none !important;
 }
 
 /* Remove blue-ish focus glow for toolbar buttons */
@@ -268,7 +280,7 @@
   max-height: 360px; /* Cap at this height, scroll for overflow */
   overflow-y: auto !important;
   overflow-x: hidden;
-  padding: 6px 8px 6px 8px;
+  padding: 6px 8px 24px 8px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -376,6 +388,18 @@
 .apple-message-assistant .apple-message-content code { background: rgba(255,255,255,0.08); padding: 1px 4px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
 .apple-message-assistant .apple-message-content pre { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); padding: 8px; border-radius: 8px; overflow: auto; font-size: 12px; }
 .apple-message-assistant .apple-message-content pre code { background: transparent; padding: 0; }
+/* Headings in assistant messages */
+.apple-message-assistant .apple-message-content h1 { font-size: 16px; font-weight: 700; color: #fff; margin: 1em 0 0.5em 0; }
+.apple-message-assistant .apple-message-content h2 { font-size: 15px; font-weight: 700; color: #fff; margin: 1em 0 0.4em 0; padding-bottom: 0.25em; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.apple-message-assistant .apple-message-content h3 { font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.95); margin: 0.8em 0 0.3em 0; }
+/* Horizontal rules in assistant messages */
+.apple-message-assistant .apple-message-content hr { border: none; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent); margin: 1em 0; }
+/* Blockquotes in assistant messages */
+.apple-message-assistant .apple-message-content blockquote { margin: 0.5em 0; padding: 0.4em 0.8em; border-left: 3px solid rgba(59, 130, 246, 0.5); background: rgba(59, 130, 246, 0.08); border-radius: 0 8px 8px 0; color: rgba(255,255,255,0.85); font-style: italic; }
+/* Bold/strong text */
+.apple-message-assistant .apple-message-content strong { font-weight: 600; color: #fff; }
+/* List markers */
+.apple-message-assistant .apple-message-content li::marker { color: rgba(59, 130, 246, 0.8); }
 /* Remove extra bottom gap from last element in assistant bubble */
 .apple-message-assistant .apple-message-content > :last-child { margin-bottom: 0 !important; }
 /* Remove extra top gap from first element in assistant bubble */
@@ -870,6 +894,8 @@
   border: none !important;
   outline: none !important;
   box-shadow: none !important;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .apple-textarea:focus {
