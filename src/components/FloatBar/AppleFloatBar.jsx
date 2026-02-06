@@ -6481,10 +6481,14 @@ export default function AppleFloatBar({
 
   // Track whether we've already done the initial scroll for the current AI response
   const hasScrolledForResponseRef = useRef(false);
+  // Guard to prevent our own programmatic scrolls from triggering userScrolledUp
+  const isProgrammaticScrollRef = useRef(false);
 
   // Reset the scroll flag when a new user message arrives (thoughts.length changes)
   useEffect(() => {
     hasScrolledForResponseRef.current = false;
+    // Reset userScrolledUp when a new message is sent so auto-scroll works for each query
+    setUserScrolledUp(false);
   }, [thoughts.length]);
 
   useEffect(() => {
@@ -6510,7 +6514,11 @@ export default function AppleFloatBar({
         const userBubbles = el.querySelectorAll('[data-role="user"]');
         const lastUserBubble = userBubbles[userBubbles.length - 1];
         if (lastUserBubble) {
+          // Mark as programmatic so the scroll handler doesn't set userScrolledUp
+          isProgrammaticScrollRef.current = true;
           lastUserBubble.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          // Clear the flag after the smooth scroll completes (~500ms)
+          setTimeout(() => { isProgrammaticScrollRef.current = false; }, 600);
         }
       }, 50);
       return;
@@ -6525,7 +6533,9 @@ export default function AppleFloatBar({
       if (!hasWidgets) {
         setTimeout(() => {
           if (!el) return;
+          isProgrammaticScrollRef.current = true;
           el.scrollTop = el.scrollHeight;
+          setTimeout(() => { isProgrammaticScrollRef.current = false; }, 100);
         }, 50);
       }
     }
@@ -6536,6 +6546,8 @@ export default function AppleFloatBar({
     const el = messagesRef.current;
     if (!el) return;
     const onScroll = () => {
+      // Ignore scroll events triggered by our own programmatic scrolling
+      if (isProgrammaticScrollRef.current) return;
       const atBottom = el.scrollHeight - (el.scrollTop + el.clientHeight) < 8;
       setUserScrolledUp(!atBottom);
     };
