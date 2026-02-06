@@ -4047,6 +4047,8 @@ export default function AppleFloatBar({
           // Clear web search indicator — widget means search results are rendered
           hasReceivedWidgetRef.current = true;
           setWebSearchState({ isSearching: false, citations: [] });
+          // Keep isThinking true — continuation stream with text summary is coming
+          setIsThinking(true);
           setThinkingStatus('');
 
           // Inject :::type marker into stream buffer for RichBlockRenderer
@@ -6514,12 +6516,18 @@ export default function AppleFloatBar({
       return;
     }
 
-    // When streaming completes (message done), scroll to bottom to show full response
+    // When streaming completes (message done):
+    // - If message has widget content, DON'T scroll to bottom (text summary is at top, let user scroll to see widget)
+    // - For normal text messages, scroll to bottom to show full response
     if (!isThinking && !isStreaming) {
-      setTimeout(() => {
-        if (!el) return;
-        el.scrollTop = el.scrollHeight;
-      }, 50);
+      const lastContent = lastThought?.content || '';
+      const hasWidgets = lastContent.includes(':::weather') || lastContent.includes(':::news') || lastContent.includes(':::list');
+      if (!hasWidgets) {
+        setTimeout(() => {
+          if (!el) return;
+          el.scrollTop = el.scrollHeight;
+        }, 50);
+      }
     }
   }, [thoughts.length, isThinking, lastThoughtKey, userScrolledUp]);
 
