@@ -4091,15 +4091,15 @@ export default function AppleFloatBar({
           }
 
           if (searchData.status === 'searching') {
-            // AI started searching the web — show query context
-            setWebSearchState({
+            // AI is searching — show query context
+            setWebSearchState(prev => ({
+              ...prev,
               isSearching: true,
-              citations: []
-            });
+            }));
             const query = searchData.query;
             if (query) {
               // Truncate long queries for display
-              const display = query.length > 40 ? query.slice(0, 40).trim() + '…' : query;
+              const display = query.length > 50 ? query.slice(0, 50).trim() + '…' : query;
               setThinkingStatus(`Searching "${display}"`);
             } else {
               setThinkingStatus('Searching the web...');
