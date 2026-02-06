@@ -9,7 +9,7 @@ import { creditsAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { trackCreditsLowWarning, trackCreditsDepleted, trackUpgradePromptShown } from '../services/analytics';
 
-export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', purchasePackage = 'pro' }) {
+export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', purchasePackage = 'pro', onCreditsChange, refreshTrigger }) {
   const [credits, setCredits] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
@@ -25,6 +25,13 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
     }
     fetchCredits();
   }, [userId, supabaseReady]);
+
+  // Refetch when refreshTrigger changes (e.g., after AI finishes working)
+  useEffect(() => {
+    if (!userId || !supabaseReady || refreshTrigger === 0) return;
+    console.log('[CreditDisplay] Refresh triggered, fetching credits...');
+    fetchCredits();
+  }, [refreshTrigger]);
 
   // FIX #11: Use Supabase realtime subscription instead of aggressive polling
   // Falls back to 30-second polling if realtime unavailable
@@ -47,17 +54,12 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
           const newCredits = payload.new?.credits;
           if (newCredits !== undefined) {
             console.log('[CreditDisplay] Realtime update:', newCredits);
-            const prevCredits = credits;
             setCredits(newCredits);
             setLastUpdate(Date.now());
-            
-            // Show notifications for credit changes
-            if (prevCredits !== null && newCredits < prevCredits) {
-              const diff = prevCredits - newCredits;
-              toast.success(`Used ${diff} credit${diff > 1 ? 's' : ''}. ${newCredits} remaining.`, {
-                icon: '💳',
-                duration: 2000
-              });
+
+            // Notify parent component of credit changes
+            if (onCreditsChange) {
+              onCreditsChange(newCredits);
             }
           }
         })
@@ -103,19 +105,14 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
 
       // Credits are stored directly in users.credits column (not metadata)
       const newCredits = data?.credits || 0;
-      const prevCredits = credits;
-      
+
       setCredits(newCredits);
       setLoading(false);
       setLastUpdate(Date.now());
 
-      // Show toast when credits change (decrease)
-      if (prevCredits !== null && newCredits < prevCredits) {
-        const diff = prevCredits - newCredits;
-        toast.success(`Used ${diff} credit${diff > 1 ? 's' : ''}. ${newCredits} remaining.`, {
-          icon: '💳',
-          duration: 2000
-        });
+      // Notify parent component of credit changes
+      if (onCreditsChange) {
+        onCreditsChange(newCredits);
       }
 
       // Show warning if low
@@ -195,7 +192,7 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
   const isLow = credits < 10;
   const isEmpty = credits === 0;
 
-  // Compact tool-button variant to match top-right tools (32x32 buttons)
+  // Compact tool-button variant to match top-right tools (30x30 buttons)
   // Display-only: no click functionality, just shows credit count
   if (variant === 'tool') {
     return (
@@ -205,7 +202,7 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
           title={`${credits} ${credits === 1 ? 'credit' : 'credits'} remaining`}
           style={{ cursor: 'default' }}
         >
-          <span className="text-[12px] font-semibold">{credits}</span>
+          <span className="text-[11px] font-semibold">{credits}</span>
         </div>
       </div>
     );

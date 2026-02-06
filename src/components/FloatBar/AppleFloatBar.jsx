@@ -3461,8 +3461,9 @@ export default function AppleFloatBar({
 
           // FIX: Update context usage from token counts in done event
           // This enables the context meter to fill up in chatty mode
-          const tokensIn = d.tokens_in || 0;
-          const tokensOut = d.tokens_out || 0;
+          // tokens_in/tokens_out may be at top level of event (chatty SSE) or inside event.data (autonomous)
+          const tokensIn = d.tokens_in || event.tokens_in || 0;
+          const tokensOut = d.tokens_out || event.tokens_out || 0;
           const totalMessageTokens = tokensIn + tokensOut;
           if (totalMessageTokens > 0) {
             setContextUsage((prev) => {
@@ -8527,15 +8528,6 @@ export default function AppleFloatBar({
                   )}
                 </div>
               </div>
-            )}
-
-            {/* Web Search Indicator - shows when AI is searching the web */}
-            {(webSearchState.isSearching || webSearchState.citations.length > 0) && (
-              <WebSearchIndicator
-                isSearching={webSearchState.isSearching}
-                citations={webSearchState.citations}
-                onComplete={() => setWebSearchState({ isSearching: false, citations: [] })}
-              />
             )}
 
             {isThinking && !liveActivitySteps.length && (

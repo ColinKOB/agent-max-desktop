@@ -1065,6 +1065,11 @@ class PullExecutor {
         } else if (tool.startsWith('zendesk.')) {
             return await this.executeIntegrationTool('zendesk', tool, args);
 
+        // === MEMORY TOOLS ===
+        // AI can search past conversations and user facts when uncertain
+        } else if (tool.startsWith('memory.')) {
+            return await this.executeMemoryTool(tool, args);
+
         } else {
             return {
                 success: false,
@@ -1105,6 +1110,257 @@ class PullExecutor {
             return {
                 success: false,
                 error: error.message || `Failed to execute ${service}.${action}`,
+                exit_code: 1
+            };
+        }
+    }
+
+    /**
+     * Execute memory tools - AI can search past conversations and user facts
+     *
+     * Tools:
+     * - memory.search: Semantic search through conversation history
+     * - memory.facts: Get stored facts about the user
+     * - memory.recent: Get recent conversation context
+     * - memory.reflect: Deep search when uncertain
+     *
+     * These tools allow the AI to retrieve context on-demand instead of
+     * pre-loading everything upfront (which wastes tokens).
+     */
+    async executeMemoryTool(tool, args) {
+        const action = tool.split('.').slice(1).join('.'); // e.g., 'memory.search' -> 'search'
+
+        console.log(`[PullExecutor] Memory tool: ${tool}`, args);
+
+        try {
+            // Get user_id for the API call - try multiple sources
+            let userId = this.userContext?.userId || global.executorUserContext?.userId;
+
+            // If no userId yet, try to get it from the current run context
+            if (!userId && this.currentRunContext?.userId) {
+                userId = this.currentRunContext.userId;
+            }
+
+            console.log(`[PullExecutor] Memory tool userId: ${userId ? userId.slice(-8) : 'NOT SET'}`);
+
+            if (action === 'search') {
+                // memory.search - Semantic search through conversation history
+                const query = args.query;
+                const limit = args.limit || 10;
+
+                if (!query) {
+                    return {
+                        success: false,
+                        error: "memory.search requires a 'query' parameter",
+                        exit_code: 1
+                    };
+                }
+
+                console.log(`[PullExecutor] memory.search: "${query}" (limit=${limit})`);
+
+                // Call backend memory API
+                const response = await fetch(`${this.apiClient.baseUrl}/api/memory/retrieval/query`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': this.apiClient.apiKey,
+                        'X-User-Id': userId || 'desktop_user'
+                    },
+                    body: JSON.stringify({
+                        text: query,
+                        k_facts: Math.min(limit, 5),
+                        k_sem: Math.min(limit, 10),
+                        token_budget: 2000,
+                        allow_vectors: true
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Memory search failed: ${response.status} - ${errorText}`);
+                }
+
+                const result = await response.json();
+
+                // Format results for AI
+                let output = `=== Memory Search Results for "${query}" ===\n\n`;
+
+                if (result.semantic_hits && result.semantic_hits.length > 0) {
+                    output += `**Relevant Past Conversations:**\n`;
+                    result.semantic_hits.forEach((hit, i) => {
+                        output += `${i + 1}. ${hit.snippet || hit.content || hit.text || JSON.stringify(hit)}\n`;
+                    });
+                    output += `\n`;
+                }
+
+                if (result.facts && result.facts.length > 0) {
+                    output += `**Related Facts:**\n`;
+                    result.facts.forEach((fact, i) => {
+                        const key = fact.key || fact.predicate || 'info';
+                        const value = fact.value || fact.object || '';
+                        output += `- ${key}: ${value}\n`;
+                    });
+                    output += `\n`;
+                }
+
+                if (result.messages && result.messages.length > 0) {
+                    output += `**Recent Messages:**\n`;
+                    result.messages.slice(0, 5).forEach((msg, i) => {
+                        output += `${msg.role}: ${msg.content?.substring(0, 200)}...\n`;
+                    });
+                }
+
+                if (!result.semantic_hits?.length && !result.facts?.length && !result.messages?.length) {
+                    output = `No results found for "${query}". The user may not have mentioned this before - consider asking them directly.`;
+                }
+
+                return {
+                    success: true,
+                    output: output,
+                    exit_code: 0
+                };
+
+            } else if (action === 'facts') {
+                // memory.facts - Get stored facts about the user
+                const query = args.query || '';
+                const category = args.category || '';
+                const limit = args.limit || 20;
+
+                console.log(`[PullExecutor] memory.facts: query="${query}", category="${category}"`);
+
+                // Call backend facts API
+                let url = `${this.apiClient.baseUrl}/api/memory/facts?limit=${limit}`;
+                if (category) url += `&category=${encodeURIComponent(category)}`;
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': this.apiClient.apiKey,
+                        'X-User-Id': userId || 'desktop_user'
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Facts retrieval failed: ${response.status} - ${errorText}`);
+                }
+
+                const facts = await response.json();
+
+                // Filter by query if provided
+                let filteredFacts = facts;
+                if (query) {
+                    const queryLower = query.toLowerCase();
+                    filteredFacts = facts.filter(f =>
+                        (f.key && f.key.toLowerCase().includes(queryLower)) ||
+                        (f.value && f.value.toLowerCase().includes(queryLower)) ||
+                        (f.category && f.category.toLowerCase().includes(queryLower))
+                    );
+                }
+
+                // Format results for AI
+                let output = `=== User Facts ===\n\n`;
+
+                if (filteredFacts.length > 0) {
+                    // Group by category
+                    const byCategory = {};
+                    filteredFacts.forEach(fact => {
+                        const cat = fact.category || 'general';
+                        if (!byCategory[cat]) byCategory[cat] = [];
+                        byCategory[cat].push(fact);
+                    });
+
+                    for (const [cat, catFacts] of Object.entries(byCategory)) {
+                        output += `**${cat}:**\n`;
+                        catFacts.forEach(f => {
+                            output += `- ${f.key || f.predicate}: ${f.value || f.object}\n`;
+                        });
+                        output += `\n`;
+                    }
+                } else {
+                    output = query
+                        ? `No facts found matching "${query}". Consider asking the user directly.`
+                        : `No facts stored for this user yet.`;
+                }
+
+                return {
+                    success: true,
+                    output: output,
+                    exit_code: 0
+                };
+
+            } else if (action === 'recent') {
+                // memory.recent - Get recent conversation context
+                const limit = args.limit || 20;
+
+                console.log(`[PullExecutor] memory.recent: limit=${limit}`);
+
+                // Get from local context if available
+                const recentMessages = this.userContext?.recent_messages || [];
+
+                let output = `=== Recent Conversation ===\n\n`;
+
+                if (recentMessages.length > 0) {
+                    const messagesToShow = recentMessages.slice(-limit);
+                    messagesToShow.forEach((msg, i) => {
+                        const role = msg.role === 'user' ? 'User' : 'Max';
+                        const content = msg.content?.substring(0, 300) || '';
+                        output += `${role}: ${content}${content.length >= 300 ? '...' : ''}\n\n`;
+                    });
+                } else {
+                    output = `No recent conversation history available.`;
+                }
+
+                return {
+                    success: true,
+                    output: output,
+                    exit_code: 0
+                };
+
+            } else if (action === 'reflect') {
+                // memory.reflect - Deep search when uncertain (combines search + facts)
+                const query = args.query;
+                const reason = args.reason || 'Uncertain about context';
+
+                if (!query) {
+                    return {
+                        success: false,
+                        error: "memory.reflect requires a 'query' parameter",
+                        exit_code: 1
+                    };
+                }
+
+                console.log(`[PullExecutor] memory.reflect: "${query}" (reason: ${reason})`);
+
+                // Do a comprehensive search
+                const searchResult = await this.executeMemoryTool('memory.search', { query, limit: 15 });
+                const factsResult = await this.executeMemoryTool('memory.facts', { query, limit: 10 });
+
+                let output = `=== Deep Memory Reflection ===\n`;
+                output += `Reason: ${reason}\n\n`;
+                output += searchResult.output + '\n';
+                output += factsResult.output;
+
+                return {
+                    success: true,
+                    output: output,
+                    exit_code: 0
+                };
+
+            } else {
+                return {
+                    success: false,
+                    error: `Unknown memory action: ${action}. Available: search, facts, recent, reflect`,
+                    exit_code: 1
+                };
+            }
+
+        } catch (error) {
+            console.error(`[PullExecutor] Memory tool error:`, error);
+            return {
+                success: false,
+                error: error.message || `Failed to execute ${tool}`,
                 exit_code: 1
             };
         }
@@ -1300,12 +1556,13 @@ class PullExecutor {
 
     /**
      * Execute ui.comparison_table tool - displays a formatted comparison table
-     * Renders a markdown table in the chat for comparing items/options.
+     * Opens a dedicated window with a nicely formatted table.
      *
      * @param {Object} args - { title: string, columns: string[], rows: [{label, values: []}], highlight_best: boolean }
      */
     async executeComparisonTable(args) {
         const { BrowserWindow } = require('electron');
+        const path = require('path');
 
         const title = args.title || 'Comparison';
         const columns = args.columns || [];
@@ -1321,42 +1578,176 @@ class PullExecutor {
             };
         }
 
-        const mainWindow = BrowserWindow.getAllWindows().find(w => !w.isDestroyed());
-        if (!mainWindow) {
-            return {
-                success: false,
-                error: 'No window available',
-                exit_code: 1
-            };
-        }
-
-        // Build markdown table
-        let tableMarkdown = `### ${title}\n\n`;
-        tableMarkdown += '| ' + columns.join(' | ') + ' |\n';
-        tableMarkdown += '|' + columns.map(() => '---').join('|') + '|\n';
-
+        // Process rows into a consistent format
+        const processedRows = [];
         for (const row of rows) {
-            const values = row.values || [];
-            // Include row label as first column if provided
-            const rowData = row.label ? [row.label, ...values] : values;
-            tableMarkdown += '| ' + rowData.join(' | ') + ' |\n';
+            let rowData;
+            if (Array.isArray(row)) {
+                rowData = row;
+            } else if (row && typeof row === 'object') {
+                const values = Array.isArray(row.values) ? row.values : [];
+                rowData = row.label ? [row.label, ...values] : values;
+            } else {
+                continue;
+            }
+            processedRows.push(rowData.map(item => String(item ?? '')));
         }
 
-        // Send as a content message event to display in chat
-        mainWindow.webContents.send('ai-stream-event', {
-            type: 'content',
-            data: {
-                content: tableMarkdown,
-                is_artifact: true,
-                artifact_type: 'comparison_table'
+        // Calculate window size based on content
+        const numColumns = columns.length;
+        const numRows = processedRows.length;
+        const windowWidth = Math.min(900, Math.max(400, numColumns * 180));
+        const windowHeight = Math.min(700, Math.max(300, (numRows + 2) * 45 + 80));
+
+        // Create a new window for the table
+        const tableWindow = new BrowserWindow({
+            width: windowWidth,
+            height: windowHeight,
+            title: title,
+            resizable: true,
+            minimizable: true,
+            maximizable: true,
+            alwaysOnTop: true,
+            backgroundColor: '#F7F9FB',
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true
             }
         });
 
+        // Generate HTML for the table
+        const tableHTML = this.generateTableHTML(title, columns, processedRows);
+
+        // Load the HTML directly
+        tableWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(tableHTML)}`);
+
         return {
             success: true,
-            stdout: `Displayed comparison table: ${title} (${columns.length} columns, ${rows.length} rows)`,
+            stdout: `Opened comparison table "${title}" in a new window (${columns.length} columns, ${processedRows.length} rows)`,
             exit_code: 0
         };
+    }
+
+    /**
+     * Generate HTML for the comparison table window
+     * Styled to match Agent Max design system
+     */
+    generateTableHTML(title, columns, rows) {
+        const rowsHTML = rows.map((row, idx) => {
+            const cells = row.map(cell => `<td>${this.escapeHTML(cell)}</td>`).join('');
+            const rowClass = idx % 2 === 0 ? 'even' : 'odd';
+            return `<tr class="${rowClass}">${cells}</tr>`;
+        }).join('');
+
+        const headerCells = columns.map(col => `<th>${this.escapeHTML(col)}</th>`).join('');
+
+        return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>${this.escapeHTML(title)}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: #F7F9FB;
+            color: #0B1220;
+            padding: 16px;
+            min-height: 100vh;
+        }
+        .table-container {
+            overflow-x: auto;
+            border-radius: 12px;
+            background: #FFFFFF;
+            border: 1px solid #E5EAF0;
+            box-shadow: 0 4px 24px rgba(10, 20, 40, 0.08);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th {
+            background: #F1F4F8;
+            color: #0B1220;
+            font-weight: 600;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid #E5EAF0;
+            white-space: nowrap;
+        }
+        td {
+            padding: 10px 16px;
+            border-bottom: 1px solid #E5EAF0;
+            vertical-align: top;
+            line-height: 1.5;
+            color: #0B1220;
+        }
+        tr.even {
+            background: #FFFFFF;
+        }
+        tr.odd {
+            background: #F9FAFB;
+        }
+        tr:hover {
+            background: #EFF6FF;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        /* First column styling (usually labels) */
+        td:first-child {
+            font-weight: 500;
+            color: #0FB5AE;
+            white-space: nowrap;
+        }
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F1F4F8;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #D1D5DB;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9CA3AF;
+        }
+    </style>
+</head>
+<body>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>${headerCells}</tr>
+            </thead>
+            <tbody>
+                ${rowsHTML}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>`;
+    }
+
+    /**
+     * Escape HTML special characters
+     */
+    escapeHTML(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     /**
@@ -4371,19 +4762,36 @@ class PullExecutor {
                     'right': 'right arrow'
                 };
 
+                // Use key code for special keys, keystroke for regular characters
                 let script;
                 if (specialKeys[key]) {
-                    script = `
-                        tell application "System Events"
-                            key code ${this.getKeyCode(specialKeys[key])} using {${modifierStr}}
-                        end tell
-                    `;
-                    // Fallback to keystroke for simpler handling
-                    script = `
-                        tell application "System Events"
-                            keystroke "${key}" using {${modifierStr}}
-                        end tell
-                    `;
+                    // Map special keys to their AppleScript key code numbers
+                    const keyCodeMap = {
+                        'return': 36,
+                        'tab': 48,
+                        'escape': 53,
+                        'space': 49,
+                        'delete': 51,
+                        'up arrow': 126,
+                        'down arrow': 125,
+                        'left arrow': 123,
+                        'right arrow': 124
+                    };
+                    const keyCode = keyCodeMap[specialKeys[key]];
+                    if (keyCode !== undefined) {
+                        script = `
+                            tell application "System Events"
+                                key code ${keyCode} using {${modifierStr}}
+                            end tell
+                        `;
+                    } else {
+                        // Fallback to keystroke for unknown special keys
+                        script = `
+                            tell application "System Events"
+                                keystroke "${key}" using {${modifierStr}}
+                            end tell
+                        `;
+                    }
                 } else {
                     script = `
                         tell application "System Events"

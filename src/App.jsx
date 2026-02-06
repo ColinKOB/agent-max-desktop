@@ -454,6 +454,7 @@ function App({ windowMode = 'single' }) {
         onDismiss={() => setUpdateInfo(null)}
       />
       {/* UserInputDialog removed - ask_user now handled inline in AppleFloatBar */}
+      {/* Toast notifications disabled per user request
       <Toaster
         position="bottom-right"
         toastOptions={{
@@ -467,6 +468,7 @@ function App({ windowMode = 'single' }) {
           },
         }}
       />
+      */}
     </PermissionProvider>
   );
 }

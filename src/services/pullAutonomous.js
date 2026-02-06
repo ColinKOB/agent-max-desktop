@@ -12,6 +12,63 @@ import apiConfigManager from '../config/apiConfig';
 import useStore from '../store/useStore';
 import { captureBetaSessionContext } from './analytics';
 
+/**
+ * Determine if a task needs visual context (screenshot).
+ *
+ * Returns true for visual/UI tasks, false for text-based tasks.
+ * Skipping screenshots for non-visual tasks:
+ * 1. Reduces latency (no screenshot capture time)
+ * 2. Saves bandwidth (no image data sent)
+ * 3. Enables OpenAI prompt caching (50% discount when system prompt is identical)
+ *
+ * @param {string} userMessage - The user's message
+ * @returns {boolean} - True if screenshot is needed
+ */
+function taskNeedsVisualContext(userMessage) {
+    const msgLower = (userMessage || '').toLowerCase();
+
+    // Keywords that indicate visual context is needed
+    const visualKeywords = [
+        "screen", "see", "seeing", "looking at", "visible", "show", "showing",
+        "display", "displayed", "image", "picture", "photo",
+        "what is this", "what's this", "describe this", "what am i looking at",
+        "click", "button", "icon", "window", "app", "application",
+        "ui", "interface", "layout", "design", "screenshot",
+        "on my screen", "on the screen", "in front of me"
+    ];
+
+    // Check if any visual keyword is in the message
+    for (const keyword of visualKeywords) {
+        if (msgLower.includes(keyword)) {
+            logger.info('[VisualContext] YES - matched keyword:', keyword);
+            return true;
+        }
+    }
+
+    // Keywords that indicate NO visual context needed (text-based tasks)
+    const nonVisualKeywords = [
+        "search", "search for", "look up", "find online",
+        "weather", "stock", "price",
+        "remember", "recall", "told you", "mentioned",
+        "what is", "who is", "when did", "where is", "why", "how do",
+        "calculate", "compute", "convert",
+        "email", "calendar", "gmail", "schedule",
+        "tell me", "explain", "define", "summarize",
+        "write", "create a", "help me with", "draft"
+    ];
+
+    for (const keyword of nonVisualKeywords) {
+        if (msgLower.includes(keyword)) {
+            logger.info('[VisualContext] NO - matched non-visual keyword:', keyword);
+            return false;
+        }
+    }
+
+    // Default: skip screenshot unless visual keywords matched
+    logger.info('[VisualContext] DEFAULT NO - no visual patterns matched');
+    return false;
+}
+
 class PullAutonomousService {
     constructor() {
         this.activeRuns = new Map();
@@ -20,24 +77,51 @@ class PullAutonomousService {
         this.maxPollTime = 300000; // 5 minutes max
         this.isStopped = false; // Flag to prevent new polls after stop
 
+        // MIGRATION: Clean up old localStorage key if it exists
+        // Previously used 'agent_max_session_id', now unified to 'session_id'
+        this._migrateOldSessionKey();
+
         // Session ID for conversation continuity
         // Persists across messages in the same app session
         this.sessionId = this._getOrCreateSessionId();
     }
 
     /**
+     * Migrate from old 'agent_max_session_id' key to unified 'session_id'
+     * This ensures users don't have stale session data after the fix
+     */
+    _migrateOldSessionKey() {
+        try {
+            const oldKey = localStorage.getItem('agent_max_session_id');
+            if (oldKey) {
+                // Remove the old key to prevent confusion
+                localStorage.removeItem('agent_max_session_id');
+                logger.info('[PullAutonomous] Migrated: removed old agent_max_session_id key');
+            }
+        } catch (e) {
+            // Ignore migration errors
+        }
+    }
+
+    /**
      * Get or create a session ID for conversation continuity
      * Session persists until app restart or explicit clear
+     *
+     * FIX: Use unified 'session_id' key to match AppleFloatBar.jsx
+     * Previously used 'agent_max_session_id' which caused mismatch when
+     * user clicked "New Conversation" - the frontend would create a new
+     * session_id but this service would keep using the old one.
      */
     _getOrCreateSessionId() {
         try {
             // Try to get existing session from localStorage
-            let sessionId = localStorage.getItem('agent_max_session_id');
+            // UNIFIED KEY: Use 'session_id' to match AppleFloatBar.jsx
+            let sessionId = localStorage.getItem('session_id');
 
             if (!sessionId) {
                 // Generate new session ID
                 sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                localStorage.setItem('agent_max_session_id', sessionId);
+                localStorage.setItem('session_id', sessionId);
                 logger.info('[PullAutonomous] Created new session:', sessionId);
             } else {
                 logger.info('[PullAutonomous] Using existing session:', sessionId);
@@ -55,12 +139,15 @@ class PullAutonomousService {
     /**
      * Clear the current session (start fresh conversation)
      * Also notifies the backend to clear session state
+     *
+     * FIX: Use unified 'session_id' key to match AppleFloatBar.jsx
      */
     async clearSession() {
         const oldSessionId = this.sessionId;
         try {
             // Clear local session
-            localStorage.removeItem('agent_max_session_id');
+            // UNIFIED KEY: Use 'session_id' to match AppleFloatBar.jsx
+            localStorage.removeItem('session_id');
             this.sessionId = this._getOrCreateSessionId();
             logger.info('[PullAutonomous] Session cleared, new session:', this.sessionId);
 
@@ -270,9 +357,15 @@ class PullAutonomousService {
         // Get system context from desktop (where files will actually be created)
         const systemContext = await window.executor.getSystemContext();
 
-        // PRODUCTIVITY FEATURE: Capture screenshot for context on every auto-mode request
+        // PRODUCTIVITY FEATURE: Capture screenshot for context on auto-mode requests
         // This gives Max visual context of what the user is looking at when they send a request
-        // NOTE: User-provided images (drag-drop) take priority over auto-captured screenshots
+        //
+        // OPTIMIZATION: Skip screenshots for non-visual tasks to:
+        // 1. Reduce latency (no screenshot capture time ~100-500ms)
+        // 2. Save bandwidth (screenshots are ~500KB-2MB)
+        // 3. Enable OpenAI prompt caching (50% discount when system prompt is identical)
+        //
+        // NOTE: User-provided images (drag-drop) always take priority
         let initialScreenshot = null;
 
         if (userImage) {
@@ -284,15 +377,15 @@ class PullAutonomousService {
             logger.info('[PullAutonomous] Using user-provided image', {
                 sizeKB: Math.round(initialScreenshot.length / 1024)
             });
-        } else {
-            // No user image - capture screen automatically
+        } else if (taskNeedsVisualContext(message)) {
+            // Task needs visual context - capture screen automatically
             try {
                 const screenshotStart = Date.now();
                 const screenshotResult = await window.executor.captureScreen();
                 if (screenshotResult?.base64) {
                     initialScreenshot = screenshotResult.base64;
                     const captureTime = Date.now() - screenshotStart;
-                    logger.info('[PullAutonomous] Screen captured for context', {
+                    logger.info('[PullAutonomous] Screen captured for visual task', {
                         sizeKB: Math.round(initialScreenshot.length / 1024),
                         captureTimeMs: captureTime
                     });
@@ -301,6 +394,9 @@ class PullAutonomousService {
                 // Screenshot capture is optional - don't fail the request if it doesn't work
                 logger.warn('[PullAutonomous] Could not capture screen (non-fatal)', e?.message || e);
             }
+        } else {
+            // Non-visual task - skip screenshot for faster response and better caching
+            logger.info('[PullAutonomous] Skipping screenshot for non-visual task (enables prompt caching)');
         }
         
         // Include user_id for billing (token accrual)

@@ -112,6 +112,55 @@ contextBridge.exposeInMainWorld('electron', {
     status: () => ipcRenderer.invoke('hands-on-desktop:status'),
   },
 
+  // Profile Cache (Phase 4) - Local SQLite cache for user profile and facts
+  profileCache: {
+    // User profile
+    getProfile: (userId) => ipcRenderer.invoke('profile-cache:get-profile', userId),
+    saveProfile: (profile) => ipcRenderer.invoke('profile-cache:save-profile', profile),
+    updateCredits: (userId, credits) =>
+      ipcRenderer.invoke('profile-cache:update-credits', { userId, credits }),
+    hasProfile: (userId) => ipcRenderer.invoke('profile-cache:has-profile', userId),
+
+    // Facts
+    getFacts: (userId, category) =>
+      ipcRenderer.invoke('profile-cache:get-facts', { userId, category }),
+    saveFacts: (userId, facts) =>
+      ipcRenderer.invoke('profile-cache:save-facts', { userId, facts }),
+    setFact: (userId, category, key, value, source) =>
+      ipcRenderer.invoke('profile-cache:set-fact', { userId, category, key, value, source }),
+    searchFacts: (userId, query) =>
+      ipcRenderer.invoke('profile-cache:search-facts', { userId, query }),
+    getPendingFacts: (userId) =>
+      ipcRenderer.invoke('profile-cache:get-pending-facts', userId),
+    markFactsSynced: (factIds) =>
+      ipcRenderer.invoke('profile-cache:mark-facts-synced', factIds),
+
+    // Preferences
+    getPreferences: (userId) => ipcRenderer.invoke('profile-cache:get-preferences', userId),
+    savePreferences: (userId, preferences) =>
+      ipcRenderer.invoke('profile-cache:save-preferences', { userId, preferences }),
+    setPreference: (userId, key, value, category) =>
+      ipcRenderer.invoke('profile-cache:set-preference', { userId, key, value, category }),
+
+    // Utilities
+    getStats: () => ipcRenderer.invoke('profile-cache:get-stats'),
+    clear: (userId) => ipcRenderer.invoke('profile-cache:clear', userId),
+    getSyncLog: (userId, limit) =>
+      ipcRenderer.invoke('profile-cache:get-sync-log', { userId, limit }),
+
+    // Conversation Summaries
+    saveSummary: (userId, sessionId, summary, messageCount, topics) =>
+      ipcRenderer.invoke('profile-cache:save-summary', { userId, sessionId, summary, messageCount, topics }),
+    getSummaries: (userId, limit) =>
+      ipcRenderer.invoke('profile-cache:get-summaries', { userId, limit }),
+    getSummaryBySession: (sessionId) =>
+      ipcRenderer.invoke('profile-cache:get-summary-by-session', sessionId),
+    buildSummaryContext: (userId, limit) =>
+      ipcRenderer.invoke('profile-cache:build-summary-context', { userId, limit }),
+    getSummaryCount: (userId) =>
+      ipcRenderer.invoke('profile-cache:get-summary-count', userId),
+  },
+
   // App Discovery for personalized onboarding
   appDiscovery: {
     // Get full user context (installed apps + desktop files + platform info)

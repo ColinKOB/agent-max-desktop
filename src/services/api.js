@@ -570,20 +570,21 @@ export const chatAPI = {
       return defaultValue;
     })();
 
-    // CRITICAL: Use chat streaming endpoint for all modes
-    // The chat streaming endpoint handles mode internally via the 'mode' field in payload
-    // The old /api/v2/agent/execute/stream and /api/v2/autonomous/execute/stream are deprecated
-    // and return 404/410 respectively.
+    // Use different endpoints for chatty vs autonomous mode
+    // Chatty mode uses the new simplified /api/v2/chatty/stream endpoint
+    // Autonomous mode uses the full /api/v2/chat/streaming/stream endpoint
     const isAutonomous = requestedMode === 'autonomous';
-    const endpoints = disableLegacyFallbacks
-      ? [ `${baseURL}/api/v2/chat/streaming/stream` ]
-      : [
+    const endpoints = isAutonomous
+      ? [
+          // Autonomous mode: use full chat streaming with routing/planning
           `${baseURL}/api/v2/chat/streaming/stream`,
           `${baseURL}/api/chat/streaming/stream`,
-          `${baseURL}/api/v2/chat/stream`,
-          `${baseURL}/api/chat/stream`,
-          `${baseURL}/api/v2/chat/streaming`,
-          `${baseURL}/api/chat/streaming`
+        ]
+      : [
+          // Chatty mode: use new simplified endpoint (no routing heuristics)
+          `${baseURL}/api/v2/chatty/stream`,
+          // Fallback to old endpoint if new one unavailable
+          `${baseURL}/api/v2/chat/streaming/stream`,
         ];
 
     // Build payload based on endpoint
@@ -1074,6 +1075,12 @@ export const chatAPI = {
                 } else if (eventType === 'metadata') {
                   const md = getPayloadData(parsed);
                   onEvent({ type: 'metadata', data: md });
+                } else if (eventType === 'widget') {
+                  const widgetData = getPayloadData(parsed);
+                  onEvent({ type: 'widget', data: widgetData });
+                } else if (eventType === 'web_search') {
+                  const searchData = getPayloadData(parsed);
+                  onEvent({ type: 'web_search', data: searchData });
                     } else {
                       onEvent(parsed);
                     }

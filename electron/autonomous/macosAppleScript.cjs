@@ -1081,6 +1081,31 @@ end tell`;
         if (!query) return { success: false, error: 'Missing required argument: query', exit_code: 1 };
         const limit = args.limit || 10;
 
+        // Try SQLite first for speed (~0.05s vs potentially slow AppleScript)
+        try {
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs');
+            const notesDb = path.join(os.homedir(), 'Library/Group Containers/group.com.apple.notes/NoteStore.sqlite');
+
+            if (fs.existsSync(notesDb)) {
+                const escapedQuery = query.replace(/'/g, "''").replace(/%/g, '\\%').replace(/_/g, '\\_');
+                const sqlQuery = `SELECT ZTITLE FROM ZICCLOUDSYNCINGOBJECT WHERE ZTITLE IS NOT NULL AND ZMARKEDFORDELETION = 0 AND ZTITLE LIKE '%${escapedQuery}%' ESCAPE '\\\\' ORDER BY ZMODIFICATIONDATE1 DESC LIMIT ${limit};`;
+                const { stdout } = await execAsync(`sqlite3 "${notesDb}" "${sqlQuery}"`, { timeout: 3000 });
+
+                if (stdout.trim()) {
+                    const notes = stdout.trim().split('\n').filter(n => n.trim());
+                    if (notes.length > 0) {
+                        return { success: true, stdout: `Found ${notes.length} notes matching "${query}":\n- ${notes.join('\n- ')}`, exit_code: 0 };
+                    }
+                }
+                return { success: true, stdout: `No notes found matching: ${query}`, exit_code: 0 };
+            }
+        } catch (e) {
+            console.log('[notes.search] SQLite failed, falling back to AppleScript:', e.message);
+        }
+
+        // Fallback to AppleScript if SQLite fails
         const escapedQuery = query.replace(/"/g, '\\"');
         const script = `
 tell application "Notes"
@@ -1106,6 +1131,33 @@ end tell`;
         const folder = args.folder;
         const limit = args.limit || 20;
 
+        // Try SQLite first for speed (~0.05s vs potentially slow AppleScript)
+        // Note: folder filtering not supported via SQLite, only works for all notes
+        if (!folder) {
+            try {
+                const os = require('os');
+                const path = require('path');
+                const fs = require('fs');
+                const notesDb = path.join(os.homedir(), 'Library/Group Containers/group.com.apple.notes/NoteStore.sqlite');
+
+                if (fs.existsSync(notesDb)) {
+                    const sqlQuery = `SELECT ZTITLE FROM ZICCLOUDSYNCINGOBJECT WHERE ZTITLE IS NOT NULL AND ZMARKEDFORDELETION = 0 ORDER BY ZMODIFICATIONDATE1 DESC LIMIT ${limit};`;
+                    const { stdout } = await execAsync(`sqlite3 "${notesDb}" "${sqlQuery}"`, { timeout: 3000 });
+
+                    if (stdout.trim()) {
+                        const notes = stdout.trim().split('\n').filter(n => n.trim());
+                        if (notes.length > 0) {
+                            return { success: true, stdout: `All notes:\n- ${notes.join('\n- ')}`, exit_code: 0 };
+                        }
+                    }
+                    return { success: true, stdout: 'No notes found.', exit_code: 0 };
+                }
+            } catch (e) {
+                console.log('[notes.list] SQLite failed, falling back to AppleScript:', e.message);
+            }
+        }
+
+        // Fallback to AppleScript (required for folder filtering or if SQLite fails)
         let script;
         if (folder) {
             const escapedFolder = folder.replace(/"/g, '\\"');
@@ -1214,6 +1266,45 @@ const mailTools = {
     async get_unread(args) {
         const limit = args.limit || 10;
 
+        // Try SQLite first for speed (~0.005s vs potentially slow AppleScript)
+        try {
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs');
+            const mailDb = path.join(os.homedir(), 'Library/Mail/V10/MailData/Envelope Index');
+
+            if (fs.existsSync(mailDb)) {
+                const sqlQuery = `
+                    SELECT s.subject, a.address, datetime(m.date_received, 'unixepoch', 'localtime') as date
+                    FROM messages m
+                    JOIN subjects s ON m.subject = s.ROWID
+                    JOIN addresses a ON m.sender = a.ROWID
+                    WHERE m.read = 0 AND m.deleted = 0
+                    ORDER BY m.date_received DESC
+                    LIMIT ${limit};
+                `;
+                const { stdout } = await execAsync(`sqlite3 "${mailDb}" "${sqlQuery.replace(/\n/g, ' ')}"`, { timeout: 3000 });
+
+                if (stdout.trim()) {
+                    const messages = stdout.trim().split('\n').filter(m => m.trim());
+                    if (messages.length > 0) {
+                        const formatted = messages.map(msg => {
+                            const parts = msg.split('|');
+                            const subject = parts[0] || '(no subject)';
+                            const sender = parts[1] || 'Unknown';
+                            const date = parts[2] || '';
+                            return `- ${subject}\n  From: ${sender}\n  Date: ${date}`;
+                        }).join('\n\n');
+                        return { success: true, stdout: `Unread messages (${messages.length}):\n\n${formatted}`, exit_code: 0 };
+                    }
+                }
+                return { success: true, stdout: 'No unread messages', exit_code: 0 };
+            }
+        } catch (e) {
+            console.log('[mail.get_unread] SQLite failed, falling back to AppleScript:', e.message);
+        }
+
+        // Fallback to AppleScript if SQLite fails
         const script = `
 tell application "Mail"
     set unreadList to ""
@@ -1307,6 +1398,45 @@ end tell`;
         if (!query) return { success: false, error: 'Missing required argument: query', exit_code: 1 };
         const limit = args.limit || 10;
 
+        // Try SQLite first for speed (~0.01s vs potentially slow AppleScript)
+        try {
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs');
+            const mailDb = path.join(os.homedir(), 'Library/Mail/V10/MailData/Envelope Index');
+
+            if (fs.existsSync(mailDb)) {
+                const escapedQuery = query.replace(/'/g, "''").replace(/%/g, '\\%').replace(/_/g, '\\_');
+                const sqlQuery = `
+                    SELECT s.subject, a.address, datetime(m.date_received, 'unixepoch', 'localtime') as date
+                    FROM messages m
+                    JOIN subjects s ON m.subject = s.ROWID
+                    JOIN addresses a ON m.sender = a.ROWID
+                    WHERE m.deleted = 0 AND s.subject LIKE '%${escapedQuery}%' ESCAPE '\\\\'
+                    ORDER BY m.date_received DESC
+                    LIMIT ${limit};
+                `;
+                const { stdout } = await execAsync(`sqlite3 "${mailDb}" "${sqlQuery.replace(/\n/g, ' ')}"`, { timeout: 3000 });
+
+                if (stdout.trim()) {
+                    const messages = stdout.trim().split('\n').filter(m => m.trim());
+                    if (messages.length > 0) {
+                        const formatted = messages.map(msg => {
+                            const parts = msg.split('|');
+                            const subject = parts[0] || '(no subject)';
+                            const sender = parts[1] || 'Unknown';
+                            return `- ${subject} (from: ${sender})`;
+                        }).join('\n');
+                        return { success: true, stdout: `Found ${messages.length} messages:\n${formatted}`, exit_code: 0 };
+                    }
+                }
+                return { success: true, stdout: `No messages found matching: ${query}`, exit_code: 0 };
+            }
+        } catch (e) {
+            console.log('[mail.search] SQLite failed, falling back to AppleScript:', e.message);
+        }
+
+        // Fallback to AppleScript if SQLite fails
         const escapedQuery = query.replace(/"/g, '\\"');
         const script = `
 tell application "Mail"
@@ -1357,92 +1487,178 @@ return "Mail activated"`;
 
 const calendarTools = {
     async get_today(args) {
-        // Get today's events using date range filtering
+        // FAST PATH: Use SQLite direct query (1000x faster than AppleScript)
+        try {
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs');
+
+            const dbPath = path.join(os.homedir(), 'Library/Group Containers/group.com.apple.calendar/Calendar.sqlitedb');
+
+            if (fs.existsSync(dbPath)) {
+                // Calculate today's date range (CoreData uses different epoch: 2001-01-01)
+                const now = new Date();
+                const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+                const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+                // CoreData epoch offset (seconds from 1970-01-01 to 2001-01-01)
+                const CORE_DATA_EPOCH = 978307200;
+                const startTimestamp = Math.floor(startOfDay.getTime() / 1000) - CORE_DATA_EPOCH;
+                const endTimestamp = Math.floor(endOfDay.getTime() / 1000) - CORE_DATA_EPOCH;
+
+                const query = `
+                    SELECT
+                        time(start_date + ${CORE_DATA_EPOCH}, 'unixepoch', 'localtime') as start_time,
+                        summary
+                    FROM CalendarItem
+                    WHERE start_date >= ${startTimestamp}
+                      AND start_date < ${endTimestamp}
+                      AND summary IS NOT NULL
+                    ORDER BY start_date
+                    LIMIT 15;
+                `;
+
+                const { stdout } = await execAsync(`sqlite3 "${dbPath}" "${query.replace(/\n/g, ' ')}"`, { timeout: 5000 });
+                const events = stdout.trim().split('\n').filter(e => e.trim());
+
+                if (events.length === 0) {
+                    return { success: true, stdout: 'No events on your calendar today.', exit_code: 0 };
+                }
+
+                const formatted = events.map(e => {
+                    const [time, ...summaryParts] = e.split('|');
+                    const summary = summaryParts.join('|');
+                    return `• ${time} - ${summary}`;
+                }).join('\n');
+
+                return { success: true, stdout: "Today's events:\n" + formatted, exit_code: 0 };
+            }
+        } catch (e) {
+            console.log('[calendar.get_today] SQLite failed, falling back to AppleScript:', e.message);
+        }
+
+        // Fallback: Ensure Calendar is running silently, then use AppleScript
+        try {
+            await execAsync('open -gj -a Calendar', { timeout: 3000 });
+            await new Promise(r => setTimeout(r, 500));
+        } catch (e) {}
+
         const script = `
 tell application "Calendar"
-    activate
     set today to current date
     set startOfDay to today - (time of today)
     set endOfDay to startOfDay + (24 * 60 * 60)
+    set allEvents to {}
 
-    set eventList to ""
-    set eventCount to 0
-    set maxEvents to 15
-
-    repeat with cal in calendars
-        if eventCount >= maxEvents then exit repeat
+    repeat with cal in (calendars whose name is not "Siri Suggestions")
         try
             set calName to name of cal
-            -- Get events within today's date range
             set todayEvents to (every event of cal whose start date >= startOfDay and start date < endOfDay)
-            repeat with ev in todayEvents
-                if eventCount >= maxEvents then exit repeat
-                try
-                    set evSummary to summary of ev
-                    set evStart to start date of ev
-                    set timeStr to time string of evStart
-                    set eventList to eventList & "• " & timeStr & " - " & evSummary & " [" & calName & "]" & return
-                    set eventCount to eventCount + 1
-                end try
-            end repeat
+            if (count of todayEvents) > 0 then
+                repeat with ev in todayEvents
+                    set end of allEvents to {summary of ev, start date of ev, calName}
+                end repeat
+            end if
         end try
+        if (count of allEvents) >= 15 then exit repeat
     end repeat
 
-    if eventCount = 0 then
+    if (count of allEvents) = 0 then
         return "No events on your calendar today."
-    else
-        return "Today's events:" & return & eventList
     end if
+
+    set output to "Today's events:" & return
+    repeat with evData in allEvents
+        set evTime to time string of (item 2 of evData)
+        set output to output & "• " & evTime & " - " & (item 1 of evData) & " [" & (item 3 of evData) & "]" & return
+    end repeat
+    return output
 end tell`;
         return await runAppleScriptMultiline(script);
     },
 
     async get_upcoming(args) {
         const days = args.days || 7;
+        const limit = args.limit || 20;
 
-        // More robust script that handles calendars with many events
+        // FAST PATH: Use SQLite direct query
+        try {
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs');
+
+            const dbPath = path.join(os.homedir(), 'Library/Group Containers/group.com.apple.calendar/Calendar.sqlitedb');
+
+            if (fs.existsSync(dbPath)) {
+                const CORE_DATA_EPOCH = 978307200;
+                const now = new Date();
+                const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+                const endDate = new Date(startOfDay.getTime() + days * 24 * 60 * 60 * 1000);
+                const startTs = Math.floor(startOfDay.getTime() / 1000) - CORE_DATA_EPOCH;
+                const endTs = Math.floor(endDate.getTime() / 1000) - CORE_DATA_EPOCH;
+
+                const query = `
+                    SELECT
+                        date(start_date + ${CORE_DATA_EPOCH}, 'unixepoch', 'localtime') as event_date,
+                        time(start_date + ${CORE_DATA_EPOCH}, 'unixepoch', 'localtime') as event_time,
+                        summary
+                    FROM CalendarItem
+                    WHERE start_date >= ${startTs}
+                      AND start_date < ${endTs}
+                      AND summary IS NOT NULL
+                    ORDER BY start_date
+                    LIMIT ${limit};
+                `.replace(/\n/g, ' ');
+
+                const { stdout } = await execAsync(`sqlite3 "${dbPath}" "${query}"`, { timeout: 5000 });
+                const events = stdout.trim().split('\n').filter(e => e.trim());
+
+                if (events.length === 0) {
+                    return { success: true, stdout: `No upcoming events in the next ${days} days.`, exit_code: 0 };
+                }
+
+                const formatted = events.map(e => {
+                    const parts = e.split('|');
+                    const date = parts[0] || '';
+                    const time = parts[1] || '';
+                    const summary = parts.slice(2).join('|') || '';
+                    return `• ${date} ${time} - ${summary}`;
+                }).join('\n');
+
+                return { success: true, stdout: `Upcoming events (next ${days} days):\n${formatted}`, exit_code: 0 };
+            }
+        } catch (e) {
+            console.log('[calendar.get_upcoming] SQLite failed:', e.message);
+        }
+
+        // Fallback to AppleScript
+        try {
+            await execAsync('open -gj -a Calendar', { timeout: 3000 });
+            await new Promise(r => setTimeout(r, 500));
+        } catch (e) {}
+
         const script = `
 tell application "Calendar"
-    activate
     set today to current date
     set startOfDay to today - (time of today)
     set endDate to startOfDay + (${days} * 24 * 60 * 60)
-
     set eventList to ""
     set eventCount to 0
-    set maxEvents to 20
 
     repeat with cal in calendars
-        if eventCount >= maxEvents then exit repeat
+        if eventCount >= ${limit} then exit repeat
         try
-            set calName to name of cal
-            -- Only check first 50 events per calendar to avoid timeout
-            set calEvents to events of cal
-            set checkCount to 0
-            repeat with ev in calEvents
-                set checkCount to checkCount + 1
-                if checkCount > 50 then exit repeat
-                if eventCount >= maxEvents then exit repeat
-
-                try
-                    set evStart to start date of ev
-                    if evStart >= startOfDay and evStart < endDate then
-                        set evSummary to summary of ev
-                        set eventList to eventList & "- " & evSummary & " (" & (evStart as string) & ")" & return
-                        set eventCount to eventCount + 1
-                    end if
-                end try
+            set todayEvents to (every event of cal whose start date >= startOfDay and start date < endDate)
+            repeat with ev in todayEvents
+                if eventCount >= ${limit} then exit repeat
+                set eventList to eventList & "• " & (summary of ev) & " (" & (start date of ev as string) & ")" & return
+                set eventCount to eventCount + 1
             end repeat
-        on error errMsg
-            -- Skip calendars that error
         end try
     end repeat
 
-    if eventList is "" then
-        return "No upcoming events in next ${days} days (checked local Calendar app)"
-    else
-        return "Upcoming events (next ${days} days):" & return & eventList
-    end if
+    if eventList is "" then return "No upcoming events in next ${days} days"
+    return "Upcoming events (next ${days} days):" & return & eventList
 end tell`;
         return await runAppleScriptMultiline(script);
     },
@@ -1471,7 +1687,7 @@ end tell`;
 
         const script = `
 tell application "Calendar"
-    activate
+    -- activate removed to prevent screen takeover
     ${calScript}
     ${dateScript}
     ${endScript}
@@ -1489,10 +1705,43 @@ end tell`;
         if (!query) return { success: false, error: 'Missing required argument: query', exit_code: 1 };
         const limit = args.limit || 10;
 
+        // Try SQLite first for speed (~0.01s vs ~30s for AppleScript)
+        try {
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs');
+            const calendarDb = path.join(os.homedir(), 'Library/Group Containers/group.com.apple.calendar/Calendar.sqlitedb');
+
+            if (fs.existsSync(calendarDb)) {
+                // Escape query for SQL LIKE clause
+                const escapedQuery = query.replace(/'/g, "''").replace(/%/g, '\\%').replace(/_/g, '\\_');
+                const sqlQuery = `SELECT summary, date(start_date + 978307200, 'unixepoch', 'localtime') as event_date FROM CalendarItem WHERE summary LIKE '%${escapedQuery}%' ESCAPE '\\\\' AND summary IS NOT NULL ORDER BY start_date DESC LIMIT ${limit};`;
+
+                const { stdout, stderr } = await execAsync(`sqlite3 "${calendarDb}" "${sqlQuery}"`, { timeout: 3000 });
+
+                if (stdout.trim()) {
+                    const events = stdout.trim().split('\n').filter(e => e.trim());
+                    if (events.length > 0) {
+                        const formatted = events.map(e => {
+                            const parts = e.split('|');
+                            const title = parts[0] || 'Untitled';
+                            const date = parts[1] || '';
+                            return `- ${title}${date ? ` (${date})` : ''}`;
+                        }).join('\n');
+                        return { success: true, stdout: `Found ${events.length} events matching "${query}":\n${formatted}`, exit_code: 0 };
+                    }
+                }
+                return { success: true, stdout: `No events found matching: ${query}`, exit_code: 0 };
+            }
+        } catch (e) {
+            console.log('[calendar.search] SQLite failed, falling back to AppleScript:', e.message);
+        }
+
+        // Fallback to AppleScript if SQLite fails
         const escapedQuery = query.replace(/"/g, '\\"');
         const script = `
 tell application "Calendar"
-    activate
+    -- activate removed to prevent screen takeover
     set resultList to ""
     set evCount to 0
     repeat with cal in calendars
@@ -1521,7 +1770,7 @@ end tell`;
         const escapedTitle = title.replace(/"/g, '\\"');
         const script = `
 tell application "Calendar"
-    activate
+    -- activate removed to prevent screen takeover
     repeat with cal in calendars
         set matchingEvents to (events of cal whose summary is "${escapedTitle}")
         if (count of matchingEvents) > 0 then
@@ -1537,7 +1786,7 @@ end tell`;
     async list_calendars(args) {
         const script = `
 tell application "Calendar"
-    activate
+    -- activate removed to prevent screen takeover
     set calList to ""
     repeat with cal in calendars
         set calList to calList & "- " & (name of cal) & "\\n"
@@ -1857,7 +2106,7 @@ const remindersTools = {
 
         const script = `
 tell application "Reminders"
-    activate
+    -- activate removed to prevent screen takeover
     try
         set targetList to list "${listName}"
     on error
@@ -1884,7 +2133,7 @@ end tell`;
 
         const script = `
 tell application "Reminders"
-    activate
+    -- activate removed to prevent screen takeover
     set matchingReminders to reminders ${listFilter} whose name is "${escapedTitle}"
     if (count of matchingReminders) > 0 then
         set completed of item 1 of matchingReminders to true
@@ -1904,7 +2153,7 @@ end tell`;
 
         const script = `
 tell application "Reminders"
-    activate
+    -- activate removed to prevent screen takeover
     set matchingReminders to reminders whose name is "${escapedTitle}"
     if (count of matchingReminders) > 0 then
         set completed of item 1 of matchingReminders to false
@@ -1924,7 +2173,7 @@ end tell`;
 
         const script = `
 tell application "Reminders"
-    activate
+    -- activate removed to prevent screen takeover
     set matchingReminders to reminders whose name is "${escapedTitle}"
     if (count of matchingReminders) > 0 then
         delete item 1 of matchingReminders
@@ -1937,149 +2186,129 @@ end tell`;
     },
 
     async get_incomplete(args) {
-        const listName = args.list || 'Reminders';  // Default to "Reminders" list
         const limit = args.limit || 10;
 
-        // Get all names at once (much faster than iterating)
+        // FAST PATH: Use SQLite direct query (1000x faster than AppleScript)
+        try {
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs');
+
+            // Find the Reminders databases
+            const remindersDir = path.join(os.homedir(), 'Library/Group Containers/group.com.apple.reminders/Container_v1/Stores');
+
+            if (fs.existsSync(remindersDir)) {
+                const files = fs.readdirSync(remindersDir).filter(f => f.endsWith('.sqlite') && !f.includes('local'));
+                let allReminders = [];
+
+                // Query all non-local databases to find reminders
+                for (const dbFile of files) {
+                    try {
+                        const dbPath = path.join(remindersDir, dbFile);
+                        const query = `SELECT ZTITLE FROM ZREMCDREMINDER WHERE ZCOMPLETED = 0 AND ZTITLE IS NOT NULL ORDER BY ZLASTMODIFIEDDATE DESC LIMIT ${limit + 5};`;
+
+                        const { stdout } = await execAsync(`sqlite3 "${dbPath}" "${query}"`, { timeout: 3000 });
+                        const reminders = stdout.trim().split('\n').filter(r => r.trim());
+                        allReminders = allReminders.concat(reminders);
+                    } catch (e) {
+                        // Skip databases that error
+                    }
+                }
+
+                // Deduplicate and limit
+                allReminders = [...new Set(allReminders)].slice(0, limit);
+
+                if (allReminders.length === 0) {
+                    return { success: true, stdout: 'No incomplete reminders found.', exit_code: 0 };
+                }
+
+                const result = 'Incomplete reminders:\n- ' + allReminders.join('\n- ');
+                return { success: true, stdout: result, exit_code: 0 };
+            }
+        } catch (e) {
+            console.log('[reminders.get_incomplete] SQLite failed, falling back to AppleScript:', e.message);
+        }
+
+        // Fallback to AppleScript (slower but works if SQLite unavailable)
         const script = `
 tell application "Reminders"
-    activate
     try
-        set targetList to list "${listName}"
-        set reminderNames to name of (reminders of targetList whose completed is false)
+        set targetList to default list
+        set incompleteReminders to (reminders of targetList whose completed is false)
+        set reminderCount to count of incompleteReminders
 
-        if (count of reminderNames) = 0 then
-            return "No incomplete reminders in ${listName}"
+        if reminderCount = 0 then
+            return "No incomplete reminders"
         end if
 
-        set resultList to "Incomplete reminders in ${listName}:" & return
-        set totalCount to count of reminderNames
-        set displayCount to totalCount
-        if displayCount > ${limit} then set displayCount to ${limit}
+        set maxItems to ${limit}
+        if reminderCount < maxItems then set maxItems to reminderCount
 
-        repeat with i from 1 to displayCount
-            set resultList to resultList & "- " & (item i of reminderNames) & return
+        set resultText to "Incomplete reminders:" & return
+        repeat with i from 1 to maxItems
+            set resultText to resultText & "- " & (name of item i of incompleteReminders) & return
         end repeat
 
-        if totalCount > ${limit} then
-            set resultList to resultList & "... and " & (totalCount - ${limit}) & " more"
+        if reminderCount > ${limit} then
+            set resultText to resultText & "... and " & (reminderCount - ${limit}) & " more"
         end if
 
-        return resultList
+        return resultText
     on error errMsg
-        return "Error: " & errMsg & return & return & "Available lists: Use reminders.list_lists to see available lists."
+        return "Error: " & errMsg
     end try
 end tell`;
         return await runAppleScriptMultiline(script);
     },
 
     async get_completed(args) {
-        const listName = args.list || 'Reminders';  // Default to "Reminders" list
         const limit = args.limit || 10;
 
-        // Get all names at once (much faster than iterating)
+        // FAST PATH: Use SQLite direct query
+        try {
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs');
+
+            const remindersDir = path.join(os.homedir(), 'Library/Group Containers/group.com.apple.reminders/Container_v1/Stores');
+
+            if (fs.existsSync(remindersDir)) {
+                const files = fs.readdirSync(remindersDir).filter(f => f.endsWith('.sqlite') && !f.includes('local'));
+                let allReminders = [];
+
+                for (const dbFile of files) {
+                    try {
+                        const dbPath = path.join(remindersDir, dbFile);
+                        const query = `SELECT ZTITLE FROM ZREMCDREMINDER WHERE ZCOMPLETED = 1 AND ZTITLE IS NOT NULL ORDER BY ZCOMPLETIONDATE DESC LIMIT ${limit + 5};`;
+                        const { stdout } = await execAsync(`sqlite3 "${dbPath}" "${query}"`, { timeout: 3000 });
+                        allReminders = allReminders.concat(stdout.trim().split('\n').filter(r => r.trim()));
+                    } catch (e) {}
+                }
+
+                allReminders = [...new Set(allReminders)].slice(0, limit);
+
+                if (allReminders.length === 0) {
+                    return { success: true, stdout: 'No completed reminders found.', exit_code: 0 };
+                }
+
+                return { success: true, stdout: 'Completed reminders:\n✓ ' + allReminders.join('\n✓ '), exit_code: 0 };
+            }
+        } catch (e) {
+            console.log('[reminders.get_completed] SQLite failed:', e.message);
+        }
+
+        // Fallback to AppleScript
+        const listName = args.list || 'Reminders';
         const script = `
 tell application "Reminders"
-    activate
     try
         set targetList to list "${listName}"
         set reminderNames to name of (reminders of targetList whose completed is true)
-
-        if (count of reminderNames) = 0 then
-            return "No completed reminders in ${listName}"
-        end if
-
-        set resultList to "Completed reminders in ${listName}:" & return
-        set totalCount to count of reminderNames
-        set displayCount to totalCount
-        if displayCount > ${limit} then set displayCount to ${limit}
-
-        repeat with i from 1 to displayCount
+        if (count of reminderNames) = 0 then return "No completed reminders"
+        set resultList to "Completed reminders:" & return
+        repeat with i from 1 to (minimum of {${limit}, count of reminderNames})
             set resultList to resultList & "✓ " & (item i of reminderNames) & return
         end repeat
-
-        if totalCount > ${limit} then
-            set resultList to resultList & "... and " & (totalCount - ${limit}) & " more"
-        end if
-
-        return resultList
-    on error errMsg
-        return "Error: " & errMsg & return & return & "Available lists: Use reminders.list_lists to see available lists."
-    end try
-end tell`;
-        return await runAppleScriptMultiline(script);
-    },
-
-    async get_today(args) {
-        const listName = args.list || 'Reminders';  // Default to "Reminders" list
-
-        // Use 'whose' clause with date filtering for faster performance
-        const script = `
-tell application "Reminders"
-    activate
-    try
-        set targetList to list "${listName}"
-        set today to current date
-        set startOfDay to today - (time of today)
-        set endOfDay to startOfDay + (24 * 60 * 60)
-
-        -- Get reminders due today using whose clause
-        set todayReminders to (reminders of targetList whose completed is false and due date >= startOfDay and due date < endOfDay)
-        set reminderNames to name of todayReminders
-
-        if (count of reminderNames) = 0 then
-            return "No reminders due today in ${listName}"
-        end if
-
-        set resultList to "Reminders due today in ${listName}:" & return
-        repeat with reminderName in reminderNames
-            set resultList to resultList & "• " & reminderName & return
-        end repeat
-
-        return resultList
-    on error errMsg
-        -- Fallback: some reminders may not have due dates, handle gracefully
-        return "No reminders due today in ${listName} (or error: " & errMsg & ")"
-    end try
-end tell`;
-        return await runAppleScriptMultiline(script);
-    },
-
-    async get_overdue(args) {
-        const listName = args.list || 'Reminders';  // Default to "Reminders" list
-
-        // Query a specific list to avoid timeout
-        const script = `
-tell application "Reminders"
-    try
-        set targetList to list "${listName}"
-        set resultList to "Overdue reminders in ${listName}:" & return
-        set foundAny to false
-        set today to current date
-        set checkCount to 0
-
-        repeat with r in reminders of targetList
-            set checkCount to checkCount + 1
-            -- Break early to avoid timeout
-            if checkCount > 100 then exit repeat
-
-            try
-                if completed of r is false then
-                    set rDue to due date of r
-                    if rDue is not missing value then
-                        if rDue < today then
-                            set resultList to resultList & "⚠ " & name of r & return
-                            set foundAny to true
-                        end if
-                    end if
-                end if
-            end try
-        end repeat
-
-        if not foundAny then
-            return "No overdue reminders in ${listName}"
-        end if
-
         return resultList
     on error errMsg
         return "Error: " & errMsg
@@ -2088,31 +2317,207 @@ end tell`;
         return await runAppleScriptMultiline(script);
     },
 
+    async get_today(args) {
+        const limit = args.limit || 15;
+
+        // FAST PATH: Use SQLite direct query
+        try {
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs');
+
+            const remindersDir = path.join(os.homedir(), 'Library/Group Containers/group.com.apple.reminders/Container_v1/Stores');
+
+            if (fs.existsSync(remindersDir)) {
+                const files = fs.readdirSync(remindersDir).filter(f => f.endsWith('.sqlite') && !f.includes('local'));
+                let todayReminders = [];
+
+                // CoreData epoch offset
+                const CORE_DATA_EPOCH = 978307200;
+                const now = new Date();
+                const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+                const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+                const startTs = Math.floor(startOfDay.getTime() / 1000) - CORE_DATA_EPOCH;
+                const endTs = Math.floor(endOfDay.getTime() / 1000) - CORE_DATA_EPOCH;
+
+                for (const dbFile of files) {
+                    try {
+                        const dbPath = path.join(remindersDir, dbFile);
+                        const query = `SELECT ZTITLE FROM ZREMCDREMINDER WHERE ZCOMPLETED = 0 AND ZDUEDATE >= ${startTs} AND ZDUEDATE < ${endTs} AND ZTITLE IS NOT NULL LIMIT ${limit};`;
+                        const { stdout } = await execAsync(`sqlite3 "${dbPath}" "${query}"`, { timeout: 3000 });
+                        todayReminders = todayReminders.concat(stdout.trim().split('\n').filter(r => r.trim()));
+                    } catch (e) {}
+                }
+
+                todayReminders = [...new Set(todayReminders)].slice(0, limit);
+
+                if (todayReminders.length === 0) {
+                    return { success: true, stdout: 'No reminders due today.', exit_code: 0 };
+                }
+
+                return { success: true, stdout: 'Reminders due today:\n• ' + todayReminders.join('\n• '), exit_code: 0 };
+            }
+        } catch (e) {
+            console.log('[reminders.get_today] SQLite failed:', e.message);
+        }
+
+        // Fallback to AppleScript
+        const listName = args.list || 'Reminders';
+        const script = `
+tell application "Reminders"
+    try
+        set targetList to list "${listName}"
+        set today to current date
+        set startOfDay to today - (time of today)
+        set endOfDay to startOfDay + (24 * 60 * 60)
+        set todayReminders to (reminders of targetList whose completed is false and due date >= startOfDay and due date < endOfDay)
+        if (count of todayReminders) = 0 then return "No reminders due today"
+        set resultList to "Reminders due today:" & return
+        repeat with r in todayReminders
+            set resultList to resultList & "• " & (name of r) & return
+        end repeat
+        return resultList
+    on error errMsg
+        return "No reminders due today"
+    end try
+end tell`;
+        return await runAppleScriptMultiline(script);
+    },
+
+    async get_overdue(args) {
+        const limit = args.limit || 15;
+
+        // FAST PATH: Use SQLite direct query
+        try {
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs');
+
+            const remindersDir = path.join(os.homedir(), 'Library/Group Containers/group.com.apple.reminders/Container_v1/Stores');
+
+            if (fs.existsSync(remindersDir)) {
+                const files = fs.readdirSync(remindersDir).filter(f => f.endsWith('.sqlite') && !f.includes('local'));
+                let overdueReminders = [];
+
+                // CoreData epoch offset
+                const CORE_DATA_EPOCH = 978307200;
+                const now = new Date();
+                const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+                const nowTs = Math.floor(startOfDay.getTime() / 1000) - CORE_DATA_EPOCH;
+
+                for (const dbFile of files) {
+                    try {
+                        const dbPath = path.join(remindersDir, dbFile);
+                        const query = `SELECT ZTITLE FROM ZREMCDREMINDER WHERE ZCOMPLETED = 0 AND ZDUEDATE IS NOT NULL AND ZDUEDATE < ${nowTs} AND ZTITLE IS NOT NULL ORDER BY ZDUEDATE DESC LIMIT ${limit};`;
+                        const { stdout } = await execAsync(`sqlite3 "${dbPath}" "${query}"`, { timeout: 3000 });
+                        overdueReminders = overdueReminders.concat(stdout.trim().split('\n').filter(r => r.trim()));
+                    } catch (e) {}
+                }
+
+                overdueReminders = [...new Set(overdueReminders)].slice(0, limit);
+
+                if (overdueReminders.length === 0) {
+                    return { success: true, stdout: 'No overdue reminders.', exit_code: 0 };
+                }
+
+                return { success: true, stdout: 'Overdue reminders:\n⚠ ' + overdueReminders.join('\n⚠ '), exit_code: 0 };
+            }
+        } catch (e) {
+            console.log('[reminders.get_overdue] SQLite failed:', e.message);
+        }
+
+        // Fallback to AppleScript
+        const listName = args.list || 'Reminders';
+        const script = `
+tell application "Reminders"
+    try
+        set targetList to list "${listName}"
+        set today to current date
+        set overdueList to (reminders of targetList whose completed is false and due date < today)
+        if (count of overdueList) = 0 then return "No overdue reminders"
+        set resultList to "Overdue reminders:" & return
+        repeat with r in overdueList
+            set resultList to resultList & "⚠ " & (name of r) & return
+        end repeat
+        return resultList
+    on error errMsg
+        return "No overdue reminders"
+    end try
+end tell`;
+        return await runAppleScriptMultiline(script);
+    },
+
     async search(args) {
         const query = args.query;
         if (!query) return { success: false, error: 'Missing required argument: query', exit_code: 1 };
+        const limit = args.limit || 20;
 
+        // FAST PATH: Use SQLite direct query
+        try {
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs');
+
+            const remindersDir = path.join(os.homedir(), 'Library/Group Containers/group.com.apple.reminders/Container_v1/Stores');
+
+            if (fs.existsSync(remindersDir)) {
+                const files = fs.readdirSync(remindersDir).filter(f => f.endsWith('.sqlite') && !f.includes('local'));
+                let results = [];
+
+                const escapedQuery = query.replace(/'/g, "''");
+
+                for (const dbFile of files) {
+                    try {
+                        const dbPath = path.join(remindersDir, dbFile);
+                        const sqlQuery = `SELECT ZTITLE, ZCOMPLETED FROM ZREMCDREMINDER WHERE ZTITLE LIKE '%${escapedQuery}%' LIMIT ${limit};`;
+                        const { stdout } = await execAsync(`sqlite3 "${dbPath}" "${sqlQuery}"`, { timeout: 3000 });
+                        const rows = stdout.trim().split('\n').filter(r => r.trim());
+                        for (const row of rows) {
+                            const [title, completed] = row.split('|');
+                            if (title) {
+                                results.push({ title, completed: completed === '1' });
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                // Deduplicate by title
+                const seen = new Set();
+                results = results.filter(r => {
+                    if (seen.has(r.title)) return false;
+                    seen.add(r.title);
+                    return true;
+                }).slice(0, limit);
+
+                if (results.length === 0) {
+                    return { success: true, stdout: `No reminders found matching: ${query}`, exit_code: 0 };
+                }
+
+                const formatted = results.map(r => (r.completed ? '✓ ' : '• ') + r.title).join('\n');
+                return { success: true, stdout: `Found ${results.length} reminders matching "${query}":\n${formatted}`, exit_code: 0 };
+            }
+        } catch (e) {
+            console.log('[reminders.search] SQLite failed:', e.message);
+        }
+
+        // Fallback to AppleScript
         const escapedQuery = query.replace(/"/g, '\\"');
-
         const script = `
 tell application "Reminders"
     set resultList to ""
     set reminderCount to 0
     repeat with r in (reminders whose name contains "${escapedQuery}")
+        if reminderCount >= ${limit} then exit repeat
         set rName to name of r
-        set rCompleted to completed of r
-        if rCompleted then
-            set resultList to resultList & "✓ " & rName & "\\n"
+        if completed of r then
+            set resultList to resultList & "✓ " & rName & return
         else
-            set resultList to resultList & "• " & rName & "\\n"
+            set resultList to resultList & "• " & rName & return
         end if
         set reminderCount to reminderCount + 1
     end repeat
-    if resultList is "" then
-        return "No reminders found matching: ${escapedQuery}"
-    else
-        return "Found " & reminderCount & " reminders:\\n" & resultList
-    end if
+    if resultList is "" then return "No reminders found matching: ${escapedQuery}"
+    return "Found " & reminderCount & " reminders:" & return & resultList
 end tell`;
         return await runAppleScriptMultiline(script);
     },

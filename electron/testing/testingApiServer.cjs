@@ -398,9 +398,7 @@ function start() {
           try {
             const mode = await mainWindow.webContents.executeJavaScript(`
               (function() {
-                // Try to get from localStorage
-                const stored = localStorage.getItem('agent-max-permission-level');
-                return stored || 'chatty';
+                return localStorage.getItem('permission_level') || 'chatty';
               })()
             `);
             res.writeHead(200);
@@ -432,10 +430,10 @@ function start() {
             if (mainWindow) {
               await mainWindow.webContents.executeJavaScript(`
                 (function() {
-                  localStorage.setItem('agent-max-permission-level', '${mode}');
+                  localStorage.setItem('permission_level', '${mode}');
                   // Also dispatch event so React picks up the change
                   window.dispatchEvent(new StorageEvent('storage', {
-                    key: 'agent-max-permission-level',
+                    key: 'permission_level',
                     newValue: '${mode}'
                   }));
                 })()

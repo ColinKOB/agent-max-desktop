@@ -41,6 +41,9 @@ const ComposerBar = React.memo(function ComposerBar({
   // AI-triggered options
   aiOptions,      // {options: [{id, label}], prompt: string, runId: string}
   setAiOptions,   // Setter to clear options after selection
+  // Credit depletion state
+  noCreditsState, // {depleted: boolean, resetDate: string|null}
+  onPurchaseCredits, // Callback to open credits purchase page
 }) {
   // Handle file selection from hidden input - with compression for images
   const handleFileChange = useCallback(
@@ -260,31 +263,76 @@ const ComposerBar = React.memo(function ComposerBar({
         </div>
       )}
 
-      <textarea
-        ref={inputRef}
-        className={`apple-input apple-textarea${message.includes('\n') || inputRef.current?.scrollHeight > 40 ? ' has-overflow' : ''}`}
-        data-tutorial="input"
-        placeholder={
-          userInputRequest
-            ? 'Type your response...'
-            : apiConnected
-              ? 'Ask anything...'
-              : 'Connecting...'
-        }
-        value={message}
-        onChange={handleMessageChange}
-        onKeyDown={handleKeyDown}
-        disabled={!apiConnected || (isThinking && !userInputRequest)}
-        rows={1}
-        style={
-          userInputRequest
-            ? {
-                borderColor: 'rgba(59, 130, 246, 0.5)',
-                background: 'rgba(59, 130, 246, 0.05)',
-              }
-            : {}
-        }
-      />
+      {/* Text input wrapper - contains textarea and no-credits overlay */}
+      <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+        <textarea
+          ref={inputRef}
+          className={`apple-input apple-textarea${message.includes('\n') || inputRef.current?.scrollHeight > 40 ? ' has-overflow' : ''}`}
+          data-tutorial="input"
+          placeholder={
+            userInputRequest
+              ? 'Type your response...'
+              : apiConnected
+                ? 'Ask anything...'
+                : 'Connecting...'
+          }
+          value={message}
+          onChange={handleMessageChange}
+          onKeyDown={handleKeyDown}
+          disabled={!apiConnected || (isThinking && !userInputRequest) || noCreditsState?.depleted}
+          rows={1}
+          style={
+            userInputRequest
+              ? {
+                  borderColor: 'rgba(59, 130, 246, 0.5)',
+                  background: 'rgba(59, 130, 246, 0.05)',
+                }
+              : {}
+          }
+        />
+
+        {/* No Credits Overlay - Subtle overlay on text input only */}
+        {noCreditsState?.depleted && (
+          <div
+            className="no-credits-overlay"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              backdropFilter: 'blur(2px)',
+              WebkitBackdropFilter: 'blur(2px)',
+              borderRadius: 12,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              zIndex: 10,
+            }}
+          >
+            <span style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: 13 }}>
+              No credits.
+            </span>
+            <button
+              onClick={onPurchaseCredits}
+              style={{
+                padding: '4px 10px',
+                background: 'rgba(59, 130, 246, 0.9)',
+                border: 'none',
+                borderRadius: 6,
+                color: '#fff',
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: 'pointer',
+              }}
+            >
+              Upgrade?
+            </button>
+          </div>
+        )}
+      </div>
 
       <div
         className="apple-send-wrapper"

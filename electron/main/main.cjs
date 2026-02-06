@@ -88,6 +88,7 @@ const workspaceApiServer = require('../autonomous/workspaceApiServer.cjs');
 const spreadsheetApiServer = require('../spreadsheet/spreadsheetApiServer.cjs');
 const notesApiServer = require('../notes/notesApiServer.cjs');
 const testingApiServer = require('../testing/testingApiServer.cjs');
+const { getProfileCache } = require('../storage/userProfileCache.cjs');
 
 // App Discovery Service for personalized onboarding
 const appDiscovery = require('./services/appDiscovery.cjs');
@@ -137,6 +138,7 @@ let tray = null;
 let settingsWindow;
 let ffmpegProcess;
 let memoryManager;
+let profileCache;
 let cardWindow;
 let handsOnDesktopClient = null;
 
@@ -475,6 +477,14 @@ app.whenReady().then(async () => {
   memoryManager = new LocalMemoryManager(mmApiBase, mmApiKey);
   console.log('✓ Memory manager initialized');
   console.log('  Storage location:', memoryManager.getMemoryLocation());
+
+  // Initialize user profile cache (Phase 4)
+  try {
+    profileCache = getProfileCache();
+    console.log('✓ User profile cache initialized');
+  } catch (err) {
+    console.error('Failed to initialize profile cache:', err.message);
+  }
 
   // Initialize executor manager (Phase 2)
   const apiClient = {
@@ -1278,6 +1288,123 @@ ipcMain.handle('memory:test-preferences', async () => {
       stack: error.stack,
     };
   }
+});
+
+// ==================== PROFILE CACHE IPC HANDLERS (Phase 4) ====================
+
+// Helper to ensure profile cache is initialized
+function ensureProfileCache() {
+  if (!profileCache) {
+    throw new Error('Profile cache not initialized. Please wait for app to be ready.');
+  }
+  return profileCache;
+}
+
+// Get cached user profile
+ipcMain.handle('profile-cache:get-profile', (event, userId) => {
+  return ensureProfileCache().getProfile(userId);
+});
+
+// Save user profile to cache
+ipcMain.handle('profile-cache:save-profile', (event, profile) => {
+  return ensureProfileCache().saveProfile(profile);
+});
+
+// Update credits locally (fast update)
+ipcMain.handle('profile-cache:update-credits', (event, { userId, credits }) => {
+  return ensureProfileCache().updateCredits(userId, credits);
+});
+
+// Check if profile exists in cache
+ipcMain.handle('profile-cache:has-profile', (event, userId) => {
+  return ensureProfileCache().hasProfile(userId);
+});
+
+// Get cached facts
+ipcMain.handle('profile-cache:get-facts', (event, { userId, category }) => {
+  return ensureProfileCache().getFacts(userId, category);
+});
+
+// Save facts to cache (bulk)
+ipcMain.handle('profile-cache:save-facts', (event, { userId, facts }) => {
+  return ensureProfileCache().saveFacts(userId, facts);
+});
+
+// Set a single fact locally
+ipcMain.handle('profile-cache:set-fact', (event, { userId, category, key, value, source }) => {
+  return ensureProfileCache().setFact(userId, category, key, value, source);
+});
+
+// Search facts
+ipcMain.handle('profile-cache:search-facts', (event, { userId, query }) => {
+  return ensureProfileCache().searchFacts(userId, query);
+});
+
+// Get facts pending sync
+ipcMain.handle('profile-cache:get-pending-facts', (event, userId) => {
+  return ensureProfileCache().getPendingFacts(userId);
+});
+
+// Mark facts as synced
+ipcMain.handle('profile-cache:mark-facts-synced', (event, factIds) => {
+  return ensureProfileCache().markFactsSynced(factIds);
+});
+
+// Get cached preferences
+ipcMain.handle('profile-cache:get-preferences', (event, userId) => {
+  return ensureProfileCache().getPreferences(userId);
+});
+
+// Save preferences to cache (bulk)
+ipcMain.handle('profile-cache:save-preferences', (event, { userId, preferences }) => {
+  return ensureProfileCache().savePreferences(userId, preferences);
+});
+
+// Set a single preference locally
+ipcMain.handle('profile-cache:set-preference', (event, { userId, key, value, category }) => {
+  return ensureProfileCache().setPreference(userId, key, value, category);
+});
+
+// Get cache statistics
+ipcMain.handle('profile-cache:get-stats', () => {
+  return ensureProfileCache().getStats();
+});
+
+// Clear user cache
+ipcMain.handle('profile-cache:clear', (event, userId) => {
+  return ensureProfileCache().clearUserCache(userId);
+});
+
+// Get sync log
+ipcMain.handle('profile-cache:get-sync-log', (event, { userId, limit }) => {
+  return ensureProfileCache().getSyncLog(userId, limit);
+});
+
+// ==================== CONVERSATION SUMMARIES IPC HANDLERS ====================
+
+// Save a conversation summary
+ipcMain.handle('profile-cache:save-summary', (event, { userId, sessionId, summary, messageCount, topics }) => {
+  return ensureProfileCache().saveConversationSummary(userId, sessionId, summary, messageCount, topics);
+});
+
+// Get recent conversation summaries
+ipcMain.handle('profile-cache:get-summaries', (event, { userId, limit }) => {
+  return ensureProfileCache().getRecentSummaries(userId, limit || 3);
+});
+
+// Get summary by session ID
+ipcMain.handle('profile-cache:get-summary-by-session', (event, sessionId) => {
+  return ensureProfileCache().getSummaryBySessionId(sessionId);
+});
+
+// Build summary context string for new conversations
+ipcMain.handle('profile-cache:build-summary-context', (event, { userId, limit }) => {
+  return ensureProfileCache().buildSummaryContext(userId, limit || 3);
+});
+
+// Get summary count for a user
+ipcMain.handle('profile-cache:get-summary-count', (event, userId) => {
+  return ensureProfileCache().getSummaryCount(userId);
 });
 
 // Initialize Hands on Desktop client

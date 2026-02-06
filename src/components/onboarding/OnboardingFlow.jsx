@@ -34,8 +34,45 @@ import {
   Heart,
   Plane,
   FolderOpen,
-  Play
+  Play,
+  // Additional icons for personalized onboarding
+  Loader2,
+  Users,
+  Video,
+  MessageCircle,
+  Send,
+  Image,
+  Layout,
+  Palette,
+  Film,
+  Music,
+  Mic,
+  Box,
+  Terminal,
+  GitBranch,
+  FileCode,
+  Database,
+  Compass,
+  Globe,
+  DollarSign,
+  Table,
+  Lock,
+  CheckSquare,
+  Tv,
+  PlayCircle,
+  Gamepad2,
+  Folder,
+  Trash2,
+  HardDrive,
+  Cloud,
+  Feather,
+  Type,
+  BookOpen,
+  Settings
 } from 'lucide-react';
+
+// App capabilities data for personalized onboarding
+import appCapabilitiesData from '../../data/app-capabilities.json';
 import { motion, AnimatePresence } from 'framer-motion';
 import { healthAPI, googleAPI, creditsAPI, subscriptionAPI } from '../../services/api';
 import { generateOAuthState, hashOAuthState, storeOAuthStateHash } from '../../services/oauth';
@@ -312,8 +349,10 @@ function WelcomeStep({ onNext }) {
 }
 
 // ============================================================================
-// STEP: SEE MAX IN ACTION (Demo of Capabilities)
+// STEP: SEE MAX IN ACTION (Demo of Capabilities) - Personalized
 // ============================================================================
+
+// Fallback examples if no apps are detected or IPC fails
 const DEMO_EXAMPLES = [
   {
     icon: Mail,
@@ -332,14 +371,543 @@ const DEMO_EXAMPLES = [
   },
 ];
 
+// Map icon string names to actual Lucide components
+const ICON_MAP = {
+  FileText,
+  CheckSquare,
+  Calendar,
+  Lock,
+  Search,
+  MessageSquare,
+  Users,
+  Video,
+  MessageCircle,
+  Send,
+  Shield,
+  PenTool,
+  Image,
+  Layout,
+  Palette,
+  Film,
+  Music,
+  Mic,
+  Box,
+  Code2,
+  Terminal,
+  GitBranch,
+  FileCode,
+  Database,
+  Compass,
+  Globe,
+  DollarSign,
+  Table,
+  Tv,
+  PlayCircle,
+  Gamepad2,
+  Folder,
+  Trash2,
+  HardDrive,
+  Cloud,
+  Feather,
+  Type,
+  BookOpen,
+  Mail,
+  Briefcase,
+  Settings,
+};
+
+/**
+ * Generate personalized examples based on user's installed apps
+ * @param {Array} installedApps - Array of app objects with name property
+ * @returns {Array} Array of example objects with icon, text, color, and appName
+ */
+function generatePersonalizedExamples(installedApps) {
+  if (!installedApps || installedApps.length === 0) {
+    return [];
+  }
+
+  const matchedExamples = [];
+  const usedCategories = new Set();
+  const { apps: capabilityApps, categories } = appCapabilitiesData;
+
+  // PRIORITY APPS: These have REAL deep integrations in Max (not just "open")
+  // ONLY include apps where Max can do impressive actions, not just open them
+  // Order matters - these will be shown first if installed
+  const priorityApps = [
+    // Apple native apps with AppleScript/automation support
+    'Mail',           // Full email: send, read, search, reply
+    'Calendar',       // Full calendar: create events, show schedule, search
+    'Notes',          // Full notes: create, search, append, organize
+    'Reminders',      // Full reminders: create with due dates, mark complete
+    'Finder',         // File management: list, move, copy, search files
+    'Messages',       // Send iMessages
+    'Safari',         // Web automation: search, navigate, fill forms
+    'Contacts',       // Search and manage contacts
+    // Browsers (web automation)
+    'Google Chrome',  // Web automation: search, navigate, compare prices
+    'Firefox',        // Web automation
+    'Arc',            // Web automation
+    // Productivity with APIs
+    'Notion',         // Create pages, search workspace
+    'Slack',          // Send messages, read channels
+    'Google Docs',    // Create, read, list documents
+    'Todoist',        // Task management
+    'Things',         // Task management
+    'Fantastical',    // Calendar management
+    'Obsidian',       // Note creation and search
+    'Bear',           // Note creation
+    // Communication
+    'Discord',        // Send messages
+    'Telegram',       // Send messages
+    'WhatsApp',       // Send messages
+    'Zoom',           // Start/join meetings
+    'Microsoft Teams',// Start meetings, send messages
+    // Entertainment
+    'Spotify',        // Play music, search, control playback
+    'Apple Music',    // Play music, control playback
+    // Development
+    'Terminal',       // Run commands
+    'iTerm2',         // Run commands
+    'Visual Studio Code', // Open files, search code
+    'GitHub Desktop', // Commit, push, pull
+  ];
+
+  // Apps to EXCLUDE - we can only open these, which isn't impressive
+  // These apps don't have AppleScript support or APIs we can use
+  const excludeApps = [
+    // Password managers (security-sensitive, no API access)
+    '1Password',
+    'Bitwarden',
+    'LastPass',
+    // Microsoft Office (no deep integration)
+    'Microsoft Word',
+    'Microsoft Excel',
+    'Microsoft PowerPoint',
+    // Adobe Creative Suite (complex apps, no API)
+    'Adobe Photoshop',
+    'Adobe Illustrator',
+    'Adobe Premiere Pro',
+    'Adobe XD',
+    'Adobe Acrobat',
+    // Video/Audio production (complex, no API)
+    'Final Cut Pro',
+    'Logic Pro',
+    'GarageBand',
+    'DaVinci Resolve',
+    'iMovie',
+    'Audacity',
+    'Blender',
+    // Cloud storage (just file sync, no API)
+    'Google Drive',
+    'Dropbox',
+    'OneDrive',
+    // Launcher apps (meta-apps)
+    'Alfred',
+    'Raycast',
+    // Design tools (complex, no API)
+    'Figma',
+    'Sketch',
+    'Canva',
+    'Affinity Designer',
+    'Affinity Photo',
+    // System utilities
+    'CleanMyMac',
+    'DaisyDisk',
+    'Rectangle',
+    'Magnet',
+    // Apps with icon extraction issues
+    'Books',
+  ];
+
+  // Normalize app names for matching (handle variations like "Visual Studio Code" vs "Code")
+  const normalizeAppName = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  // Create a lookup map for faster matching
+  const capabilityAppNames = Object.keys(capabilityApps);
+  const capabilityLookup = {};
+  capabilityAppNames.forEach(appName => {
+    capabilityLookup[normalizeAppName(appName)] = appName;
+  });
+
+  // Try to match each installed app against our capability map
+  for (const installedApp of installedApps) {
+    const normalizedInstalled = normalizeAppName(installedApp.name);
+
+    // Try exact match first
+    let matchedAppName = capabilityLookup[normalizedInstalled];
+
+    // If no exact match, try partial matching for common apps
+    if (!matchedAppName) {
+      // Handle common variations
+      const variations = [
+        // VS Code variations
+        { patterns: ['visualstudiocode', 'vscode', 'code'], target: 'Visual Studio Code' },
+        // Chrome variations
+        { patterns: ['googlechrome', 'chrome'], target: 'Google Chrome' },
+        // Teams variations
+        { patterns: ['microsoftteams', 'teams'], target: 'Microsoft Teams' },
+        // Word variations
+        { patterns: ['microsoftword', 'word'], target: 'Microsoft Word' },
+        // Excel variations
+        { patterns: ['microsoftexcel', 'excel'], target: 'Microsoft Excel' },
+        // Outlook variations
+        { patterns: ['microsoftoutlook', 'outlook'], target: 'Outlook' },
+        // Adobe apps
+        { patterns: ['adobephotoshop', 'photoshop'], target: 'Adobe Photoshop' },
+        { patterns: ['adobeillustrator', 'illustrator'], target: 'Adobe Illustrator' },
+        { patterns: ['adobepremierepro', 'premierepro', 'premiere'], target: 'Adobe Premiere Pro' },
+        { patterns: ['adobexd', 'xd'], target: 'Adobe XD' },
+        { patterns: ['adobeacrobat', 'acrobat', 'acrobatreader'], target: 'Adobe Acrobat' },
+        // JetBrains
+        { patterns: ['intellijidea', 'intellij'], target: 'IntelliJ IDEA' },
+        // Apple apps
+        { patterns: ['applemusic', 'music'], target: 'Apple Music' },
+        { patterns: ['applenotes', 'notes'], target: 'Notes' },
+        { patterns: ['applemail', 'mail'], target: 'Mail' },
+        { patterns: ['applecalendar', 'calendar', 'ical'], target: 'Calendar' },
+        { patterns: ['applereminders', 'reminders'], target: 'Reminders' },
+        // Other
+        { patterns: ['iterm2', 'iterm'], target: 'iTerm2' },
+        { patterns: ['finalcutpro', 'finalcut'], target: 'Final Cut Pro' },
+        { patterns: ['logicpro', 'logic'], target: 'Logic Pro' },
+        { patterns: ['garageband'], target: 'GarageBand' },
+        { patterns: ['davinciresolvefree', 'davinciresolve', 'davinci'], target: 'DaVinci Resolve' },
+      ];
+
+      for (const variation of variations) {
+        if (variation.patterns.some(p => normalizedInstalled.includes(p))) {
+          if (capabilityApps[variation.target]) {
+            matchedAppName = variation.target;
+            break;
+          }
+        }
+      }
+    }
+
+    if (matchedAppName && capabilityApps[matchedAppName]) {
+      // Skip apps that we can only "open" - not impressive
+      if (excludeApps.includes(matchedAppName)) continue;
+
+      const appCapability = capabilityApps[matchedAppName];
+      const category = appCapability.category;
+
+      // Prioritize diversity - try not to repeat categories too much
+      const categoryCount = Array.from(usedCategories).filter(c => c === category).length;
+      if (categoryCount >= 2) continue;
+
+      // Check if this is a priority app (has real deep integration)
+      const isPriority = priorityApps.includes(matchedAppName);
+
+      // Pick the most compelling prompt (prefer action prompts over "open" commands)
+      const prompts = appCapability.prompts || [];
+      const actionPrompt = prompts.find(p =>
+        !p.toLowerCase().startsWith('open ') &&
+        !p.toLowerCase().startsWith('launch ') &&
+        !p.toLowerCase().startsWith('switch ') &&
+        p.toLowerCase().includes(' ')
+      ) || prompts[0];
+
+      if (actionPrompt) {
+        const IconComponent = ICON_MAP[appCapability.icon] || Sparkles;
+        const categoryInfo = categories[category] || {};
+
+        // Debug: Log icon availability
+        console.log(`[DemoStep] App: ${matchedAppName}, hasIcon: ${!!installedApp.iconDataUrl}, iconLength: ${installedApp.iconDataUrl?.length || 0}`);
+
+        matchedExamples.push({
+          icon: IconComponent,
+          text: `"${actionPrompt}"`,
+          color: appCapability.color || categoryInfo.color || '#64748b',
+          appName: matchedAppName,
+          category: category,
+          isPersonalized: true,
+          isPriority: isPriority, // Mark priority apps
+          // Include real app icon if available (extracted by Electron main process)
+          appIconUrl: installedApp.iconDataUrl || null,
+        });
+
+        usedCategories.add(category);
+      }
+    }
+
+    // Limit to 5 personalized examples
+    if (matchedExamples.length >= 5) break;
+  }
+
+  // Shuffle function for variety
+  const shuffleArray = (array) => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
+  // Separate priority and non-priority apps
+  const priorityExamples = matchedExamples.filter(e => e.isPriority);
+  const nonPriorityExamples = matchedExamples.filter(e => !e.isPriority);
+
+  // Shuffle non-priority apps for variety each time
+  const shuffledNonPriority = shuffleArray(nonPriorityExamples);
+
+  // Combine: priority first, then shuffled non-priority
+  const combinedExamples = [...priorityExamples, ...shuffledNonPriority];
+
+  return combinedExamples.slice(0, 5);
+}
+
 function DemoStep({ onNext, onBack }) {
   const [showExamples, setShowExamples] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [personalizedExamples, setPersonalizedExamples] = useState([]);
+  const [detectedAppsCount, setDetectedAppsCount] = useState(0);
+  const [isPersonalized, setIsPersonalized] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
+  const [allApps, setAllApps] = useState([]);
+  const [selectedDebugApp, setSelectedDebugApp] = useState(null);
 
   useEffect(() => {
-    // Trigger example animations after a short delay
-    const timer = setTimeout(() => setShowExamples(true), 300);
-    return () => clearTimeout(timer);
+    let isMounted = true;
+
+    async function fetchAndMatchApps() {
+      try {
+        // Check if electron API is available
+        const electronAPI = window.electron?.appDiscovery || window.electronAPI?.appDiscovery;
+
+        if (electronAPI?.getUserContext) {
+          console.log('[DemoStep] Fetching user apps via IPC...');
+          const context = await electronAPI.getUserContext();
+
+          if (!isMounted) return;
+
+          if (context?.success !== false && context?.installedApps?.length > 0) {
+            console.log(`[DemoStep] Found ${context.installedApps.length} installed apps`);
+            // Debug: Check if icons are being received
+            const appsWithIcons = context.installedApps.filter(a => a.iconDataUrl);
+            console.log(`[DemoStep] Apps with icons: ${appsWithIcons.length}`);
+            if (appsWithIcons.length > 0) {
+              console.log(`[DemoStep] First app with icon:`, appsWithIcons[0].name, appsWithIcons[0].iconDataUrl?.substring(0, 50));
+            }
+            setDetectedAppsCount(context.installedApps.length);
+            // Store all apps for debug mode
+            setAllApps(context.installedApps);
+
+            // Generate personalized examples
+            const examples = generatePersonalizedExamples(context.installedApps);
+            console.log(`[DemoStep] Generated ${examples.length} personalized examples`);
+            // Debug: Check if examples have icons
+            examples.forEach((ex, i) => {
+              console.log(`[DemoStep] Example ${i}: ${ex.appName}, hasIconUrl: ${!!ex.appIconUrl}, iconStart: ${ex.appIconUrl?.substring(0, 30) || 'none'}`);
+            });
+
+            if (examples.length >= 3) {
+              setPersonalizedExamples(examples);
+              setIsPersonalized(true);
+            } else {
+              // Not enough matches, use fallback
+              console.log('[DemoStep] Not enough matches, using fallback examples');
+              setPersonalizedExamples(DEMO_EXAMPLES);
+              setIsPersonalized(false);
+            }
+          } else {
+            console.log('[DemoStep] No apps found or IPC failed, using fallback');
+            setPersonalizedExamples(DEMO_EXAMPLES);
+            setIsPersonalized(false);
+          }
+        } else {
+          // No IPC available (web context or preload not loaded)
+          console.log('[DemoStep] IPC not available, using fallback examples');
+          setPersonalizedExamples(DEMO_EXAMPLES);
+          setIsPersonalized(false);
+        }
+      } catch (error) {
+        console.error('[DemoStep] Error fetching user apps:', error);
+        if (isMounted) {
+          setPersonalizedExamples(DEMO_EXAMPLES);
+          setIsPersonalized(false);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+          // Trigger example animations after a short delay
+          setTimeout(() => {
+            if (isMounted) setShowExamples(true);
+          }, 200);
+        }
+      }
+    }
+
+    fetchAndMatchApps();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  const displayExamples = personalizedExamples.length > 0 ? personalizedExamples : DEMO_EXAMPLES;
+
+  // Get prompts for an app from capabilities
+  const getAppPrompts = (appName) => {
+    const { apps: capabilityApps } = appCapabilitiesData;
+    // Try exact match first
+    if (capabilityApps[appName]) {
+      return capabilityApps[appName].prompts || [];
+    }
+    // Try case-insensitive match
+    const matchedKey = Object.keys(capabilityApps).find(
+      key => key.toLowerCase() === appName.toLowerCase()
+    );
+    if (matchedKey) {
+      return capabilityApps[matchedKey].prompts || [];
+    }
+    return [];
+  };
+
+  if (debugMode) {
+    const prompts = selectedDebugApp ? getAppPrompts(selectedDebugApp.name) : [];
+
+    return (
+      <div style={{
+        maxWidth: 400,
+        margin: '0 auto',
+        padding: '16px',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3 style={{ color: '#fff', margin: 0, fontSize: 14 }}>
+            {selectedDebugApp ? `${selectedDebugApp.name} Prompts` : `All Apps (${allApps.length})`}
+          </h3>
+          <button
+            onClick={() => selectedDebugApp ? setSelectedDebugApp(null) : setDebugMode(false)}
+            style={{
+              background: 'rgba(255,255,255,0.1)',
+              border: 'none',
+              color: '#fff',
+              padding: '6px 12px',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontSize: 12,
+            }}
+          >
+            {selectedDebugApp ? '← Back to Apps' : 'Close'}
+          </button>
+        </div>
+
+        {selectedDebugApp ? (
+          // Show prompts for selected app
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, padding: 12, background: 'rgba(255,255,255,0.05)', borderRadius: 8 }}>
+              {selectedDebugApp.iconDataUrl ? (
+                <img src={selectedDebugApp.iconDataUrl} alt={selectedDebugApp.name} style={{ width: 48, height: 48, borderRadius: 10 }} />
+              ) : (
+                <div style={{ width: 48, height: 48, borderRadius: 10, background: 'rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>❌</div>
+              )}
+              <div>
+                <div style={{ color: '#fff', fontWeight: 600 }}>{selectedDebugApp.name}</div>
+                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>
+                  {selectedDebugApp.iconDataUrl ? '✓ Has icon' : '✗ No icon'} • {prompts.length} prompts
+                </div>
+              </div>
+            </div>
+            {prompts.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {prompts.map((prompt, i) => (
+                  <div key={i} style={{
+                    padding: '10px 12px',
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 8,
+                    color: 'rgba(255,255,255,0.8)',
+                    fontSize: 13,
+                  }}>
+                    "{prompt}"
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: 20 }}>
+                No prompts available for this app
+              </div>
+            )}
+          </div>
+        ) : (
+          // Show all apps grid
+          <div style={{
+            flex: 1,
+            overflowY: 'auto',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: 8,
+            padding: 4,
+          }}>
+            {allApps.map((app, index) => {
+              const hasPrompts = getAppPrompts(app.name).length > 0;
+              return (
+                <div
+                  key={`${app.name}-${index}`}
+                  onClick={() => setSelectedDebugApp(app)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    padding: 8,
+                    background: hasPrompts ? 'rgba(34, 197, 94, 0.1)' : 'rgba(100, 100, 100, 0.1)',
+                    border: `1px solid ${hasPrompts ? 'rgba(34, 197, 94, 0.3)' : 'rgba(100, 100, 100, 0.2)'}`,
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    transition: 'transform 0.1s',
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  <div style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 8,
+                    background: 'rgba(255,255,255,0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 4,
+                    overflow: 'hidden',
+                  }}>
+                    {app.iconDataUrl ? (
+                      <img
+                        src={app.iconDataUrl}
+                        alt={app.name}
+                        style={{ width: 36, height: 36, objectFit: 'contain' }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: 16, opacity: 0.5 }}>?</span>
+                    )}
+                  </div>
+                  <span style={{
+                    color: hasPrompts ? '#fff' : 'rgba(255,255,255,0.4)',
+                    fontSize: 9,
+                    textAlign: 'center',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    width: '100%',
+                  }}>
+                    {app.name}
+                  </span>
+                  {hasPrompts && (
+                    <span style={{ fontSize: 8, color: 'rgba(34, 197, 94, 0.8)', marginTop: 2 }}>
+                      {getAppPrompts(app.name).length} prompts
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -359,131 +927,201 @@ function DemoStep({ onNext, onBack }) {
         <h2 style={{ ...styles.heading, fontSize: 24, marginBottom: 8 }}>
           What can Max do for you?
         </h2>
-        <p style={{ ...styles.subheading, marginBottom: 0, fontSize: 14 }}>
-          Max is your AI assistant that can help with everyday tasks
+        <p
+          style={{ ...styles.subheading, marginBottom: 0, fontSize: 14 }}
+        >
+          {isLoading
+            ? 'Scanning your installed apps...'
+            : isPersonalized
+              ? `Max works with your ${detectedAppsCount > 50 ? '50+' : detectedAppsCount} installed apps`
+              : 'Max is your AI assistant that can help with everyday tasks'
+          }
         </p>
+        {!isLoading && (
+          <button
+            onClick={() => setDebugMode(true)}
+            style={{
+              marginTop: 8,
+              background: 'rgba(255, 165, 0, 0.2)',
+              border: '1px solid rgba(255, 165, 0, 0.5)',
+              color: '#ffa500',
+              padding: '4px 10px',
+              borderRadius: 4,
+              cursor: 'pointer',
+              fontSize: 11,
+            }}
+          >
+            🔍 Debug: View All App Icons
+          </button>
+        )}
       </motion.div>
 
       {/* Demo Animation Placeholder */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.2, duration: 0.4 }}
-        style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: 16,
-          padding: 20,
-          marginBottom: 20,
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Animated gradient background */}
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `radial-gradient(circle at 50% 0%, ${BRAND_ORANGE_LIGHT} 0%, transparent 60%)`,
-          opacity: 0.5,
-        }} />
-
-        {/* Play icon with pulse effect */}
-        <motion.div
-          initial={{ scale: 0.8 }}
-          animate={{ scale: [1, 1.05, 1] }}
-          transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-          style={{
-            width: 60,
-            height: 60,
-            borderRadius: '50%',
-            background: BRAND_ORANGE,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 16px',
-            boxShadow: `0 4px 20px ${BRAND_ORANGE_SHADOW}`,
-            position: 'relative',
-            zIndex: 1,
-          }}
-        >
-          <Sparkles style={{ width: 28, height: 28, color: '#fff' }} />
-        </motion.div>
-
-        <div style={{
-          textAlign: 'center',
-          color: 'rgba(255, 255, 255, 0.7)',
-          fontSize: 13,
-          position: 'relative',
-          zIndex: 1,
-        }}>
-          Your personal AI that actually takes action
-        </div>
-      </motion.div>
-
       {/* Example prompts */}
       <div style={{
         flex: 1,
+        minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
         gap: 10,
         marginBottom: 16,
+        overflow: 'hidden',
       }}>
         <div style={{
-          color: 'rgba(255, 255, 255, 0.5)',
-          fontSize: 12,
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           marginBottom: 4,
         }}>
-          Examples
+          <div style={{
+            color: 'rgba(255, 255, 255, 0.5)',
+            fontSize: 12,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+          }}>
+            {isLoading ? 'Discovering...' : isPersonalized ? 'Based on your apps' : 'Examples'}
+          </div>
+          {isLoading && (
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+            >
+              <Loader2 style={{ width: 14, height: 14, color: 'rgba(255, 255, 255, 0.4)' }} />
+            </motion.div>
+          )}
         </div>
 
-        {DEMO_EXAMPLES.map((example, index) => {
-          const Icon = example.icon;
-
-          return (
+        <AnimatePresence mode="wait">
+          {isLoading ? (
             <motion.div
-              key={index}
-              initial={{ opacity: 0, x: -20 }}
-              animate={showExamples ? { opacity: 1, x: 0 } : {}}
-              transition={{ delay: index * 0.1, duration: 0.3 }}
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               style={{
                 display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '12px 14px',
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: 10,
+                flexDirection: 'column',
+                gap: 10,
               }}
             >
-              <div style={{
-                width: 36,
-                height: 36,
-                borderRadius: 8,
-                background: `${example.color}20`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                <Icon style={{ width: 18, height: 18, color: example.color }} />
-              </div>
-              <span style={{
-                color: 'rgba(255, 255, 255, 0.85)',
-                fontSize: 13,
-                lineHeight: 1.4,
-                fontStyle: 'italic',
-              }}>
-                {example.text}
-              </span>
+              {[0, 1, 2].map((index) => (
+                <div
+                  key={index}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '12px 14px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    borderRadius: 10,
+                  }}
+                >
+                  <div style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    background: 'rgba(255, 255, 255, 0.05)',
+                  }} />
+                  <div style={{
+                    flex: 1,
+                    height: 16,
+                    borderRadius: 4,
+                    background: 'rgba(255, 255, 255, 0.05)',
+                  }} />
+                </div>
+              ))}
             </motion.div>
-          );
-        })}
+          ) : (
+            <motion.div
+              key="examples"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+                flex: 1,
+                minHeight: 0,
+                overflowY: 'auto',
+                paddingRight: 4,
+              }}
+            >
+              {displayExamples.slice(0, 5).map((example, index) => {
+                const Icon = example.icon;
+                const hasRealIcon = example.appIconUrl && example.appIconUrl.startsWith('data:');
+
+                // Debug logging
+                if (index === 0) {
+                  console.log('[DemoStep] First example:', {
+                    appName: example.appName,
+                    hasRealIcon,
+                    iconUrlStart: example.appIconUrl?.substring(0, 50),
+                    icon: example.icon?.name
+                  });
+                }
+
+                return (
+                  <motion.div
+                    key={`${example.appName}-${index}`}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={showExamples ? { opacity: 1, x: 0 } : {}}
+                    transition={{ delay: index * 0.1, duration: 0.3 }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: '12px 14px',
+                      background: 'rgba(255, 255, 255, 0.04)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: 10,
+                    }}
+                  >
+                    <div style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 8,
+                      background: hasRealIcon ? 'transparent' : `${example.color}20`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      overflow: 'hidden',
+                    }}>
+                      {hasRealIcon ? (
+                        <img
+                          src={example.appIconUrl}
+                          alt={example.appName || 'App icon'}
+                          style={{
+                            width: 28,
+                            height: 28,
+                            objectFit: 'contain',
+                            imageRendering: 'auto',
+                          }}
+                          onError={(e) => {
+                            console.error('[DemoStep] Image load error for', example.appName);
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        Icon ? <Icon style={{ width: 18, height: 18, color: example.color }} /> : null
+                      )}
+                    </div>
+                    <span style={{
+                      color: 'rgba(255, 255, 255, 0.85)',
+                      fontSize: 13,
+                      lineHeight: 1.4,
+                      fontStyle: 'italic',
+                    }}>
+                      {example.text}
+                    </span>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Buttons */}
@@ -3174,24 +3812,115 @@ function SubscriptionStep({ userData, onNext, onBack }) {
 // ============================================================================
 // STEP 6: COMPLETE (with Confetti & Quick Start)
 // ============================================================================
-const QUICK_START_PROMPTS = [
-  {
+
+// Related prompts grouped by category for drill-down
+const RELATED_PROMPTS = {
+  email: {
+    label: 'Email & Communication',
     icon: Mail,
-    text: '"Check my emails for anything important"',
+    prompts: [
+      'Send an email to my team about the project update',
+      'Reply to all unread emails from today',
+      'Find emails from Amazon about my orders',
+      'Draft a thank you email to the interviewer',
+      'Check if I have any urgent emails',
+    ]
   },
-  {
+  calendar: {
+    label: 'Calendar & Scheduling',
+    icon: Calendar,
+    prompts: [
+      'Schedule a meeting for tomorrow at 2pm',
+      'What meetings do I have today?',
+      'Find a free slot next week for a 1-hour call',
+      'Reschedule my 3pm meeting to Friday',
+      'Block 2 hours for deep work this afternoon',
+    ]
+  },
+  notes: {
+    label: 'Notes & Documents',
     icon: FileText,
-    text: '"Help me write a professional email"',
+    prompts: [
+      'Create a note for my meeting with Sarah',
+      'Search my notes for project ideas',
+      'Add a shopping list to my notes',
+      'Summarize my notes from last week',
+      'Create a new Google Doc for the proposal',
+    ]
   },
-  {
-    icon: Search,
-    text: '"Research the latest news on AI"',
+  tasks: {
+    label: 'Tasks & Reminders',
+    icon: CheckSquare,
+    prompts: [
+      'Remind me to call mom tomorrow at 5pm',
+      'Add "buy groceries" to my todo list',
+      'Show my overdue tasks',
+      'Mark the report task as complete',
+      'Create a task for following up with clients',
+    ]
   },
-];
+  files: {
+    label: 'Files & Finder',
+    icon: Folder,
+    prompts: [
+      'Find all PDFs in my Downloads folder',
+      'Move the report.docx to Documents',
+      'What files did I download today?',
+      'Clean up my Desktop folder',
+      'Find files related to the Q4 budget',
+    ]
+  },
+  web: {
+    label: 'Web & Research',
+    icon: Globe,
+    prompts: [
+      'Search for the best restaurants near me',
+      'Research competitors in my industry',
+      'Find reviews for the iPhone 15',
+      'Compare prices for AirPods Pro',
+      'Look up flight prices to New York',
+    ]
+  },
+  messaging: {
+    label: 'Messaging',
+    icon: MessageSquare,
+    prompts: [
+      'Send a message to the team on Slack',
+      'Check my Discord notifications',
+      'Message John that I\'ll be late',
+      'Post an update in #general',
+      'Reply to the thread about the launch',
+    ]
+  },
+  music: {
+    label: 'Music & Media',
+    icon: Music,
+    prompts: [
+      'Play some focus music',
+      'What song is this?',
+      'Add this to my liked songs',
+      'Play my workout playlist',
+      'Skip to the next track',
+    ]
+  },
+};
+
+// Map app categories to related prompt groups
+const CATEGORY_TO_RELATED = {
+  'email': 'email',
+  'productivity': 'notes',
+  'communication': 'messaging',
+  'browsers': 'web',
+  'entertainment': 'music',
+  'utilities': 'files',
+};
 
 function CompleteStep({ userData, onNext }) {
   const confettiRef = useRef(null);
   const [confettiTriggered, setConfettiTriggered] = useState(false);
+  const [personalizedExamples, setPersonalizedExamples] = useState([]);
+  const [expandedCategory, setExpandedCategory] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!confettiTriggered && confettiRef.current) {
@@ -3201,6 +3930,35 @@ function CompleteStep({ userData, onNext }) {
       }, 400);
     }
   }, [confettiTriggered]);
+
+  // Fetch personalized examples (same as DemoStep)
+  useEffect(() => {
+    async function fetchApps() {
+      try {
+        const electronAPI = window.electron?.appDiscovery || window.electronAPI?.appDiscovery;
+        if (electronAPI?.getUserContext) {
+          const context = await electronAPI.getUserContext();
+          if (context?.success !== false && context?.installedApps?.length > 0) {
+            const examples = generatePersonalizedExamples(context.installedApps);
+            if (examples.length >= 2) {
+              setPersonalizedExamples(examples.slice(0, 4)); // Show up to 4
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[CompleteStep] Error fetching apps:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchApps();
+  }, []);
+
+  // Handle clicking on a prompt to show related prompts
+  const handlePromptClick = (example) => {
+    const relatedKey = CATEGORY_TO_RELATED[example.category] || 'web';
+    setExpandedCategory(expandedCategory === relatedKey ? null : relatedKey);
+  };
 
   return (
     <div
@@ -3252,7 +4010,7 @@ function CompleteStep({ userData, onNext }) {
         </p>
       </motion.div>
 
-      {/* Quick Start Section */}
+      {/* Quick Start Section - Personalized */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -3269,28 +4027,132 @@ function CompleteStep({ userData, onNext }) {
           overflowY: 'auto',
         }}
       >
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 6, 
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
           marginBottom: 8,
           color: '#ffffff',
           fontSize: 13,
           fontWeight: 600,
         }}>
           <Bot style={{ width: 16, height: 16, color: BRAND_ORANGE }} />
-          Try saying:
+          {personalizedExamples.length > 0 ? 'Based on your apps:' : 'Try saying:'}
         </div>
-        
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {QUICK_START_PROMPTS.map((prompt, index) => {
-            const Icon = prompt.icon;
-            return (
+          {/* Show personalized examples if available */}
+          {personalizedExamples.length > 0 ? (
+            <>
+              {personalizedExamples.map((example, index) => {
+                const hasRealIcon = example.appIconUrl && example.appIconUrl.startsWith('data:');
+                const relatedKey = CATEGORY_TO_RELATED[example.category] || 'web';
+                const isExpanded = expandedCategory === relatedKey;
+                const Icon = example.icon;
+
+                return (
+                  <div key={`${example.appName}-${index}`}>
+                    <motion.div
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.6 + index * 0.1 }}
+                      onClick={() => handlePromptClick(example)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '8px 10px',
+                        background: isExpanded ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.04)',
+                        borderRadius: 8,
+                        fontSize: 12,
+                        color: 'rgba(255, 255, 255, 0.85)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        border: isExpanded ? `1px solid ${example.color}40` : '1px solid transparent',
+                      }}
+                    >
+                      <div style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 6,
+                        background: hasRealIcon ? 'transparent' : `${example.color}20`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        overflow: 'hidden',
+                      }}>
+                        {hasRealIcon ? (
+                          <img
+                            src={example.appIconUrl}
+                            alt={example.appName}
+                            style={{ width: 20, height: 20, objectFit: 'contain' }}
+                          />
+                        ) : (
+                          Icon && <Icon style={{ width: 14, height: 14, color: example.color }} />
+                        )}
+                      </div>
+                      <span style={{ flex: 1 }}>{example.text}</span>
+                      <ChevronRight style={{
+                        width: 14,
+                        height: 14,
+                        color: 'rgba(255, 255, 255, 0.3)',
+                        transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s ease',
+                      }} />
+                    </motion.div>
+
+                    {/* Expanded related prompts */}
+                    <AnimatePresence>
+                      {isExpanded && RELATED_PROMPTS[relatedKey] && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          style={{
+                            marginLeft: 16,
+                            marginTop: 4,
+                            paddingLeft: 12,
+                            borderLeft: `2px solid ${example.color}40`,
+                          }}
+                        >
+                          <div style={{
+                            fontSize: 10,
+                            color: 'rgba(255, 255, 255, 0.5)',
+                            marginBottom: 4,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                          }}>
+                            More {RELATED_PROMPTS[relatedKey].label}
+                          </div>
+                          {RELATED_PROMPTS[relatedKey].prompts.slice(0, 3).map((prompt, pIndex) => (
+                            <div
+                              key={pIndex}
+                              style={{
+                                fontSize: 11,
+                                color: 'rgba(255, 255, 255, 0.6)',
+                                padding: '4px 0',
+                                fontStyle: 'italic',
+                              }}
+                            >
+                              "{prompt}"
+                            </div>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </>
+          ) : (
+            /* Fallback prompts if no personalized ones */
+            <>
               <motion.div
-                key={index}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.6 + index * 0.1 }}
+                transition={{ delay: 0.6 }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -3302,11 +4164,47 @@ function CompleteStep({ userData, onNext }) {
                   color: 'rgba(255, 255, 255, 0.7)',
                 }}
               >
-                <Icon style={{ width: 14, height: 14, color: 'rgba(255, 255, 255, 0.4)', flexShrink: 0 }} />
-                {prompt.text}
+                <Mail style={{ width: 14, height: 14, color: 'rgba(255, 255, 255, 0.4)', flexShrink: 0 }} />
+                "Check my emails for anything important"
               </motion.div>
-            );
-          })}
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.7 }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 10px',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  color: 'rgba(255, 255, 255, 0.7)',
+                }}
+              >
+                <Calendar style={{ width: 14, height: 14, color: 'rgba(255, 255, 255, 0.4)', flexShrink: 0 }} />
+                "What meetings do I have today?"
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.8 }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 10px',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  color: 'rgba(255, 255, 255, 0.7)',
+                }}
+              >
+                <Search style={{ width: 14, height: 14, color: 'rgba(255, 255, 255, 0.4)', flexShrink: 0 }} />
+                "Search the web for Python tutorials"
+              </motion.div>
+            </>
+          )}
         </div>
       </motion.div>
 
@@ -3383,14 +4281,14 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
     return () => { mounted = false; clearInterval(id); };
   }, []);
 
-  // Step order: Show value first, then collect info, then legal/account
-  // Progressive onboarding: Demo before legal to reduce friction
+  // Step order: Show value first, then account, then collect info
+  // Progressive onboarding: Demo before account to reduce friction
   const steps = [
     { id: 'welcome', component: WelcomeStep },
-    { id: 'demo', component: DemoStep },            // NEW: Show what Max can do first
-    { id: 'name', component: NameStep },            // Collect name early for personalization
-    { id: 'account', component: AccountStep },      // Sign in/up (deferred)
-    { id: 'legal', component: LegalStep },          // Legal consent (deferred)
+    { id: 'demo', component: DemoStep },            // Show what Max can do first
+    { id: 'account', component: AccountStep },      // Sign in/up - before name so we can personalize
+    { id: 'name', component: NameStep },            // Collect name for personalization
+    { id: 'legal', component: LegalStep },          // Legal consent
     { id: 'usecase', component: UseCaseStep },
     { id: 'modes', component: ModeExplainerStep },  // Explain Chatty vs Autonomous
     { id: 'verify-email', component: EmailVerificationStep },
