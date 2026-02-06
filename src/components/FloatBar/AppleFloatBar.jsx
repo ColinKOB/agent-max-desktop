@@ -2620,6 +2620,11 @@ export default function AppleFloatBar({
 
   // Main streaming chat logic (extracted for reuse)
   const sendChat = useCallback((text, userContext, screenshotData) => {
+    // Defensive reset: ensure refs are clean for new stream even if ack event is missed
+    hasReceivedFinalTokenRef.current = false;
+    hasReceivedWidgetRef.current = false;
+    streamBufferRef.current = '';
+
     // Track token usage for credit calculation
     let totalOutputTokens = 0;
     const messageSentAt = Date.now();
