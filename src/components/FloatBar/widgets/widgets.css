@@ -1,0 +1,282 @@
+/* =============================================================================
+   Rich Widget Shared Styles
+   Scoped with .rich-widget-* prefix to avoid collisions
+   ============================================================================= */
+
+.rich-widget {
+  width: 100%;
+  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  margin: 8px 0;
+  overflow: hidden;
+}
+
+/* =============================================================================
+   Weather Widget
+   ============================================================================= */
+
+.weather-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.weather-location {
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 2px;
+}
+
+.weather-current-temp {
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 36px;
+  font-weight: 700;
+  color: #e8853b;
+  line-height: 1.1;
+  letter-spacing: -1px;
+}
+
+.weather-condition {
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+  margin-top: 2px;
+}
+
+.weather-hero-right {
+  display: flex;
+  align-items: center;
+  padding-top: 6px;
+}
+
+.weather-hi-lo {
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(168,152,130,0.9);
+}
+
+/* Forecast rows */
+.weather-forecast {
+  padding: 8px 12px 10px;
+}
+
+.weather-forecast-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.weather-forecast-row:last-child {
+  border-bottom: none;
+}
+
+.weather-day {
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.8);
+  width: 32px;
+  flex-shrink: 0;
+}
+
+.weather-row-emoji {
+  font-size: 14px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.weather-row-low,
+.weather-row-high {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.weather-row-high {
+  color: rgba(255,255,255,0.8);
+}
+
+.weather-temp-bar-track {
+  flex: 1;
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  position: relative;
+  min-width: 40px;
+}
+
+.weather-temp-bar-fill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(168,152,130,0.6), #e8853b);
+}
+
+/* =============================================================================
+   News Widget
+   ============================================================================= */
+
+.rich-widget-news {
+  padding: 4px 0;
+}
+
+.news-story-row {
+  padding: 10px 14px;
+  border-left: 2px solid transparent;
+  transition: border-color 0.15s ease;
+}
+
+.news-story-row:hover {
+  border-left-color: #e8853b;
+}
+
+.news-story-row + .news-story-row {
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.news-story-title {
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.95);
+  line-height: 1.35;
+  margin-bottom: 3px;
+}
+
+.news-story-snippet {
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.4;
+  margin-bottom: 5px;
+}
+
+.news-source-pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(168,152,130,0.9);
+  background: rgba(168,152,130,0.12);
+  border: 1px solid rgba(168,152,130,0.2);
+  border-radius: 10px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  font-family: system-ui, sans-serif;
+}
+
+.news-source-pill:hover {
+  background: rgba(232,133,59,0.15);
+  color: #e8853b;
+  border-color: rgba(232,133,59,0.3);
+}
+
+/* =============================================================================
+   List Widget
+   ============================================================================= */
+
+.rich-widget-list {
+  padding: 12px 14px;
+}
+
+.list-widget-title {
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  margin-bottom: 10px;
+}
+
+.list-widget-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.list-widget-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 4px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.list-widget-item:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.list-widget-number {
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #e8853b;
+  width: 20px;
+  flex-shrink: 0;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.list-widget-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.list-widget-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  display: block;
+  line-height: 1.35;
+}
+
+.list-widget-detail {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  display: block;
+  margin-top: 1px;
+  line-height: 1.35;
+}
+
+/* =============================================================================
+   Skeleton Placeholder (shown during streaming before block completes)
+   ============================================================================= */
+
+.rich-widget-skeleton {
+  background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: widget-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.rich-widget-skeleton-icon {
+  font-size: 18px;
+  opacity: 0.5;
+}
+
+.rich-widget-skeleton-text {
+  font-size: 12px;
+  color: rgba(255,255,255,0.35);
+  font-style: italic;
+}
+
+@keyframes widget-skeleton-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}

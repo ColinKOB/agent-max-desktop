@@ -121,6 +121,7 @@ import LiveActivityFeed from '../LiveActivityFeed/LiveActivityFeed';
 import TypewriterMessage from '../TypewriterMessage/TypewriterMessage';
 import ActivityFeed from '../ActivityFeed/ActivityFeed';
 import EmailRenderer from './EmailRenderer';
+import RichBlockRenderer from './RichBlockRenderer';
 import ComposerBar from './ComposerBar';
 import AppTutorial from '../tutorial/AppTutorial';
 import { processImageFile } from '../../utils/imageCompression';
@@ -4030,6 +4031,39 @@ export default function AppleFloatBar({
             options: optionsData.options || [],
             runId: optionsData.run_id || planIdRef.current
           });
+        } else if (event.type === 'widget') {
+          // Rich widget data from function tool call
+          const { widget_type, data: widgetData } = event.data || event;
+          console.log('[Chat] Widget event:', widget_type, widgetData);
+
+          // Inject :::type marker into stream buffer for RichBlockRenderer
+          const widgetMarker = `\n:::${widget_type}\n${JSON.stringify(widgetData)}\n:::\n`;
+          streamBufferRef.current = (streamBufferRef.current || '') + widgetMarker;
+
+          const displayContent = stripActionBlocks(streamBufferRef.current);
+          setThoughts((prev) => {
+            if (
+              prev.length > 0 &&
+              prev[prev.length - 1].role === 'assistant' &&
+              prev[prev.length - 1].streaming
+            ) {
+              const updated = [...prev];
+              updated[updated.length - 1] = {
+                ...updated[updated.length - 1],
+                content: displayContent,
+              };
+              return updated;
+            }
+            return [
+              ...prev,
+              {
+                role: 'assistant',
+                content: displayContent,
+                timestamp: Date.now(),
+                streaming: true,
+              },
+            ];
+          });
         } else if (event.type === 'web_search') {
           // Web search activity indicator
           const searchData = event.data || event;
@@ -7828,15 +7862,10 @@ export default function AppleFloatBar({
                           </div>
                         )}
                       {thought.role === 'assistant' || thought.role === 'system' ? (
-                        shouldAnimate ? (
-                          <TypewriterMessage
-                            content={(thought.content || '').trim()}
-                            speed={120}
-                            enabled={true}
-                          />
-                        ) : (
-                          <EmailRenderer content={(thought.content || '').trim()} />
-                        )
+                        <RichBlockRenderer
+                          content={(thought.content || '').trim()}
+                          animate={shouldAnimate}
+                        />
                       ) : (
                         thought.content
                       )}
