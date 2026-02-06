@@ -6477,6 +6477,14 @@ export default function AppleFloatBar({
     [thoughts]
   );
 
+  // Track whether we've already done the initial scroll for the current AI response
+  const hasScrolledForResponseRef = useRef(false);
+
+  // Reset the scroll flag when a new user message arrives (thoughts.length changes)
+  useEffect(() => {
+    hasScrolledForResponseRef.current = false;
+  }, [thoughts.length]);
+
   useEffect(() => {
     const el = messagesRef.current;
     if (!el) return;
@@ -6490,11 +6498,29 @@ export default function AppleFloatBar({
       return;
     }
 
-    // With messages or thinking indicator, stick to bottom
-    // Small delay to ensure DOM has updated (especially for Deep Dive buttons)
-    setTimeout(() => {
-      if (el) el.scrollTop = el.scrollHeight;
-    }, 50);
+    const isStreaming = lastThought && lastThought.streaming;
+
+    // One-time scroll when AI starts responding: scroll user message to top
+    if ((isThinking || isStreaming) && !hasScrolledForResponseRef.current) {
+      hasScrolledForResponseRef.current = true;
+      setTimeout(() => {
+        if (!el) return;
+        const userBubbles = el.querySelectorAll('[data-role="user"]');
+        const lastUserBubble = userBubbles[userBubbles.length - 1];
+        if (lastUserBubble) {
+          lastUserBubble.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 50);
+      return;
+    }
+
+    // When streaming completes (message done), scroll to bottom to show full response
+    if (!isThinking && !isStreaming) {
+      setTimeout(() => {
+        if (!el) return;
+        el.scrollTop = el.scrollHeight;
+      }, 50);
+    }
   }, [thoughts.length, isThinking, lastThoughtKey, userScrolledUp]);
 
   // Track manual scroll to allow user to scroll up without being yanked down
@@ -7856,7 +7882,7 @@ export default function AppleFloatBar({
 
               return (
                 <React.Fragment key={idx}>
-                  <div className={`apple-message apple-message-${thought.role}`}>
+                  <div className={`apple-message apple-message-${thought.role}`} data-role={thought.role}>
                     <div
                       className={`apple-message-content ${thought.type === 'plan' ? 'plan-message' : ''}`}
                     >

@@ -118,9 +118,17 @@ const RichBlockRenderer = React.memo(function RichBlockRenderer({ content, anima
     return <EmailRenderer content={content} />;
   }
 
+  // Reorder: text segments first (above), then widgets, then skeletons
+  // This ensures the brief follow-up text appears above the widget card
+  const reordered = [
+    ...segments.filter(s => s.type === 'text'),
+    ...segments.filter(s => s.type !== 'text' && s.type !== 'skeleton'),
+    ...segments.filter(s => s.type === 'skeleton'),
+  ];
+
   return (
     <div className="rich-block-renderer">
-      {segments.map((segment, i) => {
+      {reordered.map((segment, i) => {
         if (segment.type === 'text') {
           const trimmed = segment.content.trim();
           if (!trimmed) return null;
