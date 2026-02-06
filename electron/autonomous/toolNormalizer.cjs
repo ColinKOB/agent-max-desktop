@@ -34,14 +34,19 @@ const TOOL_ALIASES = {
 
     // === DESKTOP TOOLS ===
     'screenshot': 'desktop.screenshot',
+    'desktop_screenshot': 'desktop.screenshot',  // OpenAI Responses API format (dots→underscores)
     'mouse_click': 'desktop.mouse_click',
     'mouse.click': 'desktop.mouse_click',
+    'desktop_mouse_click': 'desktop.mouse_click',  // OpenAI Responses API format
     'mouse_move': 'desktop.mouse_move',
     'mouse.move': 'desktop.mouse_move',
+    'desktop_mouse_move': 'desktop.mouse_move',  // OpenAI Responses API format
     'type_text': 'desktop.type_text',
     'type': 'desktop.type_text',
+    'desktop_type_text': 'desktop.type_text',  // OpenAI Responses API format
     'hotkey': 'desktop.hotkey',
     'keyboard_shortcut': 'desktop.hotkey',
+    'desktop_hotkey': 'desktop.hotkey',  // OpenAI Responses API format
 
     // === CLIPBOARD TOOLS ===
     'clipboard_read': 'clipboard.read',
