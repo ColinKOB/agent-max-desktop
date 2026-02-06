@@ -4091,12 +4091,26 @@ export default function AppleFloatBar({
           }
 
           if (searchData.status === 'searching') {
-            // AI started searching the web
+            // AI started searching the web — show query if available
             setWebSearchState({
               isSearching: true,
               citations: []
             });
-            setThinkingStatus('Searching the web...');
+            const query = searchData.query;
+            if (query) {
+              setThinkingStatus(`Searching "${query}"...`);
+            } else {
+              setThinkingStatus('Searching the web...');
+            }
+          } else if (searchData.status === 'reading') {
+            // AI is opening/reading a specific page
+            const url = searchData.query || '';
+            try {
+              const domain = new URL(url).hostname.replace('www.', '');
+              setThinkingStatus(`Reading ${domain}...`);
+            } catch {
+              setThinkingStatus('Reading results...');
+            }
           } else if (searchData.status === 'found' && searchData.citations) {
             // Found new citations - add them to the list
             setWebSearchState(prev => ({
