@@ -802,6 +802,7 @@ export default function AppleFloatBar({
   const enrichTileIdRef = useRef(null); // current tile receiving enrichment
   const streamBufferRef = useRef(''); // accumulates tokens when not enriching a tile
   const hasReceivedFinalTokenRef = useRef(false); // track if we've received first final token (for thinking status)
+  const hasReceivedWidgetRef = useRef(false); // track if we've received a widget event (suppress web search indicator after)
   const offlineRef = useRef(false); // suppress toast spam while offline
   const offlineDesktopToastRef = useRef(false);
   const continueSendMessageRef = useRef(null); // dispatcher to avoid TDZ
@@ -2647,6 +2648,7 @@ export default function AppleFloatBar({
           executedCommandsRef.current.clear(); // Clear executed commands tracking
           enrichTileIdRef.current = null;
           hasReceivedFinalTokenRef.current = false; // Reset for new stream
+          hasReceivedWidgetRef.current = false; // Reset widget tracking
           clearActivityLog(); // Start fresh activity feed for new task
           // Reset thought ref (bubble will be created lazily on first thinking event)
           thoughtIdRef.current = null;
@@ -3541,8 +3543,12 @@ export default function AppleFloatBar({
             }
           }
           const buffered = streamBufferRef.current || '';
+          // Prefer buffered content when it contains widget markers (:::weather etc.)
+          // because finalResponse only contains text tokens, not the injected widget blocks
+          const hasWidgetMarkers = buffered.includes(':::weather') || buffered.includes(':::news') || buffered.includes(':::list');
           let responseText =
-            typeof finalResponse === 'string' && finalResponse.trim() ? finalResponse : buffered;
+            hasWidgetMarkers ? buffered :
+            (typeof finalResponse === 'string' && finalResponse.trim() ? finalResponse : buffered);
 
           // Strip any JSON action blocks from the response before displaying
           // These are internal commands like {"action": "workspace.search", ...} that shouldn't be shown
@@ -4033,8 +4039,15 @@ export default function AppleFloatBar({
           });
         } else if (event.type === 'widget') {
           // Rich widget data from function tool call
-          const { widget_type, data: widgetData } = event.data || event;
+          // event shape: { type: "widget", widget_type: "weather", data: {...} }
+          const widget_type = event.widget_type;
+          const widgetData = event.data;
           console.log('[Chat] Widget event:', widget_type, widgetData);
+
+          // Clear web search indicator — widget means search results are rendered
+          hasReceivedWidgetRef.current = true;
+          setWebSearchState({ isSearching: false, citations: [] });
+          setThinkingStatus('');
 
           // Inject :::type marker into stream buffer for RichBlockRenderer
           const widgetMarker = `\n:::${widget_type}\n${JSON.stringify(widgetData)}\n:::\n`;
@@ -4068,6 +4081,12 @@ export default function AppleFloatBar({
           // Web search activity indicator
           const searchData = event.data || event;
           console.log('[Chat] Web search event:', searchData);
+
+          // Don't re-show search indicator if a widget has already rendered
+          if (hasReceivedWidgetRef.current) {
+            console.log('[Chat] Suppressing web_search indicator — widget already rendered');
+            return;
+          }
 
           if (searchData.status === 'searching') {
             // AI started searching the web
