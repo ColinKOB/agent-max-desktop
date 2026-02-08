@@ -223,3 +223,16 @@ rgba(255, 255, 255, 0.05);  /* Less visible base */
 ✅ **Kept liquid gradients** - but very subtle  
 
 **Result:** True transparent glass effect that actually works in Electron! 💧
+
+---
+
+## Related Fixes
+
+### Backdrop-Filter Conflict
+Electron's native `vibrancy` and CSS `backdrop-filter` cannot coexist. When both are active, the renderer double-processes the blur pipeline, producing either an opaque slab or no blur at all. The fix was to choose native vibrancy exclusively and remove all CSS `backdrop-filter` / `-webkit-backdrop-filter` declarations from the glass styles.
+
+### Invisibility at Low Opacity
+Setting the glass base to around 5% white opacity without any blur source makes the window effectively invisible -- users cannot distinguish it from the bare desktop. Testing showed that a minimum of roughly 15% combined opacity is needed for the surface to remain perceptible when blur is absent. This matters as a fallback on non-macOS platforms where vibrancy is unavailable.
+
+### Fully-Transparent Approach
+The final design uses 2-3% opacity color tints with an 8% white base and zero CSS `backdrop-filter`. All blur comes from Electron's `vibrancy: 'popover'` (macOS `NSVisualEffectView`). Removing the CSS blur layer eliminated the conflict, and the ultra-low opacities let the native blur show through cleanly, producing true glass rather than a tinted overlay.

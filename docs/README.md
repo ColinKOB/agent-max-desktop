@@ -1,244 +1,198 @@
-# Agent Max Desktop - Documentation
+# Agent Max Desktop — Documentation
 
-This directory contains all the documentation for the Agent Max Desktop project, organized into logical categories for easy navigation.
+> **Last updated:** February 2026 | **Version:** 1.3.5 (v2.0 "Clarity")
 
-## 📚 Documentation Structure
+## Quick Start
 
-### [Guides](./guides/)
-Step-by-step guides for getting started, building, deploying, and integrating with Agent Max Desktop.
-
-**Getting Started:**
-- [START_HERE.md](./guides/START_HERE.md) - Quick overview to get you oriented
-- [QUICKSTART.md](./guides/QUICKSTART.md) - Fast-track setup guide
-- [QUICK_START_CHECKLIST.md](./guides/QUICK_START_CHECKLIST.md) - Comprehensive setup checklist
-- [INSTALLATION.md](./guides/INSTALLATION.md) - Detailed installation instructions
-
-**Build & Deploy:**
-- [BUILD_GUIDE.md](./guides/BUILD_GUIDE.md) - Building the application
-- [DEPLOYMENT_GUIDE.md](./guides/DEPLOYMENT_GUIDE.md) - Deployment instructions
-- [DISTRIBUTION_GUIDE.md](./guides/DISTRIBUTION_GUIDE.md) - Distribution overview
-- [DISTRIBUTION_EXPLAINED.md](./guides/DISTRIBUTION_EXPLAINED.md) - Detailed distribution info
-
-**Integration & Customization:**
-- [INTEGRATION_GUIDE.md](./guides/INTEGRATION_GUIDE.md) - General integration guide
-- [GOOGLE_INTEGRATION_GUIDE.md](./guides/GOOGLE_INTEGRATION_GUIDE.md) - Google services integration
-- [COMPONENT_MIGRATION_GUIDE.md](./guides/COMPONENT_MIGRATION_GUIDE.md) - Migrating components
-- [UI_CUSTOMIZATION_GUIDE.md](./guides/UI_CUSTOMIZATION_GUIDE.md) - Customizing the UI
-- [FLOATBAR_README.md](./guides/FLOATBAR_README.md) - FloatBar feature documentation
-
-**Debugging:**
-- [DEBUGGING_GUIDE.md](./guides/DEBUGGING_GUIDE.md) - Debugging tips and techniques
+1. **New to the project?** [guides/START_HERE.md](./guides/START_HERE.md)
+2. **Installation:** [guides/INSTALLATION.md](./guides/INSTALLATION.md)
+3. **Build & deploy:** [guides/DEPLOYMENT_GUIDE.md](./guides/DEPLOYMENT_GUIDE.md)
+4. **Architecture overview:** [planning/Codebase_Overview.md](./planning/Codebase_Overview.md)
 
 ---
 
-### [Architecture](./architecture/)
-Technical architecture documentation, including caching systems, memory vault, and backend integration.
+## Guides
 
-**Core Systems:**
-- [MEMORY_VAULT_IMPLEMENTATION.md](./architecture/MEMORY_VAULT_IMPLEMENTATION.md) - Memory vault architecture
-- [CACHING_SYSTEM.md](./architecture/CACHING_SYSTEM.md) - Basic caching overview
-- [SMART_CACHE_SYSTEM.md](./architecture/SMART_CACHE_SYSTEM.md) - Advanced caching features
-- [CACHE_ARCHITECTURE_AND_DEPLOYMENT.md](./architecture/CACHE_ARCHITECTURE_AND_DEPLOYMENT.md) - Complete cache architecture
-
-**Backend & Integration:**
-- [BACKEND_INTEGRATION_COMPLETE.md](./architecture/BACKEND_INTEGRATION_COMPLETE.md) - Backend integration summary
-- [SECTION3_BACKEND_INTEGRATION_ANALYSIS.md](./architecture/SECTION3_BACKEND_INTEGRATION_ANALYSIS.md) - Detailed backend analysis
-- [WIRING_FIXES.md](./architecture/WIRING_FIXES.md) - System wiring documentation
-- [HYBRID_MODE_SUMMARY.md](./architecture/HYBRID_MODE_SUMMARY.md) - Hybrid mode architecture
-
-**Features:**
-- [REAL_TIME_STEP_STREAMING.md](./architecture/REAL_TIME_STEP_STREAMING.md) - Real-time streaming architecture
-- [CONVERSATION_SUMMARY_FEATURE.md](./architecture/CONVERSATION_SUMMARY_FEATURE.md) - Conversation summary system
-
----
-
-### [Design](./design/)
-UI/UX design documentation, brand guides, and glassmorphism implementation details.
-
-**Brand & Style:**
-- [UI_BRAND_GUIDE.md](./design/UI_BRAND_GUIDE.md) - Primary brand guide
-- [UI_BRAND_GUIDE_2.md](./design/UI_BRAND_GUIDE_2.md) - Extended brand guidelines
-- [GLASS_DESIGN_SYSTEM.md](./design/GLASS_DESIGN_SYSTEM.md) - Glass design system overview
-- [GLASS_SETTINGS.md](./design/GLASS_SETTINGS.md) - Glass effect settings
-
-**Implementation:**
-- [TRUE_GLASS_EFFECT.md](./design/TRUE_GLASS_EFFECT.md) - True glass effect implementation
-- [LIQUID_GLASS_IMPLEMENTATION.md](./design/LIQUID_GLASS_IMPLEMENTATION.md) - Liquid glass variant
-- [GLASSMORPHISM_ENHANCEMENT.md](./design/GLASSMORPHISM_ENHANCEMENT.md) - Glass enhancements
-- [GLASSMORPHISM_OVERHAUL.md](./design/GLASSMORPHISM_OVERHAUL.md) - Major glass system overhaul
-
-**UI/UX Evolution:**
-- [UI_REBRAND_SUMMARY.md](./design/UI_REBRAND_SUMMARY.md) - UI rebrand overview
-- [UI_IMPROVEMENTS.md](./design/UI_IMPROVEMENTS.md) - UI improvement history
-- [DetailedUIimprovements.md](./design/DetailedUIimprovements.md) - Detailed UI changes
-- [CURRENT_UI_UX_STATE.md](./design/CURRENT_UI_UX_STATE.md) - Current UI/UX state
-- [UX_IMPROVEMENT_PLAN.md](./design/UX_IMPROVEMENT_PLAN.md) - Future UX improvements
-
-**Planning:**
-- [UI_IMPLEMENTATION_PLAN.md](./design/UI_IMPLEMENTATION_PLAN.md) - UI implementation plan
-- [UI_IMPLEMENTATION_ROADMAP.md](./design/UI_IMPLEMENTATION_ROADMAP.md) - UI roadmap
-
-**Settings UI:**
-- [SETTINGS_WINDOW_REDESIGN.md](./design/SETTINGS_WINDOW_REDESIGN.md) - Settings window redesign
-- [SETTINGS_UI_IMPROVEMENTS.md](./design/SETTINGS_UI_IMPROVEMENTS.md) - Settings UI improvements
+| Doc | Purpose |
+|-----|---------|
+| [START_HERE](./guides/START_HERE.md) | Orientation and quick start |
+| [INSTALLATION](./guides/INSTALLATION.md) | Detailed installation steps |
+| [BUILD_GUIDE](./guides/BUILD_GUIDE.md) | Building the application |
+| [DEPLOYMENT_GUIDE](./guides/DEPLOYMENT_GUIDE.md) | Production deployment |
+| [DISTRIBUTION_GUIDE](./guides/DISTRIBUTION_GUIDE.md) | Packaging installers (macOS/Win/Linux) |
+| [DISTRIBUTION_EXPLAINED](./guides/DISTRIBUTION_EXPLAINED.md) | Why Docker isn't needed; architecture diagram |
+| [DEBUGGING_GUIDE](./guides/DEBUGGING_GUIDE.md) | Electron DevTools, console commands, common errors |
+| [FLOATBAR_README](./guides/FLOATBAR_README.md) | FloatBar UI component documentation |
+| [GOOGLE_INTEGRATION_GUIDE](./guides/GOOGLE_INTEGRATION_GUIDE.md) | Google OAuth, Gmail, Calendar, Docs, YouTube setup |
+| [INTEGRATION_GUIDE](./guides/INTEGRATION_GUIDE.md) | Memory Vault wiring into main app |
+| [UI_CUSTOMIZATION_GUIDE](./guides/UI_CUSTOMIZATION_GUIDE.md) | CSS variable customization |
+| [COMPONENT_MIGRATION_GUIDE](./guides/COMPONENT_MIGRATION_GUIDE.md) | UI rebrand component migration pattern |
+| [QUICK_START_CHECKLIST](./guides/QUICK_START_CHECKLIST.md) | UI rebrand implementation checklist |
 
 ---
 
-### [Phases](./phases/)
-Development phase documentation, roadmaps, and milestone completions.
+## Architecture
 
-**Roadmap:**
-- [MASTER_ROADMAP.md](./phases/MASTER_ROADMAP.md) - Overall project roadmap
-
-**Phase Documentation:**
-- [PHASE_1_DESIGN_TOKENS.md](./phases/PHASE_1_DESIGN_TOKENS.md) - Phase 1: Design system
-- [PHASE2_PROGRESS.md](./phases/PHASE2_PROGRESS.md) - Phase 2: Progress tracking
-- [PHASE2_DAY1_COMPLETE.md](./phases/PHASE2_DAY1_COMPLETE.md) - Phase 2: Day 1 completion
-- [PHASE2_COMPLETE.md](./phases/PHASE2_COMPLETE.md) - Phase 2: Completion summary
-- [PHASE3_PLAN.md](./phases/PHASE3_PLAN.md) - Phase 3: Planning
-- [PHASE3_COMPLETE.md](./phases/PHASE3_COMPLETE.md) - Phase 3: Completion summary
-- [PHASE4_OVERVIEW.md](./phases/PHASE4_OVERVIEW.md) - Phase 4: Overview
-
-**Milestone Completions:**
-- [UX_DAY1_SPRINT_COMPLETE.md](./phases/UX_DAY1_SPRINT_COMPLETE.md) - UX Day 1 sprint
-- [SCREEN_CONTROL_MVP_COMPLETE.md](./phases/SCREEN_CONTROL_MVP_COMPLETE.md) - Screen control MVP
-- [DESKTOP_FEATURES_IMPLEMENTED.md](./phases/DESKTOP_FEATURES_IMPLEMENTED.md) - Desktop features completion
-
-**Planning:**
-- [NEXT_CATEGORY_UI_UX.md](./phases/NEXT_CATEGORY_UI_UX.md) - Next UI/UX priorities
-- [DESKTOP_FEATURES_PLAN.md](./phases/DESKTOP_FEATURES_PLAN.md) - Desktop features planning
+| Doc | Purpose |
+|-----|---------|
+| [MEMORY_VAULT_IMPLEMENTATION](./architecture/MEMORY_VAULT_IMPLEMENTATION.md) | SQLite memory vault with encryption, decay, reinforcement |
+| [SMART_CACHE_SYSTEM](./architecture/SMART_CACHE_SYSTEM.md) | Frequency-based caching (replaces basic cache) |
+| [CACHE_ARCHITECTURE_AND_DEPLOYMENT](./architecture/CACHE_ARCHITECTURE_AND_DEPLOYMENT.md) | Dual-layer cache + deployment options |
+| [HYBRID_MODE_SUMMARY](./architecture/HYBRID_MODE_SUMMARY.md) | Conversation/execution mode switching |
+| [REAL_TIME_STEP_STREAMING](./architecture/REAL_TIME_STEP_STREAMING.md) | SSE streaming for AI steps |
+| [CONVERSATION_SUMMARY_FEATURE](./architecture/CONVERSATION_SUMMARY_FEATURE.md) | 5-word conversation summaries |
+| [SECTION3_BACKEND_INTEGRATION_ANALYSIS](./architecture/SECTION3_BACKEND_INTEGRATION_ANALYSIS.md) | Backend integration roadmap (40% complete) |
+| [WIRING_FIXES](./architecture/WIRING_FIXES.md) | Memory Vault security hardening (90% complete) |
 
 ---
 
-### [Fixes](./fixes/)
-Bug fixes, debugging reports, and issue resolutions.
+## Design
 
-**Authentication & OAuth:**
-- [CLIENT_SECRET_FIX.md](./fixes/CLIENT_SECRET_FIX.md) - Client secret fix
-- [OAUTH_TOKEN_EXCHANGE_FIX.md](./fixes/OAUTH_TOKEN_EXCHANGE_FIX.md) - OAuth token exchange fix
-- [GOOGLE_OAUTH_FIX.md](./fixes/GOOGLE_OAUTH_FIX.md) - Google OAuth fix
-
-**UI & Visual:**
-- [ELECTRON_VIBRANCY_FIX.md](./fixes/ELECTRON_VIBRANCY_FIX.md) - Vibrancy effect fix
-- [GRAY_BACKGROUND_FIX.md](./fixes/GRAY_BACKGROUND_FIX.md) - Gray background fix
-- [FULLY_TRANSPARENT_FIX.md](./fixes/FULLY_TRANSPARENT_FIX.md) - Transparency fix
-- [INVISIBILITY_FIX.md](./fixes/INVISIBILITY_FIX.md) - Invisibility issue fix
-- [COMPOSITOR_ARTIFACT_FIX_PLAN.md](./fixes/COMPOSITOR_ARTIFACT_FIX_PLAN.md) - Compositor artifact fix
-
-**Glass Effect Issues:**
-- [ELECTRON_BACKDROP_FILTER_ISSUE.md](./fixes/ELECTRON_BACKDROP_FILTER_ISSUE.md) - Backdrop filter issue
-- [DEBUG_GLASS_EFFECT.md](./fixes/DEBUG_GLASS_EFFECT.md) - Glass effect debugging
-- [TRANSPARENCY_ISSUE_DIAGNOSIS.md](./fixes/TRANSPARENCY_ISSUE_DIAGNOSIS.md) - Transparency diagnosis
-- [DEEP_DEBUG_TRANSPARENCY.md](./fixes/DEEP_DEBUG_TRANSPARENCY.md) - Deep transparency debugging
-- [DEBUG_STEPS.md](./fixes/DEBUG_STEPS.md) - General debug steps
-
-**Features & Integration:**
-- [GOOGLE_AND_HISTORY_FIX.md](./fixes/GOOGLE_AND_HISTORY_FIX.md) - Google & history fix
-- [GOOGLE_SERVICES_TEST_FIX.md](./fixes/GOOGLE_SERVICES_TEST_FIX.md) - Google services test fix
-- [HISTORY_AND_PERSISTENCE_FIX.md](./fixes/HISTORY_AND_PERSISTENCE_FIX.md) - History persistence fix
-- [HISTORY_DEBUG_AND_FIX.md](./fixes/HISTORY_DEBUG_AND_FIX.md) - History debugging
-- [HISTORY_FEATURE_FIXED.md](./fixes/HISTORY_FEATURE_FIXED.md) - History feature fix
-- [SETTINGS_ACCESS_FIXED.md](./fixes/SETTINGS_ACCESS_FIXED.md) - Settings access fix
-- [PREFERENCE_VALIDATION_FIX.md](./fixes/PREFERENCE_VALIDATION_FIX.md) - Preference validation fix
-- [FIXES_APPLIED.md](./fixes/FIXES_APPLIED.md) - General fixes summary
+| Doc | Purpose |
+|-----|---------|
+| [BRAND_GUIDE](./design/BRAND_GUIDE.md) | Typography, colors, spacing, components, accessibility |
+| [GLASS_DESIGN_SYSTEM](./design/GLASS_DESIGN_SYSTEM.md) | Glass morphism philosophy, CSS vars, layer hierarchy, effect reference |
+| [CURRENT_UI_UX_STATE](./design/CURRENT_UI_UX_STATE.md) | Production UI baseline (Oct 2025) |
+| [UI_REBRAND_SUMMARY](./design/UI_REBRAND_SUMMARY.md) | Light theme transformation roadmap |
+| [UI_IMPLEMENTATION_ROADMAP](./design/UI_IMPLEMENTATION_ROADMAP.md) | 10-phase UI implementation plan |
+| [UI_IMPROVEMENTS](./design/UI_IMPROVEMENTS.md) | UI improvement history |
+| [UX_IMPROVEMENT_PLAN](./design/UX_IMPROVEMENT_PLAN.md) | Active UX roadmap with KPIs |
+| [SETTINGS_WINDOW_REDESIGN](./design/SETTINGS_WINDOW_REDESIGN.md) | Standalone settings window architecture |
 
 ---
 
-### [Testing](./testing/)
-Testing reports, test plans, and test instructions.
+## Planning
 
-**Test Reports:**
-- [DEEP_TESTING_REPORT.md](./testing/DEEP_TESTING_REPORT.md) - Comprehensive testing report
-- [TESTING_STATUS_SUMMARY.md](./testing/TESTING_STATUS_SUMMARY.md) - Current testing status
+| Doc | Purpose |
+|-----|---------|
+| [Codebase_Overview](./planning/Codebase_Overview.md) | Architectural map of the entire app |
+| [Feature_Status](./planning/Feature_Status.md) | Feature matrix — what's done, what's pending |
+| [System_Integration](./planning/System_Integration.md) | Desktop-backend integration flows |
+| [Backend_Railway_Overview](./planning/Backend_Railway_Overview.md) | FastAPI backend on Railway — config, endpoints, verification |
+| [Known_Issues_and_Risks](./planning/Known_Issues_and_Risks.md) | Active risk tracker |
+| [CODE_IMPROVEMENT_PLAN](./planning/CODE_IMPROVEMENT_PLAN.md) | Code quality improvement tracker |
+| [MEMORY_SPEED_OPTIMIZATION_PLAN](./planning/MEMORY_SPEED_OPTIMIZATION_PLAN.md) | Memory performance optimization |
+| [Repo_Structure_Migration_2025-11-10](./planning/Repo_Structure_Migration_2025-11-10.md) | Staged repo restructuring |
+| [Legacy_Code_Audit_2025-11-06](./planning/Legacy_Code_Audit_2025-11-06.md) | Dead code identification |
+| [PERSONALIZED_ONBOARDING_PLAN](./planning/PERSONALIZED_ONBOARDING_PLAN.md) | Personalized onboarding architecture |
+| [FRONTEND_AUTONOMOUS_INTEGRATION_GUIDE](./planning/FRONTEND_AUTONOMOUS_INTEGRATION_GUIDE.md) | Autonomous execution event contract |
+| [Thought_Trace_UI](./planning/Thought_Trace_UI.md) | Live reasoning bubble feature |
+| [Auth_Onboarding_Update](./planning/Auth_Onboarding_Update.md) | Onboarding flow updates |
 
-**Test Plans:**
-- [VIBRANCY_TEST_MODES.md](./testing/VIBRANCY_TEST_MODES.md) - Vibrancy testing modes
-- [SHADOW_FIX_TEST_INSTRUCTIONS.md](./testing/SHADOW_FIX_TEST_INSTRUCTIONS.md) - Shadow fix testing
-- [TRANSPARENCY_FIX_TEST_PLAN.md](./testing/TRANSPARENCY_FIX_TEST_PLAN.md) - Transparency testing
-
----
-
-## 📋 Project Status & Summaries
-
-Root-level status documents:
-
-- [IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md) - Implementation overview
-- [IMPLEMENTATION_COMPLETE.md](./IMPLEMENTATION_COMPLETE.md) - Implementation completion
-- [INTEGRATION_SUMMARY.md](./INTEGRATION_SUMMARY.md) - Integration summary
-- [SESSION_SUMMARY.md](./SESSION_SUMMARY.md) - Session summaries
-- [PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md) - Overall project summary
-- [FINAL_STATUS.md](./FINAL_STATUS.md) - Final project status
-
-## ✅ Checklists & Best Practices
-
-- [VERIFICATION_CHECKLIST.md](./VERIFICATION_CHECKLIST.md) - Verification checklist
-- [VERIFICATION_COMPLETE.md](./VERIFICATION_COMPLETE.md) - Verification completion
-- [PRODUCTION_CHECKLIST.md](./PRODUCTION_CHECKLIST.md) - Production readiness
-- [SHIP_CHECKLIST.md](./SHIP_CHECKLIST.md) - Shipping checklist
-- [BEST_PRACTICES_AUDIT.md](./BEST_PRACTICES_AUDIT.md) - Best practices audit
-- [BEST_PRACTICES_IMPLEMENTATION.md](./BEST_PRACTICES_IMPLEMENTATION.md) - Best practices implementation
-
-## 🔍 Quick Reference
-
-- [CHANGES_QUICK_REF.md](./CHANGES_QUICK_REF.md) - Quick reference for changes
-- [QUICK_ANSWERS.md](./QUICK_ANSWERS.md) - Quick answers to common questions
-- [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) - General quick reference
-- [DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md) - Original documentation index
-
-## 💰 Monetization
-
-- [MONETIZATION_SETUP.md](./MONETIZATION_SETUP.md) - Monetization setup guide
-
-## 📝 Release Notes
-
-- [RELEASE_NOTES_v2.0.md](./RELEASE_NOTES_v2.0.md) - Version 2.0 release notes
-
-## 🔧 Code Quality
-
-- [LINT_STATUS.md](./LINT_STATUS.md) - Linting status
+**Completed milestones** (reference only):
+[Backend_Fixes_Summary](./planning/Backend_Fixes_Summary.md) |
+[Backend_Fixes_COMPLETE](./planning/Backend_Fixes_COMPLETE.md) |
+[Backend_Fire_Test_Results](./planning/Backend_Fire_Test_Results.md) |
+[Autonomous_Streaming_Integration_Complete](./planning/Autonomous_Streaming_Integration_Complete.md) |
+[Autonomous_Tool_Execution_Integration_Complete](./planning/Autonomous_Tool_Execution_Integration_Complete.md) |
+[Desktop_Side_Execution_IMPLEMENTATION_SUMMARY](./planning/Desktop_Side_Execution_IMPLEMENTATION_SUMMARY.md) |
+[Desktop_Autonomous_Endpoint_Fix](./planning/Desktop_Autonomous_Endpoint_Fix.md) |
+[Desktop_Pill_Render_Fix_2025-11-11](./planning/Desktop_Pill_Render_Fix_2025-11-11.md) |
+[Desktop_Embeddings_and_Credits_Fix_2025-11-09](./planning/Desktop_Embeddings_and_Credits_Fix_2025-11-09.md) |
+[Tool_Execution_Quick_Test](./planning/Tool_Execution_Quick_Test.md)
 
 ---
 
-## 🧪 Test Files Organization
+## Phases
 
-Test files have been organized into:
-
-### `/tests/electron/`
-Electron-specific test files:
-- `test-context-selector.cjs` - Context selector tests
-- `test-integration.cjs` - Integration tests
-- `test-migration.cjs` - Migration tests
-- `test-vault.cjs` - Vault tests
-- `test-window.cjs` - Window tests
-
-### `/tests/scripts/`
-Test scripts and verification:
-- `test_autonomous_execution.sh` - Autonomous execution tests
-- `test_complete_app.js` - Complete app tests
-- `test_desktop_integration.js` - Desktop integration tests
-- `test-history.js` - History tests
-- `verify-setup.sh` - Setup verification
-- `verify_integration.sh` - Integration verification
-- `test-electron-glass.sh` - Glass effect tests
-
-### `/tests/unit/`
-Unit tests (existing structure maintained)
-
-### `/tests/integration/`
-Integration tests (existing structure maintained)
+| Doc | Purpose |
+|-----|---------|
+| [MASTER_ROADMAP](./phases/MASTER_ROADMAP.md) | Overall project roadmap |
+| [PHASE_1_DESIGN_TOKENS](./phases/PHASE_1_DESIGN_TOKENS.md) | Phase 1: Design system |
+| [PHASE2_PROGRESS](./phases/PHASE2_PROGRESS.md) | Phase 2: Progress |
+| [PHASE3_PLAN](./phases/PHASE3_PLAN.md) | Phase 3: Search & Quick Switcher |
+| [PHASE4_OVERVIEW](./phases/PHASE4_OVERVIEW.md) | Phase 4: Overview |
+| [DESKTOP_FEATURES_IMPLEMENTED](./phases/DESKTOP_FEATURES_IMPLEMENTED.md) | Desktop features status |
+| [DESKTOP_FEATURES_PLAN](./phases/DESKTOP_FEATURES_PLAN.md) | Desktop features planning |
+| [NEXT_CATEGORY_UI_UX](./phases/NEXT_CATEGORY_UI_UX.md) | Next UI/UX priorities |
 
 ---
 
-## 🗂️ Navigation Tips
+## Implementation
 
-1. **New to the project?** Start with [START_HERE.md](./guides/START_HERE.md)
-2. **Want to build?** Check [BUILD_GUIDE.md](./guides/BUILD_GUIDE.md)
-3. **Looking for specific fixes?** Browse [fixes/](./fixes/)
-4. **Understanding architecture?** Check [architecture/](./architecture/)
-5. **Designing or styling?** Visit [design/](./design/)
-6. **Tracking progress?** Look at [phases/](./phases/)
-7. **Running tests?** See test files in `/tests/`
+| Doc | Purpose |
+|-----|---------|
+| [IMPLEMENTATION_STATUS](./implementation/IMPLEMENTATION_STATUS.md) | Master status (15/15 Supabase tests passing) |
+| [USER_FLOW_IMPLEMENTATION](./implementation/USER_FLOW_IMPLEMENTATION.md) | Full user flow: download to credit usage |
+| [HYBRID_MEMORY_IMPLEMENTATION](./implementation/HYBRID_MEMORY_IMPLEMENTATION.md) | Local + Supabase hybrid search |
+| [MEMORY_INVENTORY](./implementation/MEMORY_INVENTORY.md) | Complete memory API/localStorage/Supabase map |
+| [MEMORY_AND_HISTORY_STATUS](./implementation/MEMORY_AND_HISTORY_STATUS.md) | Memory features status + semantic search details |
+| [API_KEYS_STATUS](./implementation/API_KEYS_STATUS.md) | API key configuration reference |
+| [SUPABASE_SETUP_STATUS](./implementation/SUPABASE_SETUP_STATUS.md) | Database schema and migration status |
+| [EXECUTION_PLAN_INTEGRATION](./implementation/EXECUTION_PLAN_INTEGRATION.md) | Execution plan frontend integration (partial) |
+| [STREAMING_FIX_SUMMARY](./implementation/STREAMING_FIX_SUMMARY.md) | Token streaming implementation |
+| [SETTINGS_GLASSMORPHISM_UPDATE](./implementation/SETTINGS_GLASSMORPHISM_UPDATE.md) | Settings glass morphism spec + comparison |
+| [UNFINISHED_TASKS_REVIEW](./implementation/UNFINISHED_TASKS_REVIEW.md) | Remaining P0 tasks |
+| [PROOF_OF_HYBRID_SEARCH_SUPERIORITY](./implementation/PROOF_OF_HYBRID_SEARCH_SUPERIORITY.md) | Search benchmark results |
+
+**Feature-specific:** [EMAIL_APPROVAL_IMPROVEMENTS](./implementation/EMAIL_APPROVAL_IMPROVEMENTS.md) | [SCREENSHOT_PERMISSION_FIX](./implementation/SCREENSHOT_PERMISSION_FIX.md) | [AMBIGUITY_API_ERROR_FIX](./implementation/AMBIGUITY_API_ERROR_FIX.md) | [MEMORY_INTEGRATION_PATCH](./implementation/MEMORY_INTEGRATION_PATCH.md)
+
+**Test checklists:** [MANUAL_TEST_CHECKLIST](./implementation/MANUAL_TEST_CHECKLIST.md) | [PHASE2_MANUAL_TEST_CHECKLIST](./implementation/PHASE2_MANUAL_TEST_CHECKLIST.md) | [MEMORY_TEST_INSTRUCTIONS](./implementation/MEMORY_TEST_INSTRUCTIONS.md) | [CREDIT_DEDUCTION_TEST_GUIDE](./implementation/CREDIT_DEDUCTION_TEST_GUIDE.md) | [STRIPE_INTEGRATION_TEST](./implementation/STRIPE_INTEGRATION_TEST.md) | [TEST_RESULTS](./implementation/TEST_RESULTS.md)
 
 ---
 
-**Last Updated:** October 2024
+## Fixes
+
+| Doc | Issue Resolved |
+|-----|----------------|
+| [ELECTRON_VIBRANCY_FIX](./fixes/ELECTRON_VIBRANCY_FIX.md) | Vibrancy architecture + related opacity/backdrop fixes |
+| [GRAY_BACKGROUND_FIX](./fixes/GRAY_BACKGROUND_FIX.md) | Design token incompatibility with glass |
+| [GOOGLE_OAUTH_FIX](./fixes/GOOGLE_OAUTH_FIX.md) | Redirect URI mismatch + success page |
+| [CLIENT_SECRET_FIX](./fixes/CLIENT_SECRET_FIX.md) | OAuth token exchange requires client_secret |
+| [OAUTH_TOKEN_EXCHANGE_FIX](./fixes/OAUTH_TOKEN_EXCHANGE_FIX.md) | State cleared by auto-reload |
+| [GOOGLE_SERVICES_TEST_FIX](./fixes/GOOGLE_SERVICES_TEST_FIX.md) | Corrected API endpoints |
+| [GOOGLE_AND_HISTORY_FIX](./fixes/GOOGLE_AND_HISTORY_FIX.md) | Cross-window connection persistence |
+| [HISTORY_AND_PERSISTENCE_FIX](./fixes/HISTORY_AND_PERSISTENCE_FIX.md) | Unlimited history storage architecture |
+| [PREFERENCE_VALIDATION_FIX](./fixes/PREFERENCE_VALIDATION_FIX.md) | Empty name submission prevention |
+
+---
+
+## Testing
+
+| Doc | Purpose |
+|-----|---------|
+| [DEEP_TESTING_REPORT](./testing/DEEP_TESTING_REPORT.md) | Comprehensive code review (5 critical bugs found/fixed) |
+| [TESTING_STATUS_SUMMARY](./testing/TESTING_STATUS_SUMMARY.md) | Current testing status |
+| [VIBRANCY_TEST_MODES](./testing/VIBRANCY_TEST_MODES.md) | Vibrancy mode testing |
+| [SHADOW_FIX_TEST_INSTRUCTIONS](./testing/SHADOW_FIX_TEST_INSTRUCTIONS.md) | Shadow fix verification |
+| [TRANSPARENCY_FIX_TEST_PLAN](./testing/TRANSPARENCY_FIX_TEST_PLAN.md) | Transparency fix verification |
+
+---
+
+## Project Status & Checklists
+
+| Doc | Purpose |
+|-----|---------|
+| [PROJECT_SUMMARY](./PROJECT_SUMMARY.md) | Full project overview (endpoints, structure, deps) |
+| [IMPLEMENTATION_SUMMARY](./IMPLEMENTATION_SUMMARY.md) | v2.0 UX overhaul: 13 features, 19 telemetry events |
+| [INTEGRATION_SUMMARY](./INTEGRATION_SUMMARY.md) | Stop/Continue backend integration |
+| [FINAL_STATUS](./FINAL_STATUS.md) | v2.0 completion summary |
+| [SESSION_SUMMARY](./SESSION_SUMMARY.md) | Development session record |
+| [BETA_READINESS](./BETA_READINESS.md) | Auto-updater, code signing, billing readiness |
+| [PRODUCTION_CHECKLIST](./PRODUCTION_CHECKLIST.md) | 10 production hardening items |
+| [SHIP_CHECKLIST](./SHIP_CHECKLIST.md) | Pre-deployment v2.0 checklist |
+| [VERIFICATION_CHECKLIST](./VERIFICATION_CHECKLIST.md) | Phase 1-2 acceptance criteria |
+| [BEST_PRACTICES_AUDIT](./BEST_PRACTICES_AUDIT.md) | Quality audit (85/100) |
+| [BEST_PRACTICES_IMPLEMENTATION](./BEST_PRACTICES_IMPLEMENTATION.md) | Quality improvements (85 to 92/100) |
+| [RELEASE_NOTES_v2.0](./RELEASE_NOTES_v2.0.md) | Public-facing v2.0 release notes |
+
+---
+
+## Other
+
+| Doc | Purpose |
+|-----|---------|
+| [MONETIZATION_SETUP](./MONETIZATION_SETUP.md) | Stripe pricing, webhooks, tax setup |
+| [SUPABASE_INTEGRATION_GUIDE](./SUPABASE_INTEGRATION_GUIDE.md) | Unified data schema with RLS |
+| [CONNECTIVITY_ROADMAP](./CONNECTIVITY_ROADMAP.md) | Frontend-backend connectivity via Railway |
+| [TELEMETRY_PIPELINE](./TELEMETRY_PIPELINE.md) | Beta telemetry collection config |
+| [AGENT_MAX_INTEGRATION_ANALYSIS](./AGENT_MAX_INTEGRATION_ANALYSIS.md) | Integration gap analysis |
+| [CAPABILITY_AUDIT](./CAPABILITY_AUDIT.md) | Advertised vs actual capabilities |
+| [CODEBASE_ORGANIZATION_ANALYSIS](./CODEBASE_ORGANIZATION_ANALYSIS.md) | Code org + packaging readiness |
+| [SECURITY_AUDIT_REPORT](./SECURITY_AUDIT_REPORT.md) | Security findings |
+| [SECURITY_CONFIGURATION_GUIDE](./SECURITY_CONFIGURATION_GUIDE.md) | Security fix implementation guide |
+| [QUICK_ANSWERS](./QUICK_ANSWERS.md) | FAQ |
+| [QUICK_REFERENCE](./QUICK_REFERENCE.md) | UI rebrand color/token reference |
+| [CHANGES_QUICK_REF](./CHANGES_QUICK_REF.md) | Code change quick reference |
+| [contracts/README](./contracts/README.md) | Backend response contract schemas |
+| [GPT-5-Docs/OpenAI_GPT-5_Pricing_Updated_2025](./GPT-5-Docs/OpenAI_GPT-5_Pricing_Updated_2025.md) | GPT-5 pricing reference |

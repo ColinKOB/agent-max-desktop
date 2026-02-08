@@ -249,3 +249,14 @@ Run this in DevTools Console:
 | History segmentation | ✅ Implemented | ConversationHistory.jsx | 52-108 |
 | Semantic API call | ✅ Implemented | AppleFloatBar.jsx | 654-696 |
 
+---
+
+## Session & Semantic Search Implementation
+
+- **Session fix**: `handleClear()` now calls `window.electron.memory.startSession()` to create a fresh session, preventing messages from accumulating in a single unbounded session (previously grew to 169+ messages).
+- **App launch session**: A `useEffect` hook in `AppleFloatBar.jsx` calls `startSession()` on mount, ensuring every app launch begins with a clean session.
+- **Local semantic search**: Replaced backend API call (`semanticAPI.findSimilar`) with local keyword-based search over all Electron sessions, enabling offline recall of past conversations.
+- **Search algorithm**: Extracts keywords (>3 chars) from the query, scores each stored message by `matchCount / totalKeywords`, and returns top results above the configured threshold.
+- **Limitation**: Current search is keyword-based (no synonym support). A future enhancement path is local embeddings via TensorFlow.js for true semantic similarity.
+- **File modified**: `src/components/FloatBar/AppleFloatBar.jsx` (session init, handleClear, semantic search logic).
+

@@ -1,6 +1,15 @@
+## Executive Summary
+
+- **Database**: 15/15 Supabase tests passing (100%) -- schema with 14 tables, 5 views, 4 functions, and RLS policies fully operational.
+- **Backend**: Credit management API (`/api/v2/credits/*`), Stripe webhook integration, and checkout session creation are complete.
+- **Frontend**: `CreditDisplay.jsx` widget with 3-second polling, optimistic updates, and low-credit warnings is ready. `creditsAPI` service added.
+- **Remaining tasks (~2 hours)**: Initialize user on app start, add credit display to toolbar, integrate credit check into message send, and create purchase modal.
+
+---
+
 # User Flow Implementation & Testing Report
 
-**Status**: Testing and Implementation  
+**Status**: Testing and Implementation
 **Date**: October 21, 2025
 
 ---

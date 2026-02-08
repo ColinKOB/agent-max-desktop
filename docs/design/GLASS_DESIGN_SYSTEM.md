@@ -377,5 +377,19 @@ vibrancy: 'under-window'   // Was: 'hud'
 
 ---
 
-*Glass design system complete: October 11, 2025, 10:09 AM*  
+*Glass design system complete: October 11, 2025, 10:09 AM*
 *Subtle, professional, futuristic!* 🎨
+
+---
+
+## Glass Effect Reference
+
+Quick-reference specs consolidated from earlier exploration notes.
+
+- **Layer opacity:** 28% base for panels; 8% when using true transparency mode (Electron `transparent: true` with no vibrancy fallback).
+- **Blur radius:** 24px recommended for primary glass surfaces. Use 18px for lighter/secondary panels.
+- **Saturation boost:** 130-140% applied via `backdrop-filter: saturate(...)` to enrich colors seen through the glass.
+- **Depth via radial gradients:** Layer a subtle radial gradient (center-bright, edge-dark) behind the glass panel to simulate light falloff and add perceived depth.
+- **Rim lighting:** Apply a 1px semi-transparent white border (`rgba(255,255,255,0.08-0.12)`) on the top or light-facing edge to mimic a lit glass rim.
+- **Electron vibrancy mode:** `'popover'` is the recommended starting point for lightweight, translucent overlays. `'under-window'` is a solid alternative when more opacity is acceptable.
+- **Critical constraint:** CSS `backdrop-filter` and Electron's native `vibrancy` conflict at the compositing level. Use one or the other per window -- never both simultaneously. Combining them produces rendering artifacts or the CSS filter silently fails.
