@@ -17,7 +17,11 @@
  */
 
 const http = require('http');
+const crypto = require('crypto');
 const { ipcMain } = require('electron');
+
+// Generate auth token for this server instance
+const serverToken = crypto.randomBytes(32).toString('hex');
 
 let mainWindow = null;
 let server = null;
@@ -58,7 +62,7 @@ function start() {
     // CORS headers for local testing
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Content-Type', 'application/json');
 
     if (req.method === 'OPTIONS') {
@@ -69,6 +73,16 @@ function start() {
 
     const url = new URL(req.url, `http://${req.headers.host}`);
     const pathname = url.pathname;
+
+    // Auth check (skip for health endpoint)
+    if (pathname !== '/health') {
+      const authHeader = req.headers['authorization'];
+      if (!authHeader || authHeader !== `Bearer ${serverToken}`) {
+        res.writeHead(401);
+        res.end(JSON.stringify({ error: 'Unauthorized' }));
+        return;
+      }
+    }
 
     try {
       // Health check
@@ -511,32 +525,7 @@ function start() {
         return;
       }
 
-      // Execute arbitrary JavaScript (for testing only)
-      if (pathname === '/execute-js' && req.method === 'POST') {
-        const body = await readBody(req);
-        const { code } = JSON.parse(body);
-
-        if (!code) {
-          res.writeHead(400);
-          res.end(JSON.stringify({ error: 'code is required' }));
-          return;
-        }
-
-        if (mainWindow) {
-          try {
-            const result = await mainWindow.webContents.executeJavaScript(code);
-            res.writeHead(200);
-            res.end(JSON.stringify({ success: true, result }));
-          } catch (err) {
-            res.writeHead(500);
-            res.end(JSON.stringify({ error: err.message }));
-          }
-        } else {
-          res.writeHead(500);
-          res.end(JSON.stringify({ error: 'Window not available' }));
-        }
-        return;
-      }
+      // /execute-js endpoint removed for security
 
       // Not found
       res.writeHead(404);
@@ -579,8 +568,16 @@ function readBody(req) {
   });
 }
 
+/**
+ * Get the auth token for this server instance
+ */
+function getAuthToken() {
+  return serverToken;
+}
+
 module.exports = {
   start,
   stop,
-  setMainWindow
+  setMainWindow,
+  getAuthToken
 };

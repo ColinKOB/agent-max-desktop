@@ -23,7 +23,7 @@ const {
   desktopCapturer,
 } = require('electron');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 const os = require('os');
 
 // Simple dev check instead of electron-is-dev
@@ -217,7 +217,7 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, '../preload/preload.cjs'),
       // Disable CORS to permit desktop app to call trusted backend from file://
-      webSecurity: false,
+      webSecurity: true,
       sandbox: true,
       // Disallow running insecure content in production
       allowRunningInsecureContent: false,
@@ -320,7 +320,12 @@ function createWindow() {
   // Handle window.open() calls - redirect to external browser instead of creating new Electron windows
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     console.log('[Electron] window.open intercepted, opening in external browser:', url);
-    shell.openExternal(url);
+    try {
+      const parsed = new URL(url);
+      if (['https:', 'http:', 'mailto:'].includes(parsed.protocol)) {
+        shell.openExternal(url);
+      }
+    } catch {}
     return { action: 'deny' }; // Prevent Electron from creating a new window
   });
 
@@ -364,7 +369,7 @@ function ensureCardWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, '../preload/preload.cjs'),
-      webSecurity: false,
+      webSecurity: true,
       sandbox: true,
       allowRunningInsecureContent: false,
     },
@@ -377,7 +382,12 @@ function ensureCardWindow() {
   // Handle window.open() calls - redirect to external browser instead of creating new Electron windows
   cardWindow.webContents.setWindowOpenHandler(({ url }) => {
     console.log('[Electron] window.open intercepted from card, opening in external browser:', url);
-    shell.openExternal(url);
+    try {
+      const parsed = new URL(url);
+      if (['https:', 'http:', 'mailto:'].includes(parsed.protocol)) {
+        shell.openExternal(url);
+      }
+    } catch {}
     return { action: 'deny' }; // Prevent Electron from creating a new window
   });
 
@@ -625,7 +635,7 @@ function createSettingsWindow(route) {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, '../preload/preload.cjs'),
-      webSecurity: false,
+      webSecurity: true,
       sandbox: true,
       backgroundThrottling: false,
     },
@@ -689,6 +699,18 @@ function createSettingsWindow(route) {
 }
 
 // IPC handlers
+
+// Expose API server auth tokens to the renderer so it can authenticate
+// fetch() calls to the local HTTP API servers (workspace, spreadsheet, notes, testing).
+ipcMain.handle('get-api-server-tokens', async () => {
+  return {
+    workspace: workspaceApiServer.getAuthToken(),
+    spreadsheet: spreadsheetApiServer.getAuthToken(),
+    notes: notesApiServer.getAuthToken(),
+    testing: testingApiServer.getAuthToken(),
+  };
+});
+
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
 });
@@ -898,11 +920,11 @@ ipcMain.handle(
           return { success: true, message: 'Command executed in Terminal' };
         } else if (process.platform === 'win32') {
           // Windows: Use PowerShell
-          shell.openExternal(`powershell.exe -Command "${command}"`);
+          execFile('powershell.exe', ['-Command', command]);
           return { success: true, message: 'Command executed in PowerShell' };
         } else {
           // Linux: Use default terminal
-          shell.openExternal(`x-terminal-emulator -e "${command}"`);
+          execFile('x-terminal-emulator', ['-e', command]);
           return { success: true, message: 'Command executed in terminal' };
         }
       } catch (error) {

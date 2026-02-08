@@ -16,9 +16,18 @@ const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 const util = require('util');
 const execAsync = util.promisify(exec);
+
+/**
+ * Escape a string for safe interpolation into AppleScript double-quoted strings.
+ * Handles backslashes and double quotes which can break out of string literals.
+ */
+function escapeAppleScript(str) {
+    if (typeof str !== 'string') return '';
+    return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
 
 class LocalExecutor {
   constructor() {
@@ -501,12 +510,28 @@ class LocalExecutor {
       }
     }
 
-    const resolved = path.isAbsolute(filePath) ? path.resolve(filePath) : path.resolve(normalizedHome, filePath);
-    
+    const prelimPath = path.isAbsolute(filePath) ? path.resolve(filePath) : path.resolve(normalizedHome, filePath);
+
+    // Use realpathSync to resolve symlinks before checking the path
+    const fsSync = require('fs');
+    let resolved;
+    try {
+      resolved = fsSync.realpathSync(prelimPath);
+    } catch {
+      // File doesn't exist yet -- validate parent directory instead
+      const parentDir = path.dirname(prelimPath);
+      try {
+        const resolvedParent = fsSync.realpathSync(parentDir);
+        resolved = path.join(resolvedParent, path.basename(prelimPath));
+      } catch {
+        resolved = prelimPath;
+      }
+    }
+
     if (!(resolved === normalizedHome || resolved.startsWith(safeRoot))) {
       throw new Error(`Access denied: Path must be within home directory. Attempted: ${resolved}`);
     }
-    
+
     return resolved;
   }
 
@@ -664,46 +689,115 @@ class LocalExecutor {
   // =============================================================================
 
   /**
+   * Spawn a process with argument array (no shell) and limit output to N lines.
+   * Replaces shell piping through `head -n` to avoid command injection.
+   */
+  _spawnWithLimit(executable, args, lineLimit, timeoutSec) {
+    return new Promise((resolve) => {
+      const proc = spawn(executable, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+
+      let stdout = '';
+      let stderr = '';
+      let lineCount = 0;
+      let done = false;
+
+      const timeoutId = setTimeout(() => {
+        if (!done) {
+          done = true;
+          proc.kill('SIGTERM');
+          resolve({ stdout, stderr: stderr + '\n(timed out)', exit_code: 124 });
+        }
+      }, (timeoutSec || 30) * 1000);
+
+      proc.stdout.on('data', (data) => {
+        if (done) return;
+        const chunk = data.toString();
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (lineCount >= lineLimit) {
+            done = true;
+            proc.kill('SIGTERM');
+            clearTimeout(timeoutId);
+            resolve({ stdout, stderr, exit_code: 0 });
+            return;
+          }
+          if (line.length > 0) {
+            stdout += (stdout.length > 0 ? '\n' : '') + line;
+            lineCount++;
+          }
+        }
+      });
+
+      proc.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      proc.on('close', (code) => {
+        if (!done) {
+          done = true;
+          clearTimeout(timeoutId);
+          resolve({ stdout, stderr, exit_code: code || 0 });
+        }
+      });
+
+      proc.on('error', (err) => {
+        if (!done) {
+          done = true;
+          clearTimeout(timeoutId);
+          resolve({ stdout: '', stderr: err.message, exit_code: 1 });
+        }
+      });
+    });
+  }
+
+  /**
    * Search for files by name, content, or semantic meaning
    */
   async fsSearch(args) {
     const { query, search_type, directory, file_types, max_results, max_age_days } = args || {};
     const searchDir = directory ? this.resolvePath(directory) : os.homedir();
     const limit = max_results || 20;
-    
+
     console.log(`[LocalExecutor] fs.search: ${search_type} search for "${query}" in ${searchDir}`);
-    
-    let command;
-    
+
+    let executable;
+    let spawnArgs;
+
     if (search_type === 'name') {
       // Use fd if available, fall back to find
       const fdCheck = await this.shellRun({ command: 'which fd' });
       if (fdCheck.exit_code === 0) {
-        command = `fd --type f "${query}" "${searchDir}" | head -n ${limit}`;
+        executable = 'fd';
+        spawnArgs = ['--type', 'f', query, searchDir];
       } else {
-        command = `find "${searchDir}" -type f -name "*${query}*" 2>/dev/null | head -n ${limit}`;
+        executable = 'find';
+        spawnArgs = [searchDir, '-type', 'f', '-name', `*${query}*`];
       }
     } else if (search_type === 'content') {
       // Use ripgrep if available, fall back to grep
       const rgCheck = await this.shellRun({ command: 'which rg' });
       if (rgCheck.exit_code === 0) {
-        let rgCmd = `rg -l --max-count 1 "${query}" "${searchDir}"`;
+        executable = 'rg';
+        spawnArgs = ['-l', '--max-count', '1', query, searchDir];
         if (file_types && file_types.length > 0) {
-          rgCmd += ' ' + file_types.map(t => `-g "*.${t}"`).join(' ');
+          for (const t of file_types) {
+            spawnArgs.push('-g', `*.${t}`);
+          }
         }
-        command = `${rgCmd} | head -n ${limit}`;
       } else {
-        command = `grep -rl "${query}" "${searchDir}" 2>/dev/null | head -n ${limit}`;
+        executable = 'grep';
+        spawnArgs = ['-rl', query, searchDir];
       }
     } else {
       // Semantic search - fall back to content search with keywords
-      command = `grep -rl "${query}" "${searchDir}" 2>/dev/null | head -n ${limit}`;
+      executable = 'grep';
+      spawnArgs = ['-rl', query, searchDir];
     }
-    
-    const result = await this.shellRun({ command, timeout_sec: 30 });
-    
+
+    const result = await this._spawnWithLimit(executable, spawnArgs, limit, 30);
+
     const files = (result.stdout || '').trim().split('\n').filter(f => f.length > 0);
-    
+
     return {
       status: 'completed',
       search_type,
@@ -721,25 +815,23 @@ class LocalExecutor {
   async fsFind(args) {
     const { directory, name_pattern, type, min_size_mb, max_size_mb, modified_after, modified_before, empty, max_depth } = args || {};
     const searchDir = directory ? this.resolvePath(directory) : os.homedir();
-    
+
     console.log(`[LocalExecutor] fs.find in ${searchDir}`);
-    
-    let command = `find "${searchDir}"`;
-    
-    if (max_depth) command += ` -maxdepth ${max_depth}`;
-    if (type === 'file') command += ' -type f';
-    else if (type === 'directory') command += ' -type d';
-    if (name_pattern) command += ` -name "${name_pattern}"`;
-    if (min_size_mb) command += ` -size +${Math.floor(min_size_mb)}M`;
-    if (max_size_mb) command += ` -size -${Math.floor(max_size_mb)}M`;
-    if (empty) command += ' -empty';
-    
-    command += ' 2>/dev/null | head -n 50';
-    
-    const result = await this.shellRun({ command, timeout_sec: 60 });
-    
+
+    const findArgs = [searchDir];
+
+    if (max_depth) findArgs.push('-maxdepth', String(Math.floor(max_depth)));
+    if (type === 'file') findArgs.push('-type', 'f');
+    else if (type === 'directory') findArgs.push('-type', 'd');
+    if (name_pattern) findArgs.push('-name', name_pattern);
+    if (min_size_mb) findArgs.push('-size', `+${Math.floor(min_size_mb)}M`);
+    if (max_size_mb) findArgs.push('-size', `-${Math.floor(max_size_mb)}M`);
+    if (empty) findArgs.push('-empty');
+
+    const result = await this._spawnWithLimit('find', findArgs, 50, 60);
+
     const files = (result.stdout || '').trim().split('\n').filter(f => f.length > 0);
-    
+
     return {
       status: 'completed',
       directory: searchDir,
@@ -798,8 +890,8 @@ class LocalExecutor {
       return { status: 'error', message: 'Window focus only supported on macOS' };
     }
     
-    const script = `tell application "${target}" to activate`;
-    const result = await this.shellRun({ command: `osascript -e '${script}'`, timeout_sec: 5 });
+    const script = `tell application "${escapeAppleScript(target)}" to activate`;
+    const result = await this.shellRun({ command: `osascript -e '${script.replace(/'/g, "'\\''")}'`, timeout_sec: 5 });
     
     return {
       status: result.exit_code === 0 ? 'completed' : 'failed',
@@ -817,7 +909,8 @@ class LocalExecutor {
     console.log(`[LocalExecutor] desktop.open_app: ${app_name}`);
     
     if (process.platform === 'darwin') {
-      const result = await this.shellRun({ command: `open -a "${app_name}"`, timeout_sec: 10 });
+      const safeAppName = (app_name || '').replace(/"/g, '\\"');
+      const result = await this.shellRun({ command: `open -a "${safeAppName}"`, timeout_sec: 10 });
       return {
         status: result.exit_code === 0 ? 'completed' : 'failed',
         app_name,
@@ -841,11 +934,12 @@ class LocalExecutor {
       return { status: 'error', message: 'Window close only supported on macOS' };
     }
     
-    const script = force 
-      ? `tell application "${target}" to quit`
-      : `tell application "${target}" to close front window`;
-    
-    const result = await this.shellRun({ command: `osascript -e '${script}'`, timeout_sec: 5 });
+    const escapedTarget = escapeAppleScript(target);
+    const script = force
+      ? `tell application "${escapedTarget}" to quit`
+      : `tell application "${escapedTarget}" to close front window`;
+
+    const result = await this.shellRun({ command: `osascript -e '${script.replace(/'/g, "'\\''")}'`, timeout_sec: 5 });
     
     return {
       status: result.exit_code === 0 ? 'completed' : 'failed',
@@ -913,10 +1007,10 @@ class LocalExecutor {
     }
     
     // Escape special characters for AppleScript
-    const escapedText = text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const escapedText = escapeAppleScript(text);
     const script = `tell application "System Events" to keystroke "${escapedText}"`;
-    
-    const result = await this.shellRun({ command: `osascript -e '${script}'`, timeout_sec: 30 });
+
+    const result = await this.shellRun({ command: `osascript -e '${script.replace(/'/g, "'\\''")}'`, timeout_sec: 30 });
     
     return {
       status: result.exit_code === 0 ? 'completed' : 'failed',
@@ -965,9 +1059,9 @@ class LocalExecutor {
     }
     
     const modifierStr = modifiers.length > 0 ? ` using {${modifiers.join(', ')}}` : '';
-    const script = `tell application "System Events" to keystroke "${mainKey}"${modifierStr}`;
-    
-    const result = await this.shellRun({ command: `osascript -e '${script}'`, timeout_sec: 5 });
+    const script = `tell application "System Events" to keystroke "${escapeAppleScript(mainKey)}"${modifierStr}`;
+
+    const result = await this.shellRun({ command: `osascript -e '${script.replace(/'/g, "'\\''")}'`, timeout_sec: 5 });
     
     return {
       status: result.exit_code === 0 ? 'completed' : 'failed',

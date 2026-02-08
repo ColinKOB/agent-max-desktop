@@ -6513,39 +6513,25 @@ export default function AppleFloatBar({
 
     const isStreaming = lastThought && lastThought.streaming;
 
-    // One-time scroll when AI starts responding: scroll user message to top
-    if ((isThinking || isStreaming) && !hasScrolledForResponseRef.current) {
-      hasScrolledForResponseRef.current = true;
-      setTimeout(() => {
-        if (!el) return;
+    // While AI is responding: only scroll once content overflows the container (hit max height).
+    // This lets the app naturally expand until it can't, then scrolls to keep the AI response
+    // starting at the top of the visible area as new content streams in.
+    if (isThinking || isStreaming) {
+      const isOverflowing = el.scrollHeight > el.clientHeight;
+      if (isOverflowing) {
         const userBubbles = el.querySelectorAll('[data-role="user"]');
         const lastUserBubble = userBubbles[userBubbles.length - 1];
         if (lastUserBubble) {
-          // Mark as programmatic so the scroll handler doesn't set userScrolledUp
           isProgrammaticScrollRef.current = true;
-          lastUserBubble.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          // Clear the flag after the smooth scroll completes (~500ms)
-          setTimeout(() => { isProgrammaticScrollRef.current = false; }, 600);
+          const targetScroll = lastUserBubble.offsetTop + lastUserBubble.offsetHeight;
+          el.scrollTo({ top: targetScroll, behavior: hasScrolledForResponseRef.current ? 'auto' : 'smooth' });
+          hasScrolledForResponseRef.current = true;
+          setTimeout(() => { isProgrammaticScrollRef.current = false; }, hasScrolledForResponseRef.current ? 50 : 600);
         }
-      }, 50);
+      }
       return;
     }
 
-    // When streaming completes (message done):
-    // - If message has widget content, DON'T scroll to bottom (text summary is at top, let user scroll to see widget)
-    // - For normal text messages, scroll to bottom to show full response
-    if (!isThinking && !isStreaming) {
-      const lastContent = lastThought?.content || '';
-      const hasWidgets = lastContent.includes(':::weather') || lastContent.includes(':::news') || lastContent.includes(':::list');
-      if (!hasWidgets) {
-        setTimeout(() => {
-          if (!el) return;
-          isProgrammaticScrollRef.current = true;
-          el.scrollTop = el.scrollHeight;
-          setTimeout(() => { isProgrammaticScrollRef.current = false; }, 100);
-        }, 50);
-      }
-    }
   }, [thoughts.length, isThinking, lastThoughtKey, userScrolledUp]);
 
   // Track manual scroll to allow user to scroll up without being yanked down
@@ -6560,7 +6546,9 @@ export default function AppleFloatBar({
     };
     const onWheel = (e) => {
       el.scrollTop += e.deltaY;
-      onScroll();
+      // Wheel events are always user-initiated, so bypass the programmatic guard
+      const atBottom = el.scrollHeight - (el.scrollTop + el.clientHeight) < 8;
+      setUserScrolledUp(!atBottom);
       e.preventDefault();
       e.stopPropagation();
     };
@@ -6616,6 +6604,17 @@ export default function AppleFloatBar({
       if ((e.metaKey || e.ctrlKey) && e.key === 'k' && isMini) {
         e.preventDefault();
         handleExpand();
+      }
+
+      // Auto-focus input when typing printable characters while app is expanded
+      // Skip if user is already focused on another input/textarea (e.g. onboarding fields)
+      const active = document.activeElement;
+      const alreadyInInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+      if (!isMini && inputRef.current && active !== inputRef.current && !alreadyInInput) {
+        // Only for single printable characters, not modifier combos or special keys
+        if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          inputRef.current.focus();
+        }
       }
     };
 

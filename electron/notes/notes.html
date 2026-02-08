@@ -1026,9 +1026,9 @@
         const isActive = folder.id === currentFolderId;
 
         return `
-          <div class="folder-item ${isActive ? 'active' : ''}" data-folder-id="${folder.id}">
-            <span class="icon">${folder.icon || '📁'}</span>
-            <span>${folder.name}</span>
+          <div class="folder-item ${isActive ? 'active' : ''}" data-folder-id="${escapeHtml(folder.id)}">
+            <span class="icon">${escapeHtml(folder.icon) || '📁'}</span>
+            <span>${escapeHtml(folder.name)}</span>
             <span class="count">${noteCount}</span>
           </div>
         `;
@@ -1049,7 +1049,7 @@
 
     function renderTags() {
       const html = tags.slice(0, 10).map(t => `
-        <span class="tag" data-tag="${t.tag}">${t.tag} (${t.count})</span>
+        <span class="tag" data-tag="${escapeHtml(t.tag)}">${escapeHtml(t.tag)} (${t.count})</span>
       `).join('');
 
       elements.tagsContainer.innerHTML = html || '<span style="font-size: 11px; color: var(--max-text-muted);">No tags yet</span>';

@@ -8,6 +8,7 @@ import OnboardingPreview from './pages/OnboardingPreview.jsx';
 import ExecutionProgressTest from './pages/ExecutionProgressTest.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { preloadModel } from './services/embeddings.js';
+import { getCredentialsSummary, getCredentialsForService, getCredentialDecrypted } from './services/credentialsManager.js';
 import './styles/globals.css';
 import './styles/liquid-glass.css';
 import './styles/liquid-glass-enhanced.css';
@@ -15,6 +16,23 @@ import './styles/design-system.css';
 import './styles/accessibility.css';
 import './styles/premium-glass.css';
 import './styles/premium-enhancements.css';
+
+// ==========================================
+// Register credential IPC handlers for secure main-process access
+// These allow workspaceApiServer to request credentials via IPC
+// instead of using executeJavaScript with string interpolation
+// ==========================================
+if (window.credentialsBridge) {
+  window.credentialsBridge.onRequest('get-summary', async () => {
+    return await getCredentialsSummary();
+  });
+  window.credentialsBridge.onRequest('get-for-service', async ({ service }) => {
+    return await getCredentialsForService(service);
+  });
+  window.credentialsBridge.onRequest('get-decrypted', async ({ id }) => {
+    return await getCredentialDecrypted(id);
+  });
+}
 
 // ==========================================
 // PRELOAD: Start embedding model loading early to eliminate cold-start delay

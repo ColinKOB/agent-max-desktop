@@ -13,9 +13,38 @@
 
 const http = require('http');
 const url = require('url');
+const crypto = require('crypto');
+const { ipcMain } = require('electron');
+
+// Generate auth token for this server instance
+const serverToken = crypto.randomBytes(32).toString('hex');
 
 // Import workspace manager
 const { workspaceManager } = require('../workspace/workspaceManager.cjs');
+
+/**
+ * Request data from the renderer process via IPC.
+ * Sends a message on `channel` and waits for a response on a unique response channel.
+ * This avoids executeJavaScript with string interpolation, preventing code injection.
+ */
+function requestFromRenderer(mainWindow, channel, data = {}) {
+  return new Promise((resolve, reject) => {
+    const responseChannel = `${channel}-response-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const timeout = setTimeout(() => {
+      ipcMain.removeAllListeners(responseChannel);
+      reject(new Error('IPC request timed out'));
+    }, 10000);
+    ipcMain.once(responseChannel, (_event, result) => {
+      clearTimeout(timeout);
+      if (result && result.__error) {
+        reject(new Error(result.__error));
+      } else {
+        resolve(result);
+      }
+    });
+    mainWindow.webContents.send(channel, { ...data, responseChannel });
+  });
+}
 
 // Store references
 let mainWindow = null;
@@ -52,7 +81,7 @@ function sendJson(res, statusCode, data) {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
   });
   res.end(JSON.stringify(data));
 }
@@ -66,7 +95,7 @@ async function handleRequest(req, res) {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
     });
     res.end();
     return;
@@ -74,6 +103,16 @@ async function handleRequest(req, res) {
 
   const parsedUrl = url.parse(req.url, true);
   const pathname = parsedUrl.pathname;
+
+  // Auth check (skip for health endpoint)
+  if (pathname !== '/health') {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || authHeader !== `Bearer ${serverToken}`) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return;
+    }
+  }
 
   try {
     // =========================================================================
@@ -415,14 +454,7 @@ async function handleRequest(req, res) {
       return sendJson(res, result.success ? 200 : 400, result);
     }
 
-    if (pathname === '/workspace/execute-script' && req.method === 'POST') {
-      const body = await parseBody(req);
-      if (!body.script) {
-        return sendJson(res, 400, { success: false, error: 'Script required' });
-      }
-      const result = await workspaceManager.executeScript(body.script);
-      return sendJson(res, result.success ? 200 : 400, result);
-    }
+    // /workspace/execute-script endpoint removed for security
 
     // =========================================================================
     // Workspace Window Management
@@ -473,12 +505,7 @@ async function handleRequest(req, res) {
       }
 
       try {
-        const credentials = await mainWindow.webContents.executeJavaScript(`
-          (async () => {
-            const { getCredentialsSummary } = await import('./src/services/credentialsManager.js');
-            return await getCredentialsSummary();
-          })()
-        `);
+        const credentials = await requestFromRenderer(mainWindow, 'credentials:get-summary');
         return sendJson(res, 200, { success: true, credentials });
       } catch (e) {
         console.error('[WorkspaceAPI] Failed to get credentials:', e);
@@ -499,12 +526,7 @@ async function handleRequest(req, res) {
       }
 
       try {
-        const credentials = await mainWindow.webContents.executeJavaScript(`
-          (async () => {
-            const { getCredentialsForService } = await import('./src/services/credentialsManager.js');
-            return await getCredentialsForService('${service.replace(/'/g, "\\'")}');
-          })()
-        `);
+        const credentials = await requestFromRenderer(mainWindow, 'credentials:get-for-service', { service });
         return sendJson(res, 200, { success: true, credentials });
       } catch (e) {
         console.error('[WorkspaceAPI] Failed to get credentials for service:', e);
@@ -525,12 +547,7 @@ async function handleRequest(req, res) {
       }
 
       try {
-        const credential = await mainWindow.webContents.executeJavaScript(`
-          (async () => {
-            const { getCredentialDecrypted } = await import('./src/services/credentialsManager.js');
-            return await getCredentialDecrypted('${id.replace(/'/g, "\\'")}');
-          })()
-        `);
+        const credential = await requestFromRenderer(mainWindow, 'credentials:get-decrypted', { id });
         return sendJson(res, 200, { success: true, credential });
       } catch (e) {
         console.error('[WorkspaceAPI] Failed to get decrypted credential:', e);
@@ -604,9 +621,17 @@ function getWorkspaceManager() {
   return workspaceManager;
 }
 
+/**
+ * Get the auth token for this server instance
+ */
+function getAuthToken() {
+  return serverToken;
+}
+
 module.exports = {
   startServer,
   stopServer,
   setMainWindow,
-  getWorkspaceManager
+  getWorkspaceManager,
+  getAuthToken
 };

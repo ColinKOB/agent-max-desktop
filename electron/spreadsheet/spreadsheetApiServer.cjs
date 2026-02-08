@@ -13,6 +13,10 @@
 
 const http = require('http');
 const url = require('url');
+const crypto = require('crypto');
+
+// Generate auth token for this server instance
+const serverToken = crypto.randomBytes(32).toString('hex');
 
 // Import spreadsheet manager
 const { spreadsheetManager } = require('./spreadsheetManager.cjs');
@@ -52,7 +56,7 @@ function sendJson(res, statusCode, data) {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
   });
   res.end(JSON.stringify(data));
 }
@@ -66,7 +70,7 @@ async function handleRequest(req, res) {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
     });
     res.end();
     return;
@@ -74,6 +78,16 @@ async function handleRequest(req, res) {
 
   const parsedUrl = url.parse(req.url, true);
   const pathname = parsedUrl.pathname;
+
+  // Auth check (skip for health endpoint)
+  if (pathname !== '/health') {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || authHeader !== `Bearer ${serverToken}`) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return;
+    }
+  }
 
   try {
     // =========================================================================
@@ -633,9 +647,17 @@ function getSpreadsheetManager() {
   return spreadsheetManager;
 }
 
+/**
+ * Get the auth token for this server instance
+ */
+function getAuthToken() {
+  return serverToken;
+}
+
 module.exports = {
   startServer,
   stopServer,
   setMainWindow,
-  getSpreadsheetManager
+  getSpreadsheetManager,
+  getAuthToken
 };

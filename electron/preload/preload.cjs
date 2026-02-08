@@ -1,6 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electron', {
+  // API Server auth tokens (for renderer fetch calls to local HTTP servers)
+  getApiServerTokens: () => ipcRenderer.invoke('get-api-server-tokens'),
+
   // Desktop Features
   showNotification: (data) => ipcRenderer.invoke('show-notification', data),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
@@ -820,4 +823,52 @@ contextBridge.exposeInMainWorld('notes', {
 
   setCurrentNote: (noteId) =>
     ipcRenderer.invoke('notes-set-current', { noteId })
+});
+
+// ===========================================
+// Credentials IPC Bridge
+// ===========================================
+// Allows the main process (workspaceApiServer) to request credential data
+// from the renderer via IPC, avoiding executeJavaScript code injection.
+// The renderer registers handlers via credentialsBridge.onRequest().
+
+const credentialsHandlers = {};
+
+contextBridge.exposeInMainWorld('credentialsBridge', {
+  /**
+   * Register a handler for a credential request type.
+   * @param {string} type - 'get-summary', 'get-for-service', or 'get-decrypted'
+   * @param {function} handler - async function(data) => result
+   */
+  onRequest: (type, handler) => {
+    credentialsHandlers[type] = handler;
+  },
+
+  /**
+   * Remove all registered handlers
+   */
+  removeHandlers: () => {
+    Object.keys(credentialsHandlers).forEach(key => delete credentialsHandlers[key]);
+  }
+});
+
+// Listen for credential IPC requests from the main process and forward to registered handlers
+['credentials:get-summary', 'credentials:get-for-service', 'credentials:get-decrypted'].forEach(channel => {
+  ipcRenderer.on(channel, async (_event, data) => {
+    const { responseChannel, ...requestData } = data;
+    const type = channel.replace('credentials:', '');
+    const handler = credentialsHandlers[type];
+
+    if (!handler) {
+      ipcRenderer.send(responseChannel, { __error: `No handler registered for ${type}` });
+      return;
+    }
+
+    try {
+      const result = await handler(requestData);
+      ipcRenderer.send(responseChannel, result);
+    } catch (e) {
+      ipcRenderer.send(responseChannel, { __error: e.message || 'Unknown error' });
+    }
+  });
 });

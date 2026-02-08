@@ -8,6 +8,20 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import './SpreadsheetPiP.css';
 
+declare global {
+  interface Window {
+    electron?: {
+      getApiServerTokens?: () => Promise<{
+        workspace: string;
+        spreadsheet: string;
+        notes: string;
+        testing: string;
+      }>;
+      [key: string]: unknown;
+    };
+  }
+}
+
 interface SpreadsheetPiPProps {
   /** Whether the PiP window should be visible */
   isVisible?: boolean;
@@ -61,6 +75,24 @@ export function SpreadsheetPiP({
   const [isModified, setIsModified] = useState(false);
   const [sheetCount, setSheetCount] = useState(0);
 
+  // Auth token for spreadsheet API server
+  const [authToken, setAuthToken] = useState<string | null>(null);
+
+  // Fetch auth token on mount
+  useEffect(() => {
+    const fetchToken = async () => {
+      try {
+        if (window.electron?.getApiServerTokens) {
+          const tokens = await window.electron.getApiServerTokens();
+          setAuthToken(tokens.spreadsheet);
+        }
+      } catch (err) {
+        console.error('[SpreadsheetPiP] Failed to get auth token:', err);
+      }
+    };
+    fetchToken();
+  }, []);
+
   // Dragging state
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState<Position>({ x: 20, y: 80 });
@@ -74,7 +106,11 @@ export function SpreadsheetPiP({
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        const response = await fetch('http://127.0.0.1:3848/spreadsheet/status');
+        const headers: HeadersInit = {};
+        if (authToken) {
+          headers['Authorization'] = `Bearer ${authToken}`;
+        }
+        const response = await fetch('http://127.0.0.1:3848/spreadsheet/status', { headers });
         if (response.ok) {
           const status: SpreadsheetStatus = await response.json();
           setIsActive(status.active);
@@ -91,7 +127,7 @@ export function SpreadsheetPiP({
     checkStatus();
     const interval = setInterval(checkStatus, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [authToken]);
 
   // Frame capture loop
   useEffect(() => {
@@ -109,8 +145,13 @@ export function SpreadsheetPiP({
       lastFrameTime = timestamp;
 
       try {
+        const fetchHeaders: HeadersInit = {};
+        if (authToken) {
+          fetchHeaders['Authorization'] = `Bearer ${authToken}`;
+        }
         const response = await fetch('http://127.0.0.1:3848/spreadsheet/capture-frame', {
-          method: 'POST'
+          method: 'POST',
+          headers: fetchHeaders,
         });
 
         if (response.ok) {
@@ -146,7 +187,7 @@ export function SpreadsheetPiP({
         cancelAnimationFrame(animationId);
       }
     };
-  }, [isActive, isPaused, isVisible, fps]);
+  }, [isActive, isPaused, isVisible, fps, authToken]);
 
   // Dragging handlers
   const handleMouseDown = useCallback(
@@ -224,22 +265,30 @@ export function SpreadsheetPiP({
   // Handle close (ends session completely)
   const handleClose = useCallback(async () => {
     try {
-      await fetch('http://127.0.0.1:3848/spreadsheet/destroy', { method: 'POST' });
+      const headers: HeadersInit = {};
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      await fetch('http://127.0.0.1:3848/spreadsheet/destroy', { method: 'POST', headers });
     } catch (err) {
       console.error('[SpreadsheetPiP] Failed to destroy:', err);
     }
     onClose?.();
-  }, [onClose]);
+  }, [onClose, authToken]);
 
   // Handle minimize
   const handleMinimize = useCallback(async () => {
     try {
-      await fetch('http://127.0.0.1:3848/spreadsheet/minimize', { method: 'POST' });
+      const headers: HeadersInit = {};
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      await fetch('http://127.0.0.1:3848/spreadsheet/minimize', { method: 'POST', headers });
     } catch (err) {
       console.error('[SpreadsheetPiP] Failed to minimize:', err);
     }
     onMinimize?.();
-  }, [onMinimize]);
+  }, [onMinimize, authToken]);
 
   // Toggle pause
   const togglePause = useCallback(() => {

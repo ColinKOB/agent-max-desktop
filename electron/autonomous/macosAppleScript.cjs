@@ -121,6 +121,15 @@ function enhanceErrorResponse(result, toolName) {
 }
 
 /**
+ * Escape a string for safe interpolation into AppleScript double-quoted strings.
+ * Handles backslashes and double quotes which can break out of string literals.
+ */
+function escapeAppleScript(str) {
+    if (typeof str !== 'string') return '';
+    return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+/**
  * Execute AppleScript and return result
  */
 async function runAppleScript(script) {
@@ -377,17 +386,18 @@ const chromeTools = {
         const url = args.url;
         if (!url) return { success: false, error: 'Missing required argument: url', exit_code: 1 };
 
+        const escapedUrl = escapeAppleScript(url);
         const script = `
 tell application "Google Chrome"
     activate
     if (count of windows) = 0 then
         make new window
-        set URL of active tab of front window to "${url}"
+        set URL of active tab of front window to "${escapedUrl}"
     else
-        set URL of active tab of front window to "${url}"
+        set URL of active tab of front window to "${escapedUrl}"
     end if
 end tell
-return "Navigated to: ${url}"`;
+return "Navigated to: ${escapedUrl}"`;
         return await runAppleScriptMultiline(script);
     },
 
@@ -587,16 +597,17 @@ const safariTools = {
         const url = args.url;
         if (!url) return { success: false, error: 'Missing required argument: url', exit_code: 1 };
 
+        const escapedUrl = escapeAppleScript(url);
         const script = `
 tell application "Safari"
     activate
     if (count of windows) = 0 then
-        make new document with properties {URL:"${url}"}
+        make new document with properties {URL:"${escapedUrl}"}
     else
-        set URL of current tab of front window to "${url}"
+        set URL of current tab of front window to "${escapedUrl}"
     end if
 end tell
-return "Navigated to: ${url}"`;
+return "Navigated to: ${escapedUrl}"`;
         return await runAppleScriptMultiline(script);
     },
 
@@ -912,12 +923,13 @@ end tell`;
 
     async new_tab(args) {
         const url = args.url || 'about:blank';
+        const escapedUrl = escapeAppleScript(url);
         const script = `
 tell application "Safari"
     tell front window
-        make new tab with properties {URL:"${url}"}
+        make new tab with properties {URL:"${escapedUrl}"}
     end tell
-    return "New tab opened: ${url}"
+    return "New tab opened: ${escapedUrl}"
 end tell`;
         return await runAppleScriptMultiline(script);
     },
@@ -1038,13 +1050,14 @@ const notesTools = {
         const body = args.body || args.content || '';
         const folder = args.folder || 'Notes';
 
-        const escapedTitle = title.replace(/"/g, '\\"');
-        const escapedBody = body.replace(/"/g, '\\"').replace(/\n/g, '\\n');
+        const escapedTitle = escapeAppleScript(title);
+        const escapedBody = escapeAppleScript(body).replace(/\n/g, '\\n');
+        const escapedFolder = escapeAppleScript(folder);
 
         const script = `
 tell application "Notes"
     try
-        set targetFolder to folder "${folder}"
+        set targetFolder to folder "${escapedFolder}"
     on error
         set targetFolder to default account's default folder
     end try
@@ -1060,7 +1073,7 @@ end tell`;
         const title = args.title;
         if (!title) return { success: false, error: 'Missing required argument: title', exit_code: 1 };
 
-        const escapedTitle = title.replace(/"/g, '\\"');
+        const escapedTitle = escapeAppleScript(title);
         const script = `
 tell application "Notes"
     set matchingNotes to notes whose name contains "${escapedTitle}"
@@ -1106,7 +1119,7 @@ end tell`;
         }
 
         // Fallback to AppleScript if SQLite fails
-        const escapedQuery = query.replace(/"/g, '\\"');
+        const escapedQuery = escapeAppleScript(query);
         const script = `
 tell application "Notes"
     set matchingNotes to notes whose name contains "${escapedQuery}" or body contains "${escapedQuery}"
@@ -1160,7 +1173,7 @@ end tell`;
         // Fallback to AppleScript (required for folder filtering or if SQLite fails)
         let script;
         if (folder) {
-            const escapedFolder = folder.replace(/"/g, '\\"');
+            const escapedFolder = escapeAppleScript(folder);
             script = `
 tell application "Notes"
     try
@@ -1200,8 +1213,8 @@ end tell`;
         const content = args.content || args.text || '';
         if (!title) return { success: false, error: 'Missing required argument: title', exit_code: 1 };
 
-        const escapedTitle = title.replace(/"/g, '\\"');
-        const escapedContent = content.replace(/"/g, '\\"').replace(/\n/g, '\\n');
+        const escapedTitle = escapeAppleScript(title);
+        const escapedContent = escapeAppleScript(content).replace(/\n/g, '\\n');
 
         const script = `
 tell application "Notes"
@@ -1222,7 +1235,7 @@ end tell`;
         const title = args.title;
         if (!title) return { success: false, error: 'Missing required argument: title', exit_code: 1 };
 
-        const escapedTitle = title.replace(/"/g, '\\"');
+        const escapedTitle = escapeAppleScript(title);
         const script = `
 tell application "Notes"
     set matchingNotes to notes whose name is "${escapedTitle}"
@@ -1331,7 +1344,7 @@ end tell`;
         const subject = args.subject;
         if (!subject) return { success: false, error: 'Missing required argument: subject', exit_code: 1 };
 
-        const escapedSubject = subject.replace(/"/g, '\\"');
+        const escapedSubject = escapeAppleScript(subject);
         const script = `
 tell application "Mail"
     set matchingMessages to (messages of inbox whose subject contains "${escapedSubject}")
@@ -1356,9 +1369,9 @@ end tell`;
 
         if (!to) return { success: false, error: 'Missing required argument: to', exit_code: 1 };
 
-        const escapedTo = to.replace(/"/g, '\\"');
-        const escapedSubject = subject.replace(/"/g, '\\"');
-        const escapedBody = body.replace(/"/g, '\\"').replace(/\n/g, '\\n');
+        const escapedTo = escapeAppleScript(to);
+        const escapedSubject = escapeAppleScript(subject);
+        const escapedBody = escapeAppleScript(body).replace(/\n/g, '\\n');
 
         const script = `
 tell application "Mail"
@@ -1377,9 +1390,9 @@ end tell`;
         const subject = args.subject || '(no subject)';
         const body = args.body || args.content || '';
 
-        const escapedTo = to.replace(/"/g, '\\"');
-        const escapedSubject = subject.replace(/"/g, '\\"');
-        const escapedBody = body.replace(/"/g, '\\"').replace(/\n/g, '\\n');
+        const escapedTo = escapeAppleScript(to);
+        const escapedSubject = escapeAppleScript(subject);
+        const escapedBody = escapeAppleScript(body).replace(/\n/g, '\\n');
 
         const script = `
 tell application "Mail"
@@ -1437,7 +1450,7 @@ end tell`;
         }
 
         // Fallback to AppleScript if SQLite fails
-        const escapedQuery = query.replace(/"/g, '\\"');
+        const escapedQuery = escapeAppleScript(query);
         const script = `
 tell application "Mail"
     set resultList to ""
@@ -1673,16 +1686,16 @@ end tell`;
 
         if (!startDate) return { success: false, error: 'Missing required argument: start_date (format: YYYY-MM-DD HH:MM)', exit_code: 1 };
 
-        const escapedTitle = title.replace(/"/g, '\\"');
-        const escapedLocation = location.replace(/"/g, '\\"');
-        const escapedNotes = notes.replace(/"/g, '\\"');
+        const escapedTitle = escapeAppleScript(title);
+        const escapedLocation = escapeAppleScript(location);
+        const escapedNotes = escapeAppleScript(notes);
 
         // Parse date - expect YYYY-MM-DD HH:MM format
-        const dateScript = `set eventStart to date "${startDate}"`;
-        const endScript = endDate ? `set eventEnd to date "${endDate}"` : 'set eventEnd to eventStart + (60 * 60)';
+        const dateScript = `set eventStart to date "${escapeAppleScript(startDate)}"`;
+        const endScript = endDate ? `set eventEnd to date "${escapeAppleScript(endDate)}"` : 'set eventEnd to eventStart + (60 * 60)';
 
         const calScript = calendarName
-            ? `set targetCal to calendar "${calendarName.replace(/"/g, '\\"')}"`
+            ? `set targetCal to calendar "${escapeAppleScript(calendarName)}"`
             : 'set targetCal to first calendar';
 
         const script = `
@@ -1738,7 +1751,7 @@ end tell`;
         }
 
         // Fallback to AppleScript if SQLite fails
-        const escapedQuery = query.replace(/"/g, '\\"');
+        const escapedQuery = escapeAppleScript(query);
         const script = `
 tell application "Calendar"
     -- activate removed to prevent screen takeover
@@ -1767,7 +1780,7 @@ end tell`;
         const title = args.title;
         if (!title) return { success: false, error: 'Missing required argument: title', exit_code: 1 };
 
-        const escapedTitle = title.replace(/"/g, '\\"');
+        const escapedTitle = escapeAppleScript(title);
         const script = `
 tell application "Calendar"
     -- activate removed to prevent screen takeover
@@ -1817,14 +1830,17 @@ const finderTools = {
 
         // Expand ~ to home directory
         const expandedPath = path.replace(/^~/, process.env.HOME);
+        const escapedPath = escapeAppleScript(expandedPath);
+        // Also escape single quotes for the shell string inside do shell script
+        const shellSafePath = expandedPath.replace(/'/g, "'\\''");
 
         // Use shell command via AppleScript for reliability
         const script = `
-set shellResult to do shell script "ls -1p '${expandedPath}' 2>&1 || echo 'ERROR: Cannot list folder'"
+set shellResult to do shell script "ls -1p '${shellSafePath}' 2>&1 || echo 'ERROR: Cannot list folder'"
 if shellResult starts with "ERROR:" then
     return shellResult
 else
-    return "Contents of ${expandedPath}:" & return & shellResult
+    return "Contents of ${escapedPath}:" & return & shellResult
 end if`;
         return await runAppleScriptMultiline(script);
     },
@@ -1834,12 +1850,13 @@ end if`;
         if (!path) return { success: false, error: 'Missing required argument: path', exit_code: 1 };
 
         const expandedPath = path.replace(/^~/, process.env.HOME);
+        const escapedPath = escapeAppleScript(expandedPath);
 
         const script = `
 tell application "Finder"
-    open POSIX file "${expandedPath}"
+    open POSIX file "${escapedPath}"
 end tell
-return "Opened: ${expandedPath}"`;
+return "Opened: ${escapedPath}"`;
         return await runAppleScriptMultiline(script);
     },
 
@@ -1849,12 +1866,14 @@ return "Opened: ${expandedPath}"`;
         if (!path || !app) return { success: false, error: 'Missing required arguments: path, app', exit_code: 1 };
 
         const expandedPath = path.replace(/^~/, process.env.HOME);
+        const escapedPath = escapeAppleScript(expandedPath);
+        const escapedApp = escapeAppleScript(app);
 
         const script = `
 tell application "Finder"
-    open POSIX file "${expandedPath}" using application "${app}"
+    open POSIX file "${escapedPath}" using application "${escapedApp}"
 end tell
-return "Opened ${expandedPath} with ${app}"`;
+return "Opened ${escapedPath} with ${escapedApp}"`;
         return await runAppleScriptMultiline(script);
     },
 
@@ -1865,14 +1884,16 @@ return "Opened ${expandedPath} with ${app}"`;
 
         const expandedSource = source.replace(/^~/, process.env.HOME);
         const expandedDest = destination.replace(/^~/, process.env.HOME);
+        const escapedSource = escapeAppleScript(expandedSource);
+        const escapedDest = escapeAppleScript(expandedDest);
 
         const script = `
 tell application "Finder"
-    set sourceFile to POSIX file "${expandedSource}" as alias
-    set destFolder to POSIX file "${expandedDest}" as alias
+    set sourceFile to POSIX file "${escapedSource}" as alias
+    set destFolder to POSIX file "${escapedDest}" as alias
     duplicate sourceFile to destFolder
 end tell
-return "Copied to: ${expandedDest}"`;
+return "Copied to: ${escapedDest}"`;
         return await runAppleScriptMultiline(script);
     },
 
@@ -1883,14 +1904,16 @@ return "Copied to: ${expandedDest}"`;
 
         const expandedSource = source.replace(/^~/, process.env.HOME);
         const expandedDest = destination.replace(/^~/, process.env.HOME);
+        const escapedSource = escapeAppleScript(expandedSource);
+        const escapedDest = escapeAppleScript(expandedDest);
 
         const script = `
 tell application "Finder"
-    set sourceFile to POSIX file "${expandedSource}" as alias
-    set destFolder to POSIX file "${expandedDest}" as alias
+    set sourceFile to POSIX file "${escapedSource}" as alias
+    set destFolder to POSIX file "${escapedDest}" as alias
     move sourceFile to destFolder
 end tell
-return "Moved to: ${expandedDest}"`;
+return "Moved to: ${escapedDest}"`;
         return await runAppleScriptMultiline(script);
     },
 
@@ -1899,12 +1922,13 @@ return "Moved to: ${expandedDest}"`;
         if (!path) return { success: false, error: 'Missing required argument: path', exit_code: 1 };
 
         const expandedPath = path.replace(/^~/, process.env.HOME);
+        const escapedPath = escapeAppleScript(expandedPath);
 
         const script = `
 tell application "Finder"
-    delete POSIX file "${expandedPath}"
+    delete POSIX file "${escapedPath}"
 end tell
-return "Moved to Trash: ${expandedPath}"`;
+return "Moved to Trash: ${escapedPath}"`;
         return await runAppleScriptMultiline(script);
     },
 
@@ -1914,13 +1938,15 @@ return "Moved to Trash: ${expandedPath}"`;
         if (!path || !name) return { success: false, error: 'Missing required arguments: path, name', exit_code: 1 };
 
         const expandedPath = path.replace(/^~/, process.env.HOME);
+        const escapedPath = escapeAppleScript(expandedPath);
+        const escapedName = escapeAppleScript(name);
 
         const script = `
 tell application "Finder"
-    set parentFolder to POSIX file "${expandedPath}" as alias
-    make new folder at parentFolder with properties {name:"${name}"}
+    set parentFolder to POSIX file "${escapedPath}" as alias
+    make new folder at parentFolder with properties {name:"${escapedName}"}
 end tell
-return "Created folder: ${name}"`;
+return "Created folder: ${escapedName}"`;
         return await runAppleScriptMultiline(script);
     },
 
@@ -1929,10 +1955,11 @@ return "Created folder: ${name}"`;
         if (!path) return { success: false, error: 'Missing required argument: path', exit_code: 1 };
 
         const expandedPath = path.replace(/^~/, process.env.HOME);
+        const escapedPath = escapeAppleScript(expandedPath);
 
         const script = `
 tell application "Finder"
-    set theItem to POSIX file "${expandedPath}" as alias
+    set theItem to POSIX file "${escapedPath}" as alias
     set itemName to name of theItem
     set itemKind to kind of theItem
     set itemSize to size of theItem
@@ -2009,13 +2036,14 @@ end tell`;
         if (!path) return { success: false, error: 'Missing required argument: path', exit_code: 1 };
 
         const expandedPath = path.replace(/^~/, process.env.HOME);
+        const escapedPath = escapeAppleScript(expandedPath);
 
         const script = `
 tell application "Finder"
-    reveal POSIX file "${expandedPath}"
+    reveal POSIX file "${escapedPath}"
     activate
 end tell
-return "Revealed: ${expandedPath}"`;
+return "Revealed: ${escapedPath}"`;
         return await runAppleScriptMultiline(script);
     },
 
@@ -2069,8 +2097,9 @@ const remindersTools = {
         const notes = args.notes || '';
         const priority = args.priority || 0;
 
-        const escapedTitle = title.replace(/"/g, '\\"');
-        const escapedNotes = notes.replace(/"/g, '\\"');
+        const escapedTitle = escapeAppleScript(title);
+        const escapedNotes = escapeAppleScript(notes);
+        const escapedListName = escapeAppleScript(listName);
 
         // Parse and format date for AppleScript
         // AppleScript expects format like "December 20, 2025 4:45:00 AM"
@@ -2108,7 +2137,7 @@ const remindersTools = {
 tell application "Reminders"
     -- activate removed to prevent screen takeover
     try
-        set targetList to list "${listName}"
+        set targetList to list "${escapedListName}"
     on error
         set targetList to default list
     end try
@@ -2126,10 +2155,10 @@ end tell`;
         const title = args.title;
         if (!title) return { success: false, error: 'Missing required argument: title', exit_code: 1 };
 
-        const escapedTitle = title.replace(/"/g, '\\"');
+        const escapedTitle = escapeAppleScript(title);
         const listName = args.list;
 
-        let listFilter = listName ? `of list "${listName}"` : '';
+        let listFilter = listName ? `of list "${escapeAppleScript(listName)}"` : '';
 
         const script = `
 tell application "Reminders"
@@ -2149,7 +2178,7 @@ end tell`;
         const title = args.title;
         if (!title) return { success: false, error: 'Missing required argument: title', exit_code: 1 };
 
-        const escapedTitle = title.replace(/"/g, '\\"');
+        const escapedTitle = escapeAppleScript(title);
 
         const script = `
 tell application "Reminders"
@@ -2169,7 +2198,7 @@ end tell`;
         const title = args.title;
         if (!title) return { success: false, error: 'Missing required argument: title', exit_code: 1 };
 
-        const escapedTitle = title.replace(/"/g, '\\"');
+        const escapedTitle = escapeAppleScript(title);
 
         const script = `
 tell application "Reminders"
@@ -2501,7 +2530,7 @@ end tell`;
         }
 
         // Fallback to AppleScript
-        const escapedQuery = query.replace(/"/g, '\\"');
+        const escapedQuery = escapeAppleScript(query);
         const script = `
 tell application "Reminders"
     set resultList to ""
@@ -2554,7 +2583,7 @@ const contactsTools = {
         if (!query) return { success: false, error: 'Missing required argument: query or name', exit_code: 1 };
         const limit = args.limit || 10;
 
-        const escapedQuery = query.replace(/"/g, '\\"');
+        const escapedQuery = escapeAppleScript(query);
 
         const script = `
 tell application "Contacts"
@@ -2603,7 +2632,7 @@ end tell`;
         const name = args.name;
         if (!name) return { success: false, error: 'Missing required argument: name', exit_code: 1 };
 
-        const escapedName = name.replace(/"/g, '\\"');
+        const escapedName = escapeAppleScript(name);
 
         const script = `
 tell application "Contacts"
@@ -2703,12 +2732,12 @@ end tell`;
 
         if (!firstName) return { success: false, error: 'Missing required argument: first_name', exit_code: 1 };
 
-        const escapedFirstName = firstName.replace(/"/g, '\\"');
-        const escapedLastName = lastName.replace(/"/g, '\\"');
-        const escapedOrg = organization.replace(/"/g, '\\"');
-        const escapedTitle = jobTitle.replace(/"/g, '\\"');
-        const escapedPhone = phone ? phone.replace(/"/g, '\\"') : '';
-        const escapedEmail = email ? email.replace(/"/g, '\\"') : '';
+        const escapedFirstName = escapeAppleScript(firstName);
+        const escapedLastName = escapeAppleScript(lastName);
+        const escapedOrg = escapeAppleScript(organization);
+        const escapedTitle = escapeAppleScript(jobTitle);
+        const escapedPhone = phone ? escapeAppleScript(phone) : '';
+        const escapedEmail = email ? escapeAppleScript(email) : '';
 
         const script = `
 tell application "Contacts"
@@ -2779,7 +2808,7 @@ end tell`;
         if (!groupName) return { success: false, error: 'Missing required argument: group', exit_code: 1 };
         const limit = args.limit || 20;
 
-        const escapedGroup = groupName.replace(/"/g, '\\"');
+        const escapedGroup = escapeAppleScript(groupName);
 
         const script = `
 tell application "Contacts"

@@ -5,7 +5,11 @@
  */
 
 const http = require('http');
+const crypto = require('crypto');
 const { notesManager } = require('./notesManager.cjs');
+
+// Generate auth token for this server instance
+const serverToken = crypto.randomBytes(32).toString('hex');
 
 const PORT = 3849;
 let server = null;
@@ -41,7 +45,7 @@ function sendJson(res, data, status = 200) {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
   });
   res.end(JSON.stringify(data));
 }
@@ -59,10 +63,20 @@ async function handleRequest(req, res) {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
     });
     res.end();
     return;
+  }
+
+  // Auth check (skip for health endpoint)
+  if (path !== '/health') {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || authHeader !== `Bearer ${serverToken}`) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return;
+    }
   }
 
   console.log(`[NotesAPI] ${method} ${path}`);
@@ -387,4 +401,11 @@ function stopNotesApiServer() {
   }
 }
 
-module.exports = { startNotesApiServer, stopNotesApiServer, PORT };
+/**
+ * Get the auth token for this server instance
+ */
+function getAuthToken() {
+  return serverToken;
+}
+
+module.exports = { startNotesApiServer, stopNotesApiServer, PORT, getAuthToken };

@@ -808,10 +808,10 @@ class PullExecutor {
      */
     translatePath(filePath) {
         if (!filePath || typeof filePath !== 'string') return filePath;
-        
+
         const os = require('os');
         const path = require('path');
-        
+
         // If path contains /home/appuser/Desktop, map to local Desktop
         if (filePath.includes('/home/appuser/Desktop')) {
             const basename = path.basename(filePath);
@@ -820,8 +820,32 @@ class PullExecutor {
             console.log(`[PullExecutor] Path translation: ${filePath} -> ${translated}`);
             return translated;
         }
-        
+
         return filePath;
+    }
+
+    /**
+     * Validate that a file path is within the user's home directory
+     * and does not target sensitive configuration directories.
+     */
+    validateFilePath(filePath) {
+        const path = require('path');
+        const os = require('os');
+        const resolved = path.resolve(filePath);
+        const homeDir = os.homedir();
+        // Only allow access within home directory
+        if (!resolved.startsWith(homeDir + path.sep) && resolved !== homeDir) {
+            throw new Error(`Access denied: file path must be within home directory`);
+        }
+        // Block sensitive paths within home
+        const blockedPaths = ['.ssh', '.gnupg', '.aws', '.config/gcloud', '.kube', '.env'];
+        const relPath = resolved.slice(homeDir.length + 1);
+        for (const blocked of blockedPaths) {
+            if (relPath.startsWith(blocked)) {
+                throw new Error(`Access denied: cannot write to ${blocked}`);
+            }
+        }
+        return resolved;
     }
 
     /**
@@ -2592,16 +2616,46 @@ class PullExecutor {
                 console.log(`[PullExecutor] Detected background command, spawning detached process`);
                 const cleanCommand = command.trim().slice(0, -1).trim(); // Remove trailing &
 
+                const ALLOWED_ENV_VARS = [
+                    'PATH', 'HOME', 'USER', 'LANG', 'TERM', 'SHELL', 'TMPDIR', 'NODE_ENV',
+                    'DISPLAY', 'XDG_RUNTIME_DIR',
+                    // Development tools
+                    'EDITOR', 'VISUAL', 'PAGER', 'LESS', 'COLORTERM', 'TERM_PROGRAM',
+                    // Language runtimes
+                    'PYTHONPATH', 'GOPATH', 'GOROOT', 'JAVA_HOME', 'RUBY_HOME',
+                    'NVM_DIR', 'VOLTA_HOME', 'CARGO_HOME', 'RUSTUP_HOME',
+                    // Build tools
+                    'CC', 'CXX', 'CFLAGS', 'LDFLAGS', 'PKG_CONFIG_PATH',
+                    'CMAKE_PREFIX_PATH', 'MAKEFLAGS',
+                    // Locale
+                    'LC_ALL', 'LC_CTYPE', 'LANGUAGE',
+                    // XDG
+                    'XDG_DATA_HOME', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME',
+                ];
+                const safeEnv = {};
+                if (env) {
+                    const dropped = Object.keys(env).filter(k => !ALLOWED_ENV_VARS.includes(k));
+                    if (dropped.length > 0) {
+                        console.log(`[PullExecutor] Filtered out env vars: ${dropped.join(', ')}`);
+                    }
+                    for (const [key, value] of Object.entries(env)) {
+                        if (ALLOWED_ENV_VARS.includes(key)) {
+                            safeEnv[key] = value;
+                        }
+                    }
+                }
+
                 const spawnOptions = {
-                    shell: true,
                     cwd: cwd || undefined,
-                    env: env ? { ...process.env, ...env } : process.env,
+                    env: { ...process.env, ...safeEnv },
                     detached: true,
                     stdio: 'ignore'  // Don't wait for stdio
                 };
 
                 try {
-                    const childProcess = spawn(cleanCommand, [], spawnOptions);
+                    const shellCmd = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
+                    const shellArgs = process.platform === 'win32' ? ['/c', cleanCommand] : ['-c', cleanCommand];
+                    const childProcess = spawn(shellCmd, shellArgs, spawnOptions);
                     childProcess.unref();  // Allow parent to exit independently
 
                     // Give it a moment to start, then return success
@@ -2626,20 +2680,50 @@ class PullExecutor {
 
             // Use spawn with shell for better process control
             return await new Promise((resolve, reject) => {
+                const ALLOWED_ENV_VARS = [
+                    'PATH', 'HOME', 'USER', 'LANG', 'TERM', 'SHELL', 'TMPDIR', 'NODE_ENV',
+                    'DISPLAY', 'XDG_RUNTIME_DIR',
+                    // Development tools
+                    'EDITOR', 'VISUAL', 'PAGER', 'LESS', 'COLORTERM', 'TERM_PROGRAM',
+                    // Language runtimes
+                    'PYTHONPATH', 'GOPATH', 'GOROOT', 'JAVA_HOME', 'RUBY_HOME',
+                    'NVM_DIR', 'VOLTA_HOME', 'CARGO_HOME', 'RUSTUP_HOME',
+                    // Build tools
+                    'CC', 'CXX', 'CFLAGS', 'LDFLAGS', 'PKG_CONFIG_PATH',
+                    'CMAKE_PREFIX_PATH', 'MAKEFLAGS',
+                    // Locale
+                    'LC_ALL', 'LC_CTYPE', 'LANGUAGE',
+                    // XDG
+                    'XDG_DATA_HOME', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME',
+                ];
+                const safeEnv = {};
+                if (env) {
+                    const dropped = Object.keys(env).filter(k => !ALLOWED_ENV_VARS.includes(k));
+                    if (dropped.length > 0) {
+                        console.log(`[PullExecutor] Filtered out env vars: ${dropped.join(', ')}`);
+                    }
+                    for (const [key, value] of Object.entries(env)) {
+                        if (ALLOWED_ENV_VARS.includes(key)) {
+                            safeEnv[key] = value;
+                        }
+                    }
+                }
+
                 const spawnOptions = {
-                    shell: true,
                     cwd: cwd || undefined,
-                    env: env ? { ...process.env, ...env } : process.env
+                    env: { ...process.env, ...safeEnv }
                 };
 
                 if (cwd) {
                     console.log(`[PullExecutor] Executing in directory: ${cwd}`);
                 }
                 if (env) {
-                    console.log(`[PullExecutor] With environment variables: ${Object.keys(env).join(', ')}`);
+                    console.log(`[PullExecutor] With environment variables (filtered): ${Object.keys(safeEnv).join(', ')}`);
                 }
 
-                const childProcess = spawn(command, [], spawnOptions);
+                const shellCmd = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
+                const shellArgs = process.platform === 'win32' ? ['/c', command] : ['-c', command];
+                const childProcess = spawn(shellCmd, shellArgs, spawnOptions);
 
                 // Track this process so we can kill it on cancel
                 this.activeChildProcesses.add(childProcess);
@@ -2891,9 +2975,12 @@ class PullExecutor {
             }
             
             console.log(`[PullExecutor] Reading file: ${filePath}`);
-            
+
+            // Validate file path before reading
+            const validatedReadPath = this.validateFilePath(filePath);
+
             // Read file
-            const content = await fs.readFile(filePath, encoding);
+            const content = await fs.readFile(validatedReadPath, encoding);
             
             // Limit lines if requested
             let finalContent = content;
@@ -3003,17 +3090,20 @@ class PullExecutor {
                         console.warn(`[PullExecutor] Skipping file with no path`);
                         continue;
                     }
-                    
-                    console.log(`[PullExecutor] Writing: ${filePath}`);
+
+                    // Validate file path before writing
+                    const validatedMultiPath = this.validateFilePath(filePath);
+
+                    console.log(`[PullExecutor] Writing: ${validatedMultiPath}`);
                     console.log(`[PullExecutor] Content preview: ${content.substring(0, 80)}...`);
-                    
+
                     // Ensure directory exists
-                    const dir = path.dirname(filePath);
+                    const dir = path.dirname(validatedMultiPath);
                     await fs.mkdir(dir, { recursive: true });
-                    
+
                     // Write file
-                    await fs.writeFile(filePath, content, 'utf8');
-                    results.push(filePath);
+                    await fs.writeFile(validatedMultiPath, content, 'utf8');
+                    results.push(validatedMultiPath);
                 }
                 
                 return {
@@ -3040,24 +3130,27 @@ class PullExecutor {
                 throw new Error('No content specified in args. AI must provide content to write');
             }
 
-            console.log(`[PullExecutor] Writing file: ${filePath}`);
+            // Validate file path before writing
+            const validatedPath = this.validateFilePath(filePath);
+
+            console.log(`[PullExecutor] Writing file: ${validatedPath}`);
             console.log(`[PullExecutor] Content: ${content.substring(0, 100)}...`);
             console.log(`[PullExecutor] Mode: ${shouldAppend ? 'append' : 'overwrite'}, Encoding: ${encoding}`);
 
             // Ensure directory exists
-            const dir = path.dirname(filePath);
+            const dir = path.dirname(validatedPath);
             await fs.mkdir(dir, { recursive: true });
 
             // Write or append file
             if (shouldAppend) {
-                await fs.appendFile(filePath, content, encoding);
+                await fs.appendFile(validatedPath, content, encoding);
             } else {
-                await fs.writeFile(filePath, content, encoding);
+                await fs.writeFile(validatedPath, content, encoding);
             }
 
             return {
                 success: true,
-                stdout: `File written: ${filePath}\nContent: ${content}`,
+                stdout: `File written: ${validatedPath}\nContent: ${content}`,
                 stderr: '',
                 exit_code: 0
             };
@@ -3721,10 +3814,11 @@ class PullExecutor {
             // Generate unique process ID
             const processId = `proc-${crypto.randomBytes(6).toString('hex')}`;
             
-            // Spawn process
-            const proc = spawn(command, [], {
+            // Spawn process using platform-aware shell instead of shell: true
+            const shellCmd = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
+            const shellArgs = process.platform === 'win32' ? ['/c', command] : ['-c', command];
+            const proc = spawn(shellCmd, shellArgs, {
                 cwd: cwd || process.cwd(),
-                shell: true,
                 detached: true,
                 stdio: ['ignore', 'pipe', 'pipe']
             });
