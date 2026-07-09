@@ -216,10 +216,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, '../preload/preload.cjs'),
-      // webSecurity disabled to permit cross-origin requests from file:// (production)
-      // and localhost (dev) to Supabase, Railway backend, Stripe, etc.
-      // Security is enforced via contextIsolation, sandbox, nodeIntegration:false, and CSP.
-      webSecurity: false,
+      webSecurity: true,
       sandbox: true,
       // Disallow running insecure content in production
       allowRunningInsecureContent: false,
@@ -371,7 +368,7 @@ function ensureCardWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, '../preload/preload.cjs'),
-      webSecurity: false,
+      webSecurity: true,
       sandbox: true,
       allowRunningInsecureContent: false,
     },
@@ -637,7 +634,7 @@ function createSettingsWindow(route) {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, '../preload/preload.cjs'),
-      webSecurity: false,
+      webSecurity: true,
       sandbox: true,
       backgroundThrottling: false,
     },

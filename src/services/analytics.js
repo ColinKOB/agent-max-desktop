@@ -761,7 +761,11 @@ export function setUserProperties(properties) {
   if (!enabled || !initialized) return;
 
   try {
-    posthog.people.set(properties);
+    if (typeof posthog.people?.set === 'function') {
+      posthog.people.set(properties);
+    } else {
+      posthog.capture('$set', { $set: properties });
+    }
     logger.info('User properties set:', Object.keys(properties));
   } catch (error) {
     logger.error('Failed to set user properties:', error);
@@ -775,7 +779,14 @@ export function incrementUserProperty(property, amount = 1) {
   if (!enabled || !initialized) return;
 
   try {
-    posthog.people.increment(property, amount);
+    if (typeof posthog.people?.increment === 'function') {
+      posthog.people.increment(property, amount);
+    } else {
+      posthog.capture('user_property_incremented', {
+        property,
+        amount,
+      });
+    }
   } catch (error) {
     logger.error('Failed to increment user property:', error);
   }
@@ -788,7 +799,11 @@ export function setUserPropertiesOnce(properties) {
   if (!enabled || !initialized) return;
 
   try {
-    posthog.people.set_once(properties);
+    if (typeof posthog.people?.set_once === 'function') {
+      posthog.people.set_once(properties);
+    } else {
+      posthog.capture('$set_once', { $set_once: properties });
+    }
   } catch (error) {
     logger.error('Failed to set user properties once:', error);
   }

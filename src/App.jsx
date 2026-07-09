@@ -98,9 +98,6 @@ function App({ windowMode = 'single' }) {
     // Initialize hybrid search (async, non-blocking)
     initializeHybridSearch();
 
-    // Check API connection
-    checkApiConnection();
-
     // Load initial profile
     loadProfile();
 

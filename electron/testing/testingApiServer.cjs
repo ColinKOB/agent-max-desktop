@@ -33,6 +33,7 @@ let cachedState = {
   runStatus: 'idle',
   lastUpdated: null
 };
+let lastSendMessageAt = 0;
 
 function setMainWindow(win) {
   mainWindow = win;
@@ -110,6 +111,7 @@ function start() {
         }
 
         // Send to renderer via IPC
+        lastSendMessageAt = Date.now();
         mainWindow.webContents.send('testing:send-message', { message });
         console.log(`[TestingAPI] Sent message: ${message.slice(0, 50)}...`);
 
@@ -217,6 +219,8 @@ function start() {
         const timeout = parseInt(url.searchParams.get('timeout') || '30000', 10);
         const pollInterval = 500;
         const startTime = Date.now();
+        const postSendGraceMs = 1200;
+        let observedBusy = false;
 
         const checkIdle = async () => {
           if (!mainWindow) {
@@ -251,8 +255,19 @@ function start() {
             const isIdle = !state.isThinking &&
                            state.runStatus !== 'running' &&
                            !state.hasStreamingMessage;
+            const isBusy = state.isThinking ||
+                           state.runStatus === 'running' ||
+                           state.hasStreamingMessage;
+            if (isBusy) {
+              observedBusy = true;
+            }
+            const recentSendGraceActive =
+              lastSendMessageAt > 0 &&
+              startTime >= lastSendMessageAt &&
+              Date.now() - lastSendMessageAt < postSendGraceMs;
+            const canReportIdle = isIdle && (observedBusy || !recentSendGraceActive);
 
-            if (isIdle) {
+            if (canReportIdle) {
               res.writeHead(200);
               res.end(JSON.stringify({
                 idle: true,

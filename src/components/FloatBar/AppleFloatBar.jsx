@@ -1820,17 +1820,6 @@ export default function AppleFloatBar({
       setApiConnected(!!isConnected);
       offlineRef.current = !isConnected;
     });
-    // Initial quick ping to set state on mount
-    healthAPI
-      .check()
-      .then(() => {
-        setApiConnected(true);
-        offlineRef.current = false;
-      })
-      .catch(() => {
-        setApiConnected(false);
-        offlineRef.current = true;
-      });
     return () => {
       try {
         unsub && unsub();
@@ -1844,18 +1833,6 @@ export default function AppleFloatBar({
     // If we ever want to auto-expand for onboarding, handle via explicit user action
     // leaving mini state intact ensures the pill is always present
   }, [showWelcome]);
-
-  // While offline, ping every 2s to auto-reconnect without spamming UI
-  useEffect(() => {
-    if (apiConnected) return;
-    let timer = setInterval(() => {
-      healthAPI
-        .check()
-        .then(() => setApiConnected(true))
-        .catch(() => {});
-    }, 2000);
-    return () => clearInterval(timer);
-  }, [apiConnected, setApiConnected]);
 
   // Flash a subtle success pill when we transition offline -> online
   const prevOnlineRef = useRef(true);

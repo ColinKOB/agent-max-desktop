@@ -4,7 +4,6 @@
  * Non-blocking, privacy-respecting, opt-in system
  */
 
-import axios from 'axios';
 import { telemetryClient } from '@lib/api/telemetryClient';
 
 const globalWindow = typeof window !== 'undefined' ? window : undefined;
@@ -18,11 +17,6 @@ function generateUUID() {
   });
 }
 
-// Canonical endpoint resolution: prefer dedicated telemetry URL, fall back to general API URL, then localhost
-const TELEMETRY_API =
-  import.meta.env.VITE_TELEMETRY_API ||
-  import.meta.env.VITE_API_URL ||
-  'http://localhost:8000';
 // Enablement policy: default ON in dev, default OFF in production unless user opted in
 const isProd = (import.meta.env.VITE_ENVIRONMENT || import.meta.env.MODE || import.meta.env.MODE) === 'production';
 const TELEMETRY_ENABLED =
@@ -358,36 +352,13 @@ class TelemetryService {
     this.batch = [];
 
     try {
-      const base = (TELEMETRY_API || '').replace(/\/$/, '');
-      const headers = {
-        'X-API-Key': this.apiKey,
-        'Content-Type': 'application/json',
-      };
-      const options = {
-        headers,
-        timeout: 5000,
-        validateStatus: () => true,
-      };
-
-      // Try legacy first
       try {
-        if (!axios.put && axios.default && typeof axios.default.put === 'function') {
-          axios.put = axios.default.put;
-        }
-        if (!axios.post && axios.default && typeof axios.default.post === 'function') {
-          axios.post = axios.default.post;
-        }
-
-        const res = await axios.put(`${base}/api/telemetry/batch`, { events: eventsToSend }, options);
+        const res = await telemetryClient.sendBatch(eventsToSend, {
+          userId: this.userId,
+          sessionId: this.sessionId,
+        });
         if (res.status === 401) {
           try { window.dispatchEvent(new CustomEvent('telemetry:unauthorized')); } catch {}
-        }
-        if (res.status === 404 || res.status === 405 || res.status === 0 || (res.status >= 400 && res.status < 600)) {
-          const res2 = await axios.post(`${base}/api/v2/telemetry/batch`, { events: eventsToSend }, options);
-          if (res2.status === 401) {
-            try { window.dispatchEvent(new CustomEvent('telemetry:unauthorized')); } catch {}
-          }
-          return res2;
         }
         return res;
       } catch (_e) {

@@ -1,13 +1,5 @@
 import axios from 'axios';
 
-const getLocal = (k, fallback = null) => {
-  try {
-    return (typeof localStorage !== 'undefined') ? (localStorage.getItem(k) || fallback) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
 function getBase() {
   try {
     // Prefer dedicated telemetry URL, then API URL, then localhost
@@ -28,30 +20,23 @@ function buildHeaders() {
 }
 
 /**
- * Send telemetry events using legacy PUT first, then fall back to v2 POST.
+ * Send telemetry events to the canonical backend batch endpoint.
  * Mirrors src/services/telemetry.js behavior for compatibility with tests.
  */
-export async function sendBatch(events) {
+export async function sendBatch(events, batchMeta = {}) {
   const base = getBase();
   const headers = buildHeaders();
   const options = { headers, timeout: 5000, validateStatus: () => true };
-
-  // Try legacy first
-  let res;
+  const body = {
+    events,
+    ...batchMeta,
+    timestamp: batchMeta.timestamp || Date.now(),
+  };
   try {
-    res = await axios.put(`${base}/api/telemetry/batch`, { events }, options);
-  } catch {
-    res = { status: 0 };
+    return await axios.post(`${base}/api/telemetry/batch`, body, options);
+  } catch (e) {
+    return e?.response || { status: 0 };
   }
-
-  if (res && (res.status === 404 || res.status === 405 || res.status === 0 || (res.status >= 400 && res.status < 600))) {
-    try {
-      res = await axios.post(`${base}/api/v2/telemetry/batch`, { events }, options);
-    } catch (e) {
-      res = e?.response || { status: 0 };
-    }
-  }
-  return res;
 }
 
 export const telemetryClient = { sendBatch };

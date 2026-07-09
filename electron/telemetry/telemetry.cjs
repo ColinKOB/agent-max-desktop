@@ -29,7 +29,11 @@ function genUUID() {
 const DEFAULT_BATCH_SIZE = parseInt(process.env.TELEMETRY_BATCH_SIZE || '25', 10);
 const DEFAULT_FLUSH_INTERVAL_MS = parseInt(process.env.TELEMETRY_FLUSH_INTERVAL_MS || '5000', 10);
 const MAX_QUEUE_LENGTH = parseInt(process.env.TELEMETRY_MAX_QUEUE || '500', 10);
+const TELEMETRY_BACKOFF_BASE_MS = parseInt(process.env.TELEMETRY_BACKOFF_BASE_MS || '10000', 10);
+const TELEMETRY_BACKOFF_MAX_MS = parseInt(process.env.TELEMETRY_BACKOFF_MAX_MS || '300000', 10);
+const TELEMETRY_MAX_FAILURES = parseInt(process.env.TELEMETRY_MAX_FAILURES || '5', 10);
 const STATE_FILENAME = 'telemetry-state.json';
+const TELEMETRY_EVENT_TYPES = new Set(['interaction', 'error', 'performance', 'custom_event']);
 
 class DesktopTelemetry {
   constructor() {
@@ -50,6 +54,8 @@ class DesktopTelemetry {
     this.logHookAttached = false;
     this.consolePatched = false;
     this.originalConsole = {};
+    this.consecutiveFlushFailures = 0;
+    this.nextFlushAt = 0;
   }
 
   initialize({ app, ipcMain }) {
@@ -457,6 +463,7 @@ class DesktopTelemetry {
   normalizeRendererEvent(event) {
     const cloned = { ...event };
     const type = cloned.type || cloned.eventName || 'renderer.event';
+    const eventName = cloned.eventName;
     delete cloned.type;
     delete cloned.eventName;
     const rendererTimestamp = cloned.timestamp || cloned.createdAt;
@@ -465,7 +472,9 @@ class DesktopTelemetry {
     delete cloned.userId;
     delete cloned.sessionId;
 
-    const envelope = this.createEnvelope(type, {
+    const envelope = this.normalizeTelemetryEvent({
+      type,
+      eventName,
       ...cloned,
       bridge: 'renderer',
     }, {
@@ -480,19 +489,66 @@ class DesktopTelemetry {
   }
 
   createEnvelope(type, payload = {}, meta = {}) {
-    return {
+    return this.normalizeTelemetryEvent({
       type,
-      timestamp: new Date().toISOString(),
-      userId: this.installState.userId,
-      sessionId: this.sessionId,
-      installId: this.installState.installId,
-      machineIdHash: this.hashMachineId(this.machineId),
-      environment: this.bootstrap.environment,
-      hardware: this.bootstrap.hardware,
-      meta: {
-        ...meta,
-      },
+      eventName: type,
+      properties: payload,
+    }, meta);
+  }
+
+  normalizeTelemetryEvent(event = {}, meta = {}) {
+    const now = new Date().toISOString();
+    const rawType = event.type || event.eventName || 'desktop.event';
+    const base = {
+      userId: event.userId || this.installState.userId,
+      sessionId: event.sessionId || this.sessionId,
+      timestamp: event.timestamp || now,
+    };
+
+    if (TELEMETRY_EVENT_TYPES.has(rawType)) {
+      const normalized = {
+        ...event,
+        ...base,
+        type: rawType,
+      };
+
+      if (rawType === 'custom_event') {
+        normalized.eventName = event.eventName || 'desktop.event';
+        normalized.properties = {
+          ...(event.properties || {}),
+          ...(event.payload ? { payload: event.payload } : {}),
+          ...(Object.keys(meta).length ? { meta } : {}),
+        };
+      }
+
+      return normalized;
+    }
+
+    const {
+      type,
+      userId,
+      sessionId,
+      timestamp,
+      eventName,
+      properties,
       payload,
+      ...rest
+    } = event;
+
+    return {
+      ...base,
+      type: 'custom_event',
+      eventName: eventName || rawType,
+      properties: {
+        ...(properties || {}),
+        ...(payload ? { payload } : {}),
+        ...(Object.keys(rest).length ? rest : {}),
+        ...(Object.keys(meta).length ? { meta } : {}),
+        installId: this.installState.installId,
+        machineIdHash: this.hashMachineId(this.machineId),
+        environment: this.bootstrap.environment,
+        hardware: this.bootstrap.hardware,
+      },
     };
   }
 
@@ -515,11 +571,15 @@ class DesktopTelemetry {
     this.enqueueEnvelope(this.createEnvelope(type, payload, meta));
   }
 
-  ensureFlushTimer() {
+  ensureFlushTimer(delayMs = null) {
     if (this.flushTimer) return;
+    const delay =
+      typeof delayMs === 'number'
+        ? delayMs
+        : Math.max(this.flushInterval, this.nextFlushAt ? this.nextFlushAt - Date.now() : 0);
     this.flushTimer = setTimeout(() => {
       this.flush();
-    }, this.flushInterval);
+    }, delay);
 
     if (typeof this.flushTimer.unref === 'function') {
       this.flushTimer.unref();
@@ -533,6 +593,12 @@ class DesktopTelemetry {
 
     if (!this.endpoint) {
       return { sent: 0, error: 'TELEMETRY_ENDPOINT_NOT_CONFIGURED' };
+    }
+
+    const now = Date.now();
+    if (this.nextFlushAt && now < this.nextFlushAt) {
+      this.ensureFlushTimer(this.nextFlushAt - now);
+      return { sent: 0, postponed: true, retryAt: this.nextFlushAt };
     }
 
     if (this.flushTimer) {
@@ -552,7 +618,7 @@ class DesktopTelemetry {
 
     const sendOnce = async (url, body) => {
       try {
-        const res = await axios.put(url, body, {
+        const res = await axios.post(url, body, {
           headers,
           timeout,
           validateStatus: () => true,
@@ -563,39 +629,49 @@ class DesktopTelemetry {
       }
     };
 
-    // 1) Try legacy prefix first (existing behavior)
-    let url = `${base}/api/telemetry/batch`;
-    let res = await sendOnce(url, { events });
-
-    // If the server complains about missing "value", retry with legacy wrapper
-    const bodyText = typeof res.data === 'string' ? res.data : JSON.stringify(res.data || {});
-    const needsLegacy = res.status === 422 && /value/i.test(bodyText);
-    if (needsLegacy) {
-      res = await sendOnce(url, { value: { events } });
-    }
-
-    // If 404/405 or still failing, try the v2 prefix
-    if ((res.status === 404 || res.status === 405 || res.status === 0) || (res.status >= 400 && res.status < 600)) {
-      url = `${base}/api/v2/telemetry/batch`;
-      res = await sendOnce(url, { events });
-      const bodyText2 = typeof res.data === 'string' ? res.data : JSON.stringify(res.data || {});
-      const needsLegacy2 = res.status === 422 && /value/i.test(bodyText2);
-      if (needsLegacy2) {
-        res = await sendOnce(url, { value: { events } });
-      }
-    }
+    const url = `${base}/api/telemetry/batch`;
+    const batch = {
+      events: events.map((event) => this.normalizeTelemetryEvent(event)),
+      userId: this.installState.userId,
+      sessionId: this.sessionId,
+      timestamp: Date.now(),
+    };
+    const res = await sendOnce(url, batch);
 
     if (res.status >= 200 && res.status < 300) {
+      this.consecutiveFlushFailures = 0;
+      this.nextFlushAt = 0;
+      if (this.queue.length > 0) {
+        this.ensureFlushTimer();
+      }
       return { sent: events.length };
     }
 
-    log.warn('[Telemetry] Failed to send batch:', res.status, res.data);
-    // Return events to queue for retry
-    this.queue = [...events, ...this.queue];
-    if (this.queue.length > MAX_QUEUE_LENGTH) {
-      this.queue = this.queue.slice(-MAX_QUEUE_LENGTH);
+    this.consecutiveFlushFailures += 1;
+    if (
+      this.consecutiveFlushFailures === 1 ||
+      this.consecutiveFlushFailures === TELEMETRY_MAX_FAILURES
+    ) {
+      log.warn('[Telemetry] Failed to send batch:', res.status, res.data);
     }
-    return { sent: 0, error: res.data };
+
+    if (this.consecutiveFlushFailures >= TELEMETRY_MAX_FAILURES) {
+      this.nextFlushAt = 0;
+      this.consecutiveFlushFailures = 0;
+      if (this.queue.length > 0) {
+        this.ensureFlushTimer();
+      }
+      return { sent: 0, dropped: events.length, error: res.data };
+    }
+
+    const retryDelay = Math.min(
+      TELEMETRY_BACKOFF_MAX_MS,
+      TELEMETRY_BACKOFF_BASE_MS * (2 ** (this.consecutiveFlushFailures - 1))
+    );
+    this.nextFlushAt = Date.now() + retryDelay;
+    this.queue = [...events, ...this.queue].slice(-MAX_QUEUE_LENGTH);
+    this.ensureFlushTimer(retryDelay);
+    return { sent: 0, error: res.data, retryInMs: retryDelay };
   }
 }
 

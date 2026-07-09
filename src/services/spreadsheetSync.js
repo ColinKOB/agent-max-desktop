@@ -5,7 +5,7 @@
  * Provides save, load, list, and delete operations for user spreadsheets.
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { SUPABASE_ENABLED, supabase as sharedSupabaseClient } from './supabase';
 
 // Supabase client will be initialized with user's credentials
 let supabaseClient = null;
@@ -15,9 +15,9 @@ let supabaseClient = null;
  * @param {string} supabaseUrl - Supabase project URL
  * @param {string} supabaseKey - Supabase anon/service key
  */
-export function initSupabase(supabaseUrl, supabaseKey) {
-  if (supabaseUrl && supabaseKey) {
-    supabaseClient = createClient(supabaseUrl, supabaseKey);
+export function initSupabase(_supabaseUrl, _supabaseKey) {
+  if (SUPABASE_ENABLED && sharedSupabaseClient) {
+    supabaseClient = sharedSupabaseClient;
     return true;
   }
   return false;
