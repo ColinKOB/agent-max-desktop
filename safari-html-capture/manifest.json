@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Page HTML Source Capture",
+  "description": "Capture full HTML source (with DOCTYPE) of the current Safari tab, preview, copy, save, share, and manage history.",
+  "version": "1.0.0",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "action": {
+    "default_title": "Page HTML Source",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "commands": {
+    "capture_page_html": {
+      "suggested_key": {
+        "default": "Command+Shift+U",
+        "mac": "Command+Shift+U"
+      },
+      "description": "Open popup and capture current tab HTML"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["contentScript.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "host_permissions": ["<all_urls>"]
+}

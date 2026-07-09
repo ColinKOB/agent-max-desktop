@@ -5628,11 +5628,19 @@ export default function AppleFloatBar({
       if (userId) {
         try {
           setThinkingStatus('Checking credits...');
-          const { data: userData, error } = await supabase
-            .from('users')
-            .select('credits, subscription_tier')
-            .eq('id', userId)
-            .single();
+          // Race against a timeout: if Supabase is unreachable or its auth lock
+          // is contended, the query can hang indefinitely and permanently block
+          // the send pipeline. Fail open after 5s and let the backend enforce credits.
+          const CREDIT_CHECK_TIMEOUT_MS = 5000;
+          const { data: userData, error } = await Promise.race([
+            supabase.from('users').select('credits, subscription_tier').eq('id', userId).single(),
+            new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error('Credit check timed out')),
+                CREDIT_CHECK_TIMEOUT_MS
+              )
+            ),
+          ]);
 
           if (!error && userData) {
             const currentCredits = userData?.credits || 0;
@@ -7273,7 +7281,18 @@ export default function AppleFloatBar({
 
           {/* Onboarding overlay: only after expansion and when requested */}
           {showWelcome === true && !isTransitioning && (
-            <div style={{ position: 'absolute', inset: 0, zIndex: 80 }}>
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 80,
+                // Opaque backdrop: without this the chat behind bleeds through
+                // the onboarding card and the two layouts visually collide
+                background: 'rgba(14, 15, 19, 0.97)',
+                backdropFilter: 'blur(8px)',
+                borderRadius: 'inherit',
+              }}
+            >
               <OnboardingFlow onComplete={onWelcomeComplete} />
             </div>
           )}
@@ -8841,7 +8860,6 @@ export default function AppleFloatBar({
       )}
 
       {/* In-App Tutorial for new users (after onboarding completes) */}
-      {console.log('[Tutorial Debug]', { showTutorial, showWelcome, shouldShow: showTutorial && !showWelcome })}
       {showTutorial && !showWelcome && (
         <AppTutorial
           onComplete={onTutorialComplete}

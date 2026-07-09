@@ -216,8 +216,10 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, '../preload/preload.cjs'),
-      // Disable CORS to permit desktop app to call trusted backend from file://
-      webSecurity: true,
+      // webSecurity disabled to permit cross-origin requests from file:// (production)
+      // and localhost (dev) to Supabase, Railway backend, Stripe, etc.
+      // Security is enforced via contextIsolation, sandbox, nodeIntegration:false, and CSP.
+      webSecurity: false,
       sandbox: true,
       // Disallow running insecure content in production
       allowRunningInsecureContent: false,
@@ -302,11 +304,11 @@ function createWindow() {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' http://localhost:5173 https://js.stripe.com; " +
+            "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' http://localhost:5173 https://js.stripe.com https://us-assets.i.posthog.com; " +
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
             "img-src 'self' data: https: blob:; " +
-            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://agentmax-production.up.railway.app https://agentmax.app https://api.agentmax.com https://accounts.google.com https://www.googleapis.com https://api.stripe.com https://js.stripe.com https://m.stripe.network https://*.supabase.co https://*.supabase.in https://huggingface.co https://*.huggingface.co https://cdn.jsdelivr.net https://cdn-lfs.huggingface.co https://*.hf.co https://*.xethub.hf.co https://cas-bridge.xethub.hf.co wss://agentmax-production.up.railway.app wss://agentmax.app wss://*.supabase.co wss://*.supabase.in; " +
+            "connect-src 'self' http://localhost:8000 http://127.0.0.1:8010 http://localhost:8010 http://localhost:5173 https://us.i.posthog.com https://us-assets.i.posthog.com ws://localhost:5173 https://agentmax-production.up.railway.app https://agentmax.app https://api.agentmax.com https://accounts.google.com https://www.googleapis.com https://api.stripe.com https://js.stripe.com https://m.stripe.network https://*.supabase.co https://*.supabase.in https://huggingface.co https://*.huggingface.co https://cdn.jsdelivr.net https://cdn-lfs.huggingface.co https://*.hf.co https://*.xethub.hf.co https://cas-bridge.xethub.hf.co wss://agentmax-production.up.railway.app wss://agentmax.app wss://*.supabase.co wss://*.supabase.in; " +
             "frame-src 'self' https://js.stripe.com https://hooks.stripe.com; " +
             "object-src 'none'; " +
             "base-uri 'self'; " +
@@ -369,7 +371,7 @@ function ensureCardWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, '../preload/preload.cjs'),
-      webSecurity: true,
+      webSecurity: false,
       sandbox: true,
       allowRunningInsecureContent: false,
     },
@@ -635,7 +637,7 @@ function createSettingsWindow(route) {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, '../preload/preload.cjs'),
-      webSecurity: true,
+      webSecurity: false,
       sandbox: true,
       backgroundThrottling: false,
     },
@@ -670,11 +672,11 @@ function createSettingsWindow(route) {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' http://localhost:5173 https://js.stripe.com; " +
+            "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' http://localhost:5173 https://js.stripe.com https://us-assets.i.posthog.com; " +
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
             "img-src 'self' data: https: blob:; " +
-            "connect-src 'self' http://localhost:8000 http://localhost:5173 ws://localhost:5173 https://agentmax-production.up.railway.app https://agentmax.app https://api.agentmax.com https://accounts.google.com https://www.googleapis.com https://api.stripe.com https://js.stripe.com https://m.stripe.network https://*.supabase.co https://*.supabase.in https://huggingface.co https://*.huggingface.co https://cdn.jsdelivr.net https://cdn-lfs.huggingface.co https://*.hf.co https://*.xethub.hf.co https://cas-bridge.xethub.hf.co wss://agentmax-production.up.railway.app wss://agentmax.app wss://*.supabase.co wss://*.supabase.in; " +
+            "connect-src 'self' http://localhost:8000 http://127.0.0.1:8010 http://localhost:8010 http://localhost:5173 https://us.i.posthog.com https://us-assets.i.posthog.com ws://localhost:5173 https://agentmax-production.up.railway.app https://agentmax.app https://api.agentmax.com https://accounts.google.com https://www.googleapis.com https://api.stripe.com https://js.stripe.com https://m.stripe.network https://*.supabase.co https://*.supabase.in https://huggingface.co https://*.huggingface.co https://cdn.jsdelivr.net https://cdn-lfs.huggingface.co https://*.hf.co https://*.xethub.hf.co https://cas-bridge.xethub.hf.co wss://agentmax-production.up.railway.app wss://agentmax.app wss://*.supabase.co wss://*.supabase.in; " +
             "frame-src 'self' https://js.stripe.com https://hooks.stripe.com; " +
             "object-src 'none'; " +
             "base-uri 'self'; " +
@@ -1431,9 +1433,14 @@ ipcMain.handle('profile-cache:get-summary-count', (event, userId) => {
 
 // Initialize Hands on Desktop client
 function resolveBackendUrl() {
+  // Single source of truth for the backend URL in the main process.
+  // VITE_API_URL is included so main process and renderer follow the same
+  // .env value instead of silently pointing at different backends.
   return process.env.AGENT_MAX_BACKEND_URL
+    || process.env.AGENT_MAX_API_URL
     || process.env.AMX_API_URL
     || process.env.AGENTMAX_API_URL
+    || process.env.VITE_API_URL
     || 'https://agentmax-production.up.railway.app';
 }
 
@@ -2181,6 +2188,9 @@ ipcMain.handle('notes-detailed-status', () => {
 // For personalized onboarding
 // ===========================================
 
+// Icon cache persists across calls so the second IPC call is instant
+const _iconCache = new Map();
+
 // Get full user context (installed apps + desktop files)
 // Enhanced to include app icons for personalized onboarding
 ipcMain.handle('get-user-apps', async () => {
@@ -2189,13 +2199,13 @@ ipcMain.handle('get-user-apps', async () => {
     const context = await appDiscovery.getUserContext();
 
     // Extract icons for installed apps (for onboarding personalization)
-    // Only extract icons for apps in our capability list to optimize performance
     if (context.installedApps && context.installedApps.length > 0) {
       console.log('[AppDiscovery] Extracting app icons...');
       const iconExtractionStart = Date.now();
+      let cacheHits = 0;
 
-      // Process icons in parallel with a limit to avoid overwhelming the system
-      const BATCH_SIZE = 10;
+      // Use app.getFileIcon first (fast, no shell spawn), fall back to sips only if needed
+      const BATCH_SIZE = 20;
       const appsWithIcons = [];
 
       for (let i = 0; i < context.installedApps.length; i += BATCH_SIZE) {
@@ -2203,94 +2213,70 @@ ipcMain.handle('get-user-apps', async () => {
         const batchResults = await Promise.all(
           batch.map(async (appInfo) => {
             try {
-              // Try to read the app's actual icon from its .icns file
-              // This gives us the real colorful app icons instead of generic document icons
-              const fs = require('fs');
-              const path = require('path');
-              const { nativeImage } = require('electron');
+              // Return cached icon if available
+              if (_iconCache.has(appInfo.path)) {
+                cacheHits++;
+                return { ...appInfo, iconDataUrl: _iconCache.get(appInfo.path) };
+              }
 
               let iconDataUrl = null;
 
-              // Try to find and read the app's .icns file from Info.plist
-              const infoPlistPath = path.join(appInfo.path, 'Contents', 'Info.plist');
-              const debugThis = i === 0 && batch.indexOf(appInfo) < 2;
-              const { execSync } = require('child_process');
-              const os = require('os');
+              // Primary: Use Electron's app.getFileIcon (fast, no child process)
+              try {
+                const icon = await app.getFileIcon(appInfo.path, { size: 'large' });
+                const iconSize = icon.getSize();
+                if (iconSize.width > 0 && iconSize.height > 0) {
+                  const pngBuffer = icon.toPNG();
+                  if (pngBuffer && pngBuffer.length > 0) {
+                    iconDataUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+                  }
+                }
+              } catch {}
 
-              if (fs.existsSync(infoPlistPath)) {
+              // Fallback: Extract from .icns via sips (only if Electron API failed)
+              if (!iconDataUrl) {
                 try {
-                  const plistContent = fs.readFileSync(infoPlistPath, 'utf8');
+                  const infoPlistPath = path.join(appInfo.path, 'Contents', 'Info.plist');
+                  if (fs.existsSync(infoPlistPath)) {
+                    const plistContent = fs.readFileSync(infoPlistPath, 'utf8');
+                    const iconFileMatch = plistContent.match(/<key>CFBundleIconFile<\/key>\s*<string>([^<]+)<\/string>/);
+                    const iconNameMatch = plistContent.match(/<key>CFBundleIconName<\/key>\s*<string>([^<]+)<\/string>/);
+                    const iconFileName = iconFileMatch?.[1] || iconNameMatch?.[1];
 
-                  // Parse icon filename from plist XML using regex
-                  // Look for CFBundleIconFile or CFBundleIconName
-                  let iconFileName = null;
-                  const iconFileMatch = plistContent.match(/<key>CFBundleIconFile<\/key>\s*<string>([^<]+)<\/string>/);
-                  const iconNameMatch = plistContent.match(/<key>CFBundleIconName<\/key>\s*<string>([^<]+)<\/string>/);
+                    if (iconFileName) {
+                      const iconFile = iconFileName.endsWith('.icns') ? iconFileName : `${iconFileName}.icns`;
+                      const iconPath = path.join(appInfo.path, 'Contents', 'Resources', iconFile);
 
-                  iconFileName = iconFileMatch?.[1] || iconNameMatch?.[1];
-
-                  if (iconFileName) {
-                    // Add .icns extension if not present
-                    const iconFile = iconFileName.endsWith('.icns') ? iconFileName : `${iconFileName}.icns`;
-                    const iconPath = path.join(appInfo.path, 'Contents', 'Resources', iconFile);
-
-                    if (fs.existsSync(iconPath)) {
-                      // Use sips (macOS built-in) to convert .icns to PNG
-                      // nativeImage doesn't support .icns format
-                      const tempPngPath = path.join(os.tmpdir(), `app-icon-${Date.now()}-${Math.random().toString(36).slice(2)}.png`);
-                      try {
-                        execSync(`sips -s format png "${iconPath}" --out "${tempPngPath}" -z 64 64 2>/dev/null`, { stdio: 'pipe' });
-                        if (fs.existsSync(tempPngPath)) {
-                          const pngBuffer = fs.readFileSync(tempPngPath);
-                          if (pngBuffer && pngBuffer.length > 0) {
-                            iconDataUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+                      if (fs.existsSync(iconPath)) {
+                        const { execSync } = require('child_process');
+                        const tempPngPath = path.join(os.tmpdir(), `app-icon-${Date.now()}-${Math.random().toString(36).slice(2)}.png`);
+                        try {
+                          execSync(`sips -s format png "${iconPath}" --out "${tempPngPath}" -z 64 64 2>/dev/null`, { stdio: 'pipe' });
+                          if (fs.existsSync(tempPngPath)) {
+                            const pngBuffer = fs.readFileSync(tempPngPath);
+                            if (pngBuffer && pngBuffer.length > 0) {
+                              iconDataUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+                            }
+                            fs.unlinkSync(tempPngPath);
                           }
-                          // Clean up temp file
-                          fs.unlinkSync(tempPngPath);
-                        }
-                      } catch (sipsError) {
-                        // sips failed, will fall back to app.getFileIcon
-                        if (debugThis) console.log(`[AppDiscovery] sips failed for ${appInfo.name}:`, sipsError.message);
+                        } catch {}
                       }
                     }
                   }
-                } catch (plistError) {
-                  // Plist parsing failed, continue to fallback
-                  if (debugThis) {
-                    console.log(`[AppDiscovery] Plist error for ${appInfo.name}:`, plistError.message);
-                  }
-                }
+                } catch {}
               }
 
-              // Fallback to app.getFileIcon if .icns extraction failed
-              // This handles system apps with icons in Assets.car
+              // Final fallback: Use Python/PyObjC for system apps with Assets.car icons
+              // (e.g. Calendar, Maps, etc.) Only runs for apps where above methods failed
               if (!iconDataUrl) {
                 try {
-                  const icon = await app.getFileIcon(appInfo.path, { size: 'large' });
-                  const iconSize = icon.getSize();
-                  if (iconSize.width > 0 && iconSize.height > 0) {
-                    const pngBuffer = icon.toPNG();
-                    if (pngBuffer && pngBuffer.length > 0) {
-                      iconDataUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`;
-                    }
-                  }
-                } catch (fallbackError) {
-                  // Silently continue to next fallback
-                }
-              }
-
-              // Final fallback: Use Python/PyObjC to extract icon via NSWorkspace
-              // This reliably works for system apps with icons in Assets.car (like Calendar)
-              if (!iconDataUrl) {
-                try {
+                  const { execSync } = require('child_process');
                   const scriptPath = path.join(__dirname, 'scripts', 'extract-icon.py');
                   const tempPngPath = path.join(os.tmpdir(), `app-icon-pyobjc-${Date.now()}-${Math.random().toString(36).slice(2)}.png`);
-
                   execSync(`python3 "${scriptPath}" "${appInfo.path}" "${tempPngPath}" 64`, {
                     stdio: 'pipe',
                     timeout: 3000
                   });
-
                   if (fs.existsSync(tempPngPath)) {
                     const pngBuffer = fs.readFileSync(tempPngPath);
                     if (pngBuffer && pngBuffer.length > 0) {
@@ -2298,20 +2284,15 @@ ipcMain.handle('get-user-apps', async () => {
                     }
                     fs.unlinkSync(tempPngPath);
                   }
-                } catch (pyError) {
-                  // Python fallback failed, icon will be null
-                }
+                } catch {}
               }
 
-              // Log first few to verify
-              if (i === 0 && batch.indexOf(appInfo) < 3) {
-                console.log(`[AppDiscovery] Icon for ${appInfo.name}: dataUrl length=${iconDataUrl?.length || 0}`);
-              }
+              // Cache the result (even null) to avoid re-extraction
+              _iconCache.set(appInfo.path, iconDataUrl);
 
               return { ...appInfo, iconDataUrl };
             } catch (iconError) {
-              // If icon extraction fails, just return the app without icon
-              console.warn(`[AppDiscovery] Could not extract icon for ${appInfo.name}:`, iconError.message);
+              _iconCache.set(appInfo.path, null);
               return { ...appInfo, iconDataUrl: null };
             }
           })
@@ -2321,7 +2302,7 @@ ipcMain.handle('get-user-apps', async () => {
 
       const iconExtractionTime = Date.now() - iconExtractionStart;
       const iconsExtracted = appsWithIcons.filter(a => a.iconDataUrl).length;
-      console.log(`[AppDiscovery] Icon extraction completed in ${iconExtractionTime}ms (${iconsExtracted}/${appsWithIcons.length} icons)`);
+      console.log(`[AppDiscovery] Icon extraction completed in ${iconExtractionTime}ms (${iconsExtracted}/${appsWithIcons.length} icons, ${cacheHits} cached)`);
 
       context.installedApps = appsWithIcons;
     }

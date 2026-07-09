@@ -11,8 +11,8 @@ const logger = createLogger('Supabase');
 // Production Supabase configuration
 // These are the PUBLIC anon key and URL - safe to include in client code
 // The anon key only has access to RLS-protected data
-const PRODUCTION_SUPABASE_URL = 'https://rburoajxsyfousnleydw.supabase.co';
-const PRODUCTION_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidXJvYWp4c3lmb3VzbmxleWR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5OTE2MTgsImV4cCI6MjA3NjU2NzYxOH0.sWHCQpHiQvI_whjLKF8ybR3mr9BNtPF68MgKT1LLuSc';
+const PRODUCTION_SUPABASE_URL = 'https://xrvtrdkokksrodbzcxtz.supabase.co';
+const PRODUCTION_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhydnRyZGtva2tzcm9kYnpjeHR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1NTI0NjUsImV4cCI6MjA5OTEyODQ2NX0.n8PDf3GtTiI-X0cbpE7CPnuHB9Q1hodIf7n7PP65hxw';
 
 // Use env vars if available, otherwise fall back to production defaults
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || PRODUCTION_SUPABASE_URL;

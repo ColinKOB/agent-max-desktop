@@ -540,6 +540,9 @@ function start() {
 
   server.listen(3850, '127.0.0.1', () => {
     console.log('[TestingAPI] Server listening on http://127.0.0.1:3850');
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[TestingAPI] Auth token: ${serverToken}`);
+    }
   });
 
   server.on('error', (err) => {

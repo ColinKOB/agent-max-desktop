@@ -160,7 +160,7 @@ export function GoogleConnect({ compact = false }) {
       try {
         // Generate cryptographically secure state and hash it for storage
         state = generateOAuthState();
-        const stateHash = hashOAuthState(state);
+        const stateHash = await hashOAuthState(state);
         storeOAuthStateHash(stateHash);
         console.log('[GoogleConnect] Generated secure OAuth state and stored hash');
       } catch (err) {

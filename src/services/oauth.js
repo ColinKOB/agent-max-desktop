@@ -1,72 +1,50 @@
 /**
  * OAuth Security Utilities
  * Handles state generation, hashing, and validation for OAuth flows
+ *
+ * Uses the Web Crypto API (globalThis.crypto), which is available in both
+ * the Electron renderer and browsers. Do NOT import Node's `crypto` module
+ * here: Vite externalizes it for renderer builds, which silently breaks
+ * getRandomValues/subtle and forces insecure fallbacks.
  */
 
-import crypto from 'crypto';
+const webCrypto = globalThis.crypto;
 
 /**
  * Generate a cryptographically secure random state for OAuth
- * Returns a SHA256 hash of random data to minimize identifier exposure
- * @returns {string} Base64-encoded SHA256 hash
+ * @returns {string} Base64-encoded random value
  */
 export function generateOAuthState() {
-  try {
-    // Generate 32 bytes of random data
-    const randomBytes = crypto.getRandomValues(new Uint8Array(32));
-    
-    // Convert to hex string
-    const hexString = Array.from(randomBytes)
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-    
-    // Return as base64 for safe transmission
-    return btoa(hexString);
-  } catch (err) {
-    console.error('[OAuth] Failed to generate secure state:', err);
-    // Fallback to Math.random-based generation (less secure but works)
-    return btoa(Math.random().toString(36).substring(2) + Date.now().toString(36));
-  }
+  const randomBytes = webCrypto.getRandomValues(new Uint8Array(32));
+  const hexString = Array.from(randomBytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+  return btoa(hexString);
 }
 
 /**
- * Hash OAuth state for storage/comparison
- * Prevents state value exposure in logs or storage
+ * Hash OAuth state for storage/comparison (SHA-256).
+ * Prevents raw state value exposure in logs or storage.
  * @param {string} state - The state value to hash
- * @returns {string} SHA256 hash as hex string
+ * @returns {Promise<string>} SHA-256 hash as hex string
  */
-export function hashOAuthState(state) {
-  try {
-    // Use SubtleCrypto for browser compatibility
-    if (crypto.subtle && typeof crypto.subtle.digest === 'function') {
-      // This is async, so we'll use a sync fallback for now
-      // In production, consider making this async throughout the call chain
-    }
-    
-    // Fallback: simple hash using string operations
-    // In a real app, you'd want to use a proper hashing library
-    let hash = 0;
-    for (let i = 0; i < state.length; i++) {
-      const char = state.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return Math.abs(hash).toString(16);
-  } catch (err) {
-    console.error('[OAuth] Failed to hash state:', err);
-    return state; // Fallback to original state
-  }
+export async function hashOAuthState(state) {
+  const data = new TextEncoder().encode(state);
+  const digest = await webCrypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 /**
  * Validate OAuth state matches expected value
  * @param {string} receivedState - State received from OAuth callback
  * @param {string} expectedStateHash - Expected hash stored before redirect
- * @returns {boolean} True if states match
+ * @returns {Promise<boolean>} True if states match
  */
-export function validateOAuthState(receivedState, expectedStateHash) {
+export async function validateOAuthState(receivedState, expectedStateHash) {
   try {
-    const receivedHash = hashOAuthState(receivedState);
+    const receivedHash = await hashOAuthState(receivedState);
     return receivedHash === expectedStateHash;
   } catch (err) {
     console.error('[OAuth] Failed to validate state:', err);
@@ -75,7 +53,7 @@ export function validateOAuthState(receivedState, expectedStateHash) {
 }
 
 /**
- * Store OAuth state securely in sessionStorage (cleared on tab close)
+ * Store OAuth state hash in sessionStorage (cleared on window close)
  * @param {string} stateHash - Hashed state to store
  */
 export function storeOAuthStateHash(stateHash) {

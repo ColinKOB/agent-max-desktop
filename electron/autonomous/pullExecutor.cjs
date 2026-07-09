@@ -3184,8 +3184,13 @@ class PullExecutor {
             console.log(`[PullExecutor] userContext:`, JSON.stringify(this.userContext || {}));
             console.log(`[PullExecutor] args.email:`, args.email, 'args.user_email:', args.user_email);
             
-            // Get API URL from environment or default
-            const apiUrl = process.env.AGENT_MAX_API_URL || 'https://agentmax-production.up.railway.app';
+            // Get API URL from environment or default (same chain as resolveBackendUrl in main.cjs)
+            const apiUrl = process.env.AGENT_MAX_BACKEND_URL
+              || process.env.AGENT_MAX_API_URL
+              || process.env.AMX_API_URL
+              || process.env.AGENTMAX_API_URL
+              || process.env.VITE_API_URL
+              || 'https://agentmax-production.up.railway.app';
             
             // Map tool names to API endpoints (v2 routes)
             const endpointMap = {
