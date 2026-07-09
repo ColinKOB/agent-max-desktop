@@ -71,6 +71,28 @@ function App({ windowMode = 'single' }) {
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
+    // Adaptive health check with exponential backoff. This runs even while
+    // onboarding is showing so a transient startup failure can recover.
+    let checkInterval = 30000; // Start with 30 seconds
+    let intervalId;
+
+    const scheduleNextCheck = (wasSuccessful) => {
+      if (wasSuccessful) {
+        // Reset to normal interval on success
+        checkInterval = 30000;
+      } else {
+        // Exponential backoff: 30s -> 60s -> 120s -> max 300s (5min)
+        checkInterval = Math.min(checkInterval * 2, 300000);
+      }
+
+      intervalId = setTimeout(async () => {
+        const success = await checkApiConnection();
+        scheduleNextCheck(success);
+      }, checkInterval);
+    };
+
+    checkApiConnection().then(scheduleNextCheck);
+
     // CRITICAL: Check onboarding completion FIRST, before any user init
     // This ensures fresh installs show onboarding even if device_id gets created
     // Use VITE_FORCE_ONBOARDING=true to force onboarding for testing
@@ -87,9 +109,10 @@ function App({ windowMode = 'single' }) {
       // Fresh install or onboarding not completed - show onboarding immediately
       console.log('[App] Onboarding not completed - showing welcome flow');
       setShowWelcome(true);
-      // Still check API connection but skip user init until onboarding completes
-      checkApiConnection();
-      return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+      return () => {
+        if (intervalId) clearTimeout(intervalId);
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
     }
 
     // Onboarding was completed - initialize user and load profile
@@ -104,30 +127,9 @@ function App({ windowMode = 'single' }) {
     // Set up update listeners
     setupUpdateListeners();
 
-    // Adaptive health check with exponential backoff
-    let checkInterval = 30000; // Start with 30 seconds
-    let intervalId;
-
-    const scheduleNextCheck = (wasSuccessful) => {
-      if (wasSuccessful) {
-        // Reset to normal interval on success
-        checkInterval = 30000;
-      } else {
-        // Exponential backoff: 30s → 60s → 120s → max 300s (5min)
-        checkInterval = Math.min(checkInterval * 2, 300000);
-      }
-
-      intervalId = setTimeout(async () => {
-        const success = await checkApiConnection();
-        scheduleNextCheck(success);
-      }, checkInterval);
-    };
-
-    // Start the adaptive checking
-    checkApiConnection().then(scheduleNextCheck);
-
     return () => {
       if (intervalId) clearTimeout(intervalId);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
 
