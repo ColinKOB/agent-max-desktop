@@ -20,6 +20,9 @@ const { normalizeTool } = require('./toolNormalizer.cjs');
 // Workspace manager for isolated AI browser
 const { workspaceManager } = require('../workspace/workspaceManager.cjs');
 
+// Spreadsheet API server auth token for same-process localhost calls
+const spreadsheetApiServer = require('../spreadsheet/spreadsheetApiServer.cjs');
+
 // Analytics for tool failure tracking
 let analytics = null;
 try {
@@ -2505,7 +2508,8 @@ class PullExecutor {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Content-Length': Buffer.byteLength(postData)
+                        'Content-Length': Buffer.byteLength(postData),
+                        'Authorization': `Bearer ${spreadsheetApiServer.getAuthToken()}`
                     }
                 };
 
