@@ -582,6 +582,10 @@ class PullAutonomousService {
                     if (status.initial_message) {
                         tracker.initial_message = status.initial_message;
                     }
+                    // Narration bubbles accumulated over the run
+                    if (Array.isArray(status.narrations)) {
+                        tracker.narrations = status.narrations;
+                    }
 
                     console.log('[PullAutonomous] Raw status from IPC:', JSON.stringify(status, null, 2));
                     console.log('[PullAutonomous] Updated tracker:', {

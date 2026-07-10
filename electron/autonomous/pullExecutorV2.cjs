@@ -279,6 +279,23 @@ class PullExecutorV2 extends PullExecutor {
                         console.log(`[PullExecutorV2] Captured initial_message: ${cloudStep.initial_message}`);
                     }
 
+                    // Accumulate narration bubbles (user-facing commentary per step)
+                    if (cloudStep.narration && typeof cloudStep.narration === 'string') {
+                        const narrationText = cloudStep.narration.slice(0, 300);
+                        let narrations = [];
+                        try {
+                            const existing = this.stateStore.getRun(runId)?.narrations;
+                            if (existing) narrations = JSON.parse(existing);
+                        } catch (e) { /* corrupted narrations - start fresh */ }
+                        narrations.push({
+                            step_index: cloudStep.step_index ?? narrations.length,
+                            text: narrationText,
+                            at: Date.now()
+                        });
+                        updates.narrations = narrations;
+                        console.log(`[PullExecutorV2] Captured narration: ${narrationText}`);
+                    }
+
                     this.stateStore.updateRun(runId, updates);
                     console.log(`[PullExecutorV2] Updated status_summary: ${statusSummary}`);
                 } else {

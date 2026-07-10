@@ -88,6 +88,14 @@ class DesktopStateStore {
                 console.log('[DesktopStateStore] Migration complete: initial_message column added');
             }
 
+            // Migration 5: Add narrations column (JSON array of per-step narration bubbles)
+            const hasNarrations = tableInfo.some(col => col.name === 'narrations');
+            if (!hasNarrations) {
+                console.log('[DesktopStateStore] Running migration: adding narrations column');
+                this.db.exec("ALTER TABLE runs ADD COLUMN narrations TEXT");
+                console.log('[DesktopStateStore] Migration complete: narrations column added');
+            }
+
             // Migration 4: Update runs table CHECK constraint to include 'waiting_for_user'
             // SQLite doesn't allow modifying CHECK constraints, so we need to recreate the table
             // First check if migration already completed by testing the constraint
@@ -142,7 +150,8 @@ class DesktopStateStore {
                         last_synced_at INTEGER,
                         sync_status TEXT DEFAULT 'pending' CHECK(sync_status IN ('pending', 'syncing', 'synced', 'failed')),
                         current_status_summary TEXT,
-                        initial_message TEXT
+                        initial_message TEXT,
+                        narrations TEXT
                     )
                 `);
 
@@ -242,6 +251,12 @@ class DesktopStateStore {
         if (updates.initial_message !== undefined) {
             fields.push('initial_message = ?');
             values.push(updates.initial_message);
+        }
+        if (updates.narrations !== undefined) {
+            fields.push('narrations = ?');
+            values.push(typeof updates.narrations === 'string'
+                ? updates.narrations
+                : JSON.stringify(updates.narrations));
         }
 
         // Always update updated_at

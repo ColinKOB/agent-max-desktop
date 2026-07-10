@@ -178,6 +178,11 @@ class ExecutorManager {
                     current_status_summary: storeRun.current_status_summary,
                     // Initial AI message (for first action acknowledgment)
                     initial_message: storeRun.initial_message,
+                    // Narration bubbles accumulated over the run (stored as JSON array)
+                    narrations: (() => {
+                        try { return storeRun.narrations ? JSON.parse(storeRun.narrations) : []; }
+                        catch (e) { return []; }
+                    })(),
                     // Include timing from activeRun if available
                     startedAt: activeRun?.startedAt,
                     completedAt: storeRun.completed_at

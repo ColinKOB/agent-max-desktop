@@ -21,9 +21,8 @@ import {
   Pause,
   Play,
   X,
-  Wifi,
   WifiOff,
-  Edit3,
+  Gauge,
   Book,
   Plus,
   Paperclip,
@@ -31,7 +30,7 @@ import {
   FileText,
   Square,
   Mail,
-  Monitor,
+  LayoutGrid,
   Globe,
   Table2,
   StickyNote,
@@ -129,6 +128,8 @@ import { stripActionBlocks } from '../../utils/formatters';
 import WebSearchIndicator from '../WebSearchIndicator';
 
 const logger = createLogger('FloatBar');
+const CONTEXT_WARNING_PERCENT = 60;
+const CONTEXT_CRITICAL_PERCENT = 85;
 
 /**
  * Detect if a query requires real-time data (prices, weather, etc.)
@@ -586,6 +587,26 @@ export default function AppleFloatBar({
   const [liveActivitySteps, setLiveActivitySteps] = useState([]); // [{id, status, description, technicalDetails, error, timestamp}]
   const [initialAIMessage, setInitialAIMessage] = useState(null); // Conversational initial response
   const initialAIMessageSetRef = useRef(false); // Track if initial message has been set (avoids stale closure)
+  const narrationCountRef = useRef(0); // How many narration bubbles have been rendered for the current run
+
+  // Append any not-yet-rendered narration bubbles from a run status update
+  const appendNewNarrations = (status) => {
+    const narrations = status?.narrations;
+    if (!Array.isArray(narrations) || narrations.length <= narrationCountRef.current) return;
+    const fresh = narrations.slice(narrationCountRef.current);
+    narrationCountRef.current = narrations.length;
+    setThoughts((prev) => [
+      ...prev,
+      ...fresh
+        .filter((n) => n && typeof n.text === 'string' && n.text.trim())
+        .map((n, i) => ({
+          role: 'assistant',
+          content: n.text.slice(0, 300),
+          type: 'narration',
+          timestamp: (n.at || Date.now()) + i,
+        })),
+    ]);
+  };
   // Track which message timestamps should animate (only new messages)
   const animatedMessagesRef = useRef(new Set());
   const lastUserPromptRef = useRef('');
@@ -637,9 +658,9 @@ export default function AppleFloatBar({
     isFull: false
   });
 
-  // Context tooltip hover state
-  const [showContextTooltip, setShowContextTooltip] = useState(false);
-  const contextTooltipTimeoutRef = useRef(null);
+  const [contextPopoverOpen, setContextPopoverOpen] = useState(false);
+  const [contextResetConfirming, setContextResetConfirming] = useState(false);
+  const contextPopoverRef = useRef(null);
 
   // Fetch context usage on mount and periodically (as fallback to local tracking)
   // NOTE: Primary tracking is now done locally via done event tokens (see event handler)
@@ -1103,6 +1124,7 @@ export default function AppleFloatBar({
       setLiveActivitySteps([]);
       setInitialAIMessage(null);
       initialAIMessageSetRef.current = false; // Reset the ref for new task
+      narrationCountRef.current = 0; // Reset narration tracking for new task
 
       // Start polling for updates
       pullService.pollRunStatus(tracker.runId, (status) => {
@@ -1114,6 +1136,9 @@ export default function AppleFloatBar({
           setInitialAIMessage(status.initial_message);
           initialAIMessageSetRef.current = true;
         }
+
+        // Append narration bubbles Max wrote for the user while working
+        appendNewNarrations(status);
 
         // Use current_status_summary, or fall back to action description
         // Avoid showing "Working on step X" as it's not user-friendly
@@ -1432,7 +1457,7 @@ export default function AppleFloatBar({
     }
   }, []);
 
-  const { level: permissionLevel, updateLevel } = usePermission();
+  const { level: permissionLevel } = usePermission();
   const validatedPermissionMode = useMemo(
     () => validateModeValue(permissionLevel),
     [permissionLevel]
@@ -5059,6 +5084,7 @@ export default function AppleFloatBar({
             setLiveActivitySteps([]);
             setInitialAIMessage(null);
             initialAIMessageSetRef.current = false; // Reset the ref for new task
+            narrationCountRef.current = 0; // Reset narration tracking for new task
 
             // Start polling for updates - iterative execution will provide status_summary
             pullService.pollRunStatus(runTracker.runId, (status) => {
@@ -5073,6 +5099,9 @@ export default function AppleFloatBar({
                 setInitialAIMessage(status.initial_message);
                 initialAIMessageSetRef.current = true;
               }
+
+              // Append narration bubbles Max wrote for the user while working
+              appendNewNarrations(status);
 
               // Update activity feed with current status
               // Use current_status_summary, or fall back to action description
@@ -5967,6 +5996,45 @@ export default function AppleFloatBar({
     }
   }, [clearMessages]);
 
+  const closeContextPopover = useCallback(() => {
+    setContextPopoverOpen(false);
+    setContextResetConfirming(false);
+  }, []);
+
+  const handleContextNewConversation = useCallback(() => {
+    if (thoughts.length > 0 || storeMessages.length > 0) {
+      setContextResetConfirming(true);
+      return;
+    }
+    closeContextPopover();
+    void handleClear();
+  }, [closeContextPopover, handleClear, storeMessages.length, thoughts.length]);
+
+  const confirmContextNewConversation = useCallback(() => {
+    closeContextPopover();
+    void handleClear();
+  }, [closeContextPopover, handleClear]);
+
+  useEffect(() => {
+    if (!contextPopoverOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (!contextPopoverRef.current?.contains(event.target)) {
+        closeContextPopover();
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') closeContextPopover();
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [closeContextPopover, contextPopoverOpen]);
+
   useEffect(() => {
     if (!window.electron?.onNewConversation) return undefined;
     return window.electron.onNewConversation(() => {
@@ -6137,69 +6205,6 @@ export default function AppleFloatBar({
     setMonitorMenuOpen(false);
     await handleLaunchWorkspace();
   }, [handleLaunchWorkspace]);
-
-  // Tools overlay state for permission selection
-  const [toolMenuOpen, setToolMenuOpen] = useState(false);
-  const toolBtnRef = useRef(null);
-  const overlayRef = useRef(null);
-  const [toolMenuRect, setToolMenuRect] = useState({ top: 0, left: 0, width: 0, height: 0 });
-  const [toolMenuReady, setToolMenuReady] = useState(false);
-  const handleTools = useCallback(() => {
-    // Keep prior event dispatch for telemetry/integration
-    window.dispatchEvent(new CustomEvent('amx:ui', { detail: { type: 'tools_open' } }));
-    setToolMenuOpen((prev) => {
-      const next = !prev;
-      if (next && toolbarRef.current) {
-        const el = toolbarRef.current;
-        setToolMenuRect({
-          top: el.offsetTop,
-          left: el.offsetLeft,
-          width: el.offsetWidth,
-          height: el.offsetHeight,
-        });
-      }
-      return next;
-    });
-  }, []);
-  // Animate open/close
-  useEffect(() => {
-    if (toolMenuOpen) {
-      const id = requestAnimationFrame(() => setToolMenuReady(true));
-      return () => cancelAnimationFrame(id);
-    } else {
-      setToolMenuReady(false);
-    }
-  }, [toolMenuOpen]);
-  // Click outside to close
-  useEffect(() => {
-    if (!toolMenuOpen) return;
-    const onDown = (e) => {
-      if (overlayRef.current?.contains(e.target) || toolBtnRef.current?.contains(e.target)) return;
-      setToolMenuOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [toolMenuOpen]);
-  const handleSelectLevel = useCallback(
-    async (level) => {
-      const resolvedMode = validateModeValue(level);
-      // Display label only - internal value stays 'autonomous'
-      const label = 'Auto';
-      try {
-        await updateLevel(resolvedMode);
-        toast.success(`Permission level set to ${label}`);
-        try {
-          // Persist selection so API client can fall back if userContext not present
-          localStorage.setItem('permission_level', resolvedMode);
-        } catch {}
-      } catch (e) {
-        toast.error('Failed to update permission level');
-      } finally {
-        setToolMenuOpen(false);
-      }
-    },
-    [updateLevel]
-  );
 
   // Dynamically resize window based on content (no arbitrary caps)
   const updateWindowHeight = useCallback(() => {
@@ -7019,56 +7024,21 @@ export default function AppleFloatBar({
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <div style={{ flexGrow: 1 }} />
-            {/* Mode Badge - now also opens Tools menu */}
-            <div
-              ref={toolBtnRef}
-              onClick={handleTools}
-              title={`Mode: ${resolveMode()}`}
-              style={{
-                fontSize: '0.74rem',
-                color: 'rgba(255,255,255,0.8)',
-                background: 'rgba(255,165,0,0.18)',
-                border: '1px solid rgba(255,255,255,0.14)',
-                padding: '3px 7px',
-                borderRadius: 7,
-                textTransform: 'capitalize',
-                cursor: 'pointer',
-              }}
-            >
-              Auto
-            </div>
-            <div
-              onClick={
-                !backendConnected
-                  ? () => {
-                      healthAPI
-                        .check()
-                        .then(() => setApiConnected(true))
-                        .catch(() => setApiConnected(false));
-                    }
-                  : undefined
-              }
-              title={
-                backendConnected
-                  ? 'Connected to Agent Max backend'
-                  : 'Backend offline. Click to retry connection.'
-              }
-              style={{
-                fontSize: '0.72rem',
-                color: backendConnected ? 'rgba(34,197,94,0.95)' : 'rgba(248,113,113,0.95)',
-                background: backendConnected ? 'rgba(34,197,94,0.12)' : 'rgba(248,113,113,0.12)',
-                border: `1px solid ${backendConnected ? 'rgba(34,197,94,0.25)' : 'rgba(248,113,113,0.25)'}`,
-                width: 30,
-                height: 30,
-                borderRadius: 7,
-                cursor: backendConnected ? 'default' : 'pointer',
-                transition: 'all 0.15s ease',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {backendConnected ? <Wifi size={15} /> : <WifiOff size={15} />}
+            <div style={{ position: 'relative' }}>
+              <button
+                ref={monitorBtnRef}
+                className="apple-tool-btn"
+                onClick={handleMonitorMenu}
+                title="Max's Tools"
+                aria-label="Max's Tools"
+                aria-expanded={monitorMenuOpen}
+                style={{
+                  background: (workspaceActive || spreadsheetActive || notesActive || monitorMenuOpen) ? 'rgba(245, 158, 11, 0.2)' : undefined,
+                  borderColor: (workspaceActive || spreadsheetActive || notesActive || monitorMenuOpen) ? 'rgba(245, 158, 11, 0.4)' : undefined,
+                }}
+              >
+                <LayoutGrid size={15} aria-hidden="true" style={{ color: (workspaceActive || spreadsheetActive || notesActive || monitorMenuOpen) ? '#f59e0b' : undefined }} />
+              </button>
             </div>
             <CreditDisplay
               userId={currentUser?.id || localStorage.getItem('user_id')}
@@ -7076,45 +7046,18 @@ export default function AppleFloatBar({
               onCreditsChange={handleCreditsChange}
               refreshTrigger={creditRefreshTrigger}
             />
-            <div style={{ position: 'relative' }}>
+            <div ref={contextPopoverRef} style={{ position: 'relative' }}>
               <button
-                ref={monitorBtnRef}
-                className="apple-tool-btn"
-                onClick={handleMonitorMenu}
-                title="Max's Tools"
-                style={{
-                  background: (workspaceActive || spreadsheetActive || notesActive || monitorMenuOpen) ? 'rgba(245, 158, 11, 0.2)' : undefined,
-                  borderColor: (workspaceActive || spreadsheetActive || notesActive || monitorMenuOpen) ? 'rgba(245, 158, 11, 0.4)' : undefined,
+                className={`apple-tool-btn context-usage-btn${contextUsage.usagePercent >= CONTEXT_CRITICAL_PERCENT ? ' context-critical' : contextUsage.usagePercent >= CONTEXT_WARNING_PERCENT ? ' context-warning' : ''}`}
+                onClick={() => {
+                  setContextPopoverOpen((open) => !open);
+                  setContextResetConfirming(false);
                 }}
-              >
-                <Monitor size={15} style={{ color: (workspaceActive || spreadsheetActive || notesActive || monitorMenuOpen) ? '#f59e0b' : undefined }} />
-              </button>
-{/* Tools menu is now an overlay - see tools-overlay below */}
-            </div>
-            <button className="apple-tool-btn" onClick={handleSettings} title="Settings" data-tutorial="settings">
-              <Settings size={15} />
-            </button>
-            {/* Context Usage Button with Tooltip */}
-            <div
-              style={{ position: 'relative' }}
-              onMouseEnter={() => {
-                // Clear any pending hide timeout
-                if (contextTooltipTimeoutRef.current) {
-                  clearTimeout(contextTooltipTimeoutRef.current);
-                }
-                setShowContextTooltip(true);
-              }}
-              onMouseLeave={() => {
-                // Delay hiding to allow mouse to move to tooltip
-                contextTooltipTimeoutRef.current = setTimeout(() => {
-                  setShowContextTooltip(false);
-                }, 150);
-              }}
-            >
-              <button
-                className={`apple-tool-btn context-usage-btn${contextUsage.usagePercent >= 90 ? ' context-critical' : contextUsage.usagePercent >= 75 ? ' context-warning' : ''}`}
-                onClick={handleClear}
                 data-tutorial="context"
+                title={`${Math.round(contextUsage.usagePercent)}% of conversation context used`}
+                aria-label={`${Math.round(contextUsage.usagePercent)}% of conversation context used`}
+                aria-expanded={contextPopoverOpen}
+                aria-controls="context-usage-popover"
                 style={{
                   position: 'relative',
                   overflow: 'hidden',
@@ -7135,38 +7078,37 @@ export default function AppleFloatBar({
                     right: 0,
                     // Show at least 15% height when there's any usage for visibility
                     height: contextUsage.usagePercent > 0 ? `${Math.max(contextUsage.usagePercent, 15)}%` : '0%',
-                    background: contextUsage.usagePercent >= 85
-                      ? 'rgba(239, 68, 68, 0.8)' // Red - more visible
-                      : contextUsage.usagePercent >= 60
-                        ? 'rgba(245, 158, 11, 0.8)' // Yellow/amber
-                        : 'rgba(59, 130, 246, 0.7)', // Blue - more visible
+                    background: contextUsage.usagePercent >= CONTEXT_CRITICAL_PERCENT
+                      ? 'rgba(239, 68, 68, 0.8)'
+                      : contextUsage.usagePercent >= CONTEXT_WARNING_PERCENT
+                        ? 'rgba(245, 158, 11, 0.8)'
+                        : 'rgba(59, 130, 246, 0.7)',
                     transition: 'height 0.5s ease-out, background 0.3s ease',
                     pointerEvents: 'none',
                     borderRadius: 'inherit',
                     zIndex: 2, // Above the ::before background (which is z-index: 0)
                   }}
                 />
-                {/* Icon */}
-                <Edit3
+                <Gauge
                   size={13}
+                  aria-hidden="true"
                   style={{
                     position: 'relative',
-                    zIndex: 3, // Above the fill
-                    color: contextUsage.usagePercent >= 85
+                    zIndex: 3,
+                    color: contextUsage.usagePercent >= CONTEXT_CRITICAL_PERCENT
                       ? '#ef4444'
-                      : contextUsage.usagePercent >= 60
+                      : contextUsage.usagePercent >= CONTEXT_WARNING_PERCENT
                         ? '#f59e0b'
                         : undefined,
                     flexShrink: 0,
                   }}
                 />
-                {/* Always visible percentage */}
                 <span
                   className="context-percent-badge"
                   style={{
-                    color: contextUsage.usagePercent >= 85
+                    color: contextUsage.usagePercent >= CONTEXT_CRITICAL_PERCENT
                       ? '#ef4444'
-                      : contextUsage.usagePercent >= 60
+                      : contextUsage.usagePercent >= CONTEXT_WARNING_PERCENT
                         ? '#f59e0b'
                         : 'rgba(255,255,255,0.75)',
                     background: 'none',
@@ -7179,23 +7121,11 @@ export default function AppleFloatBar({
                 </span>
               </button>
 
-              {/* Context Tooltip - only show after at least one message */}
-              {showContextTooltip && storeMessages.length > 0 && (
-                <div
-                  className="context-tooltip"
-                  onMouseEnter={() => {
-                    // Keep tooltip visible when hovering over it
-                    if (contextTooltipTimeoutRef.current) {
-                      clearTimeout(contextTooltipTimeoutRef.current);
-                    }
-                  }}
-                  onMouseLeave={() => {
-                    setShowContextTooltip(false);
-                  }}
-                >
+              {contextPopoverOpen && (
+                <div id="context-usage-popover" className="context-tooltip" role="dialog" aria-label="Conversation context usage">
                   <div className="context-tooltip-header">
                     <span className="context-tooltip-title">Context Memory</span>
-                    <span className={`context-tooltip-percent ${contextUsage.usagePercent >= 90 ? 'critical' : contextUsage.usagePercent >= 75 ? 'warning' : 'low'}`}>
+                    <span className={`context-tooltip-percent ${contextUsage.usagePercent >= CONTEXT_CRITICAL_PERCENT ? 'critical' : contextUsage.usagePercent >= CONTEXT_WARNING_PERCENT ? 'warning' : 'low'}`}>
                       {contextUsage.usagePercent > 0 && contextUsage.usagePercent < 1
                         ? '<1%'
                         : `${Math.round(contextUsage.usagePercent)}%`} used
@@ -7203,37 +7133,59 @@ export default function AppleFloatBar({
                   </div>
                   <div className="context-tooltip-bar">
                     <div
-                      className={`context-tooltip-bar-fill ${contextUsage.usagePercent >= 90 ? 'critical' : contextUsage.usagePercent >= 75 ? 'warning' : 'low'}`}
+                      className={`context-tooltip-bar-fill ${contextUsage.usagePercent >= CONTEXT_CRITICAL_PERCENT ? 'critical' : contextUsage.usagePercent >= CONTEXT_WARNING_PERCENT ? 'warning' : 'low'}`}
                       style={{ width: `${contextUsage.usagePercent}%` }}
                     />
                   </div>
                   <div className="context-tooltip-text">
-                    Max remembers the last ~150,000 words of our conversation. When this fills up, older messages are forgotten.
+                    Max uses this context to remember the current conversation. Starting a new conversation resets it.
                   </div>
-                  <div className="context-tooltip-tip">
-                    Tip: Start a new conversation for fresh context.
-                  </div>
-                  {/* Show Start Fresh button when at 75% or more */}
-                  {contextUsage.usagePercent >= 75 && (
-                    <div className="context-tooltip-action">
+                  <div className="context-tooltip-action">
+                    {!contextResetConfirming ? (
                       <button
                         className="context-fresh-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowContextTooltip(false);
-                          handleClear();
-                        }}
+                        onClick={handleContextNewConversation}
                       >
-                        <RefreshCw size={14} />
-                        Start Fresh Conversation
+                        <RefreshCw size={14} aria-hidden="true" />
+                        New Conversation
                       </button>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="context-reset-confirmation" role="alert">
+                        <span>Start a new conversation?</span>
+                        <div className="context-reset-actions">
+                          <button type="button" onClick={() => setContextResetConfirming(false)}>Cancel</button>
+                          <button type="button" className="context-reset-confirm" onClick={confirmContextNewConversation}>Start New</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
-            <button className="apple-tool-btn" onClick={handleCollapse} title="Shrink">
-              <Minimize2 size={15} />
+            {!backendConnected && (
+              <button
+                type="button"
+                className="apple-tool-btn backend-offline-btn"
+                onClick={() => {
+                  healthAPI
+                    .check()
+                    .then(() => {
+                      setApiConnected(true);
+                      toast.success('Max is back online');
+                    })
+                    .catch(() => setApiConnected(false));
+                }}
+                title="Max is offline. Click to retry."
+                aria-label="Max is offline. Click to retry."
+              >
+                <WifiOff size={15} aria-hidden="true" />
+              </button>
+            )}
+            <button className="apple-tool-btn" onClick={handleSettings} title="Settings" aria-label="Settings" data-tutorial="settings">
+              <Settings size={15} aria-hidden="true" />
+            </button>
+            <button className="apple-tool-btn" onClick={handleCollapse} title="Shrink" aria-label="Shrink">
+              <Minimize2 size={15} aria-hidden="true" />
             </button>
           </div>
 
@@ -7479,77 +7431,6 @@ export default function AppleFloatBar({
                   )}
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Spread overlay across toolbar */}
-          {toolMenuOpen && (
-            <div
-              ref={overlayRef}
-              style={{
-                position: 'absolute',
-                left: toolMenuRect.left,
-                top: toolMenuRect.top,
-                width: toolMenuRect.width,
-                height: toolMenuRect.height,
-                zIndex: 70,
-                background: 'linear-gradient(135deg, rgba(18,20,24,0.82), rgba(24,26,30,0.76))',
-                backdropFilter: 'saturate(120%) blur(var(--blur, 18px))',
-                WebkitBackdropFilter: 'saturate(120%) blur(var(--blur, 18px))',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '12px',
-                boxShadow: '0 12px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)',
-                overflow: 'hidden',
-                transform: toolMenuReady
-                  ? 'translateY(0px) scale(1)'
-                  : 'translateY(-6px) scale(0.98)',
-                opacity: toolMenuReady ? 1 : 0,
-                transition: 'opacity 160ms ease-out, transform 220ms cubic-bezier(.22,.61,.36,1)',
-              }}
-            >
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', height: '100%' }}>
-                {/* Chatty retired 2026-07-10: Auto is the only mode */}
-                {[
-                  { value: 'autonomous', title: 'Auto' },
-                ].map((opt, idx) => {
-                  const optionMode = validateModeValue(opt.value);
-                  const isSelected = validatedPermissionMode === optionMode;
-                  return (
-                    <button
-                      key={opt.value}
-                      onClick={() => handleSelectLevel(opt.value)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: 'none',
-                        background: isSelected ? 'rgba(255,255,255,0.08)' : 'transparent',
-                        color: 'rgba(255,255,255,0.55)',
-                        cursor: 'pointer',
-                        borderRight: idx < 1 ? '1px solid rgba(255,255,255,0.08)' : 'none',
-                        boxShadow: isSelected ? 'inset 0 -2px 8px rgba(255,255,255,0.15)' : 'none',
-                        transition: 'all 0.2s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                          e.currentTarget.style.color = 'rgba(255,255,255,0.75)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = isSelected
-                          ? 'rgba(255,255,255,0.08)'
-                          : 'transparent';
-                        e.currentTarget.style.color = 'rgba(255,255,255,0.55)';
-                      }}
-                    >
-                      <span style={{ fontSize: '0.86rem', fontWeight: 600, letterSpacing: 0.2 }}>
-                        {opt.title}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
           )}
 
