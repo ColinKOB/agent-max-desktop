@@ -1635,187 +1635,6 @@ function UseCaseStep({ userData, onNext, onBack }) {
 }
 
 // ============================================================================
-// STEP: MODE EXPLAINER (Chatty vs Autonomous)
-// ============================================================================
-const MODE_OPTIONS = [
-  {
-    id: 'chatty',
-    icon: MessageSquare,
-    title: 'Chatty Mode',
-    description: 'Have a conversation with Max. Ask questions, get answers, brainstorm ideas.',
-    features: ['Quick answers & explanations', 'Brainstorming & ideation', 'Writing assistance'],
-    recommended: true,
-  },
-  {
-    id: 'autonomous',  // NOTE: id must stay 'autonomous' - only display title changes
-    icon: Bot,
-    title: 'Auto Mode',
-    description: 'Let Max take control of your computer to complete tasks for you.',
-    features: ['Controls mouse & keyboard', 'Opens apps & websites', 'Completes multi-step tasks'],
-    recommended: false,
-  },
-];
-
-function ModeExplainerStep({ onNext, onBack }) {
-  return (
-    <div style={{
-      maxWidth: 380,
-      margin: '0 auto',
-      padding: '12px 16px',
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-    }}>
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        style={{ textAlign: 'center', marginBottom: 12, flexShrink: 0 }}
-      >
-        <h2 style={{ ...styles.heading, fontSize: 20, marginBottom: 4 }}>
-          Two Ways to Use Max
-        </h2>
-        <p style={{ ...styles.subheading, marginBottom: 4, fontSize: 12 }}>
-          Switch between modes anytime using the toggle in the chat bar.
-        </p>
-      </motion.div>
-
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingBottom: 4 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {MODE_OPTIONS.map((option, index) => {
-            const Icon = option.icon;
-
-            return (
-              <motion.div
-                key={option.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                style={{
-                  width: '100%',
-                  padding: '14px 14px',
-                  borderRadius: 12,
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  textAlign: 'left',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                  <div style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
-                    background: option.id === 'chatty'
-                      ? BRAND_ORANGE
-                      : 'rgba(139, 92, 246, 0.8)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}>
-                    <Icon style={{
-                      width: 20,
-                      height: 20,
-                      color: '#ffffff',
-                    }} />
-                  </div>
-
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      marginBottom: 4,
-                    }}>
-                      <span style={{
-                        color: '#ffffff',
-                        fontSize: 15,
-                        fontWeight: 600,
-                      }}>
-                        {option.title}
-                      </span>
-                      {option.recommended && (
-                        <span style={{
-                          fontSize: 10,
-                          fontWeight: 600,
-                          color: BRAND_ORANGE,
-                          background: BRAND_ORANGE_LIGHT,
-                          padding: '2px 6px',
-                          borderRadius: 4,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.5px',
-                        }}>
-                          Default
-                        </span>
-                      )}
-                    </div>
-                    <div style={{
-                      color: 'rgba(255, 255, 255, 0.6)',
-                      fontSize: 12,
-                      lineHeight: 1.4,
-                      marginBottom: 8,
-                    }}>
-                      {option.description}
-                    </div>
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 4,
-                    }}>
-                      {option.features.map((feature, i) => (
-                        <div
-                          key={i}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            fontSize: 11,
-                            color: 'rgba(255, 255, 255, 0.5)',
-                          }}
-                        >
-                          <Check style={{
-                            width: 12,
-                            height: 12,
-                            color: option.id === 'chatty' ? BRAND_ORANGE : 'rgba(139, 92, 246, 0.8)',
-                          }} />
-                          {feature}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={{
-        display: 'flex',
-        gap: 8,
-        paddingTop: 10,
-        flexShrink: 0,
-        marginTop: 'auto',
-      }}>
-        <button onClick={onBack} style={styles.secondaryButton}>
-          Back
-        </button>
-        <button
-          onClick={() => onNext()}
-          style={{
-            ...styles.primaryButton,
-            flex: 1,
-          }}
-        >
-          Got it
-          <ArrowRight style={{ width: 18, height: 18 }} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
 // STEP 3: EMAIL/ACCOUNT (Sign Up or Sign In)
 // ============================================================================
 function AccountStep({ onNext, onBack, userData }) {
@@ -3314,7 +3133,7 @@ function SubscriptionStep({ userData, onNext, onBack }) {
             </p>
             {[
               'Full access to all features',
-              'Both Chatty and Autonomous modes',
+              'Autonomous task execution',
               'Early access to new features',
             ].map((item, i) => (
               <div
@@ -4291,7 +4110,6 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
     { id: 'name', component: NameStep },            // Collect name for personalization
     { id: 'legal', component: LegalStep },          // Legal consent
     { id: 'usecase', component: UseCaseStep },
-    { id: 'modes', component: ModeExplainerStep },  // Explain Chatty vs Autonomous
     { id: 'verify-email', component: EmailVerificationStep },
     { id: 'google', component: GoogleStep },
     { id: 'subscription', component: SubscriptionStep },

@@ -2637,21 +2637,15 @@ export default function AppleFloatBar({
           thoughtIdRef.current = null;
           // Clear any pending AI option buttons from previous request
           setAiOptions(null);
-          // Only require desktop actions in autonomous mode (not chatty)
-          const currentMode = permissionModeRef.current;
-          const isAutoMode = currentMode === 'autonomous';
-          const isChattyMode = currentMode === 'chatty';
-          console.log(
-            `[Chat] Mode check: currentMode='${currentMode}', isAutoMode=${isAutoMode}, isChattyMode=${isChattyMode}`
-          );
+          console.log("[Chat] Mode check: currentMode='autonomous'");
           // Atomic reset of execution state
           dispatchExecution({
             type: 'PARTIAL_RESET',
-            desktopActionsRequired: isAutoMode && !isChattyMode,
+            desktopActionsRequired: true,
           });
           setPlanCardDismissed(!shouldDisplayPlanCard());
           executionModeRef.current = null;
-          desktopActionsRef.current = isAutoMode && !isChattyMode;
+          desktopActionsRef.current = true;
           chatModeAnnouncementRef.current = false;
           // Set initial thinking status based on query type for better UX
           const lowerText = (text || '').toLowerCase();
@@ -3819,13 +3813,7 @@ export default function AppleFloatBar({
               }
 
               // Workspace actions - handle workspace.search for live web data
-              // This executes searches in Max's Monitor browser and returns results
-              // NOTE: In chatty mode, native OpenAI web_search handles this, so skip the auto-continuation
-              // to avoid the "thinking twice" issue
-              const currentModeForSearch = permissionModeRef.current || 'autonomous';
-              const skipWorkspaceSearch = currentModeForSearch === 'chatty';
-
-              if (actionName === 'workspace.search' && window.workspace && !skipWorkspaceSearch) {
+              if (actionName === 'workspace.search' && window.workspace) {
                 const query = args.query;
                 if (query) {
                   logger.info('[Workspace] Executing search:', query);
@@ -5751,16 +5739,6 @@ export default function AppleFloatBar({
           return;
         }
         if (data.requires_approval) {
-          // In chatty mode, auto-approve write requests - the LLM will suggest switching to autonomous mode
-          // instead of actually performing the action (chatty is read-only by design)
-          const isChattyWrite = data.markers?.includes('chatty_write_request');
-          if (isChattyWrite) {
-            logger.info('[Safety] Auto-approving chatty write request - LLM will suggest autonomous mode');
-            commitOptimisticMessage();
-            await continueAfterPreview(text, true);
-            return;
-          }
-
           // In autonomous mode, auto-approve ALL actions (user explicitly chose this mode)
           const currentMode = permissionModeRef.current;
           const isAutoMode = currentMode === 'autonomous';
@@ -6206,7 +6184,7 @@ export default function AppleFloatBar({
     async (level) => {
       const resolvedMode = validateModeValue(level);
       // Display label only - internal value stays 'autonomous'
-      const label = resolvedMode === 'autonomous' ? 'Auto' : 'Chatty';
+      const label = 'Auto';
       try {
         await updateLevel(resolvedMode);
         toast.success(`Permission level set to ${label}`);
@@ -7049,12 +7027,7 @@ export default function AppleFloatBar({
               style={{
                 fontSize: '0.74rem',
                 color: 'rgba(255,255,255,0.8)',
-                background:
-                  resolveMode() === 'autonomous'
-                    ? 'rgba(255,165,0,0.18)'
-                    : resolveMode() === 'chatty'
-                      ? 'rgba(147,197,253,0.18)'
-                      : 'rgba(34,197,94,0.18)',
+                background: 'rgba(255,165,0,0.18)',
                 border: '1px solid rgba(255,255,255,0.14)',
                 padding: '3px 7px',
                 borderRadius: 7,
@@ -7062,7 +7035,7 @@ export default function AppleFloatBar({
                 cursor: 'pointer',
               }}
             >
-              {resolveMode() === 'autonomous' ? 'Auto' : 'Chatty'}
+              Auto
             </div>
             <div
               onClick={

@@ -536,15 +536,7 @@ export const chatAPI = {
     const cfg = apiConfigManager.getConfig();
     const baseURL = cfg.baseURL || API_BASE_URL || 'http://localhost:8000';
 
-    // Chatty mode retired 2026-07-10: autonomous is the only mode.
-    // Legacy 'chatty' values in userContext/localStorage coerce to autonomous.
     const requestedMode = 'autonomous';
-    try {
-      const rawMode = (userContext && userContext.__mode) || localStorage.getItem('permission_level');
-      if (rawMode && rawMode !== 'autonomous') {
-        console.warn(`[Mode] Coercing retired/invalid mode '${rawMode}' to 'autonomous'`);
-      }
-    } catch (_) { /* mode is always autonomous */ }
 
     // Runtime flag: allow disabling legacy fallbacks to surface drift
     const disableLegacyFallbacks = (() => {
@@ -563,22 +555,11 @@ export const chatAPI = {
       return defaultValue;
     })();
 
-    // Use different endpoints for chatty vs autonomous mode
-    // Chatty mode uses the new simplified /api/v2/chatty/stream endpoint
-    // Autonomous mode uses the full /api/v2/chat/streaming/stream endpoint
-    const isAutonomous = requestedMode === 'autonomous';
-    const endpoints = isAutonomous
-      ? [
-          // Autonomous mode: use full chat streaming with routing/planning
-          `${baseURL}/api/v2/chat/streaming/stream`,
-          `${baseURL}/api/chat/streaming/stream`,
-        ]
-      : [
-          // Chatty mode: use new simplified endpoint (no routing heuristics)
-          `${baseURL}/api/v2/chatty/stream`,
-          // Fallback to old endpoint if new one unavailable
-          `${baseURL}/api/v2/chat/streaming/stream`,
-        ];
+    const isAutonomous = true;
+    const endpoints = [
+      `${baseURL}/api/v2/chat/streaming/stream`,
+      `${baseURL}/api/chat/streaming/stream`,
+    ];
 
     // Build payload based on endpoint
     // Temporary mitigation: pre-truncate very long chat messages to avoid backend 422 limit
@@ -1640,12 +1621,12 @@ export const permissionAPI = {
   getLevel: () =>
     DEMO_MODE
       ? Promise.resolve({
-          permission_level: 'chatty',
-          name: 'Chatty (Default)',
-          description: 'Read-only assistant mode',
+          permission_level: 'autonomous',
+          name: 'Auto',
+          description: 'Autonomous task execution with approval gates',
           capabilities: {
-            can_do: ['Read files', 'Search web'],
-            requires_approval: []
+            can_do: ['Read files', 'Search web', 'Execute multi-step tasks'],
+            requires_approval: ['Sensitive actions']
           }
         })
       : (async () => {
@@ -1657,15 +1638,15 @@ export const permissionAPI = {
             } catch (err2) {
               const status = err2?.response?.status || err2?.status || err2?.statusCode;
               if (status === 404 || status === 405 || status === 400 || status === 501) {
-                logger.warn('[Safety] permission-level unavailable, defaulting to chatty');
+                logger.warn('[Safety] permission-level unavailable, using autonomous mode');
                 return {
                   data: {
-                    permission_level: 'chatty',
-                    name: 'Chatty (Default)',
+                    permission_level: 'autonomous',
+                    name: 'Auto',
                     description: 'Safety service unavailable',
                     capabilities: {
-                      can_do: ['Read files', 'Search web'],
-                      requires_approval: []
+                      can_do: ['Read files', 'Search web', 'Execute multi-step tasks'],
+                      requires_approval: ['Sensitive actions']
                     }
                   }
                 };
@@ -1677,13 +1658,13 @@ export const permissionAPI = {
 
   /**
    * Update user's permission level
-   * @param {string} level - 'chatty' or 'autonomous'
+   * @param {string} level - Ignored legacy value; autonomous is the only mode.
    * @returns {Promise<{success: boolean, permission_level: string, message: string}>}
    */
-  updateLevel: (level) =>
+  updateLevel: () =>
     DEMO_MODE
-      ? Promise.resolve({ success: true, permission_level: level, message: 'Updated' })
-      : permissionAPI._tryPaths('post', ['/api/safety/permission-level', '/api/v2/safety/permission-level'], { permission_level: level }),
+      ? Promise.resolve({ success: true, permission_level: 'autonomous', message: 'Updated' })
+      : permissionAPI._tryPaths('post', ['/api/safety/permission-level', '/api/v2/safety/permission-level'], { permission_level: 'autonomous' }),
 
   /**
    * Check if action requires approval
@@ -1696,7 +1677,7 @@ export const permissionAPI = {
       return {
         allowed: true,
         requires_approval: false,
-        permission_level: 'chatty',
+        permission_level: 'autonomous',
         markers: [],
         reason: 'Demo mode',
         suggested_flow: null,
@@ -1714,7 +1695,7 @@ export const permissionAPI = {
         return {
           allowed: true,
           requires_approval: false,
-          permission_level: 'chatty',
+          permission_level: 'autonomous',
           markers: [],
           reason: 'Safety service unavailable',
           suggested_flow: null,
