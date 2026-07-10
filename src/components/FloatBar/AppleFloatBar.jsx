@@ -595,17 +595,25 @@ export default function AppleFloatBar({
     if (!Array.isArray(narrations) || narrations.length <= narrationCountRef.current) return;
     const fresh = narrations.slice(narrationCountRef.current);
     narrationCountRef.current = narrations.length;
-    setThoughts((prev) => [
-      ...prev,
-      ...fresh
+    setThoughts((prev) => {
+      // Dedupe against already-rendered narrations (guards against re-append
+      // after an app restart mid-run, when narrationCountRef resets to 0)
+      const seen = new Set(
+        prev.filter((m) => m.type === 'narration').map((m) => m.content)
+      );
+      const newMessages = fresh
         .filter((n) => n && typeof n.text === 'string' && n.text.trim())
-        .map((n, i) => ({
-          role: 'assistant',
-          content: n.text.slice(0, 300),
-          type: 'narration',
-          timestamp: (n.at || Date.now()) + i,
-        })),
-    ]);
+        .map((n, i) => {
+          const raw = n.text.trim();
+          const content = raw.length > 300 ? raw.slice(0, 300) + '…' : raw;
+          const timestamp = (n.at || Date.now()) + i;
+          return { role: 'assistant', content, type: 'narration', timestamp };
+        })
+        .filter((m) => !seen.has(m.content));
+      // Match the entrance animation of other assistant messages
+      newMessages.forEach((m) => animatedMessagesRef.current.add(m.timestamp));
+      return newMessages.length ? [...prev, ...newMessages] : prev;
+    });
   };
   // Track which message timestamps should animate (only new messages)
   const animatedMessagesRef = useRef(new Set());
@@ -7767,7 +7775,7 @@ export default function AppleFloatBar({
                 <React.Fragment key={idx}>
                   <div className={`apple-message apple-message-${thought.role}`} data-role={thought.role}>
                     <div
-                      className={`apple-message-content ${thought.type === 'plan' ? 'plan-message' : ''}`}
+                      className={`apple-message-content ${thought.type === 'plan' ? 'plan-message' : ''}${thought.type === 'narration' ? ' narration-message' : ''}`}
                     >
                       {thought.role === 'user' &&
                         Array.isArray(thought.attachments) &&
