@@ -308,13 +308,14 @@ const truncateText = (value, limit = 160) => {
   return `${trimmed.slice(0, limit)}…`;
 };
 
-// Validate permission level - only two modes supported
+// Chatty mode retired 2026-07-10: autonomous is the only mode.
+// Legacy 'chatty' values coerce to autonomous.
 const validateModeValue = (level) => {
   const key = (level || '').toLowerCase();
-  if (key === 'autonomous') return 'autonomous';
-  if (key === 'chatty') return 'chatty';
-  console.error(`[Mode] Invalid mode '${level}' - must be 'chatty' or 'autonomous'`);
-  return 'chatty';
+  if (key && key !== 'autonomous') {
+    console.warn(`[Mode] Coercing retired/invalid mode '${level}' to 'autonomous'`);
+  }
+  return 'autonomous';
 };
 
 const formatArtifactSummary = (artifact) => {
@@ -3821,7 +3822,7 @@ export default function AppleFloatBar({
               // This executes searches in Max's Monitor browser and returns results
               // NOTE: In chatty mode, native OpenAI web_search handles this, so skip the auto-continuation
               // to avoid the "thinking twice" issue
-              const currentModeForSearch = permissionModeRef.current || 'chatty';
+              const currentModeForSearch = permissionModeRef.current || 'autonomous';
               const skipWorkspaceSearch = currentModeForSearch === 'chatty';
 
               if (actionName === 'workspace.search' && window.workspace && !skipWorkspaceSearch) {
@@ -4241,7 +4242,7 @@ export default function AppleFloatBar({
         __mode:
           typeof resolveMode === 'function'
             ? resolveMode()
-            : localStorage.getItem('permission_level') || 'chatty',
+            : 'autonomous',
       };
       // NEW: include current mode so backend can enable tools appropriately
       try {
@@ -7533,10 +7534,9 @@ export default function AppleFloatBar({
                 transition: 'opacity 160ms ease-out, transform 220ms cubic-bezier(.22,.61,.36,1)',
               }}
             >
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', height: '100%' }}>
-                {/* NOTE: value must stay 'autonomous' - only title changes for display */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', height: '100%' }}>
+                {/* Chatty retired 2026-07-10: Auto is the only mode */}
                 {[
-                  { value: 'chatty', title: 'Chatty' },
                   { value: 'autonomous', title: 'Auto' },
                 ].map((opt, idx) => {
                   const optionMode = validateModeValue(opt.value);

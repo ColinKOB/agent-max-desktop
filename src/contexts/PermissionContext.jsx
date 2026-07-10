@@ -4,9 +4,8 @@
  * Global state management for user's permission level
  * Provides permission level and functions to update it
  *
- * ONLY TWO VALID MODES:
- * - 'chatty': Read-only assistant mode
- * - 'autonomous': Full autonomous execution mode
+ * Chatty mode was retired 2026-07-10: 'autonomous' is the only mode.
+ * Legacy 'chatty' values from storage or the backend coerce to autonomous.
  */
 import { createContext, useContext, useState, useEffect } from 'react';
 import { permissionAPI } from '../services/api';
@@ -14,22 +13,17 @@ import { permissionAPI } from '../services/api';
 const PermissionContext = createContext();
 
 /**
- * Validate permission level is one of the two valid modes.
+ * Normalize permission level. Chatty is retired; everything is autonomous.
  */
 function validateMode(mode) {
-  if (!mode) return 'chatty';
-
-  const modeLower = mode.toLowerCase();
-  if (modeLower === 'chatty' || modeLower === 'autonomous') {
-    return modeLower;
+  if (mode && mode.toLowerCase() !== 'autonomous') {
+    console.warn(`[Mode] Coercing retired/invalid mode '${mode}' to 'autonomous'`);
   }
-
-  console.error(`[Mode] Invalid mode '${mode}' - must be 'chatty' or 'autonomous'. Defaulting to 'chatty'`);
-  return 'chatty';
+  return 'autonomous';
 }
 
 export function PermissionProvider({ children }) {
-  const [level, setLevel] = useState('chatty');
+  const [level, setLevel] = useState('autonomous');
   const [capabilities, setCapabilities] = useState({
     can_do: [],
     requires_approval: []
@@ -89,7 +83,7 @@ export function PermissionProvider({ children }) {
   /**
    * Update permission level
    *
-   * Valid levels: 'chatty' or 'autonomous'
+   * Only valid level: 'autonomous' (chatty retired 2026-07-10)
    */
   const updateLevel = async (newLevel) => {
     // Normalize the level before saving
@@ -152,7 +146,7 @@ export function usePermission() {
       try {
         const saved = localStorage.getItem('permission_level');
         return validateMode(saved);
-      } catch { return 'chatty'; }
+      } catch { return 'autonomous'; }
     })();
     return {
       level: fallbackLevel,

@@ -20,19 +20,29 @@ describe('PermissionProvider', () => {
     localStorage.clear();
   });
 
-  it('applies permission changes sent through the storage event', async () => {
+  it('coerces legacy chatty responses from the backend to autonomous', async () => {
     render(
       <PermissionProvider>
         <CurrentMode />
       </PermissionProvider>
     );
 
-    await waitFor(() => expect(screen.getByText('chatty')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('autonomous')).toBeTruthy());
+  });
+
+  it('stays autonomous when a storage event carries a retired mode', async () => {
+    render(
+      <PermissionProvider>
+        <CurrentMode />
+      </PermissionProvider>
+    );
+
+    await waitFor(() => expect(screen.getByText('autonomous')).toBeTruthy());
 
     window.dispatchEvent(
       new StorageEvent('storage', {
         key: 'permission_level',
-        newValue: 'autonomous',
+        newValue: 'chatty',
       })
     );
 

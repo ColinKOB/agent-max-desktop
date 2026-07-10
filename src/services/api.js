@@ -536,22 +536,15 @@ export const chatAPI = {
     const cfg = apiConfigManager.getConfig();
     const baseURL = cfg.baseURL || API_BASE_URL || 'http://localhost:8000';
 
-    // Derive mode from user context or localStorage
-    // ONLY TWO MODES: chatty (read-only) and autonomous (full access)
-    let requestedMode = 'chatty';
+    // Chatty mode retired 2026-07-10: autonomous is the only mode.
+    // Legacy 'chatty' values in userContext/localStorage coerce to autonomous.
+    const requestedMode = 'autonomous';
     try {
-      const rawMode = (userContext && userContext.__mode) || localStorage.getItem('permission_level') || 'chatty';
-
-      // Validate mode - must be chatty or autonomous
-      if (rawMode === 'chatty' || rawMode === 'autonomous') {
-        requestedMode = rawMode;
-      } else {
-        console.error(`[Mode] Invalid mode '${rawMode}' - must be 'chatty' or 'autonomous'. Defaulting to 'chatty'`);
-        requestedMode = 'chatty';
+      const rawMode = (userContext && userContext.__mode) || localStorage.getItem('permission_level');
+      if (rawMode && rawMode !== 'autonomous') {
+        console.warn(`[Mode] Coercing retired/invalid mode '${rawMode}' to 'autonomous'`);
       }
-    } catch (_) {
-      requestedMode = 'chatty';
-    }
+    } catch (_) { /* mode is always autonomous */ }
 
     // Runtime flag: allow disabling legacy fallbacks to surface drift
     const disableLegacyFallbacks = (() => {
