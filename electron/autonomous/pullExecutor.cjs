@@ -2715,7 +2715,13 @@ class PullExecutor {
 
                 const spawnOptions = {
                     cwd: cwd || undefined,
-                    env: { ...process.env, ...safeEnv }
+                    env: { ...process.env, ...safeEnv },
+                    // Own process group (non-Windows) so timeout/cancel can kill the
+                    // whole tree, not just the /bin/sh wrapper. Without this, a
+                    // long-running grandchild (e.g. a GUI app the model launched)
+                    // survives the kill, keeps the stdio pipes open, and the 'close'
+                    // event never fires - hanging the step forever.
+                    detached: process.platform !== 'win32'
                 };
 
                 if (cwd) {
@@ -2735,15 +2741,28 @@ class PullExecutor {
                 let stdout = '';
                 let stderr = '';
                 let timedOut = false;
+                let settled = false;
+
+                const killTree = (signal) => {
+                    try {
+                        if (process.platform !== 'win32' && childProcess.pid) {
+                            process.kill(-childProcess.pid, signal); // whole process group
+                        } else {
+                            childProcess.kill(signal);
+                        }
+                    } catch (e) {
+                        try { childProcess.kill(signal); } catch (_) { /* already gone */ }
+                    }
+                };
 
                 // Timeout handler
                 const timeoutId = setTimeout(() => {
                     timedOut = true;
-                    console.log(`[PullExecutor] Command timed out after ${timeoutSec}s, killing process`);
-                    childProcess.kill('SIGTERM');
+                    console.log(`[PullExecutor] Command timed out after ${timeoutSec}s, killing process group`);
+                    killTree('SIGTERM');
                     setTimeout(() => {
                         if (!childProcess.killed) {
-                            childProcess.kill('SIGKILL');
+                            killTree('SIGKILL');
                         }
                     }, 2000);
                 }, timeoutSec * 1000);
@@ -2756,51 +2775,65 @@ class PullExecutor {
                     stderr += data.toString();
                 });
 
-                childProcess.on('close', (code, signal) => {
+                const finish = (result) => {
+                    if (settled) return;
+                    settled = true;
                     clearTimeout(timeoutId);
                     this.activeChildProcesses.delete(childProcess);
+                    resolve(result);
+                };
 
+                const buildResult = (code, signal) => {
                     if (timedOut) {
-                        resolve({
+                        return {
                             success: false,
                             stdout,
                             stderr: stderr + '\n(Command timed out)',
                             exit_code: 124,
                             error: `Command timed out after ${timeoutSec}s`
-                        });
-                    } else if (signal === 'SIGTERM' || signal === 'SIGKILL') {
+                        };
+                    }
+                    if (signal === 'SIGTERM' || signal === 'SIGKILL') {
                         // Process was killed (likely by stop())
-                        resolve({
+                        return {
                             success: false,
                             stdout,
                             stderr,
                             exit_code: -1,
                             error: 'Command was cancelled'
-                        });
-                    } else {
-                        // Exit code 1 from grep/find means "no matches found" - not an error
-                        // Exit code 2 from grep means "no matches found" (some versions)
-                        // Treat these as success with empty/no results
-                        const isSearchCommand = /\b(grep|find|rg|ag|ack|fd|locate|mdfind)\b/.test(command);
-                        const isNoMatchesExitCode = (code === 1 || code === 2);
-                        const treatAsSuccess = (code === 0) || (isSearchCommand && isNoMatchesExitCode);
-
-                        resolve({
-                            success: treatAsSuccess,
-                            stdout: treatAsSuccess && !stdout.trim() && isSearchCommand && isNoMatchesExitCode
-                                ? '(no matches found)'
-                                : stdout,
-                            stderr,
-                            exit_code: code || 0,
-                            error: !treatAsSuccess ? `Exit code ${code}` : undefined
-                        });
+                        };
                     }
+                    // Exit code 1 from grep/find means "no matches found" - not an error
+                    // Exit code 2 from grep means "no matches found" (some versions)
+                    // Treat these as success with empty/no results
+                    const isSearchCommand = /\b(grep|find|rg|ag|ack|fd|locate|mdfind)\b/.test(command);
+                    const isNoMatchesExitCode = (code === 1 || code === 2);
+                    const treatAsSuccess = (code === 0) || (isSearchCommand && isNoMatchesExitCode);
+
+                    return {
+                        success: treatAsSuccess,
+                        stdout: treatAsSuccess && !stdout.trim() && isSearchCommand && isNoMatchesExitCode
+                            ? '(no matches found)'
+                            : stdout,
+                        stderr,
+                        exit_code: code || 0,
+                        error: !treatAsSuccess ? `Exit code ${code}` : undefined
+                    };
+                };
+
+                childProcess.on('close', (code, signal) => {
+                    finish(buildResult(code, signal));
+                });
+
+                // Safety net: 'close' waits for stdio pipes to drain, and a surviving
+                // grandchild (GUI app, server) inheriting them keeps 'close' from ever
+                // firing. Resolve shortly after 'exit' if 'close' hasn't arrived.
+                childProcess.on('exit', (code, signal) => {
+                    setTimeout(() => finish(buildResult(code, signal)), 1500);
                 });
 
                 childProcess.on('error', (error) => {
-                    clearTimeout(timeoutId);
-                    this.activeChildProcesses.delete(childProcess);
-                    resolve({
+                    finish({
                         success: false,
                         stdout: '',
                         stderr: error.message,
