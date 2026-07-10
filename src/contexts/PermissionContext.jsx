@@ -42,6 +42,16 @@ export function PermissionProvider({ children }) {
     loadPermissionLevel();
   }, []);
 
+  useEffect(() => {
+    const handlePermissionStorage = (event) => {
+      if (event.key !== 'permission_level' || !event.newValue) return;
+      setLevel(validateMode(event.newValue));
+    };
+
+    window.addEventListener('storage', handlePermissionStorage);
+    return () => window.removeEventListener('storage', handlePermissionStorage);
+  }, []);
+
   const loadPermissionLevel = async () => {
     setLoading(true);
     setError(null);
