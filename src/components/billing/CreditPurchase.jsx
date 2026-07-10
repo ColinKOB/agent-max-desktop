@@ -3,11 +3,11 @@
  * Embedded Stripe Checkout for purchasing credits
  * 
  * Subscription Tiers (weekly credits):
- * - Starter: 150 credits/week ($10/mo, $100/yr)
- * - Premium: 250 credits/week ($18/mo, $180/yr)
- * - Pro: 600 credits/week ($30/mo, $300/yr)
+ * - Starter: 225 credits/week ($10/mo, $100/yr)
+ * - Premium: 400 credits/week ($18/mo, $180/yr)
+ * - Pro: 700 credits/week ($30/mo, $300/yr)
  * 
- * 1 credit = 500 LLM tokens
+ * Per-model costs are returned by the backend package API.
  */
 import { useState, useEffect } from 'react';
 import { Coins, Check, Zap, AlertCircle, Loader2, X, Calendar, Sparkles } from 'lucide-react';

@@ -78,6 +78,7 @@ import { healthAPI, googleAPI, creditsAPI, subscriptionAPI } from '../../service
 import { generateOAuthState, hashOAuthState, storeOAuthStateHash } from '../../services/oauth';
 import { GoogleConnect } from '../../components/GoogleConnect';
 import apiConfigManager from '../../config/apiConfig';
+import { WEEKLY_CREDITS } from '../../config/pricing';
 import LogoPng from '../../assets/AgentMaxLogo.png';
 import { setName as setProfileName, setPreference as setUserPreference, updateProfile as updateUserProfile, flushPreAuthQueue } from '../../services/supabaseMemory';
 import { emailPasswordSignInOrCreate, ensureUsersRow, supabase, resetPassword } from '../../services/supabase.js';
@@ -2824,9 +2825,9 @@ const SUBSCRIPTION_TIERS = [
     icon: Zap,
     monthlyPrice: 10,
     yearlyPrice: 100,
-    creditsPerWeek: 150,
+    creditsPerWeek: WEEKLY_CREDITS.starter,
     features: [
-      { text: '150 credits per week', included: true },
+      { text: `${WEEKLY_CREDITS.starter} credits per week`, included: true },
       { text: 'Email support', included: true },
       { text: 'Core AI features', included: true },
       { text: 'Priority responses', included: false },
@@ -2839,10 +2840,10 @@ const SUBSCRIPTION_TIERS = [
     icon: Star,
     monthlyPrice: 18,
     yearlyPrice: 180,
-    creditsPerWeek: 400,
+    creditsPerWeek: WEEKLY_CREDITS.premium,
     popular: true,
     features: [
-      { text: '400 credits per week', included: true },
+      { text: `${WEEKLY_CREDITS.premium} credits per week`, included: true },
       { text: 'Priority support', included: true },
       { text: 'All AI features', included: true },
       { text: 'Priority responses', included: true },
@@ -2855,9 +2856,9 @@ const SUBSCRIPTION_TIERS = [
     icon: Crown,
     monthlyPrice: 30,
     yearlyPrice: 300,
-    creditsPerWeek: 600,
+    creditsPerWeek: WEEKLY_CREDITS.pro,
     features: [
-      { text: '600 credits per week', included: true },
+      { text: `${WEEKLY_CREDITS.pro} credits per week`, included: true },
       { text: 'Dedicated support', included: true },
       { text: 'All AI features', included: true },
       { text: 'Fastest responses', included: true },

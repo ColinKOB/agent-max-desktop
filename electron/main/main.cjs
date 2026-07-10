@@ -1433,12 +1433,16 @@ function resolveBackendUrl() {
   // Single source of truth for the backend URL in the main process.
   // VITE_API_URL is included so main process and renderer follow the same
   // .env value instead of silently pointing at different backends.
+  const defaultBackendUrl = process.env.NODE_ENV === 'development'
+    ? 'http://127.0.0.1:8010'
+    : 'https://agentmax-production.up.railway.app';
+
   return process.env.AGENT_MAX_BACKEND_URL
     || process.env.AGENT_MAX_API_URL
     || process.env.AMX_API_URL
     || process.env.AGENTMAX_API_URL
     || process.env.VITE_API_URL
-    || 'https://agentmax-production.up.railway.app';
+    || defaultBackendUrl;
 }
 
 function initializeHandsOnDesktop() {

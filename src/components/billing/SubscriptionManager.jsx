@@ -3,14 +3,7 @@ import { ExternalLink, Loader2, Shield, XCircle, Coins, Calendar, Zap } from 'lu
 import { subscriptionAPI } from '../../services/api';
 import { supabase } from '../../services/supabase';
 import toast from 'react-hot-toast';
-
-// Weekly credits by tier
-const TIER_CREDITS = {
-  starter: 150,
-  premium: 250,
-  pro: 600,
-  free: 0
-};
+import { WEEKLY_CREDITS } from '../../config/pricing';
 
 export default function SubscriptionManager({ userId }) {
   const [email, setEmail] = useState('');
@@ -113,7 +106,7 @@ export default function SubscriptionManager({ userId }) {
 
   const isActive = userCredits.status === 'active' || status?.status === 'active';
   const tier = userCredits.tier || status?.plan || 'free';
-  const weeklyCredits = TIER_CREDITS[tier] || 0;
+  const weeklyCredits = WEEKLY_CREDITS[tier] || 0;
   
   const nextDate = status?.next_billing_date
     ? new Date((status.next_billing_date) * 1000).toLocaleDateString()
@@ -174,7 +167,7 @@ export default function SubscriptionManager({ userId }) {
         )}
         
         <p className="text-sm text-gray-700 bg-white/70 rounded-lg px-3 py-2">
-          💡 1 credit = 500 LLM tokens (~1 AI response)
+          Credit use varies by model and actual input and output usage.
         </p>
       </div>
 

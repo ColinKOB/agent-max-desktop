@@ -6,42 +6,11 @@ import { useState, useEffect } from 'react';
 import { X, Loader2, CreditCard, CheckCircle, Zap } from 'lucide-react';
 import { creditsAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import { CREDIT_PACKAGES } from '../config/pricing';
 import './PurchaseCreditsModal.css';
 
-const CREDIT_PACKAGES = [
-  {
-    id: 'starter',
-    name: 'Starter Pack',
-    credits: 100,
-    price: 10,
-    pricePerCredit: 0.10,
-    popular: false,
-    description: 'Perfect for trying out Agent Max'
-  },
-  {
-    id: 'pro',
-    name: 'Pro Pack',
-    credits: 500,
-    price: 40,
-    pricePerCredit: 0.08,
-    popular: true,
-    description: 'Best value for regular users',
-    savings: '20% off'
-  },
-  {
-    id: 'unlimited',
-    name: 'Power Pack',
-    credits: 1000,
-    price: 70,
-    pricePerCredit: 0.07,
-    popular: false,
-    description: 'For power users and teams',
-    savings: '30% off'
-  }
-];
-
 export function PurchaseCreditsModal({ isOpen, onClose }) {
-  const [selectedPackage, setSelectedPackage] = useState('pro');
+  const [selectedPackage, setSelectedPackage] = useState('medium');
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState(null);
 

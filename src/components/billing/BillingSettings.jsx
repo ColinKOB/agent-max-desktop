@@ -18,6 +18,7 @@ import {
 import toast from 'react-hot-toast';
 import { creditsAPI } from '../../services/api';
 import { supabase, isSupabaseAvailable } from '../../services/supabase';
+import { WEEKLY_CREDITS } from '../../config/pricing';
 import './BillingSettings.css';
 
 // Subscription tier definitions
@@ -28,11 +29,11 @@ const TIERS = [
     icon: Zap,
     monthlyPrice: 10,
     yearlyPrice: 100,
-    creditsPerWeek: 150,
+    creditsPerWeek: WEEKLY_CREDITS.starter,
     description: 'Perfect for light tasks throughout the month.',
     features: [
-      '150 credits per week',
-      '~600 credits per month',
+      `${WEEKLY_CREDITS.starter} credits per week`,
+      `~${WEEKLY_CREDITS.starter * 4} credits per month`,
       'Standard response speed',
       'Email support',
       'Basic integrations',
@@ -44,12 +45,12 @@ const TIERS = [
     icon: Crown,
     monthlyPrice: 18,
     yearlyPrice: 180,
-    creditsPerWeek: 250,
+    creditsPerWeek: WEEKLY_CREDITS.premium,
     popular: true,
     description: 'Perfect for occasional deep dives and daily work.',
     features: [
-      '250 credits per week',
-      '~1,000 credits per month',
+      `${WEEKLY_CREDITS.premium} credits per week`,
+      `~${(WEEKLY_CREDITS.premium * 4).toLocaleString()} credits per month`,
       'Priority response speed',
       'Priority support',
       'Advanced integrations',
@@ -62,11 +63,11 @@ const TIERS = [
     icon: Sparkles,
     monthlyPrice: 30,
     yearlyPrice: 300,
-    creditsPerWeek: 600,
+    creditsPerWeek: WEEKLY_CREDITS.pro,
     description: 'For those who want a true sidekick and the latest features.',
     features: [
-      '600 credits per week',
-      '~2,400 credits per month',
+      `${WEEKLY_CREDITS.pro} credits per week`,
+      `~${(WEEKLY_CREDITS.pro * 4).toLocaleString()} credits per month`,
       'Fastest response speed',
       'Dedicated support',
       'All integrations',

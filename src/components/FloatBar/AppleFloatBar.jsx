@@ -5988,6 +5988,13 @@ export default function AppleFloatBar({
     }
   }, [clearMessages]);
 
+  useEffect(() => {
+    if (!window.electron?.onNewConversation) return undefined;
+    return window.electron.onNewConversation(() => {
+      void handleClear();
+    });
+  }, [handleClear]);
+
   // Handle settings
   const handleSettings = useCallback(() => {
     trackSettingsOpened('toolbar');

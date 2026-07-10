@@ -197,8 +197,28 @@ describe('chatAPI.sendMessageStream normalization', () => {
     const sse = buildSSEStream([
       { type: 'ack', data: { id: 1 } },
       { type: 'metadata', data: { key: 'resume_unavailable' } },
-      { type: 'final', data: { final_response: 'ok', tokens_out: 37, total_ms: 1234, tokens_in: 55, cost_usd: 0.0012, checksum: 'abc' } },
-      { type: 'done', data: { final_response: 'ok', tokens_out: 37, total_ms: 1234, tokens_in: 55, cost_usd: 0.0012, checksum: 'abc' } },
+      {
+        type: 'final',
+        data: {
+          final_response: 'ok',
+          tokens_out: 37,
+          total_ms: 1234,
+          tokens_in: 55,
+          cost_usd: 0.0012,
+          checksum: 'abc',
+        },
+      },
+      {
+        type: 'done',
+        data: {
+          final_response: 'ok',
+          tokens_out: 37,
+          total_ms: 1234,
+          tokens_in: 55,
+          cost_usd: 0.0012,
+          checksum: 'abc',
+        },
+      },
     ]);
     fetchSpy.mockResolvedValueOnce(sse);
 
@@ -221,17 +241,19 @@ describe('chatAPI.sendMessageStream normalization', () => {
   });
 
   it('sends v2.1 resume headers when provided', async () => {
-    const sse = buildSSEStream([
-      { type: 'ack' },
-      { type: 'done', data: { final_response: 'r' } },
-    ]);
+    const sse = buildSSEStream([{ type: 'ack' }, { type: 'done', data: { final_response: 'r' } }]);
     fetchSpy.mockResolvedValueOnce(sse);
 
     const resume = { streamId: 'stream-xyz', lastSequenceSeen: 42 };
     const events = [];
-    await chatAPI.sendMessageStream('resume', { __mode: 'autonomous', __resume: resume }, null, (evt) => {
-      events.push(evt);
-    });
+    await chatAPI.sendMessageStream(
+      'resume',
+      { __mode: 'autonomous', __resume: resume },
+      null,
+      (evt) => {
+        events.push(evt);
+      }
+    );
 
     const [url, options] = fetchSpy.mock.calls[0];
     expect(options.method).toBe('POST');
@@ -245,9 +267,7 @@ describe('chatAPI.sendMessageStream normalization', () => {
       { type: 'ack', data: { id: 123 } },
       { type: 'done', data: { final_response: 'Recovered after retry' } },
     ]);
-    fetchSpy
-      .mockRejectedValueOnce(networkErr)
-      .mockResolvedValueOnce(sse);
+    fetchSpy.mockRejectedValueOnce(networkErr).mockResolvedValueOnce(sse);
 
     const events = [];
     await chatAPI.sendMessageStream('retry network', { __mode: 'autonomous' }, null, (evt) => {
@@ -255,8 +275,8 @@ describe('chatAPI.sendMessageStream normalization', () => {
     });
 
     expect(fetchSpy).toHaveBeenCalledTimes(2);
-    expect(fetchSpy.mock.calls[0][0]).toContain('/api/v2/agent/execute/stream');
-    expect(fetchSpy.mock.calls[1][0]).toContain('/api/v2/agent/execute/stream');
+    expect(fetchSpy.mock.calls[0][0]).toContain('/api/v2/chat/streaming/stream');
+    expect(fetchSpy.mock.calls[1][0]).toContain('/api/v2/chat/streaming/stream');
     const doneEvt = events.find((evt) => evt.type === 'done');
     expect(doneEvt).toBeTruthy();
     expect(doneEvt.data.final_response).toBe('Recovered after retry');
@@ -286,7 +306,12 @@ describe('chatAPI.sendMessageStream normalization', () => {
     ]);
     fetchSpy.mockResolvedValueOnce(sse);
 
-    await chatAPI.sendMessageStream('Desktop online test', { __mode: 'autonomous' }, null, () => {});
+    await chatAPI.sendMessageStream(
+      'Desktop online test',
+      { __mode: 'autonomous' },
+      null,
+      () => {}
+    );
 
     const [, options] = fetchSpy.mock.calls[0];
     const body = JSON.parse(options.body);
@@ -303,7 +328,12 @@ describe('chatAPI.sendMessageStream normalization', () => {
     ]);
     fetchSpy.mockResolvedValueOnce(sse);
 
-    await chatAPI.sendMessageStream('Desktop offline test', { __mode: 'autonomous' }, null, () => {});
+    await chatAPI.sendMessageStream(
+      'Desktop offline test',
+      { __mode: 'autonomous' },
+      null,
+      () => {}
+    );
 
     const [, options] = fetchSpy.mock.calls[0];
     const body = JSON.parse(options.body);
@@ -329,17 +359,24 @@ describe('chatAPI.sendMessageStream normalization', () => {
     ]);
     fetchSpy.mockResolvedValueOnce(sse);
 
-    await chatAPI.sendMessageStream('Write todays weather', { __mode: 'autonomous' }, null, () => {});
+    await chatAPI.sendMessageStream(
+      'Write todays weather',
+      { __mode: 'autonomous' },
+      null,
+      () => {}
+    );
 
     expect(mockExecuteRequest).toHaveBeenCalledTimes(1);
-    expect(mockExecuteRequest).toHaveBeenCalledWith(expect.objectContaining({
-      request_id: 'req-desktop-1',
-      run_id: 'run-desktop-1',
-      tool: 'fs.write',
-      args: toolRequestEvent.args,
-      requires_elevation: false,
-      timeout_sec: 45,
-    }));
+    expect(mockExecuteRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: 'req-desktop-1',
+        run_id: 'run-desktop-1',
+        tool: 'fs.write',
+        args: toolRequestEvent.args,
+        requires_elevation: false,
+        timeout_sec: 45,
+      })
+    );
   });
 
   it('does not dispatch desktop tool requests when the bridge reports offline', async () => {
@@ -358,27 +395,36 @@ describe('chatAPI.sendMessageStream normalization', () => {
     ]);
     fetchSpy.mockResolvedValueOnce(sse);
 
-    await chatAPI.sendMessageStream('Server handles tools', { __mode: 'autonomous' }, null, () => {});
+    await chatAPI.sendMessageStream(
+      'Server handles tools',
+      { __mode: 'autonomous' },
+      null,
+      () => {}
+    );
 
     expect(mockExecuteRequest).not.toHaveBeenCalled();
   });
 
   it('recovers when the SSE reader throws mid-stream', async () => {
     const streamError = new TypeError('Failed to fetch: net::ERR_NETWORK_CHANGED');
-    const failingStream = buildFailingSSEStream([
-      { type: 'ack', data: { id: 1, stream_id: 'resume-stream-1' } },
-      { type: 'plan', data: { steps: ['fetch', 'write'] } },
-    ], 1, streamError);
+    const failingStream = buildFailingSSEStream(
+      [
+        { type: 'ack', data: { id: 1, stream_id: 'resume-stream-1' } },
+        { type: 'plan', data: { steps: ['fetch', 'write'] } },
+      ],
+      1,
+      streamError
+    );
     const recoveryStream = buildSSEStream([
       { type: 'ack', data: { id: 2, stream_id: 'resume-stream-1' } },
       { type: 'done', data: { final_response: 'Recovered after reader retry' } },
     ]);
-    fetchSpy
-      .mockResolvedValueOnce(failingStream)
-      .mockResolvedValueOnce(recoveryStream);
+    fetchSpy.mockResolvedValueOnce(failingStream).mockResolvedValueOnce(recoveryStream);
 
     const events = [];
-    await chatAPI.sendMessageStream('Recover mid stream', { __mode: 'autonomous' }, null, (evt) => events.push(evt));
+    await chatAPI.sendMessageStream('Recover mid stream', { __mode: 'autonomous' }, null, (evt) =>
+      events.push(evt)
+    );
 
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     const secondHeaders = fetchSpy.mock.calls[1][1].headers;

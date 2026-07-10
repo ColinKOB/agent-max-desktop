@@ -30,6 +30,12 @@ contextBridge.exposeInMainWorld('electron', {
       }
     } catch {}
   },
+  onNewConversation: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const listener = () => callback();
+    ipcRenderer.on('new-conversation', listener);
+    return () => ipcRenderer.removeListener('new-conversation', listener);
+  },
 
   // Open URL in external browser
   openExternal: (url) => ipcRenderer.invoke('open-external', { url }),

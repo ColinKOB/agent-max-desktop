@@ -11,6 +11,7 @@ import { logger } from './logger';
 import apiConfigManager from '../config/apiConfig';
 import useStore from '../store/useStore';
 import { captureBetaSessionContext } from './analytics';
+import { filterRelevantActiveTools } from './requestContext';
 
 /**
  * Determine if a task needs visual context (screenshot).
@@ -459,6 +460,8 @@ class PullAutonomousService {
         } catch (e) {
             logger.warn('[PullAutonomous] Could not get active tools status (non-fatal)', e?.message || e);
         }
+
+        activeTools = filterRelevantActiveTools(message, activeTools);
 
         // Merge userId, screenshot, google_user_email, browser_mode, active_tools, and session_id into context
         const enrichedContext = {

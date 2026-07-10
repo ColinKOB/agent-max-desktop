@@ -1089,9 +1089,22 @@ export const chatAPI = {
                       if (parsed && parsed.type === 'ack') {
                         ackSeenLocal = true;
                       }
-                      const content = parsed?.content || parsed?.delta || parsed?.token || parsed?.text || '';
-                      if (content && typeof content === 'string') {
+                      // Tokens stream as {type:"token", data:{content, channel}} (SSEEventBuilder),
+                      // so we MUST read the nested shape too. Reading only the top level meant
+                      // anyTokenSeenLocal never tripped, and every finished chatty stream then
+                      // fired a second, full (billed) /chat/message generation below.
+                      const tokenContent = parsed?.data?.content || parsed?.content || parsed?.delta || parsed?.token || parsed?.text || '';
+                      const tokenChannel = parsed?.data?.channel || parsed?.channel || 'final';
+                      if (tokenContent && typeof tokenContent === 'string' && tokenChannel !== 'thinking' && tokenChannel !== 'narration') {
                         anyTokenSeenLocal = true;
+                      }
+                      // The server's done event is authoritative: if it already carries a final
+                      // response, the stream succeeded and we must NOT re-generate.
+                      if (parsed?.type === 'done' || parsed?.event === 'done') {
+                        const doneFinal = parsed?.data?.final_response ?? parsed?.final_response ?? parsed?.data?.response;
+                        if (typeof doneFinal === 'string' && doneFinal.trim()) {
+                          anyTokenSeenLocal = true;
+                        }
                       }
                       if ((parsed?.type === 'done' || parsed?.event === 'done') && !anyTokenSeenLocal) {
                         const jsonHeaders = {
