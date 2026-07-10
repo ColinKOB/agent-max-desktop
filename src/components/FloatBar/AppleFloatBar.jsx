@@ -597,19 +597,28 @@ export default function AppleFloatBar({
     narrationCountRef.current = narrations.length;
     setThoughts((prev) => {
       // Dedupe against already-rendered narrations (guards against re-append
-      // after an app restart mid-run, when narrationCountRef resets to 0)
+      // after an app restart mid-run, when narrationCountRef resets to 0).
+      // Near-dup check on the first 40 chars also catches reworded repeats
+      // ("Love this idea — I'll build..." twice with different endings).
+      const prefix = (s) => s.toLowerCase().replace(/\s+/g, ' ').slice(0, 40);
       const seen = new Set(
-        prev.filter((m) => m.type === 'narration').map((m) => m.content)
+        prev.filter((m) => m.type === 'narration').map((m) => prefix(m.content))
       );
-      const newMessages = fresh
-        .filter((n) => n && typeof n.text === 'string' && n.text.trim())
-        .map((n, i) => {
-          const raw = n.text.trim();
-          const content = raw.length > 300 ? raw.slice(0, 300) + '…' : raw;
-          const timestamp = (n.at || Date.now()) + i;
-          return { role: 'assistant', content, type: 'narration', timestamp };
-        })
-        .filter((m) => !seen.has(m.content));
+      const newMessages = [];
+      for (const n of fresh) {
+        if (!n || typeof n.text !== 'string' || !n.text.trim()) continue;
+        const raw = n.text.trim();
+        const key = prefix(raw);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const content = raw.length > 300 ? raw.slice(0, 300) + '…' : raw;
+        newMessages.push({
+          role: 'assistant',
+          content,
+          type: 'narration',
+          timestamp: (n.at || Date.now()) + newMessages.length,
+        });
+      }
       // Match the entrance animation of other assistant messages
       newMessages.forEach((m) => animatedMessagesRef.current.add(m.timestamp));
       return newMessages.length ? [...prev, ...newMessages] : prev;
