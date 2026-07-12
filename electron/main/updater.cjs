@@ -270,9 +270,11 @@ function getUpdateChannel() {
 function setupAutoUpdater(window) {
   mainWindow = window;
   
-  // Only enable auto-updates in production
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Updater] Auto-update disabled in development');
+  // electron-updater can only safely replace an installed, packaged app. A
+  // production-mode source run or an unpackaged test bundle has no valid
+  // install location, which otherwise produces a broken restart path.
+  if (process.env.AMX_DISABLE_UPDATER === '1' || !app.isPackaged || process.env.NODE_ENV === 'development') {
+    console.log('[Updater] Auto-update disabled outside installed app bundles');
     return;
   }
   
