@@ -59,6 +59,14 @@ jobs:
         run: npm run build && npx electron-builder --mac --publish never
         timeout-minutes: 30
 
+      - name: Notarize and staple DMG containers
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: node scripts/notarize-dmgs.cjs release/*.dmg
+        timeout-minutes: 20
+
       - name: Verify macOS updater metadata
         run: node scripts/verify-release-artifacts.mjs release/latest-mac.yml
 
