@@ -5,7 +5,6 @@ contextBridge.exposeInMainWorld('electron', {
   getApiServerTokens: () => ipcRenderer.invoke('get-api-server-tokens'),
 
   // Desktop Features
-  showNotification: (data) => ipcRenderer.invoke('show-notification', data),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
@@ -35,6 +34,23 @@ contextBridge.exposeInMainWorld('electron', {
     const listener = () => callback();
     ipcRenderer.on('new-conversation', listener);
     return () => ipcRenderer.removeListener('new-conversation', listener);
+  },
+  onReviewNotificationOpen: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const listener = (_event, data) => callback(data);
+    ipcRenderer.on('review-notification:open', listener);
+    return () => ipcRenderer.removeListener('review-notification:open', listener);
+  },
+  consumeAuthCallback: () => ipcRenderer.invoke('auth:consume-callback'),
+  onAuthCallback: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const listener = (_event, url) => callback(url);
+    ipcRenderer.on('auth:callback', listener);
+    return () => ipcRenderer.removeListener('auth:callback', listener);
+  },
+  permissions: {
+    getStatus: () => ipcRenderer.invoke('permissions:get-status'),
+    openSettings: (permission) => ipcRenderer.invoke('permissions:open-settings', permission),
   },
 
   // Open URL in external browser

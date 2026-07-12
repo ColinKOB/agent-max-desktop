@@ -124,12 +124,36 @@ function start() {
       if (pathname === '/status' && req.method === 'GET') {
         const isVisible = mainWindow ? mainWindow.isVisible() : false;
         const isFocused = mainWindow ? mainWindow.isFocused() : false;
+        const windowBounds = mainWindow ? mainWindow.getBounds() : null;
+        const contentBounds = mainWindow ? mainWindow.getContentBounds() : null;
+        let rendererBounds = null;
+        if (mainWindow) {
+          try {
+            rendererBounds = await mainWindow.webContents.executeJavaScript(`
+              (() => {
+                const root = document.getElementById('root');
+                const floatbar = document.querySelector('.apple-floatbar-root');
+                const container = document.querySelector('.apple-bar-container');
+                return {
+                  innerWidth: window.innerWidth,
+                  innerHeight: window.innerHeight,
+                  rootWidth: root?.getBoundingClientRect().width || null,
+                  floatbarWidth: floatbar?.getBoundingClientRect().width || null,
+                  containerWidth: container?.getBoundingClientRect().width || null,
+                };
+              })()
+            `);
+          } catch {}
+        }
 
         res.writeHead(200);
         res.end(JSON.stringify({
           windowVisible: isVisible,
           windowFocused: isFocused,
-          ready: !!mainWindow
+          ready: !!mainWindow,
+          windowBounds,
+          contentBounds,
+          rendererBounds,
         }));
         return;
       }

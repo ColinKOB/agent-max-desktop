@@ -75,6 +75,7 @@ UI/UX design documentation, brand guides, and glassmorphism implementation detai
 - [UX_IMPROVEMENT_PLAN.md](./design/UX_IMPROVEMENT_PLAN.md) - Future UX improvements
 
 **Planning:**
+- [TOOLBAR_AND_REVIEW_NOTIFICATIONS_SPEC.md](./design/TOOLBAR_AND_REVIEW_NOTIFICATIONS_SPEC.md) - Expanded toolbar and human review notification specification
 - [UI_IMPLEMENTATION_PLAN.md](./design/UI_IMPLEMENTATION_PLAN.md) - UI implementation plan
 - [UI_IMPLEMENTATION_ROADMAP.md](./design/UI_IMPLEMENTATION_ROADMAP.md) - UI roadmap
 

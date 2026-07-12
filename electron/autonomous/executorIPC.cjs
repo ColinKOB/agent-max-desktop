@@ -5,6 +5,10 @@
 
 const { ipcMain } = require('electron');
 const { ExecutorManager } = require('./executorManager.cjs');
+const {
+    notifyReviewRequired,
+    clearPendingReview
+} = require('../main/reviewNotifications.cjs');
 
 let executorManager = null;
 
@@ -271,6 +275,7 @@ function registerExecutorHandlers(apiClient, config = {}) {
 
     // Setup ask_user handler - sends question to renderer and waits for response
     let pendingAskUserResolve = null;
+    let pendingAskUserReview = null;
 
     // Register the ask_user handler on the executor
     // Supports both single question and batched questions formats
@@ -316,9 +321,21 @@ function registerExecutorHandlers(apiClient, config = {}) {
                     }
                 });
 
+                const firstQuestion = hasBatchedQuestions ? questions[0] : null;
+                pendingAskUserReview = {
+                    source: 'executor',
+                    runId,
+                    questionId: firstQuestion?.id || payload.timestamp,
+                    question: firstQuestion?.question || question,
+                    timestamp: payload.timestamp
+                };
+                notifyReviewRequired(pendingAskUserReview);
+
                 // Timeout after 5 minutes (user may be away)
                 setTimeout(() => {
                     if (pendingAskUserResolve === resolve) {
+                        if (pendingAskUserReview) clearPendingReview(pendingAskUserReview);
+                        pendingAskUserReview = null;
                         pendingAskUserResolve = null;
                         resolve(null); // Null means cancelled/timeout
                     }
@@ -360,6 +377,8 @@ function registerExecutorHandlers(apiClient, config = {}) {
         console.log(`[ExecutorIPC] User responded: "${responseText?.substring?.(0, 50) || 'cancelled'}..."`);
 
         if (pendingAskUserResolve) {
+            if (pendingAskUserReview) clearPendingReview(pendingAskUserReview);
+            pendingAskUserReview = null;
             pendingAskUserResolve(responseText);
             pendingAskUserResolve = null;
             return { success: true };

@@ -80,8 +80,9 @@ import { GoogleConnect } from '../../components/GoogleConnect';
 import apiConfigManager from '../../config/apiConfig';
 import { WEEKLY_CREDITS } from '../../config/pricing';
 import LogoPng from '../../assets/AgentMaxLogo.png';
-import { setName as setProfileName, setPreference as setUserPreference, updateProfile as updateUserProfile, flushPreAuthQueue } from '../../services/supabaseMemory';
-import { emailPasswordSignInOrCreate, ensureUsersRow, supabase, resetPassword } from '../../services/supabase.js';
+import { setPreference as setUserPreference, flushPreAuthQueue } from '../../services/supabaseMemory';
+import { ensureUsersRow, persistOnboardingProfile, supabase, resetPassword } from '../../services/supabase.js';
+import { AUTH_CALLBACK_URL, createOnboardingAccount, exchangeOnboardingCallback } from '../../services/onboardingAuth.js';
 import { isGoogleComingSoon } from '../../config/featureGates';
 import {
   trackOnboardingStarted,
@@ -107,6 +108,7 @@ const BRAND_ORANGE_GLOW = 'rgba(245, 158, 11, 0.5)';
 // CONFETTI UTILITY
 // ============================================================================
 function createConfetti(container) {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
   const colors = [BRAND_ORANGE, '#22c55e', '#ef4444', '#ec4899', '#8b5cf6', '#ffffff'];
   const confettiCount = 150;
   
@@ -153,7 +155,13 @@ function createConfetti(container) {
 // ============================================================================
 function ProgressIndicator({ currentStep, totalSteps }) {
   return (
-    <div style={{ 
+    <div
+      role="progressbar"
+      aria-label="Onboarding progress"
+      aria-valuemin={1}
+      aria-valuemax={totalSteps}
+      aria-valuenow={currentStep + 1}
+      style={{
       display: 'flex', 
       justifyContent: 'center', 
       gap: 8, 
@@ -327,7 +335,7 @@ function WelcomeStep({ onNext }) {
           marginBottom: 32,
         }}
       >
-        Your AI assistant that actually gets things done. Let's set you up in just a minute.
+        Your AI assistant that actually gets things done. Setup includes your account, desktop permissions, and plan.
       </motion.p>
 
       <motion.button
@@ -1164,6 +1172,7 @@ function LegalStep({ onNext, onBack }) {
     try {
       localStorage.setItem('legal_agreement_accepted', 'true');
       localStorage.setItem('legal_agreement_date', new Date().toISOString());
+      localStorage.setItem('legal_agreement_version', '2026-07-10');
     } catch (e) {
       console.warn('[Onboarding] Failed to save legal agreement:', e);
     }
@@ -1329,6 +1338,54 @@ function LegalStep({ onNext, onBack }) {
           </button>
         </div>
       </motion.div>
+    </div>
+  );
+}
+
+function PermissionsStep({ onNext, onBack }) {
+  const [statuses, setStatuses] = useState(null);
+
+  const refresh = useCallback(async () => {
+    const result = await window.electron?.permissions?.getStatus?.();
+    setStatuses(result || { platform: 'web' });
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const permissions = [
+    ['screen', 'Screen Recording', 'Lets Max see the screen only when you ask it to.'],
+    ['accessibility', 'Accessibility', 'Lets Max click and type only during approved work.'],
+    ['microphone', 'Microphone', 'Needed only when you use voice input.'],
+  ];
+
+  return (
+    <div style={{ maxWidth: 360, margin: '0 auto', padding: '16px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <h2 style={styles.heading}>Desktop Permissions</h2>
+      <p style={styles.subheading}>macOS controls these permissions. You can grant them now or when a feature first needs them.</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12, overflowY: 'auto' }}>
+        {permissions.map(([id, label, description]) => {
+          const granted = ['granted', 'authorized'].includes(statuses?.[id]);
+          return (
+            <div key={id} style={{ padding: 12, border: '1px solid rgba(255,255,255,.1)', borderRadius: 8, textAlign: 'left' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                <strong style={{ color: '#fff', fontSize: 13 }}>{label}</strong>
+                <span style={{ color: granted ? '#86efac' : 'rgba(255,255,255,.55)', fontSize: 11 }}>{granted ? 'Allowed' : 'Not allowed'}</span>
+              </div>
+              <p style={{ color: 'rgba(255,255,255,.6)', fontSize: 11, margin: '5px 0 9px' }}>{description}</p>
+              {!granted && statuses?.platform === 'darwin' && (
+                <button style={styles.secondaryButton} onClick={async () => {
+                  await window.electron.permissions.openSettings(id);
+                  setTimeout(refresh, 1000);
+                }}>Open System Settings</button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 'auto', paddingTop: 12 }}>
+        <button onClick={onBack} style={styles.secondaryButton}>Back</button>
+        <button onClick={() => onNext({ permissionsReviewed: true })} style={{ ...styles.primaryButton, flex: 1 }}>Continue</button>
+      </div>
     </div>
   );
 }
@@ -1665,88 +1722,13 @@ function AccountStep({ onNext, onBack, userData }) {
     try {
       const trimmedEmail = email.trim();
 
-      // First check if user already exists
-      const { data: existingUser, error: checkError } = await supabase.auth.signInWithPassword({
-        email: trimmedEmail,
-        password: password,
-      });
+      const { data: signUpData, error: signUpError } = await createOnboardingAccount(
+        supabase.auth,
+        trimmedEmail,
+        password,
+      );
 
-      if (existingUser?.user) {
-        // User exists and password is correct - they're signing in, not signing up
-        console.log('[Onboarding] Existing user signed in via sign-up form:', trimmedEmail);
-        try { localStorage.setItem('user_email', trimmedEmail); } catch {}
-
-        // Check if email is verified
-        const isVerified = existingUser.user.email_confirmed_at != null;
-
-        // Ensure user row exists
-        await ensureUsersRow(trimmedEmail);
-
-        // CRITICAL: Check if user already has subscription/credits - skip to complete if so
-        let hasActiveSubscription = false;
-        let hasExistingProfile = false;
-        let hasSignificantCredits = false;
-        try {
-          const { data: userRecords } = await supabase
-            .from('users')
-            .select('id, subscription_status, subscription_tier, credits, metadata, created_at')
-            .ilike('email', trimmedEmail.toLowerCase())
-            .order('created_at', { ascending: false });
-
-          if (userRecords && userRecords.length > 0) {
-            const activeUser = userRecords.find(u => u.subscription_status === 'active');
-            const creditsUser = userRecords.find(u => (u.credits || 0) > 50);
-            const profileUser = userRecords.find(u => u.metadata?.profile?.name);
-            const existingUserRecord = activeUser || creditsUser || profileUser || userRecords[0];
-
-            hasActiveSubscription = existingUserRecord.subscription_status === 'active';
-            hasExistingProfile = !!existingUserRecord.metadata?.profile?.name;
-            hasSignificantCredits = (existingUserRecord.credits || 0) > 50;
-
-            try { localStorage.setItem('user_id', existingUserRecord.id); } catch {}
-
-            console.log('[Onboarding] Sign-up form - existing user check:', {
-              email: trimmedEmail,
-              hasActiveSubscription,
-              hasExistingProfile,
-              hasSignificantCredits,
-              credits: existingUserRecord.credits
-            });
-          }
-        } catch (subErr) {
-          console.warn('[Onboarding] Failed to check user status:', subErr);
-        }
-
-        // Determine skip destination
-        let skipToStep = null;
-        if (hasActiveSubscription || hasExistingProfile || hasSignificantCredits) {
-          skipToStep = 'complete';
-          console.log('[Onboarding] Returning user (via sign-up form) - skipping to complete');
-        } else if (isVerified) {
-          skipToStep = 'google';
-        }
-
-        onNext?.({
-          amxAccount: true,
-          email: trimmedEmail,
-          isExistingUser: true,
-          emailVerified: isVerified,
-          hasActiveSubscription,
-          skipToStep
-        });
-        return;
-      }
-
-      // If we get invalid_credentials error, user might exist with different password
-      // or might not exist at all - try to create account
-      if (checkError?.message?.includes('Invalid login credentials')) {
-        // Could be wrong password OR new user - try to sign up
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: trimmedEmail,
-          password: password,
-        });
-
-        if (signUpError) {
+      if (signUpError) {
           // If user already exists, show error
           if (signUpError.message?.includes('already registered') ||
               signUpError.message?.includes('User already registered')) {
@@ -1754,15 +1736,14 @@ function AccountStep({ onNext, onBack, userData }) {
             setSaving(false);
             return;
           }
-          throw signUpError;
-        }
+        throw signUpError;
+      }
 
-        // New user created successfully
-        try { localStorage.setItem('user_email', trimmedEmail); } catch {}
+      if (!signUpData?.user) throw new Error('Account creation did not return a user.');
+      try { localStorage.setItem('user_email', trimmedEmail); } catch {}
 
-        // Ensure user row exists before writing preferences
+      if (signUpData.session) {
         const userRowCreated = await ensureUsersRow(trimmedEmail);
-
         if (userRowCreated) {
           try { await setUserPreference('email', trimmedEmail); } catch (e) {
             console.warn('[Onboarding] Failed to save email preference:', e);
@@ -1771,17 +1752,17 @@ function AccountStep({ onNext, onBack, userData }) {
             console.warn('[Onboarding] Failed to save password preference:', e);
           }
         }
-
-        console.log('[Onboarding] Account created for:', trimmedEmail);
-        // Track successful sign-up
-        trackSignInSucceeded(trimmedEmail, 'email_signup');
-        trackOnboardingStepCompleted('account', { method: 'signup', isNewUser: true });
-        onNext?.({ amxAccount: true, email: trimmedEmail, isExistingUser: false });
-        return;
       }
 
-      // Other errors
-      if (checkError) throw checkError;
+      console.log('[Onboarding] Account created for:', trimmedEmail);
+      trackSignInSucceeded(trimmedEmail, 'email_signup');
+      trackOnboardingStepCompleted('account', { method: 'signup', isNewUser: true });
+      onNext?.({
+        amxAccount: true,
+        email: trimmedEmail,
+        isExistingUser: false,
+        emailVerified: !!signUpData.user.email_confirmed_at,
+      });
 
     } catch (err) {
       console.error('[Onboarding] Account operation failed:', err);
@@ -1866,12 +1847,10 @@ function AccountStep({ onNext, onBack, userData }) {
             // Store the user_id so profile loading works
             try { localStorage.setItem('user_id', existingUser.id); } catch {}
 
-            // Also restore the user's name from metadata if available
+            // Restore the user's name from metadata for the completion screen and app state.
             const existingName = existingUser.metadata?.profile?.name;
             if (existingName) {
               try { localStorage.setItem('user_name', existingName); } catch {}
-              // Update userData with the name
-              userData.name = existingName;
             }
 
             console.log('[Onboarding] Existing user check:', {
@@ -1911,6 +1890,7 @@ function AccountStep({ onNext, onBack, userData }) {
           isExistingUser: true,
           emailVerified: isVerified,
           hasActiveSubscription,
+          name: localStorage.getItem('user_name') || userData?.name || '',
           skipToStep
         });
 
@@ -2218,6 +2198,44 @@ function EmailVerificationStep({ userData, onNext, onBack }) {
   const [error, setError] = useState(null);
   const pollIntervalRef = useRef(null);
 
+  const finishVerification = useCallback(async () => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user?.email_confirmed_at) return false;
+    await ensureUsersRow(userData?.email || user.email);
+    setVerified(true);
+    setTimeout(() => onNext({ emailVerified: true }), 900);
+    return true;
+  }, [onNext, userData?.email]);
+
+  const processAuthCallback = useCallback(async (rawUrl) => {
+    if (!rawUrl) return false;
+    setChecking(true);
+    setError(null);
+    try {
+      const { error } = await exchangeOnboardingCallback(supabase.auth, rawUrl);
+      if (error) throw error;
+      return await finishVerification();
+    } catch (err) {
+      console.error('[EmailVerification] Callback failed:', err);
+      setError('We could not finish verification. Return to the email and try the link again.');
+      return false;
+    } finally {
+      setChecking(false);
+    }
+  }, [finishVerification]);
+
+  useEffect(() => {
+    let mounted = true;
+    window.electron?.consumeAuthCallback?.().then(url => {
+      if (mounted && url) processAuthCallback(url);
+    });
+    const unsubscribe = window.electron?.onAuthCallback?.(url => processAuthCallback(url));
+    return () => {
+      mounted = false;
+      unsubscribe?.();
+    };
+  }, [processAuthCallback]);
+
   // Start polling for email verification
   useEffect(() => {
     let mounted = true;
@@ -2226,19 +2244,7 @@ function EmailVerificationStep({ userData, onNext, onBack }) {
       if (!supabase) return false;
 
       try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error) {
-          console.log('[EmailVerification] Error getting user:', error.message);
-          return false;
-        }
-
-        // Check if email is confirmed
-        if (user?.email_confirmed_at) {
-          console.log('[EmailVerification] Email verified!');
-          return true;
-        }
-
-        return false;
+        return await finishVerification();
       } catch (err) {
         console.log('[EmailVerification] Check failed:', err.message);
         return false;
@@ -2251,10 +2257,6 @@ function EmailVerificationStep({ userData, onNext, onBack }) {
       if (mounted && isVerified) {
         setVerified(true);
         clearInterval(pollIntervalRef.current);
-        // Auto-proceed after brief delay
-        setTimeout(() => {
-          if (mounted) onNext({ emailVerified: true });
-        }, 1500);
       }
     }, 3000);
 
@@ -2263,9 +2265,6 @@ function EmailVerificationStep({ userData, onNext, onBack }) {
       if (mounted && isVerified) {
         setVerified(true);
         clearInterval(pollIntervalRef.current);
-        setTimeout(() => {
-          if (mounted) onNext({ emailVerified: true });
-        }, 1500);
       }
     });
 
@@ -2275,7 +2274,7 @@ function EmailVerificationStep({ userData, onNext, onBack }) {
         clearInterval(pollIntervalRef.current);
       }
     };
-  }, [onNext]);
+  }, [finishVerification]);
 
   // Cooldown timer
   useEffect(() => {
@@ -2295,6 +2294,7 @@ function EmailVerificationStep({ userData, onNext, onBack }) {
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: userData?.email,
+        options: { emailRedirectTo: AUTH_CALLBACK_URL },
       });
 
       if (error) throw error;
@@ -2398,6 +2398,20 @@ function EmailVerificationStep({ userData, onNext, onBack }) {
           )}
 
           {/* Resend button */}
+          <button
+            onClick={async () => {
+              setChecking(true);
+              setError(null);
+              const isVerified = await finishVerification();
+              if (!isVerified) setError('Verification is not complete yet. Click the link in your email, then try again.');
+              setChecking(false);
+            }}
+            disabled={checking}
+            style={{ ...styles.primaryButton, width: '100%', opacity: checking ? 0.6 : 1 }}
+          >
+            {checking ? 'Checking...' : 'I Verified My Email'}
+          </button>
+
           <button
             onClick={handleResendEmail}
             disabled={resending || resendCooldown > 0}
@@ -2866,19 +2880,6 @@ function SubscriptionStep({ userData, onNext, onBack }) {
     setVerificationFailed(true);
   };
   
-  const handleProceedWithoutVerification = () => {
-    // User insists they paid - trust them and proceed
-    // The webhook will eventually update their credits
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
-    try { localStorage.setItem('payment_pending_verification', pendingPlan); } catch {}
-    setWaitingForPayment(false);
-    setVerificationFailed(false);
-    onNext({ selectedPlan: pendingPlan, paymentConfirmed: false, pendingVerification: true });
-  };
-
   const handleCancelWaiting = () => {
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
@@ -3263,7 +3264,7 @@ function SubscriptionStep({ userData, onNext, onBack }) {
           <p style={{ ...styles.subheading, marginBottom: 24 }}>
             {verifyingPayment ? 'Please wait while we confirm your payment...' :
              verificationFailed ? 
-               'We couldn\'t verify your payment yet. This can take a few minutes. You can wait, proceed anyway, or start a free trial.' :
+               'We could not verify your payment yet. This can take a few minutes. Try again, or start a free trial while the payment is resolved.' :
                'Complete your purchase in the browser window that just opened. We\'ll automatically detect when you\'re done.'}
           </p>
           
@@ -3291,16 +3292,6 @@ function SubscriptionStep({ userData, onNext, onBack }) {
                   }}
                 >
                   Try Again
-                </button>
-                <button
-                  onClick={handleProceedWithoutVerification}
-                  style={{
-                    ...styles.primaryButton,
-                    background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-                  }}
-                >
-                  I Paid - Proceed Anyway
-                  <ArrowRight style={{ width: 18, height: 18 }} />
                 </button>
               </>
             ) : (
@@ -3735,7 +3726,7 @@ const CATEGORY_TO_RELATED = {
   'utilities': 'files',
 };
 
-function CompleteStep({ userData, onNext }) {
+function CompleteStep({ userData, onNext, completionError, isCompleting }) {
   const confettiRef = useRef(null);
   const [confettiTriggered, setConfettiTriggered] = useState(false);
   const [personalizedExamples, setPersonalizedExamples] = useState([]);
@@ -4033,18 +4024,25 @@ function CompleteStep({ userData, onNext }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.9 }}
         onClick={() => onNext()}
+        disabled={isCompleting}
         style={{
           ...styles.primaryButton,
           flexShrink: 0,
           padding: '12px 20px',
           fontSize: 14,
+          opacity: isCompleting ? 0.6 : 1,
         }}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
       >
-        Launch Agent Max
+        {isCompleting ? 'Saving setup...' : 'Launch Agent Max'}
         <Sparkles style={{ width: 16, height: 16 }} />
       </motion.button>
+      {completionError && (
+        <div role="alert" style={{ color: '#fca5a5', fontSize: 12, marginTop: 8 }}>
+          {completionError}
+        </div>
+      )}
     </div>
   );
 }
@@ -4063,6 +4061,8 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
   });
   const [serverConnected, setServerConnected] = useState(false);
   const [checkingServer, setCheckingServer] = useState(true);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [completionError, setCompletionError] = useState(null);
 
   useEffect(() => {
     try {
@@ -4109,6 +4109,7 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
     { id: 'account', component: AccountStep },      // Sign in/up - before name so we can personalize
     { id: 'name', component: NameStep },            // Collect name for personalization
     { id: 'legal', component: LegalStep },          // Legal consent
+    { id: 'permissions', component: PermissionsStep },
     { id: 'usecase', component: UseCaseStep },
     { id: 'verify-email', component: EmailVerificationStep },
     { id: 'google', component: GoogleStep },
@@ -4129,7 +4130,8 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
       trackOnboardingStepCompleted(currentStepId, data);
     }
 
-    setUserData(prev => ({ ...prev, ...data }));
+    const nextUserData = { ...userData, ...data };
+    setUserData(nextUserData);
 
     // Handle skip to specific step for existing users
     if (data.skipToStep) {
@@ -4157,7 +4159,7 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      handleComplete();
+      handleComplete(nextUserData);
     }
   };
 
@@ -4167,57 +4169,50 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
     }
   };
 
-  const handleComplete = async () => {
-    console.log('[Onboarding] Completing with data:', userData);
+  const handleComplete = async (completedData = userData) => {
+    if (isCompleting) return;
+    setIsCompleting(true);
+    setCompletionError(null);
+    console.log('[Onboarding] Completing with data:', completedData);
 
     // Track onboarding completed
     trackOnboardingCompleted({
-      name: userData.name || '',
-      helpCategory: userData.helpCategory || '',
-      selectedPlan: userData.selectedPlan || 'free_trial',
-      hasGoogleConnected: !!userData.googleConnected,
-      paymentConfirmed: !!userData.paymentConfirmed
+      name: completedData.name || '',
+      helpCategory: completedData.helpCategory || '',
+      selectedPlan: completedData.selectedPlan || 'free_trial',
+      hasGoogleConnected: !!completedData.googleConnected,
+      paymentConfirmed: !!completedData.paymentConfirmed
     });
 
-    // Save all collected data to localStorage as fallback
+    const profile = {
+      name: completedData.name || '',
+      help_category: completedData.helpCategory || '',
+      google_oauth: completedData.googleConnected ? 'connected' : 'skipped',
+      selected_plan: completedData.selectedPlan || 'free_trial',
+      onboarding_completed_at: new Date().toISOString(),
+    };
+
     try {
+      await persistOnboardingProfile(profile, {
+        onboarding_completed: 'true',
+        user_name: profile.name,
+        help_category: profile.help_category,
+        selected_plan: profile.selected_plan,
+        legal_agreement_accepted: completedData.legalAccepted ? 'true' : 'false',
+        legal_agreement_version: '2026-07-10',
+      });
+
       localStorage.setItem('onboarding_completed', 'true');
-      localStorage.setItem('user_data', JSON.stringify(userData));
-      localStorage.setItem('user_name', userData.name || '');
-      localStorage.setItem('user_email', userData.email || '');
-      localStorage.setItem('help_category', userData.helpCategory || '');
-      localStorage.setItem('selected_plan', userData.selectedPlan || 'free_trial');
+      localStorage.setItem('user_data', JSON.stringify(completedData));
+      localStorage.setItem('user_name', completedData.name || '');
+      localStorage.setItem('user_email', completedData.email || '');
+      localStorage.setItem('help_category', completedData.helpCategory || '');
+      localStorage.setItem('selected_plan', completedData.selectedPlan || 'free_trial');
     } catch (e) {
-      console.warn('[Onboarding] Failed to save to localStorage:', e);
-    }
-    
-    // Save to Supabase preferences (with fallback)
-    try {
-      await setUserPreference('onboarding_completed', 'true');
-      if (userData.name) await setUserPreference('user_name', userData.name);
-      if (userData.helpCategory) await setUserPreference('help_category', userData.helpCategory);
-      if (userData.selectedPlan) await setUserPreference('selected_plan', userData.selectedPlan);
-      
-      // Save complete profile object
-      const profile = {
-        name: userData.name || '',
-        help_category: userData.helpCategory || '',
-        google_oauth: userData.googleConnected ? 'connected' : 'skipped',
-        selected_plan: userData.selectedPlan || 'free_trial',
-        onboarding_completed_at: new Date().toISOString(),
-      };
-      await setUserPreference('prompt_profile', JSON.stringify(profile));
-      
-      // CRITICAL FIX: Also save to users.metadata.profile so getProfile() finds it
-      // This is the source that chat context reads from
-      try {
-        await updateUserProfile(profile);
-        console.log('[Onboarding] Profile saved to users.metadata:', profile);
-      } catch (profileErr) {
-        console.warn('[Onboarding] Failed to update profile metadata:', profileErr);
-      }
-    } catch (e) {
-      console.warn('[Onboarding] Failed to save to Supabase:', e);
+      console.error('[Onboarding] Failed to persist setup:', e);
+      setCompletionError('Setup could not be saved. Check your connection and try again.');
+      setIsCompleting(false);
+      return;
     }
     
     // Flush any pre-auth queued operations now that user_id exists
@@ -4229,7 +4224,8 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
     }
     
     console.log('[Onboarding] Data saved successfully');
-    onComplete(userData);
+    onComplete(completedData);
+    setIsCompleting(false);
   };
 
   const CurrentStepComponent = steps[currentStep].component;
@@ -4286,6 +4282,8 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
                     isLast={currentStep === steps.length - 1}
                     serverConnected={serverConnected}
                     checkingServer={checkingServer}
+                    completionError={completionError}
+                    isCompleting={isCompleting}
                   />
                 </motion.div>
               </AnimatePresence>

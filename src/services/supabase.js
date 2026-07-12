@@ -56,94 +56,6 @@ export async function resetPassword(email) {
 }
 
 /**
- * Email/password sign-in, or create an account if it does not exist.
- * Returns the authenticated user or null when Supabase is disabled.
- *
- * IMPORTANT: This function also checks if the user has an existing subscription
- * and links the current device to that account to prevent duplicate subscriptions.
- */
-export async function emailPasswordSignInOrCreate(email, password) {
-  if (!SUPABASE_ENABLED || !supabase) return null;
-
-  // First try to sign in
-  const signIn = await supabase.auth.signInWithPassword({ email, password });
-  if (signIn?.data?.user) {
-    logger.info('Signed in existing user', { email });
-    const authUserId = signIn.data.user.id;
-    try { localStorage.setItem('user_id', authUserId); } catch {}
-
-    // CRITICAL: Check if this email has an existing subscription in the users table
-    // If so, we should use THAT user_id to ensure subscription continuity
-    let finalUserId = authUserId;
-    try {
-      const existingUser = await supabase
-        .from('users')
-        .select('id, email, subscription_status, subscription_tier, credits')
-        .eq('email', email)
-        .single();
-
-      if (existingUser?.data && existingUser.data.subscription_status === 'active') {
-        // User has an existing subscription - use that user_id
-        const existingUserId = existingUser.data.id;
-        logger.info('Found existing subscription for email', {
-          email,
-          existingUserId,
-          tier: existingUser.data.subscription_tier,
-          credits: existingUser.data.credits
-        });
-
-        // Update localStorage to use the existing user_id
-        try { localStorage.setItem('user_id', existingUserId); } catch {}
-        finalUserId = existingUserId;
-
-        // Check for weekly credit reset (backup for pg_cron)
-        // This runs asynchronously to not block login
-        checkAndResetWeeklyCredits(existingUserId).catch(err => {
-          logger.warn('Weekly credit reset check failed (non-blocking)', err);
-        });
-
-        // Return the auth user but with the existing subscription user_id
-        return { ...signIn.data.user, id: existingUserId, _authId: authUserId };
-      }
-    } catch (lookupErr) {
-      logger.warn('Failed to lookup existing subscription', lookupErr);
-    }
-
-    // Still check for weekly reset even if no active subscription found
-    // (in case subscription was just activated)
-    checkAndResetWeeklyCredits(finalUserId).catch(err => {
-      logger.warn('Weekly credit reset check failed (non-blocking)', err);
-    });
-
-    return signIn.data.user;
-  }
-  
-  // If sign in failed (user doesn't exist or wrong password), try to sign up
-  if (signIn?.error?.message?.includes('Invalid login credentials')) {
-    logger.info('User not found, creating new account', { email });
-    const signUp = await supabase.auth.signUp({ email, password });
-    if (signUp?.error) {
-      logger.error('Sign up failed', signUp.error);
-      throw signUp.error;
-    }
-    const user = signUp?.data?.user || null;
-    if (user) {
-      try { localStorage.setItem('user_id', user.id); } catch {}
-      logger.info('Created new user', { id: user.id, email });
-    }
-    return user;
-  }
-  
-  // Other error (e.g., wrong password for existing user)
-  if (signIn?.error) {
-    logger.error('Sign in failed', signIn.error);
-    throw signIn.error;
-  }
-  
-  return null;
-}
-
-/**
  * Ensure a users row exists for the authenticated user. RLS requires auth.uid() = id.
  * Returns true if user row exists/was created, false otherwise.
  */
@@ -227,6 +139,49 @@ export async function ensureUsersRow(email) {
   
   logger.info('ensureUsersRow: User row created', { id: user.id });
   return true;
+}
+
+export async function persistOnboardingProfile(profile, preferences = {}) {
+  if (!SUPABASE_ENABLED || !supabase) throw new Error('Authentication service unavailable');
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) throw authError || new Error('You must be signed in to finish setup.');
+
+  const rowReady = await ensureUsersRow(user.email);
+  if (!rowReady) throw new Error('Could not create your account profile.');
+
+  const { data: current, error: readError } = await supabase
+    .from('users')
+    .select('metadata')
+    .eq('id', user.id)
+    .single();
+  if (readError) throw readError;
+
+  const { error: profileError } = await supabase
+    .from('users')
+    .update({
+      metadata: {
+        ...(current?.metadata || {}),
+        profile: { ...(current?.metadata?.profile || {}), ...profile },
+      },
+    })
+    .eq('id', user.id);
+  if (profileError) throw profileError;
+
+  const preferenceRows = Object.entries(preferences).map(([key, value]) => ({
+    user_id: user.id,
+    key,
+    value: String(value),
+    category: 'onboarding',
+    updated_at: new Date().toISOString(),
+  }));
+  if (preferenceRows.length > 0) {
+    const { error: preferencesError } = await supabase
+      .from('preferences')
+      .upsert(preferenceRows, { onConflict: 'user_id,key' });
+    if (preferencesError) throw preferencesError;
+  }
+
+  return { userId: user.id };
 }
 
 export const supabase = SUPABASE_ENABLED

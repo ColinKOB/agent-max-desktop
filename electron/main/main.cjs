@@ -21,6 +21,7 @@ const {
   shell,
   clipboard,
   desktopCapturer,
+  systemPreferences,
 } = require('electron');
 const fs = require('fs');
 const { spawn, execFile } = require('child_process');
@@ -88,6 +89,7 @@ const workspaceApiServer = require('../autonomous/workspaceApiServer.cjs');
 const spreadsheetApiServer = require('../spreadsheet/spreadsheetApiServer.cjs');
 const notesApiServer = require('../notes/notesApiServer.cjs');
 const testingApiServer = require('../testing/testingApiServer.cjs');
+const { configureReviewNotifications } = require('./reviewNotifications.cjs');
 const { getProfileCache } = require('../storage/userProfileCache.cjs');
 
 // App Discovery Service for personalized onboarding
@@ -141,6 +143,37 @@ let memoryManager;
 let profileCache;
 let cardWindow;
 let handsOnDesktopClient = null;
+let pendingAuthCallbackUrl = null;
+
+function acceptAuthCallback(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'agentmax:' || parsed.hostname !== 'auth' || parsed.pathname !== '/callback') {
+      return false;
+    }
+    pendingAuthCallbackUrl = parsed.toString();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.webContents.send('auth:callback', pendingAuthCallbackUrl);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+app.on('open-url', (event, url) => {
+  if (acceptAuthCallback(url)) event.preventDefault();
+});
+
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) app.quit();
+
+app.on('second-instance', (_event, argv) => {
+  const callbackUrl = argv.find(arg => typeof arg === 'string' && arg.startsWith('agentmax://auth/callback'));
+  if (callbackUrl) acceptAuthCallback(callbackUrl);
+});
 
 // Screen magnet (edge snap) state
 let magnetTimer = null;
@@ -225,6 +258,22 @@ function createWindow() {
     show: false,
     title: 'Agent Max',
     hasShadow: false,  // Disabled - shadows on transparent windows cause compositor artifacts during resize
+  });
+
+  // The float bar has a fixed native window size. Persisted Chromium zoom or
+  // View-menu shortcuts make its CSS viewport wider than the window, leaving a
+  // transparent strip beside the 360px container.
+  const enforceFloatbarZoom = () => {
+    try {
+      mainWindow?.webContents?.setZoomFactor(1);
+      mainWindow?.webContents?.setVisualZoomLevelLimits(1, 1);
+    } catch {}
+  };
+  enforceFloatbarZoom();
+  mainWindow.webContents.on('did-finish-load', enforceFloatbarZoom);
+  mainWindow.webContents.on('zoom-changed', (event) => {
+    event.preventDefault();
+    enforceFloatbarZoom();
   });
 
   // Make window visible on all workspaces/desktops
@@ -472,7 +521,17 @@ function showPillWindow() {
 }
 
 app.whenReady().then(async () => {
+  if (process.defaultApp && process.argv[1]) {
+    app.setAsDefaultProtocolClient('agentmax', process.execPath, [path.resolve(process.argv[1])]);
+  } else {
+    app.setAsDefaultProtocolClient('agentmax');
+  }
   telemetry.initialize({ app, ipcMain });
+  configureReviewNotifications({
+    Notification,
+    getMainWindow: () => mainWindow,
+    focusApp: () => app.focus({ steal: true }),
+  });
   // Initialize PostHog analytics (to catch any startup errors)
   await posthogAnalytics.initialize();
   posthogAnalytics.setupLifecycleTracking();
@@ -549,6 +608,35 @@ app.whenReady().then(async () => {
   //     console.error('Failed to resume active runs:', err);
   //   });
   // }, 2000);
+});
+
+ipcMain.handle('auth:consume-callback', () => {
+  const callbackUrl = pendingAuthCallbackUrl;
+  pendingAuthCallbackUrl = null;
+  return callbackUrl;
+});
+
+ipcMain.handle('permissions:get-status', () => {
+  if (process.platform !== 'darwin') return { platform: process.platform };
+  return {
+    platform: 'darwin',
+    microphone: systemPreferences.getMediaAccessStatus('microphone'),
+    camera: systemPreferences.getMediaAccessStatus('camera'),
+    screen: systemPreferences.getMediaAccessStatus('screen'),
+    accessibility: systemPreferences.isTrustedAccessibilityClient(false) ? 'granted' : 'not-granted',
+  };
+});
+
+ipcMain.handle('permissions:open-settings', (_event, permission) => {
+  const panes = {
+    screen: 'Privacy_ScreenCapture',
+    accessibility: 'Privacy_Accessibility',
+    microphone: 'Privacy_Microphone',
+    camera: 'Privacy_Camera',
+  };
+  if (process.platform !== 'darwin' || !panes[permission]) return { success: false };
+  shell.openExternal(`x-apple.systempreferences:com.apple.preference.security?${panes[permission]}`);
+  return { success: true };
 });
 
 app.on('before-quit', async () => {

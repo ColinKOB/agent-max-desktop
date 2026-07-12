@@ -2,7 +2,7 @@
  * Credit Display Widget
  * Shows real-time credit balance with live updates
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Coins, AlertCircle, Plus, TrendingDown } from 'lucide-react';
 import { supabase, canUseSupabase } from '../services/supabase';
 import { creditsAPI } from '../services/api';
@@ -12,14 +12,17 @@ import { trackCreditsLowWarning, trackCreditsDepleted, trackUpgradePromptShown }
 export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', purchasePackage = 'pro', onCreditsChange, refreshTrigger }) {
   const [credits, setCredits] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
+  const previousCreditsRef = useRef(null);
   const supabaseReady = canUseSupabase(userId);
 
   // Fetch initial credits
   useEffect(() => {
     if (!userId) return;
     if (!supabaseReady) {
-      setCredits(0);
+      setCredits(null);
+      setError('Credit balance unavailable');
       setLoading(false);
       return;
     }
@@ -54,7 +57,9 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
           const newCredits = payload.new?.credits;
           if (newCredits !== undefined) {
             console.log('[CreditDisplay] Realtime update:', newCredits);
+            previousCreditsRef.current = newCredits;
             setCredits(newCredits);
+            setError(null);
             setLastUpdate(Date.now());
 
             // Notify parent component of credit changes
@@ -90,10 +95,13 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
 
   const fetchCredits = async () => {
     if (!supabaseReady) {
-      setCredits((prev) => (prev ?? 0));
+      setCredits(null);
+      setError('Credit balance unavailable');
       setLoading(false);
       return;
     }
+    setLoading(true);
+    setError(null);
     try {
       const { data, error } = await supabase
         .from('users')
@@ -105,8 +113,10 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
 
       // Credits are stored directly in users.credits column (not metadata)
       const newCredits = data?.credits || 0;
+      const previousCredits = previousCreditsRef.current;
 
       setCredits(newCredits);
+      previousCreditsRef.current = newCredits;
       setLoading(false);
       setLastUpdate(Date.now());
 
@@ -116,9 +126,9 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
       }
 
       // Show warning if low
-      if (newCredits < 10 && newCredits > 0 && prevCredits !== newCredits) {
+      if (newCredits < 10 && newCredits > 0 && previousCredits !== newCredits) {
         trackCreditsLowWarning(newCredits, 10);
-        toast('⚠️ Low credits! Consider purchasing more.', {
+        toast('Low credits. Consider purchasing more.', {
           duration: 4000,
           style: {
             background: '#FEF3C7',
@@ -128,7 +138,7 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
       }
 
       // Show error if empty
-      if (newCredits === 0 && prevCredits > 0) {
+      if (newCredits === 0 && previousCredits > 0) {
         trackCreditsDepleted();
         toast.error('No credits remaining! Purchase more to continue.', {
           duration: 6000
@@ -136,7 +146,31 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
       }
     } catch (error) {
       console.error('[CreditDisplay] Failed to fetch credits:', error);
+      setError('Credit balance unavailable');
       setLoading(false);
+    }
+  };
+
+  const handleOpenBilling = async () => {
+    try {
+      if (onPurchaseClick) {
+        await onPurchaseClick();
+        return;
+      }
+
+      // Open the dedicated Settings window directly to the Credits section (desktop)
+      if (window.electron?.openSettings || window.electronAPI?.openSettings) {
+        const openSettings = window.electron?.openSettings || window.electronAPI?.openSettings;
+        await openSettings({ route: '#/settings?section=credits' });
+        return;
+      }
+
+      // Web fallback only (not used in desktop): navigate within SPA
+      window.location.hash = '#/settings?section=credits';
+    } catch (e) {
+      console.error('Failed to open settings:', e);
+      // Web fallback
+      try { window.location.hash = '#/settings?section=credits'; } catch {}
     }
   };
 
@@ -161,21 +195,30 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
         return;
       }
 
-      // Open the dedicated Settings window directly to the Credits section (desktop)
-      if (window.electron?.openSettings || window.electronAPI?.openSettings) {
-        const openSettings = window.electron?.openSettings || window.electronAPI?.openSettings;
-        await openSettings({ route: '#/settings?section=credits' });
-        return;
-      }
-
-      // Web fallback only (not used in desktop): navigate within SPA
-      window.location.hash = '#/settings?section=credits';
-    } catch (e) {
-      console.error('Failed to open settings:', e);
-      // Web fallback
-      try { window.location.hash = '#/settings?section=credits'; } catch {}
+      await handleOpenBilling();
+    } catch (error) {
+      console.error('Failed to purchase credits:', error);
     }
   };
+
+  if (!userId) {
+    return null;
+  }
+
+  if (loading && variant === 'tool') {
+    return (
+      <button
+        type="button"
+        className="apple-tool-btn credit-tool-btn"
+        aria-label="Loading credit balance"
+        title="Loading credit balance"
+        disabled
+      >
+        <Coins size={12} aria-hidden="true" />
+        <span className="credit-tool-value">--</span>
+      </button>
+    );
+  }
 
   if (loading) {
     return (
@@ -185,26 +228,40 @@ export function CreditDisplay({ userId, onPurchaseClick, variant = 'default', pu
     );
   }
 
-  if (!userId) {
-    return null;
-  }
-
   const isLow = credits < 10;
   const isEmpty = credits === 0;
 
-  // Compact tool-button variant to match top-right tools (30x30 buttons)
-  // Display-only: no click functionality, just shows credit count
   if (variant === 'tool') {
-    return (
-      <div className="flex items-center gap-2">
-        <div
-          className="apple-tool-btn"
-          title={`${credits} ${credits === 1 ? 'credit' : 'credits'} remaining`}
-          style={{ cursor: 'default' }}
+    if (error || credits === null) {
+      return (
+        <button
+          type="button"
+          className="apple-tool-btn credit-tool-btn credit-tool-error"
+          onClick={fetchCredits}
+          aria-label="Credit balance unavailable. Click to retry."
+          title="Credit balance unavailable. Click to retry."
         >
-          <span className="text-[11px] font-semibold">{credits}</span>
-        </div>
-      </div>
+          <AlertCircle size={13} aria-hidden="true" />
+        </button>
+      );
+    }
+
+    const formattedCredits = new Intl.NumberFormat().format(credits);
+    const creditLabel = isEmpty
+      ? 'No credits remaining'
+      : `${formattedCredits} ${credits === 1 ? 'credit' : 'credits'} remaining`;
+
+    return (
+      <button
+        type="button"
+        className={`apple-tool-btn credit-tool-btn${isEmpty ? ' credit-tool-empty' : isLow ? ' credit-tool-low' : ''}`}
+        onClick={handleOpenBilling}
+        title={creditLabel}
+        aria-label={`${creditLabel}. Open billing and usage.`}
+      >
+        <Coins size={12} aria-hidden="true" />
+        <span className="credit-tool-value">{formattedCredits}</span>
+      </button>
     );
   }
 

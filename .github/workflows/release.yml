@@ -37,7 +37,7 @@ jobs:
       - name: Rebuild native modules
         run: npm rebuild better-sqlite3 keytar --build-from-source
 
-      - name: Build, sign, and publish macOS app
+      - name: Build and sign macOS app
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -56,16 +56,21 @@ jobs:
           VITE_POSTHOG_HOST: 'https://us.i.posthog.com'
           # Enable Pull-Based Execution (v4 iterative engine)
           VITE_ENABLE_PULL_EXECUTION: 'true'
-        run: npm run build && npx electron-builder --mac --publish always
+        run: npm run build && npx electron-builder --mac --publish never
         timeout-minutes: 30
+
+      - name: Verify macOS updater metadata
+        run: node scripts/verify-release-artifacts.mjs release/latest-mac.yml
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
           name: mac-release
+          if-no-files-found: error
           path: |
             release/*.dmg
             release/*.zip
+            release/*.blockmap
             release/latest-mac.yml
 
   build-windows:
@@ -89,7 +94,7 @@ jobs:
         env:
           PUPPETEER_SKIP_DOWNLOAD: 'true'
 
-      - name: Build and publish Windows app
+      - name: Build Windows app
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           # Supabase configuration (required for user data)
@@ -103,13 +108,65 @@ jobs:
           VITE_POSTHOG_HOST: 'https://us.i.posthog.com'
           # Enable Pull-Based Execution (v4 iterative engine)
           VITE_ENABLE_PULL_EXECUTION: 'true'
-        run: npm run build && npx electron-builder --win --publish always
+        run: npm run build && npx electron-builder --win --publish never
         timeout-minutes: 30
+
+      - name: Verify Windows updater metadata
+        run: node scripts/verify-release-artifacts.mjs release/latest.yml
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
           name: win-release
+          if-no-files-found: error
           path: |
             release/*.exe
+            release/*.zip
+            release/*.blockmap
             release/latest.yml
+
+  publish-release:
+    needs: [build-mac, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: mac-release
+          path: artifacts/mac
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: win-release
+          path: artifacts/windows
+
+      - name: Resolve release tag
+        id: release
+        shell: bash
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+          elif [[ -n "$REQUESTED_VERSION" ]]; then
+            tag="v${REQUESTED_VERSION#v}"
+          else
+            echo "A version is required for manually dispatched releases." >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Publish complete release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          mapfile -t files < <(find artifacts -type f -print)
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "${files[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$RELEASE_TAG" "${files[@]}" --generate-notes --repo "$GITHUB_REPOSITORY"
+          fi

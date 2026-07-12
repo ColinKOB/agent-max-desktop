@@ -653,6 +653,7 @@ export default function AppleFloatBar({
     isHighRisk: false,
     onApprove: null,
   });
+  const pendingReviewRef = useRef(null);
 
   // Intent confirmation state (UX improvement - show AI understanding before execution)
   const [intentConfirmationOpen, setIntentConfirmationOpen] = useState(false);
@@ -2367,6 +2368,21 @@ export default function AppleFloatBar({
       setIsTransitioning(false);
     }, 300);
   }, [thoughts.length]);
+
+  useEffect(() => {
+    if (!window.electron?.onReviewNotificationOpen) return undefined;
+
+    return window.electron.onReviewNotificationOpen(() => {
+      const wasMini = isMiniRef.current;
+      if (wasMini) handleExpand();
+      window.setTimeout(() => {
+        const review = pendingReviewRef.current;
+        if (!review) return;
+        review.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        review.querySelector('button, input, textarea, [tabindex]:not([tabindex="-1"])')?.focus();
+      }, wasMini ? 350 : 50);
+    });
+  }, [handleExpand]);
 
   // Inline Thought helpers
   const appendThought = useCallback((text) => {
@@ -6213,8 +6229,17 @@ export default function AppleFloatBar({
       if (monitorMenuRef.current?.contains(e.target) || monitorBtnRef.current?.contains(e.target)) return;
       setMonitorMenuOpen(false);
     };
+    const onKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      setMonitorMenuOpen(false);
+      requestAnimationFrame(() => monitorBtnRef.current?.focus());
+    };
     document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, [monitorMenuOpen]);
 
   // Handle launching workspace from menu
@@ -7856,7 +7881,12 @@ export default function AppleFloatBar({
 
             {/* Inline ask_user question from AI - supports both single question and batched wizard */}
             {pendingAskUser && (
-              <div className="apple-message apple-message-assistant" style={{ marginBottom: 12 }}>
+              <div
+                ref={pendingReviewRef}
+                className="apple-message apple-message-assistant"
+                data-pending-review="true"
+                style={{ marginBottom: 12 }}
+              >
                 <div className="apple-message-content">
                   {/* Context header */}
                   {pendingAskUser.context && (

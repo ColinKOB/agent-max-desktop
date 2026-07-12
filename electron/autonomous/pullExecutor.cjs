@@ -22,6 +22,10 @@ const { workspaceManager } = require('../workspace/workspaceManager.cjs');
 
 // Spreadsheet API server auth token for same-process localhost calls
 const spreadsheetApiServer = require('../spreadsheet/spreadsheetApiServer.cjs');
+const {
+    notifyReviewRequired,
+    clearPendingReview
+} = require('../main/reviewNotifications.cjs');
 
 // Analytics for tool failure tracking
 let analytics = null;
@@ -1417,7 +1421,8 @@ class PullExecutor {
         }
 
         // Find the main window to show the dialog
-        const mainWindow = BrowserWindow.getAllWindows().find(w => !w.isDestroyed());
+        const windows = BrowserWindow.getAllWindows().filter(w => !w.isDestroyed());
+        const mainWindow = windows.find(w => w.getTitle?.() === 'Agent Max') || windows[0];
         if (!mainWindow) {
             return {
                 success: false,
@@ -1447,6 +1452,16 @@ class PullExecutor {
         // Send to renderer using pull-executor:ask-user channel
         mainWindow.webContents.send('pull-executor:ask-user', payload);
 
+        const firstQuestion = isBatched ? args.questions[0] : null;
+        const reviewPayload = {
+            source: 'pull-executor',
+            runId: this.currentRunId || args.runId,
+            questionId: firstQuestion?.id || payload.timestamp,
+            question: firstQuestion?.question || payload.question,
+            timestamp: payload.timestamp
+        };
+        notifyReviewRequired(reviewPayload);
+
         // Wait for response from renderer (with timeout)
         return new Promise((resolve) => {
             const timeoutMs = 300000; // 5 minute timeout
@@ -1456,6 +1471,7 @@ class PullExecutor {
                 if (resolved) return;
                 resolved = true;
                 ipcMain.removeHandler('pull-executor:respond-to-question');
+                clearPendingReview(reviewPayload);
 
                 console.log(`[PullExecutor] ask_user response:`, response);
 
@@ -1512,6 +1528,7 @@ class PullExecutor {
                 if (resolved) return;
                 resolved = true;
                 ipcMain.removeHandler('pull-executor:respond-to-question');
+                clearPendingReview(reviewPayload);
 
                 resolve({
                     success: false,
