@@ -1,5 +1,11 @@
 export const AUTH_CALLBACK_URL = 'agentmax://auth/callback';
 
+export function getOnboardingCallbackType(rawUrl) {
+  const callbackUrl = new URL(rawUrl);
+  const fragment = new URLSearchParams(callbackUrl.hash.replace(/^#/, ''));
+  return callbackUrl.searchParams.get('type') || fragment.get('type');
+}
+
 export async function createOnboardingAccount(auth, email, password) {
   return auth.signUp({
     email: email.trim(),

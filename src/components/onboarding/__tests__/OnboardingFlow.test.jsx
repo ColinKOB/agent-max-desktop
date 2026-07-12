@@ -3,6 +3,7 @@ import {
   AUTH_CALLBACK_URL,
   createOnboardingAccount,
   exchangeOnboardingCallback,
+  getOnboardingCallbackType,
 } from '../../../services/onboardingAuth.js';
 
 describe('onboarding authentication contract', () => {
@@ -27,5 +28,9 @@ describe('onboarding authentication contract', () => {
     await exchangeOnboardingCallback(auth, `${AUTH_CALLBACK_URL}#access_token=access&refresh_token=refresh`);
     expect(auth.setSession).toHaveBeenCalledWith({ access_token: 'access', refresh_token: 'refresh' });
     await expect(exchangeOnboardingCallback(auth, 'https://example.com/callback?code=bad')).rejects.toThrow('Invalid authentication callback');
+  });
+
+  it('identifies a recovery callback passed in the URL fragment', () => {
+    expect(getOnboardingCallbackType(`${AUTH_CALLBACK_URL}#access_token=access&type=recovery`)).toBe('recovery');
   });
 });

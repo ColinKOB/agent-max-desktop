@@ -82,7 +82,7 @@ import { WEEKLY_CREDITS } from '../../config/pricing';
 import LogoPng from '../../assets/AgentMaxLogo.png';
 import { setPreference as setUserPreference, flushPreAuthQueue } from '../../services/supabaseMemory';
 import { ensureUsersRow, persistOnboardingProfile, supabase, resetPassword } from '../../services/supabase.js';
-import { AUTH_CALLBACK_URL, createOnboardingAccount, exchangeOnboardingCallback } from '../../services/onboardingAuth.js';
+import { AUTH_CALLBACK_URL, createOnboardingAccount, exchangeOnboardingCallback, getOnboardingCallbackType } from '../../services/onboardingAuth.js';
 import { isGoogleComingSoon } from '../../config/featureGates';
 import {
   trackOnboardingStarted,
@@ -1695,9 +1695,10 @@ function UseCaseStep({ userData, onNext, onBack }) {
 // STEP 3: EMAIL/ACCOUNT (Sign Up or Sign In)
 // ============================================================================
 function AccountStep({ onNext, onBack, userData }) {
-  const [mode, setMode] = useState('signin'); // 'signin', 'signup', or 'forgot-password'
+  const [mode, setMode] = useState('signin'); // 'signin', 'signup', 'forgot-password', or 'update-password'
   const [email, setEmail] = useState(userData?.email || '');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
@@ -1708,6 +1709,44 @@ function AccountStep({ onNext, onBack, userData }) {
   const strongPw = (v) => v.length >= 8;
   const canSubmit = validEmail(email) && strongPw(password) && !saving;
   const canSubmitReset = validEmail(email) && !saving;
+  const canUpdatePassword = strongPw(password) && password === confirmPassword && !saving;
+
+  const processRecoveryCallback = useCallback(async (rawUrl) => {
+    setSaving(true);
+    setError(null);
+    try {
+      if (!rawUrl || getOnboardingCallbackType(rawUrl) !== 'recovery') return;
+
+      const { error: callbackError } = await exchangeOnboardingCallback(supabase.auth, rawUrl);
+      if (callbackError) throw callbackError;
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw userError || new Error('Password recovery session was not available.');
+
+      setEmail(user.email || '');
+      setPassword('');
+      setConfirmPassword('');
+      setMode('update-password');
+    } catch (err) {
+      console.error('[Onboarding] Password recovery callback failed:', err);
+      setError('This reset link is invalid or has expired. Request a new password reset email.');
+      setMode('forgot-password');
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    window.electron?.consumeAuthCallback?.().then((url) => {
+      if (mounted && url) processRecoveryCallback(url);
+    });
+    const unsubscribe = window.electron?.onAuthCallback?.(processRecoveryCallback);
+    return () => {
+      mounted = false;
+      unsubscribe?.();
+    };
+  }, [processRecoveryCallback]);
 
   const handleSignUp = async () => {
     console.log('[Onboarding] ========== SIGN UP HANDLER CALLED ==========');
@@ -1948,7 +1987,32 @@ function AccountStep({ onNext, onBack, userData }) {
     }
   };
 
-  const handleSubmit = mode === 'signin' ? handleSignIn : handleSignUp;
+  const handleUpdatePassword = async () => {
+    if (!canUpdatePassword) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) throw updateError;
+
+      try { localStorage.setItem('user_email', email); } catch {}
+      setPassword('');
+      setConfirmPassword('');
+      setMode('signin');
+      setResetEmailSent(true);
+    } catch (err) {
+      console.error('[Onboarding] Password update failed:', err);
+      setError(err.message || 'Could not update your password. Try requesting a new reset link.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSubmit = mode === 'signin'
+    ? handleSignIn
+    : mode === 'signup'
+      ? handleSignUp
+      : handleUpdatePassword;
 
   return (
     <div style={{
@@ -1964,6 +2028,8 @@ function AccountStep({ onNext, onBack, userData }) {
         <h2 style={styles.heading}>
           {mode === 'forgot-password'
             ? 'Reset your password'
+            : mode === 'update-password'
+              ? 'Choose a new password'
             : mode === 'signin'
               ? 'Welcome back!'
               : userData?.name
@@ -1973,14 +2039,16 @@ function AccountStep({ onNext, onBack, userData }) {
         <p style={styles.subheading}>
           {mode === 'forgot-password'
             ? "Enter your email and we'll send you a reset link."
+            : mode === 'update-password'
+              ? 'Your identity is verified. Set a new password to continue.'
             : mode === 'signin'
               ? 'Sign in to access your Agent Max account.'
               : 'New here? Create an account to get started.'}
         </p>
       </motion.div>
 
-      {/* Mode Toggle - Hide when in forgot-password mode */}
-      {mode !== 'forgot-password' && (
+      {/* Mode Toggle - Hide during password recovery */}
+      {mode !== 'forgot-password' && mode !== 'update-password' && (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -2047,6 +2115,7 @@ function AccountStep({ onNext, onBack, userData }) {
           onBlur={() => setEmailFocused(false)}
           placeholder="Email address"
           type="email"
+          readOnly={mode === 'update-password'}
           style={{
             ...styles.input,
             borderColor: emailFocused ? BRAND_ORANGE_GLOW : 'rgba(255, 255, 255, 0.12)',
@@ -2054,21 +2123,32 @@ function AccountStep({ onNext, onBack, userData }) {
           }}
         />
 
-        {/* Password input - hidden in forgot-password mode */}
+        {/* Password input - hidden only while requesting a reset email */}
         {mode !== 'forgot-password' && (
           <input
             value={password}
             onChange={(e) => { setPassword(e.target.value); setError(null); }}
             onFocus={() => setPasswordFocused(true)}
             onBlur={() => setPasswordFocused(false)}
-            onKeyDown={(e) => e.key === 'Enter' && canSubmit && handleSubmit()}
-            placeholder={mode === 'signin' ? 'Password' : 'Create password (8+ characters)'}
+            onKeyDown={(e) => e.key === 'Enter' && (mode === 'update-password' ? canUpdatePassword : canSubmit) && handleSubmit()}
+            placeholder={mode === 'signin' ? 'Password' : mode === 'update-password' ? 'New password (8+ characters)' : 'Create password (8+ characters)'}
             type="password"
             style={{
               ...styles.input,
               borderColor: passwordFocused ? BRAND_ORANGE_GLOW : 'rgba(255, 255, 255, 0.12)',
               boxShadow: passwordFocused ? `0 0 0 3px ${BRAND_ORANGE_LIGHT}` : 'none',
             }}
+          />
+        )}
+
+        {mode === 'update-password' && (
+          <input
+            value={confirmPassword}
+            onChange={(e) => { setConfirmPassword(e.target.value); setError(null); }}
+            onKeyDown={(e) => e.key === 'Enter' && canUpdatePassword && handleUpdatePassword()}
+            placeholder="Confirm new password"
+            type="password"
+            style={styles.input}
           />
         )}
 
@@ -2092,7 +2172,7 @@ function AccountStep({ onNext, onBack, userData }) {
         )}
 
         {/* Success Message for password reset */}
-        {mode === 'forgot-password' && resetEmailSent && (
+        {(mode === 'forgot-password' || mode === 'signin') && resetEmailSent && (
           <motion.div
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
@@ -2110,7 +2190,9 @@ function AccountStep({ onNext, onBack, userData }) {
             }}
           >
             <Check style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} />
-            Check your email for a password reset link.
+            {mode === 'signin'
+              ? 'Password updated. Sign in with your new password.'
+              : 'Check your email. The reset link will open Agent Max.'}
           </motion.div>
         )}
 
@@ -2159,6 +2241,21 @@ function AccountStep({ onNext, onBack, userData }) {
               }}
             >
               Back to Sign In
+            </button>
+          </div>
+        ) : mode === 'update-password' ? (
+          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+            <button
+              onClick={handleUpdatePassword}
+              disabled={!canUpdatePassword}
+              style={{
+                ...styles.primaryButton,
+                flex: 1,
+                opacity: !canUpdatePassword ? 0.5 : 1,
+                cursor: !canUpdatePassword ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {saving ? 'Saving...' : 'Save New Password'}
             </button>
           </div>
         ) : (

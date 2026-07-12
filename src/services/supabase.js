@@ -5,6 +5,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { createLogger } from './logger.js';
+import { AUTH_CALLBACK_URL } from './onboardingAuth.js';
 
 const logger = createLogger('Supabase');
 
@@ -37,9 +38,9 @@ export async function resetPassword(email) {
 
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      // Supabase will redirect here after user clicks reset link
-      // For desktop app, this goes to Supabase's hosted reset page
-      redirectTo: `${window.location.origin}/#/reset-password`,
+      // The packaged desktop app has no localhost web server. Route recovery
+      // links back through the app's registered custom protocol instead.
+      redirectTo: AUTH_CALLBACK_URL,
     });
 
     if (error) {
