@@ -1,6 +1,6 @@
 {
   "name": "agent-max-desktop",
-  "version": "1.3.11",
+  "version": "1.3.12",
   "description": "Desktop application for Agent Max Memory System V2",
   "main": "electron/main/main.cjs",
   "author": "Colin O'Brien",
@@ -51,7 +51,6 @@
   "build": {
     "appId": "com.agentmax.desktop",
     "productName": "Agent Max",
-    "artifactName": "Agent-Max-${version}-${arch}.${ext}",
     "afterSign": "scripts/notarize.cjs",
     "protocols": [
       {
@@ -73,6 +72,7 @@
     ],
     "asarUnpack": [],
     "mac": {
+      "artifactName": "Agent-Max-${version}-mac-${arch}.${ext}",
       "icon": "build/icon.icns",
       "category": "public.app-category.productivity",
       "target": [
@@ -121,6 +121,7 @@
       }
     },
     "win": {
+      "artifactName": "Agent-Max-${version}-win-${arch}.${ext}",
       "icon": "build/icon.ico",
       "target": [
         "nsis",
