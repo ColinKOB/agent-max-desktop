@@ -3234,6 +3234,41 @@ class PullExecutor {
      */
     async executeGoogleAction(tool, args) {
         try {
+            const originalTool = tool;
+            tool = String(tool || '').trim().toLowerCase();
+            if (!tool.startsWith('google.')) {
+                tool = `google.${tool}`;
+            }
+
+            const bareActionMap = {
+                'google.list_messages': 'google.gmail.list_messages',
+                'google.search': 'google.gmail.search',
+                'google.send': 'google.gmail.send',
+                'google.get_message': 'google.gmail.get_message',
+                'google.list_events': 'google.calendar.list_events',
+                'google.create_event': 'google.calendar.create_event'
+            };
+            tool = bareActionMap[tool] || tool;
+
+            const aliasMap = {
+                'google.gmail.list': 'google.gmail.list_messages',
+                'google.gmail.list_emails': 'google.gmail.list_messages',
+                'google.gmail.messages': 'google.gmail.list_messages',
+                'google.gmail.read': 'google.gmail.list_messages',
+                'google.gmail.inbox': 'google.gmail.list_messages',
+                'google.gmail.search_messages': 'google.gmail.search',
+                'google.gmail.send_message': 'google.gmail.send',
+                'google.gmail.send_email': 'google.gmail.send',
+                'google.calendar.events': 'google.calendar.list_events',
+                'google.calendar.list': 'google.calendar.list_events',
+                'google.calendar.create': 'google.calendar.create_event',
+                'google.calendar.add_event': 'google.calendar.create_event'
+            };
+            tool = aliasMap[tool] || tool;
+
+            if (tool !== originalTool) {
+                console.log(`[PullExecutor] Normalized Google action: ${originalTool} -> ${tool}`);
+            }
             console.log(`[PullExecutor] Executing Google action: ${tool}`, args);
             console.log(`[PullExecutor] userContext:`, JSON.stringify(this.userContext || {}));
             console.log(`[PullExecutor] args.email:`, args.email, 'args.user_email:', args.user_email);
@@ -3260,9 +3295,10 @@ class PullExecutor {
                 'google.youtube.search': '/api/v2/google/youtube/search'
             };
             
-            let endpoint = endpointMap[tool];
+            const endpoint = endpointMap[tool];
             if (!endpoint) {
-                throw new Error(`Unknown Google tool: ${tool}`);
+                const validTools = Object.keys(endpointMap).join(', ');
+                throw new Error(`Unknown Google tool: ${tool}. Valid Google tools: ${validTools}`);
             }
             
             // Get user email from args, userContext, global context, or environment
