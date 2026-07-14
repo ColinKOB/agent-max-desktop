@@ -713,6 +713,17 @@ class PullExecutor {
                 // Check for unrecoverable errors that should stop retries immediately
                 // Be VERY specific - only block errors that truly require user action
                 // Most errors are recoverable (AI can try different approach)
+                if (result.unrecoverable) {
+                    console.error(`[PullExecutor] Unrecoverable error detected - stopping retries: ${lastError}`);
+                    return {
+                        success: false,
+                        error: lastError,
+                        unrecoverable: true,
+                        attempts: attempt,
+                        execution_time_ms: Date.now() - startTime
+                    };
+                }
+
                 const unrecoverablePhrases = [
                     'google account not connected',
                     'please connect your google account',
@@ -3373,6 +3384,25 @@ class PullExecutor {
             
             if (!response.ok) {
                 const errorText = await response.text();
+                const errorTextLower = errorText.toLowerCase();
+                const isAuthenticationFailure = response.status === 401 ||
+                    errorTextLower.includes('not authenticated') ||
+                    errorTextLower.includes('complete oauth flow') ||
+                    errorTextLower.includes('invalid_grant');
+
+                if (isAuthenticationFailure) {
+                    const authorizationError = 'Google account authorization expired. Please reconnect your Google account in Settings > Google Services, then try again.';
+                    console.error(`[PullExecutor] Google authorization failed: ${errorText}`);
+                    return {
+                        success: false,
+                        error: authorizationError,
+                        stdout: '',
+                        stderr: authorizationError,
+                        exit_code: 1,
+                        unrecoverable: true
+                    };
+                }
+
                 throw new Error(`Google API error (${response.status}): ${errorText}`);
             }
             
