@@ -1,101 +1,211 @@
-import React, { useState, useEffect } from 'react';
-import { Loader2, ChevronRight, ChevronDown, X } from 'lucide-react';
+import React, { useEffect, useId, useState } from 'react';
+import { Check, ChevronDown, ChevronRight, Loader2, X } from 'lucide-react';
 import './LiveActivityFeed.css';
 
+const STATUS_TRANSITION_MS = 220;
+
+function RunningDescription({ step, stepKey }) {
+  const description = step?.description || 'Working...';
+  const [transition, setTransition] = useState({
+    current: description,
+    previous: null,
+    key: stepKey,
+  });
+
+  useEffect(() => {
+    setTransition((currentTransition) => {
+      if (currentTransition.key === stepKey && currentTransition.current === description) {
+        return currentTransition;
+      }
+
+      return {
+        current: description,
+        previous: currentTransition.current,
+        key: stepKey,
+      };
+    });
+
+    const timeout = window.setTimeout(() => {
+      setTransition((currentTransition) => ({
+        ...currentTransition,
+        previous: null,
+      }));
+    }, STATUS_TRANSITION_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [description, stepKey]);
+
+  return (
+    <span className="activity-status__description" aria-live="polite" aria-atomic="true">
+      {transition.previous && (
+        <span
+          className="activity-status__description-text activity-status__description-text--exiting"
+          aria-hidden="true"
+        >
+          {transition.previous}
+        </span>
+      )}
+      <span
+        key={`${transition.key}-${transition.current}`}
+        className="activity-status__description-text activity-status__description-text--current"
+      >
+        {transition.current}
+      </span>
+    </span>
+  );
+}
+
 /**
- * LiveActivityFeed - Progressive, real-time step display
- *
- * Shows steps as they execute, not as pre-planned checklist.
- * Steps appear one-by-one as the AI works through them.
+ * A compact, progressive activity summary.
  *
  * Props:
- * - activitySteps: Array of step objects with {id, status, description, technicalDetails, error, timestamp}
- *   - status: 'running' | 'completed' | 'failed'
- *   - description: User-friendly description (e.g., "Opened happyfolder")
- *   - technicalDetails: Technical info (e.g., "cd /happyfolder", tool output, etc.)
- *   - error: Error message if failed
- * - initialMessage: Conversational upbeat initial response from AI
+ * - activitySteps: Array of { id, status, description, technicalDetails, error }
+ * - initialMessage: Optional conversational response shown above the activity summary
  */
 export default function LiveActivityFeed({ activitySteps = [], initialMessage }) {
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
   const [expandedSteps, setExpandedSteps] = useState({});
-
-  const toggleStepDetails = (stepId) => {
-    setExpandedSteps((prev) => ({
-      ...prev,
-      [stepId]: !prev[stepId],
-    }));
-  };
+  const historyId = useId();
 
   if (!activitySteps || activitySteps.length === 0) {
     return null;
   }
 
-  const renderStep = (step, index) => {
-    const { id, status, description, technicalDetails, error } = step;
-    const isExpanded = expandedSteps[id] || false;
-    const hasTechnicalDetails = technicalDetails && technicalDetails.trim().length > 0;
+  let runningStepIndex = -1;
+  for (let index = activitySteps.length - 1; index >= 0; index -= 1) {
+    if (activitySteps[index].status === 'running') {
+      runningStepIndex = index;
+      break;
+    }
+  }
 
-    return (
-      <div key={id || index} className={`activity-step activity-step--${status}`}>
-        <div className="activity-step__main">
-          {/* Status Indicator */}
-          <div className="activity-step__indicator">
-            {status === 'running' && (
-              <Loader2 size={12} className="activity-step__spinner" />
-            )}
-            {status === 'completed' && (
-              <span className="activity-step__checkmark">✓</span>
-            )}
-            {status === 'failed' && (
-              <X size={12} className="activity-step__failed-indicator" />
-            )}
-          </div>
+  const isRunning = runningStepIndex !== -1;
+  const runningStep = isRunning ? activitySteps[runningStepIndex] : null;
+  const historySteps = isRunning
+    ? activitySteps.filter((step) => step.status === 'completed' || step.status === 'failed')
+    : activitySteps;
+  const failedStepIndex = activitySteps.findIndex((step) => step.status === 'failed');
+  const hasFailed = failedStepIndex !== -1;
+  const canExpandHistory = historySteps.length > 0;
+  const runningStepKey = runningStep
+    ? `${runningStep.id ?? runningStepIndex}-${runningStepIndex}`
+    : 'idle';
 
-          {/* Description */}
-          <div className="activity-step__description">{description}</div>
+  const toggleHistory = () => {
+    if (canExpandHistory) {
+      setIsHistoryExpanded((isExpanded) => !isExpanded);
+    }
+  };
 
-          {/* Expandable Arrow (only if technical details exist) */}
-          {hasTechnicalDetails && (
-            <button
-              className="activity-step__expand-btn"
-              onClick={() => toggleStepDetails(id)}
-              aria-label={isExpanded ? 'Collapse details' : 'Expand details'}
-            >
-              {isExpanded ? (
-                <ChevronDown size={12} />
-              ) : (
-                <ChevronRight size={12} />
-              )}
-            </button>
-          )}
-        </div>
-
-        {/* Error Details (indented, always visible for failed steps) */}
-        {status === 'failed' && error && (
-          <div className="activity-step__error">{error}</div>
-        )}
-
-        {/* Technical Details (expandable) */}
-        {hasTechnicalDetails && isExpanded && (
-          <div className="activity-step__technical">
-            <pre>{technicalDetails}</pre>
-          </div>
-        )}
-      </div>
-    );
+  const toggleStepDetails = (stepKey) => {
+    setExpandedSteps((currentSteps) => ({
+      ...currentSteps,
+      [stepKey]: !currentSteps[stepKey],
+    }));
   };
 
   return (
     <div className="live-activity-feed">
-      {/* Initial AI Response */}
-      {initialMessage && (
-        <div className="live-activity-feed__intro">{initialMessage}</div>
-      )}
+      {initialMessage && <div className="live-activity-feed__intro">{initialMessage}</div>}
 
-      {/* Progressive Step List */}
-      <div className="live-activity-feed__steps">
-        {activitySteps.map((step, index) => renderStep(step, index))}
+      <div
+        className={`activity-status${hasFailed && !isRunning ? ' activity-status--failed' : ''}`}
+      >
+        {isRunning ? (
+          <>
+            <Loader2 size={12} className="activity-status__spinner" aria-hidden="true" />
+            <RunningDescription step={runningStep} stepKey={runningStepKey} />
+          </>
+        ) : (
+          <span className="activity-status__summary">
+            {hasFailed
+              ? `Stopped — problem on step ${failedStepIndex + 1}`
+              : `Done — ${activitySteps.length} steps`}
+          </span>
+        )}
+
+        {canExpandHistory && (
+          <button
+            type="button"
+            className="activity-status__history-toggle"
+            onClick={toggleHistory}
+            aria-expanded={isHistoryExpanded}
+            aria-controls={historyId}
+            aria-label={isHistoryExpanded ? 'Hide activity history' : 'Show activity history'}
+          >
+            {isRunning && <span>{historySteps.length}</span>}
+            {isHistoryExpanded ? (
+              <ChevronDown size={12} aria-hidden="true" />
+            ) : (
+              <ChevronRight size={12} aria-hidden="true" />
+            )}
+          </button>
+        )}
       </div>
+
+      {canExpandHistory && (
+        <div
+          id={historyId}
+          className={`activity-history${isHistoryExpanded ? ' activity-history--expanded' : ''}`}
+          aria-hidden={!isHistoryExpanded}
+        >
+          <div className="activity-history__reveal">
+            <div className="activity-history__timeline">
+              {historySteps.map((step, index) => {
+                const stepKey = String(step.id ?? `step-${index}`);
+                const isFailed = step.status === 'failed';
+                const technicalDetails =
+                  typeof step.technicalDetails === 'string' ? step.technicalDetails.trim() : '';
+                const hasTechnicalDetails = technicalDetails.length > 0;
+                const areDetailsExpanded = Boolean(expandedSteps[stepKey]);
+
+                return (
+                  <div
+                    key={`${stepKey}-${index}`}
+                    className={`activity-history__step${isFailed ? ' activity-history__step--failed' : ''}`}
+                  >
+                    <span className="activity-history__marker" aria-hidden="true">
+                      {isFailed ? <X size={10} /> : <Check size={10} />}
+                    </span>
+
+                    <div className="activity-history__content">
+                      <div className="activity-history__main">
+                        <span className="activity-history__description">
+                          {step.description || 'Completed step'}
+                        </span>
+
+                        {hasTechnicalDetails && (
+                          <button
+                            type="button"
+                            className="activity-history__details-toggle"
+                            onClick={() => toggleStepDetails(stepKey)}
+                            aria-expanded={areDetailsExpanded}
+                          >
+                            <span>details</span>
+                            {areDetailsExpanded ? (
+                              <ChevronDown size={10} aria-hidden="true" />
+                            ) : (
+                              <ChevronRight size={10} aria-hidden="true" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+
+                      {isFailed && step.error && (
+                        <div className="activity-history__error">{step.error}</div>
+                      )}
+
+                      {hasTechnicalDetails && areDetailsExpanded && (
+                        <pre className="activity-history__technical">{technicalDetails}</pre>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

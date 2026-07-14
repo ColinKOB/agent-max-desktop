@@ -1,212 +1,323 @@
 .live-activity-feed {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px 10px;
-  margin: 6px 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  gap: 5px;
+  margin: 5px 0;
+  padding: 7px 9px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.035);
+  border-radius: 9px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Initial AI Message */
 .live-activity-feed__intro {
+  color: rgba(255, 255, 255, 0.7);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.4;
-  color: rgba(255, 255, 255, 0.85);
-  padding-bottom: 5px;
-  margin-bottom: 2px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Steps Container */
-.live-activity-feed__steps {
+.activity-status {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-/* Individual Step */
-.activity-step {
-  display: flex;
-  flex-direction: column;
-  border-radius: 6px;
-  padding: 5px 8px;
-  background: rgba(255, 255, 255, 0.02);
-  transition: all 0.3s ease;
-  margin-bottom: 1px;
-}
-
-/* Step Main Row */
-.activity-step__main {
-  display: flex;
+  min-width: 0;
+  height: 20px;
   align-items: center;
   gap: 6px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11.5px;
+  line-height: 1;
 }
 
-/* Status Indicator */
-.activity-step__indicator {
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
+.activity-status--failed {
+  color: rgba(248, 113, 113, 0.68);
+}
+
+.activity-status__spinner {
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.42);
+  animation: activity-spin 1.15s linear infinite;
+}
+
+.activity-status__description {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.activity-status__description-text {
+  grid-area: 1 / 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-status__description-text--current {
+  color: rgba(255, 255, 255, 0.58);
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.42) 20%,
+    rgba(255, 255, 255, 0.86) 46%,
+    rgba(255, 255, 255, 0.42) 72%
+  );
+  background-size: 220% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation:
+    activity-status-enter 200ms ease-out both,
+    activity-shimmer 2.8s ease-in-out infinite;
+}
+
+.activity-status__description-text--exiting {
+  color: rgba(255, 255, 255, 0.42);
+  animation: activity-status-exit 180ms ease-in both;
+}
+
+.activity-status__summary {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-status__history-toggle,
+.activity-history__details-toggle {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.activity-status__history-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-width: 28px;
+  height: 20px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  margin-right: -3px;
+  padding: 0 3px;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.34);
+  transition:
+    color 180ms ease-out,
+    background-color 180ms ease-out;
+}
+
+.activity-status__history-toggle:hover,
+.activity-status__history-toggle:focus-visible {
+  color: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.055);
+  outline: none;
+}
+
+.activity-history {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows 180ms ease-in,
+    opacity 150ms ease-in,
+    visibility 0s linear 180ms;
+}
+
+.activity-history--expanded {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    grid-template-rows 220ms ease-out,
+    opacity 180ms ease-out,
+    visibility 0s linear 0s;
+}
+
+.activity-history__reveal {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.activity-history__timeline {
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 3px 2px 1px 5px;
+  padding: 2px 0 1px 11px;
+  border-left: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.activity-history__step {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.activity-history__step--failed {
+  color: rgba(248, 113, 113, 0.67);
+}
+
+.activity-history__marker {
+  position: absolute;
+  top: 2px;
+  left: -17px;
+  display: flex;
+  width: 11px;
+  height: 11px;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
-  margin-top: 1px;
+  color: rgba(255, 255, 255, 0.38);
+  background: rgba(25, 25, 29, 0.92);
 }
 
-/* Spinner for Running Steps */
-.activity-step__spinner {
-  animation: spin 1s linear infinite;
-  color: rgba(255, 255, 255, 0.7);
+.activity-history__step--failed .activity-history__marker {
+  color: rgba(248, 113, 113, 0.72);
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
+.activity-history__content {
+  min-width: 0;
+  flex: 1;
+}
+
+.activity-history__main {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.activity-history__description {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.activity-history__details-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 1px;
+  margin-top: -1px;
+  padding: 1px 2px;
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.28);
+  font-size: 10px;
+  line-height: 1.3;
+  transition:
+    color 160ms ease-out,
+    background-color 160ms ease-out;
+}
+
+.activity-history__details-toggle:hover,
+.activity-history__details-toggle:focus-visible {
+  color: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.045);
+  outline: none;
+}
+
+.activity-history__error {
+  margin-top: 2px;
+  color: rgba(248, 113, 113, 0.62);
+  font-size: 10.5px;
+  overflow-wrap: anywhere;
+}
+
+.activity-history__technical {
+  max-width: 100%;
+  margin: 5px 0 1px;
+  padding: 5px 6px;
+  overflow-x: auto;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(0, 0, 0, 0.16);
+  font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  animation: activity-details-enter 180ms ease-out both;
+}
+
+@keyframes activity-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-/* Checkmark for Completed Steps */
-.activity-step__checkmark {
-  font-size: 11px;
+@keyframes activity-shimmer {
+  0%,
+  18% {
+    background-position: 100% 0;
+  }
+
+  75%,
+  100% {
+    background-position: -100% 0;
+  }
 }
 
-/* Failed Indicator (X icon) */
-.activity-step__failed-indicator {
-  font-size: 11px;
-}
-
-/* Description Text */
-.activity-step__description {
-  flex: 1;
-  font-size: 12px;
-  line-height: 1.3;
-  color: rgba(255, 255, 255, 0.9);
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  min-width: 0;
-}
-
-/* Expand Button */
-.activity-step__expand-btn {
-  flex-shrink: 0;
-  background: transparent;
-  border: none;
-  padding: 4px;
-  border-radius: 4px;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.activity-step__expand-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.9);
-}
-
-/* Error Details (indented, italicized) */
-.activity-step__error {
-  margin-top: 4px;
-  margin-left: 24px;
-  font-size: 11px;
-  font-style: italic;
-  line-height: 1.3;
-  color: rgba(255, 255, 255, 0.75);
-  animation: slideDown 0.2s ease-out;
-}
-
-/* Technical Details (expandable) */
-.activity-step__technical {
-  margin-top: 4px;
-  margin-left: 24px;
-  padding: 6px 8px;
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 4px;
-  border-left: 2px solid rgba(255, 255, 255, 0.2);
-  animation: slideDown 0.2s ease-out;
-}
-
-@keyframes slideDown {
+@keyframes activity-status-enter {
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(2px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-.activity-step__technical pre {
-  margin: 0;
-  font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
-  font-size: 10px;
-  line-height: 1.4;
-  color: rgba(255, 255, 255, 0.65);
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  max-width: 100%;
+@keyframes activity-status-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
 }
 
-/* Running State */
-.activity-step--running {
-  background: rgba(59, 130, 246, 0.08);
+@keyframes activity-details-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.activity-step--running .activity-step__indicator {
-  background: rgba(59, 130, 246, 0.2);
-  color: #3b82f6;
-}
+@media (prefers-reduced-motion: reduce) {
+  .activity-status__spinner,
+  .activity-status__description-text--current,
+  .activity-status__description-text--exiting,
+  .activity-history__technical {
+    animation: none;
+  }
 
-/* Completed State (green background) */
-.activity-step--completed {
-  background: rgba(34, 197, 94, 0.08);
-  opacity: 0.85;
-}
+  .activity-status__history-toggle,
+  .activity-history,
+  .activity-history--expanded,
+  .activity-history__details-toggle {
+    transition: none;
+  }
 
-.activity-step--completed .activity-step__indicator {
-  background: rgba(34, 197, 94, 0.2);
-  color: #22c55e;
-  animation: checkmark-pop 0.3s ease;
-}
-
-.activity-step--completed .activity-step__checkmark {
-  color: #22c55e;
-  font-weight: bold;
-}
-
-@keyframes checkmark-pop {
-  0% { transform: scale(0.8); opacity: 0; }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-/* Failed State (red background, italicized text) */
-.activity-step--failed {
-  background: rgba(239, 68, 68, 0.08);
-}
-
-.activity-step--failed .activity-step__indicator {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
-}
-
-.activity-step--failed .activity-step__description {
-  font-style: italic;
-  color: rgba(255, 255, 255, 0.8);
+  .activity-status__description-text--exiting {
+    display: none;
+  }
 }
