@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS runs (
     metadata_json TEXT,  -- Additional metadata (JSON)
     final_response TEXT,  -- Final AI response when run completes
     last_synced_at INTEGER,
-    sync_status TEXT DEFAULT 'pending' CHECK(sync_status IN ('pending', 'syncing', 'synced', 'failed'))
+    sync_status TEXT DEFAULT 'pending' CHECK(sync_status IN ('pending', 'syncing', 'synced', 'failed')),
+    error TEXT  -- User-facing terminal error when a run fails
 );
 
 -- Migration: Add final_response column if it doesn't exist

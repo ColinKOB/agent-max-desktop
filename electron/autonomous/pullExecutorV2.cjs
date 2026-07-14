@@ -390,10 +390,13 @@ class PullExecutorV2 extends PullExecutor {
 
                 if (isUnrecoverable) {
                     // Unrecoverable error (e.g., Google account not connected) - stop immediately
-                    console.error(`[PullExecutorV2] ⛔ Unrecoverable error - stopping execution`);
+                    console.error(`[PullExecutor] Unrecoverable error detected - stopping retries`);
+                    const errorMessage = result.error || 'Task failed';
                     this.stateStore.updateRun(runId, {
                         status: 'failed',
-                        completed_at: Date.now()
+                        completed_at: Date.now(),
+                        error: errorMessage,
+                        final_response: errorMessage
                     });
                     break;
                 }

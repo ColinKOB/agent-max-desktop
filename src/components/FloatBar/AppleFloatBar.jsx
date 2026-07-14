@@ -1305,17 +1305,30 @@ export default function AppleFloatBar({
         } else if (status.status === 'failed' || status.status === 'error') {
           setIsThinking(false);
           setThinkingStatus('');
+          const failureMessage = status.error || status.final_response;
 
           // Mark last running step as failed
           setLiveActivitySteps((prev) =>
             prev.map((s) =>
               s.status === 'running'
-                ? { ...s, status: 'failed', error: status.error || 'Task failed' }
+                ? { ...s, status: 'failed', error: failureMessage || 'Task failed' }
                 : s
             )
           );
 
-          toast.error('Task failed', { duration: 4000 });
+          if (failureMessage) {
+            setThoughts((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content: failureMessage,
+                type: 'error',
+                timestamp: Date.now(),
+              },
+            ]);
+          }
+
+          toast.error(failureMessage || 'Task failed', { duration: 4000 });
         }
       });
 
@@ -5319,20 +5332,33 @@ export default function AppleFloatBar({
               } else if (status.status === 'failed' || status.status === 'error') {
                 setIsThinking(false);
                 setThinkingStatus('');
+                const failureMessage = status.error || status.final_response;
 
                 // Mark last running step as failed in LiveActivityFeed
                 setLiveActivitySteps((prev) =>
                   prev.map((s, i) =>
                     s.status === 'running'
-                      ? { ...s, status: 'failed', error: status.error || 'Task failed' }
+                      ? { ...s, status: 'failed', error: failureMessage || 'Task failed' }
                       : s
                   )
                 );
 
                 // Track execution failed (analytics) - runId, error, stepFailed
-                trackExecutionFailed(runTracker.runId, status.error || 'Task failed', status.currentStep || 0);
+                trackExecutionFailed(runTracker.runId, failureMessage || 'Task failed', status.currentStep || 0);
 
-                toast.error('Task failed', { duration: 4000 });
+                if (failureMessage) {
+                  setThoughts((prev) => [
+                    ...prev,
+                    {
+                      role: 'assistant',
+                      content: failureMessage,
+                      type: 'error',
+                      timestamp: Date.now(),
+                    },
+                  ]);
+                }
+
+                toast.error(failureMessage || 'Task failed', { duration: 4000 });
               } else if (status.status === 'waiting_for_user') {
                 // AI is waiting for user input - update status but keep thinking indicator
                 // The ask_user IPC event will handle showing the actual question

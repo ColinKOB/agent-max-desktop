@@ -174,6 +174,7 @@ class ExecutorManager {
                     totalSteps: storeRun.total_steps,
                     final_response: storeRun.final_response,
                     final_summary: storeRun.final_response,
+                    error: storeRun.error || (storeRun.status === 'failed' ? storeRun.final_response : null),
                     // Current action status for UI visibility
                     current_status_summary: storeRun.current_status_summary,
                     // Initial AI message (for first action acknowledgment)

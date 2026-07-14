@@ -576,6 +576,7 @@ class PullAutonomousService {
                     tracker.totalSteps = status.totalSteps;
                     tracker.final_response = status.final_response;
                     tracker.final_summary = status.final_summary || status.final_response;
+                    tracker.error = status.error;
                     // Current action status for UI visibility
                     tracker.current_status_summary = status.current_status_summary;
                     // Initial AI message (first action acknowledgment)

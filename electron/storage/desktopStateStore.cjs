@@ -96,6 +96,14 @@ class DesktopStateStore {
                 console.log('[DesktopStateStore] Migration complete: narrations column added');
             }
 
+            // Migration 6: Add error column for user-facing terminal run errors
+            const hasError = tableInfo.some(col => col.name === 'error');
+            if (!hasError) {
+                console.log('[DesktopStateStore] Running migration: adding error column');
+                this.db.exec("ALTER TABLE runs ADD COLUMN error TEXT");
+                console.log('[DesktopStateStore] Migration complete: error column added');
+            }
+
             // Migration 4: Update runs table CHECK constraint to include 'waiting_for_user'
             // SQLite doesn't allow modifying CHECK constraints, so we need to recreate the table
             // First check if migration already completed by testing the constraint
@@ -151,7 +159,8 @@ class DesktopStateStore {
                         sync_status TEXT DEFAULT 'pending' CHECK(sync_status IN ('pending', 'syncing', 'synced', 'failed')),
                         current_status_summary TEXT,
                         initial_message TEXT,
-                        narrations TEXT
+                        narrations TEXT,
+                        error TEXT
                     )
                 `);
 
@@ -243,6 +252,10 @@ class DesktopStateStore {
         if (updates.final_response !== undefined) {
             fields.push('final_response = ?');
             values.push(updates.final_response);
+        }
+        if (updates.error !== undefined) {
+            fields.push('error = ?');
+            values.push(updates.error);
         }
         if (updates.current_status_summary !== undefined) {
             fields.push('current_status_summary = ?');
