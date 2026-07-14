@@ -35,6 +35,9 @@ import {
   Table2,
   StickyNote,
   RefreshCw,
+  AlertTriangle,
+  MessageCircle,
+  Search,
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import {
@@ -922,7 +925,7 @@ export default function AppleFloatBar({
     setMessage('');
     setUserInputRequest(null);
 
-    toast.success('Response sent', { icon: '✅', duration: 2000 });
+    toast.success('Response sent', { duration: 2000 });
   }, [userInputRequest, message]);
 
   const handleCancelRun = useCallback(async () => {
@@ -933,7 +936,7 @@ export default function AppleFloatBar({
     }
     try {
       await runAPI.cancel(planId);
-      toast('Run cancelled', { icon: '🛑', duration: 2500 });
+      toast('Run cancelled', { duration: 2500 });
     } catch (err) {
       toast.error(`Cancel failed: ${err?.message || err}`);
     }
@@ -1099,7 +1102,6 @@ export default function AppleFloatBar({
     if (validResults.length > 0) {
       setAttachments((prev) => [...prev, ...validResults]);
       toast.success(`${validResults.length} file${validResults.length > 1 ? 's' : ''} added`, {
-        icon: '📎',
         duration: 2000
       });
     }
@@ -1363,7 +1365,7 @@ export default function AppleFloatBar({
     if (reason === 'timeout') {
       toast('Request timed out - please try again', { icon: '⏰', duration: 3000 });
     } else {
-      toast('Request cancelled - feel free to refine your request', { icon: '✏️', duration: 3000 });
+      toast('Request cancelled - feel free to refine your request', { duration: 3000 });
     }
   }, [pendingRunTracker]);
 
@@ -1384,7 +1386,7 @@ export default function AppleFloatBar({
       type: 'CANCELLED',
       successCount: Object.values(stepStatuses).filter((s) => s === 'done').length,
     });
-    toast('AI stopped', { icon: '🛑', duration: 2000 });
+    toast('AI stopped', { duration: 2000 });
 
     // Stop polling in pullService (sync operation)
     const pullService = pullServiceRef.current;
@@ -2512,9 +2514,8 @@ export default function AppleFloatBar({
         console.log('[FSCommand] Executing:', command);
 
         // Show "Executing..." toast
-        toast(`🔧 Executing ${command.action}...`, {
+        toast(`Executing ${command.action}...`, {
           duration: 2000,
-          icon: '⚡',
           style: {
             background: 'rgba(59, 130, 246, 0.1)',
             border: '1px solid rgba(59, 130, 246, 0.2)',
@@ -2558,7 +2559,7 @@ export default function AppleFloatBar({
               'sh.run': 'Command executed',
             };
             const label = labelMap[actType] || 'Action completed';
-            toast.success(`✅ ${label}`, {
+            toast.success(label, {
               duration: 3000,
               style: {
                 background: 'rgba(34, 197, 94, 0.1)',
@@ -2570,7 +2571,7 @@ export default function AppleFloatBar({
             if (actType === 'fs.read' && result.result?.content) {
               const content = result.result.content;
               const preview = content.length > 500 ? content.substring(0, 500) + '...' : content;
-              toast(`📄 File contents (preview)\n${preview}`, {
+              toast(`File contents (preview)\n${preview}`, {
                 duration: 4000,
                 style: {
                   background: 'rgba(59, 130, 246, 0.08)',
@@ -2582,9 +2583,9 @@ export default function AppleFloatBar({
             if (actType === 'fs.list' && result.result?.files) {
               const files = result.result.files;
               const fileList = files
-                .map((f) => `- ${f.type === 'directory' ? '📁' : '📄'} ${f.name} (${f.size} bytes)`)
+                .map((f) => `- ${f.type === 'directory' ? 'Directory' : 'File'}: ${f.name} (${f.size} bytes)`)
                 .join('\n');
-              toast(`📂 Directory contents:\n${fileList}`, {
+              toast(`Directory contents:\n${fileList}`, {
                 duration: 4000,
                 style: {
                   background: 'rgba(59, 130, 246, 0.08)',
@@ -2624,7 +2625,7 @@ export default function AppleFloatBar({
               origin: 'fs_command',
               error: result?.error,
             });
-            toast.error(`❌ ${label}: ${preview}`, {
+            toast.error(`${label}: ${preview}`, {
               duration: 5000,
               style: {
                 background: 'rgba(239, 68, 68, 0.1)',
@@ -2653,11 +2654,11 @@ export default function AppleFloatBar({
           }
         } else {
           console.warn('[FSCommand] window.electron not available - running in browser mode');
-          toast('⚠️ Desktop features not available in browser mode', { duration: 3000 });
+          toast('Desktop features not available in browser mode', { duration: 3000 });
         }
       } catch (error) {
         console.error('[FSCommand] Parse/execute error:', error);
-        toast.error(`❌ Command error: ${error.message}`, {
+        toast.error(`Command error: ${error.message}`, {
           duration: 4000,
         });
       }
@@ -2761,7 +2762,7 @@ export default function AppleFloatBar({
             }
 
             if (runState?.status === 'cancelled') {
-              toast('Run cancelled', { icon: '🛑', duration: 2500 });
+              toast('Run cancelled', { duration: 2500 });
               setThinkingStatus('Cancelled');
             } else if (runState?.status === 'paused') {
               toast('Run paused', { icon: '⏸️', duration: 2500 });
@@ -2795,7 +2796,7 @@ export default function AppleFloatBar({
             appendThought(msg);
           }
           if (status === 'replanning') {
-            toast(`🔄 ${msg || 'Replanning...'}`, { duration: 3000 });
+            toast(msg || 'Replanning...', { duration: 3000 });
           }
           setRunExecLogs((prev) => {
             const next = [{ ...log, ts: Date.now() }, ...prev];
@@ -3069,7 +3070,7 @@ export default function AppleFloatBar({
             totalSteps: planData.total_steps || planData.steps?.length || 0,
           });
           setPlanCardDismissed(!shouldDisplayPlanCard());
-          setThinkingStatus(`📋 Plan ready: ${planData.total_steps || 0} steps`);
+          setThinkingStatus(`Plan ready: ${planData.total_steps || 0} steps`);
 
           // Show plan as a special message (annotated with metadata when available)
           const planSteps = (planData.steps || [])
@@ -3173,9 +3174,8 @@ export default function AppleFloatBar({
               if (msg.includes('action(s) found')) {
                 const count = parseInt(msg.match(/(\d+) action/)?.[1] || '0');
                 if (count > 0) {
-                  toast(`🔧 Executing ${count} action(s)...`, {
+                  toast(`Executing ${count} action(s)...`, {
                     duration: 2000,
-                    icon: '⚡',
                     style: {
                       background: 'rgba(59, 130, 246, 0.1)',
                       border: '1px solid rgba(59, 130, 246, 0.2)',
@@ -3191,7 +3191,7 @@ export default function AppleFloatBar({
               // Action succeeded - complete current activity in feed
               completeCurrentActivity();
               const actionName = extractActionName(msg);
-              toast.success(`✅ ${actionName}`, {
+              toast.success(actionName, {
                 duration: 3000,
                 style: {
                   background: 'rgba(34, 197, 94, 0.1)',
@@ -3217,7 +3217,7 @@ export default function AppleFloatBar({
               const reason = (
                 typeof msg === 'string' ? msg : log.error || 'Action failed'
               ).toString();
-              toast.error(`❌ ${reason}`, {
+              toast.error(reason, {
                 duration: 5000,
                 style: {
                   background: 'rgba(239, 68, 68, 0.1)',
@@ -3244,9 +3244,8 @@ export default function AppleFloatBar({
 
             case 'replanning':
               // v2.1: Pivot guidance - AI is replanning after failure
-              toast(`🔄 ${msg}`, {
+              toast(msg, {
                 duration: 5000,
-                icon: '🔄',
                 style: {
                   background: 'rgba(251, 191, 36, 0.1)',
                   border: '1px solid rgba(251, 191, 36, 0.2)',
@@ -3259,9 +3258,8 @@ export default function AppleFloatBar({
 
             case 'blocked':
               // v2.1: Pivot guidance - AI blocked after repeated failures
-              toast.error(`🚫 ${msg}`, {
+              toast.error(msg, {
                 duration: 6000,
-                icon: '🚫',
                 style: {
                   background: 'rgba(239, 68, 68, 0.1)',
                   border: '1px solid rgba(239, 68, 68, 0.2)',
@@ -3274,9 +3272,8 @@ export default function AppleFloatBar({
 
             case 'queued':
               // Action needs approval - show warning
-              toast(`⚠️ ${msg}`, {
+              toast(msg, {
                 duration: 4000,
-                icon: '🔒',
                 style: {
                   background: 'rgba(251, 191, 36, 0.1)',
                   border: '1px solid rgba(251, 191, 36, 0.2)',
@@ -3314,9 +3311,8 @@ export default function AppleFloatBar({
                     ) {
                       executedCommandsRef.current.add(execKey);
                       executedCommandsRef.current.add(actionFP);
-                      toast(`🔧 Executing ${at}...`, {
+                      toast(`Executing ${at}...`, {
                         duration: 2000,
-                        icon: '⚡',
                         style: {
                           background: 'rgba(59, 130, 246, 0.1)',
                           border: '1px solid rgba(59, 130, 246, 0.2)',
@@ -3339,7 +3335,7 @@ export default function AppleFloatBar({
                           delete: 'File deleted',
                         };
                         const label = fn[an] || 'Action completed';
-                        toast.success(`✅ ${label}`, {
+                        toast.success(label, {
                           duration: 3000,
                           style: {
                             background: 'rgba(34, 197, 94, 0.1)',
@@ -3374,7 +3370,7 @@ export default function AppleFloatBar({
                           'Action failed'
                         ).toString();
                         const preview = detail.length > 240 ? detail.slice(0, 240) + '…' : detail;
-                        toast.error(`❌ ${preview}`, {
+                        toast.error(preview, {
                           duration: 5000,
                           style: {
                             background: 'rgba(239, 68, 68, 0.1)',
@@ -3434,7 +3430,7 @@ export default function AppleFloatBar({
               ...prev,
               {
                 role: 'assistant',
-                content: `📁 **Artifacts Created**\n${artifactLines}`,
+                content: `**Artifacts Created**\n${artifactLines}`,
                 timestamp: Date.now(),
                 type: 'artifacts',
               },
@@ -3461,7 +3457,7 @@ export default function AppleFloatBar({
                 ...prev,
                 {
                   role: 'assistant',
-                  content: `📊 ${parts.join(' • ')}`,
+                  content: parts.join(' • '),
                   timestamp: Date.now(),
                   type: 'metrics',
                 },
@@ -3481,10 +3477,10 @@ export default function AppleFloatBar({
           // Skip internal routing/analysis messages - these are noise for users
           // These are developer/debug messages that don't provide value to end users
           const skipPatterns = [
-            /^🎯\s*Using.*mode/i,           // "🎯 Using Full context mode"
-            /^🔍\s*Analyzing/i,              // "🔍 Analyzing your query..."
-            /^💡\s*(Found|No relevant)/i,   // "💡 Found X facts..." or "💡 No relevant context"
-            /^⚡\s*Generating/i,             // "⚡ Generating response with GPT..."
+            /^Using.*mode/i,
+            /^Analyzing/i,
+            /^(Found|No relevant)/i,
+            /^Generating/i,
             /confidence:\s*\d+%/i,           // Any confidence percentage
             /Retrieving.*context/i,          // "Retrieving relevant context..."
             /Reflecting on context/i,        // "Reflecting on context..."
@@ -3542,7 +3538,7 @@ export default function AppleFloatBar({
           }
 
           // Check for execution_steps in the response (from non-streaming chat endpoint)
-          // This provides user-friendly progress display like "✅ Getting started", "✅ Checked your calendar"
+          // This provides user-friendly progress display such as "Getting started".
           if (d.execution_steps && Array.isArray(d.execution_steps) && d.execution_steps.length > 0) {
             console.log('[Chat] Found execution_steps in response:', d.execution_steps);
             // Convert execution_steps to LiveActivityFeed format
@@ -4018,7 +4014,7 @@ export default function AppleFloatBar({
           if (isInsufficientCredits) {
             console.log('[Chat] Insufficient credits error - prompting user to purchase');
             const creditsRemaining = errorData?.credits_remaining ?? 0;
-            toast.error(`💳 ${errorMsg}\n\nClick to purchase credits.`, {
+            toast.error(`${errorMsg}\n\nClick to purchase credits.`, {
               duration: 10000,
               style: {
                 cursor: 'pointer',
@@ -4036,7 +4032,7 @@ export default function AppleFloatBar({
               ...prev,
               {
                 role: 'system',
-                content: `💳 **Credits Required**\n\nYou have ${creditsRemaining} credits remaining. Please purchase more credits to continue using Agent Max.`,
+                content: `**Credits Required**\n\nYou have ${creditsRemaining} credits remaining. Please purchase more credits to continue using Agent Max.`,
                 timestamp: Date.now(),
                 type: 'billing',
               },
@@ -4044,7 +4040,7 @@ export default function AppleFloatBar({
           } else if (isTerminal) {
             // v2.1: terminal errors stop execution permanently
             console.log('[Chat] Terminal error received, stopping execution:', errorCode);
-            toast.error(`❌ ${errorMsg}`, {
+            toast.error(errorMsg, {
               duration: 7000,
               style: {
                 background: 'rgba(239, 68, 68, 0.1)',
@@ -4057,7 +4053,7 @@ export default function AppleFloatBar({
               ...prev,
               {
                 role: 'system',
-                content: `⛔ Terminal Error (${errorCode}): ${errorMsg}`,
+                content: `Terminal Error (${errorCode}): ${errorMsg}`,
                 timestamp: Date.now(),
                 type: 'error',
                 terminal: true,
@@ -5245,9 +5241,9 @@ export default function AppleFloatBar({
               }
 
               if (status.status === 'complete' || status.status === 'done') {
-                console.log('[FloatBar] ✅ COMPLETION DETECTED! status:', status.status);
-                console.log('[FloatBar] ✅ final_summary:', status.final_summary?.substring(0, 100));
-                console.log('[FloatBar] ✅ final_response:', status.final_response?.substring(0, 100));
+                console.log('[FloatBar] COMPLETION DETECTED! status:', status.status);
+                console.log('[FloatBar] final_summary:', status.final_summary?.substring(0, 100));
+                console.log('[FloatBar] final_response:', status.final_response?.substring(0, 100));
 
                 completeCurrentActivity(); // Mark last activity as done
                 clearActivityLog(); // Clear for next task
@@ -5519,17 +5515,17 @@ export default function AppleFloatBar({
                 // Determine message based on status
                 let summaryMessage, thoughtsContent, toastMessage;
                 if (status.status === 'complete') {
-                  summaryMessage = `✅ Successfully completed all ${totalStepsCount} steps`;
+                  summaryMessage = `Successfully completed all ${totalStepsCount} steps`;
                   thoughtsContent = `**Execution Complete!**\n\nSuccessfully completed all ${totalStepsCount} steps.\n\n${runTracker.definitionOfDone}`;
-                  toastMessage = '✅ Execution complete!';
+                  toastMessage = 'Execution complete!';
                 } else if (status.status === 'cancelled') {
                   summaryMessage = `⏹ Execution stopped by user after ${successCount} steps`;
                   thoughtsContent = `**Execution Stopped**\n\nYou manually stopped the execution after completing ${successCount} of ${totalStepsCount} steps.`;
                   toastMessage = '⏹ Execution stopped';
                 } else {
-                  summaryMessage = `❌ Execution failed`;
-                  thoughtsContent = `❌ **Execution Failed**\n\nExecution encountered an error.`;
-                  toastMessage = '❌ Execution failed';
+                  summaryMessage = `Execution failed`;
+                  thoughtsContent = `**Execution Failed**\n\nExecution encountered an error.`;
+                  toastMessage = 'Execution failed';
                 }
 
                 dispatchExecution({
@@ -5566,7 +5562,7 @@ export default function AppleFloatBar({
           console.error('[FloatBar] Pull execution failed:', error);
 
           // Show error in toast
-          toast.error(`❌ ${error.message}`, { duration: 6000 });
+          toast.error(error.message, { duration: 6000 });
 
           // Display error in UI
           setIsThinking(false);
@@ -5593,7 +5589,7 @@ export default function AppleFloatBar({
               successCount: 0,
               failedCount: 1,
               goalAchieved: false,
-              message: `❌ Planning failed: ${error.message}`,
+              message: `Planning failed: ${error.message}`,
             },
           });
           setPlanCardDismissed(false);
@@ -5603,7 +5599,7 @@ export default function AppleFloatBar({
             ...prev,
             {
               role: 'assistant',
-              content: `❌ **Planning Failed**\n\n${error.message}\n\nPlease try again with a simpler request or break your task into smaller steps.`,
+              content: `**Planning Failed**\n\n${error.message}\n\nPlease try again with a simpler request or break your task into smaller steps.`,
               timestamp: Date.now(),
               metadata: { error: true },
             },
@@ -5791,7 +5787,6 @@ export default function AppleFloatBar({
           ),
           {
             duration: 8000,
-            icon: '📧',
             style: {
               background: 'rgba(30, 30, 30, 0.95)',
               color: 'white',
@@ -5823,7 +5818,7 @@ export default function AppleFloatBar({
           setIsThinking(false);
           setThinkingStatus('');
           pendingOptimisticMsgRef.current = null; // Clear tracking
-          toast.success('Answer from cache (no credit used)', { icon: '💰' });
+          toast.success('Answer from cache (no credit used)');
           logger.info('Used cached response, no credit deducted');
           if (userId) {
             await supabase.from('telemetry_events').insert({
@@ -6737,7 +6732,7 @@ export default function AppleFloatBar({
         ...prev,
         {
           role: 'system',
-          content: `⚠️ ${message}`,
+          content: message,
           timestamp: Date.now(),
           type: 'status',
         },
@@ -7545,7 +7540,7 @@ export default function AppleFloatBar({
                     <span
                       style={{ marginLeft: 8, color: '#a855f7', fontSize: 11, fontWeight: 500 }}
                     >
-                      🔄 {backgroundProcesses.length} process
+                      <RefreshCw size={11} aria-hidden="true" /> {backgroundProcesses.length} process
                       {backgroundProcesses.length > 1 ? 'es' : ''} running
                     </span>
                   )}
@@ -7607,7 +7602,7 @@ export default function AppleFloatBar({
                   }}
                 >
                   <div style={{ fontSize: 12, color: '#e9d5ff', marginBottom: 4, fontWeight: 600 }}>
-                    🔄 Background Processes
+                    <RefreshCw size={12} aria-hidden="true" /> Background Processes
                   </div>
                   <ul
                     style={{
@@ -7741,9 +7736,7 @@ export default function AppleFloatBar({
           >
             {executionMode === 'chat' && thoughts.length > 0 && (
               <div className="chat-mode-indicator">
-                <span role="img" aria-label="chat">
-                  💬
-                </span>
+                <MessageCircle size={14} aria-hidden="true" />
                 <span>Answering directly — no desktop actions required</span>
               </div>
             )}
@@ -7814,7 +7807,7 @@ export default function AppleFloatBar({
                           cursor: 'pointer',
                         }}
                       >
-                        <span>💭</span>
+                        <MessageCircle size={13} aria-hidden="true" />
                         <span>
                           {thought.wordCount ||
                             String(thought.message || '')
@@ -7940,7 +7933,7 @@ export default function AppleFloatBar({
                       alignItems: 'center',
                       gap: 8,
                     }}>
-                      <span>🔍</span>
+                      <Search size={14} aria-hidden="true" />
                       <span>{pendingAskUser.context}</span>
                       {/* Progress indicator for batched questions */}
                       {pendingAskUser.isBatched && pendingAskUser.questions && (
@@ -8477,7 +8470,7 @@ export default function AppleFloatBar({
                 {isStuck ? (
                   <div className="stuck-indicator">
                     <div className="stuck-message">
-                      <span className="stuck-icon">⚠️</span>
+                      <AlertTriangle className="stuck-icon" size={16} aria-hidden="true" />
                       <span>It looks like I got stuck. Sorry about that!</span>
                     </div>
                     <button

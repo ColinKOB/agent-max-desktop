@@ -3,6 +3,7 @@
  * Design: Story rows with bold title, snippet, and source pill
  */
 import React from 'react';
+import { Newspaper } from 'lucide-react';
 
 const NewsWidget = React.memo(function NewsWidget({ data }) {
   if (!data || !data.stories || data.stories.length === 0) return null;
@@ -17,7 +18,11 @@ const NewsWidget = React.memo(function NewsWidget({ data }) {
   };
 
   return (
-    <div className="rich-widget rich-widget-news">
+    <div className="display-card rich-widget-news">
+      <div className="display-card-label">
+        <Newspaper size={15} strokeWidth={1.75} aria-hidden="true" />
+        <span>News</span>
+      </div>
       {data.stories.map((story, i) => (
         <div key={i} className="news-story-row">
           <div className="news-story-title">{story.title}</div>

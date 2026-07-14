@@ -7,7 +7,7 @@
 import React from 'react';
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Mail } from 'lucide-react';
+import { ExternalLink, Mail } from 'lucide-react';
 
 // Custom URL transform to allow workspace: protocol (default filters it out)
 const customUrlTransform = (url) => {
@@ -85,7 +85,7 @@ const markdownComponents = {
             handleWorkspaceLink(href);
           }}
         >
-          <span className="workspace-link-icon">🌐</span>
+          <ExternalLink className="workspace-link-icon" size={15} aria-hidden="true" />
           {children}
           <span className="workspace-link-arrow">→</span>
         </button>
@@ -107,9 +107,9 @@ const markdownComponents = {
 };
 
 const EmailRenderer = React.memo(function EmailRenderer({ content }) {
-  // Check if content contains email-like patterns (handles markdown bold, emoji, or plain text)
+  // Check if content contains email-like patterns in markdown or plain text.
   // Look for "Email Results" or "From:" followed by "Subject:" pattern
-  const emailPattern = /Email Results|From:.*Subject:|📧/is;
+  const emailPattern = /Email Results|From:.*Subject:/is;
   const isEmailContent = emailPattern.test(content);
 
   if (!isEmailContent) {

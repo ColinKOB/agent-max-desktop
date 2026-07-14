@@ -1,4 +1,4 @@
-.display-block {
+.display-card {
   --display-block-accent: var(--color-interactive, var(--color-primary-400, #6f91c9));
   --display-block-series-2: var(--color-primary-300, #91a6c2);
   --display-block-series-3: var(--color-neutral-400, #73859e);
@@ -7,6 +7,12 @@
   --display-block-text: rgba(255, 255, 255, 0.92);
   --display-block-text-muted: rgba(255, 255, 255, 0.5);
 
+  width: 100%;
+  margin: 8px 0;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
   color: var(--display-block-text);
   font-family:
     'Figtree',
@@ -16,24 +22,34 @@
     sans-serif;
 }
 
-.display-block-title {
-  margin: 0;
-  padding: 14px 16px 8px;
-  color: var(--display-block-text);
-  font-size: 13px;
+.display-card-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--display-block-text-muted);
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.35;
+}
+
+.display-card-label svg,
+.rich-widget-skeleton > svg {
+  flex: 0 0 auto;
+  color: var(--display-block-accent);
+  opacity: 0.72;
+}
+
+.display-block-title {
+  margin: 0;
+  padding: 12px 14px 7px;
 }
 
 .display-block-fact {
-  padding: 14px 16px;
+  padding: 12px 14px;
 }
 
 .display-block-fact-title {
-  color: var(--display-block-text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.35;
+  margin: 0;
 }
 
 .display-block-fact-primary {
@@ -80,7 +96,7 @@
 
 .display-block-table-grid th,
 .display-block-table-grid td {
-  padding: 9px 16px;
+  padding: 8px 14px;
   border: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.055);
   text-align: left;
@@ -112,14 +128,33 @@
 }
 
 .display-block-chart {
-  padding-bottom: 10px;
+  padding-bottom: 8px;
 }
 
 .display-block-chart-canvas {
   width: 100%;
   height: 220px;
   min-width: 0;
-  padding: 2px 8px 0;
+  padding: 2px 6px 0;
+}
+
+.rich-widget-skeleton {
+  min-height: 48px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: widget-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.rich-widget-skeleton-text {
+  color: var(--display-block-text-muted);
+  font-size: 12px;
+}
+
+@keyframes widget-skeleton-pulse {
+  0%, 100% { opacity: 0.65; }
+  50% { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {

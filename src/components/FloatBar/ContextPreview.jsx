@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Brain, ChevronDown, ChevronRight, MessageCircle, Pin, StickyNote } from 'lucide-react';
 import './ContextPreview.css';
 import { stripActionBlocks } from '../../utils/formatters';
 
@@ -82,7 +83,7 @@ const ContextPreview = ({ pack, onToggle, isExpanded, onToggleExpand }) => {
       {/* Header */}
       <div className="context-preview-header" onClick={onToggleExpand}>
         <div className="context-preview-title">
-          <span className="context-icon">🧠</span>
+          <Brain className="context-icon" size={15} aria-hidden="true" />
           <span>Context to be sent</span>
         </div>
         
@@ -100,7 +101,7 @@ const ContextPreview = ({ pack, onToggle, isExpanded, onToggleExpand }) => {
           </div>
           
           <button className="expand-button">
-            {isExpanded ? '▼' : '▶'}
+            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </button>
         </div>
       </div>
@@ -157,7 +158,7 @@ const ContextPreview = ({ pack, onToggle, isExpanded, onToggleExpand }) => {
           {/* Facts Section */}
           {controls.includeFacts && activeFacts.length > 0 && (
             <div className="context-section">
-              <h4>📌 Facts</h4>
+              <h4><StickyNote size={14} aria-hidden="true" /> Facts</h4>
               <div className="context-items">
                 {activeFacts.map((fact, idx) => (
                   <div key={idx} className="context-item fact-item">
@@ -165,7 +166,7 @@ const ContextPreview = ({ pack, onToggle, isExpanded, onToggleExpand }) => {
                       <span className="fact-key">
                         {fact.category}.{fact.key}
                       </span>
-                      {fact.pinned && <span className="pinned-badge">📍</span>}
+                      {fact.pinned && <Pin className="pinned-badge" size={13} aria-label="Pinned" />}
                       <span className="fact-confidence">
                         {Math.round(fact.confidence * 100)}%
                       </span>
@@ -180,7 +181,7 @@ const ContextPreview = ({ pack, onToggle, isExpanded, onToggleExpand }) => {
           {/* Semantic Hits Section */}
           {controls.includeSemanticHits && pack.semantic_hits.length > 0 && (
             <div className="context-section">
-              <h4>💬 Related Context</h4>
+              <h4><MessageCircle size={14} aria-hidden="true" /> Related Context</h4>
               <div className="context-items">
                 {pack.semantic_hits.map((hit, idx) => (
                   <div key={idx} className="context-item semantic-item">
@@ -197,7 +198,7 @@ const ContextPreview = ({ pack, onToggle, isExpanded, onToggleExpand }) => {
           {/* Recent Messages Section */}
           {controls.includeRecentMessages && pack.recent_messages.length > 0 && (
             <div className="context-section">
-              <h4>💭 Recent Messages</h4>
+              <h4><MessageCircle size={14} aria-hidden="true" /> Recent Messages</h4>
               <div className="context-items messages-collapsed">
                 <div className="messages-summary">
                   {pack.recent_messages.length} messages (

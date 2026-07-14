@@ -3,14 +3,18 @@
  * Design: Numbered items with orange accent, compact card
  */
 import React from 'react';
+import { List } from 'lucide-react';
 
 const ListWidget = React.memo(function ListWidget({ data }) {
   if (!data || !data.items || data.items.length === 0) return null;
 
   return (
-    <div className="rich-widget rich-widget-list">
+    <div className="display-card rich-widget-list">
       {data.title && (
-        <div className="list-widget-title">{data.title}</div>
+        <div className="display-card-label list-widget-title">
+          <List size={15} strokeWidth={1.75} aria-hidden="true" />
+          <span>{data.title}</span>
+        </div>
       )}
       <div className="list-widget-items">
         {data.items.map((item, i) => (

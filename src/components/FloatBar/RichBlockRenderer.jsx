@@ -3,12 +3,21 @@
  * Plain text keeps the existing TypewriterMessage and EmailRenderer behavior.
  */
 import React, { useMemo } from 'react';
+import { BarChart3, Cloud, List, Newspaper, Table2, Zap } from 'lucide-react';
 import TypewriterMessage from '../TypewriterMessage/TypewriterMessage';
 import EmailRenderer from './EmailRenderer';
 import { getBlock } from './blocks/blockRegistry';
 
 const COMPLETE_BLOCK_PATTERN = /:::([a-z_]+)\r?\n([\s\S]*?)\r?\n:::/g;
 const PARTIAL_BLOCK_PATTERN = /:::([a-z_]+)\r?\n[\s\S]*$/;
+const SKELETON_ICONS = {
+  weather: Cloud,
+  news: Newspaper,
+  list: List,
+  fact: Zap,
+  table: Table2,
+  chart: BarChart3,
+};
 
 function parseBlock(definition, rawJson) {
   const parsedData = JSON.parse(rawJson.trim());
@@ -113,8 +122,10 @@ const RichBlockRenderer = React.memo(function RichBlockRenderer({ content, anima
         }
 
         if (segment.type === 'skeleton') {
+          const SkeletonIcon = SKELETON_ICONS[segment.blockType] || Cloud;
           return (
-            <div key={index} className="rich-widget-skeleton" role="status">
+            <div key={index} className="display-card rich-widget-skeleton" role="status">
+              <SkeletonIcon size={15} strokeWidth={1.75} aria-hidden="true" />
               <span className="rich-widget-skeleton-text">{segment.definition.skeletonLabel}</span>
             </div>
           );

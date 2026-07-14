@@ -1,4 +1,5 @@
 import React, { useId, useMemo } from 'react';
+import { BarChart3 } from 'lucide-react';
 import {
   Area,
   AreaChart,
@@ -251,8 +252,13 @@ const ChartBlock = React.memo(function ChartBlock({ data }) {
   }
 
   return (
-    <section className="rich-widget display-block display-block-chart">
-      {data.title && <h3 className="display-block-title">{data.title}</h3>}
+    <section className="display-card display-block display-block-chart">
+      {data.title && (
+        <h3 className="display-card-label display-block-title">
+          <BarChart3 size={15} strokeWidth={1.75} aria-hidden="true" />
+          <span>{data.title}</span>
+        </h3>
+      )}
       <div
         className="display-block-chart-canvas"
         role="img"

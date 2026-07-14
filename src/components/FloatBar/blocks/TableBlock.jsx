@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Table2 } from 'lucide-react';
 
 export function parseTableBlockData(data) {
   const hasValidColumns =
@@ -41,8 +42,13 @@ const TableBlock = React.memo(function TableBlock({ data }) {
   }, [data.highlight_best, data.rows, numericColumns]);
 
   return (
-    <section className="rich-widget display-block display-block-table">
-      {data.title && <h3 className="display-block-title">{data.title}</h3>}
+    <section className="display-card display-block display-block-table">
+      {data.title && (
+        <h3 className="display-card-label display-block-title">
+          <Table2 size={15} strokeWidth={1.75} aria-hidden="true" />
+          <span>{data.title}</span>
+        </h3>
+      )}
       <div
         className="display-block-table-scroll"
         tabIndex={0}
