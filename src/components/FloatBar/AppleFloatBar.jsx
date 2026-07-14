@@ -70,7 +70,6 @@ import {
 import { searchContext as hybridSearchContext } from '../../services/hybridSearch';
 import memoryService from '../../services/memory';
 import contextSelector from '../../services/contextSelector';
-import { FactTileList } from '../FactTileList.jsx';
 import PlanCard from '../PlanCard';
 import { usePermission } from '../../contexts/PermissionContext';
 import ApprovalDialog from '../ApprovalDialog';
@@ -558,7 +557,6 @@ export default function AppleFloatBar({
 
   const [parallelAgents, setParallelAgents] = useState(null); // Parallel web agents state
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [factTiles, setFactTiles] = useState([]);
   // Autonomous mode state - consolidated via useReducer for atomic updates
   const [executionState, dispatchExecution] = useReducer(executionReducer, initialExecutionState);
   // Destructure for backward compatibility with existing code
@@ -838,8 +836,7 @@ export default function AppleFloatBar({
   const composerRef = useRef(null);
   const naturalHeightRef = useRef(0); // last measured natural content height
   const isMiniRef = useRef(true);
-  const tilesRef = useRef(null); // fact tiles container
-  const enrichTileIdRef = useRef(null); // current tile receiving enrichment
+  const enrichTileIdRef = useRef(null); // current fact message receiving enrichment
   const streamBufferRef = useRef(''); // accumulates tokens when not enriching a tile
   const hasReceivedFinalTokenRef = useRef(false); // track if we've received first final token (for thinking status)
   const hasReceivedWidgetRef = useRef(false); // track if we've received a widget event (suppress web search indicator after)
@@ -2911,7 +2908,6 @@ export default function AppleFloatBar({
           const result = event.result || event.data?.result || event.data || {};
           const displayText = event.display_text || result.display_text || result.formatted || '';
           const latencyMs = event.latency_ms ?? result.latency_ms ?? 0;
-          const confidence = event.confidence ?? result.confidence ?? 1.0;
 
           // Skip tiles for simple tools - the AI response already includes this info
           // These tiles are redundant and clutter the UI
@@ -2929,24 +2925,27 @@ export default function AppleFloatBar({
             weather: 'Weather',
           };
 
-          const tile = {
-            id: crypto.randomUUID(),
+          const factData = {
             title: titleMap[toolName] || toolName,
             primary: displayText,
-            meta: {
-              latencyMs,
-              confidence,
-              timestamp: new Date().toISOString(),
-            },
-            raw: result,
             enrichment: event.enrichment || '',
           };
+          const messageId = crypto.randomUUID();
+          const marker = `:::fact\n${JSON.stringify(factData)}\n:::`;
 
-          // Scope subsequent token events to this tile for enrichment
-          enrichTileIdRef.current = tile.id;
+          // Scope subsequent token events to this fact message for enrichment
+          enrichTileIdRef.current = messageId;
 
-          setFactTiles((prev) => [tile, ...prev]);
-          logger.info(`[FactTile] Rendered ${toolName} tile in ${Math.round(latencyMs)}ms`);
+          setThoughts((prev) => [
+            ...prev,
+            {
+              id: messageId,
+              role: 'assistant',
+              content: marker,
+              timestamp: Date.now(),
+            },
+          ]);
+          logger.info(`[FactBlock] Rendered ${toolName} fact in ${Math.round(latencyMs)}ms`);
         } else if (event.type === 'token') {
           const content = event.content || event.data?.content || '';
           const channel = event.channel || event.data?.channel || 'final';
@@ -2994,18 +2993,29 @@ export default function AppleFloatBar({
           }
 
           if (enrichTileIdRef.current) {
-            // Stream into the most recent fact tile enrichment
-            setFactTiles((prev) => {
-              if (prev.length === 0) return prev;
-              const idx = prev.findIndex((t) => t.id === enrichTileIdRef.current);
-              if (idx === -1) return prev;
-              const updated = [...prev];
-              const tile = updated[idx];
-              updated[idx] = {
-                ...tile,
-                enrichment: (tile.enrichment || '') + content,
-              };
-              return updated;
+            // Stream into the most recent inline fact block enrichment
+            setThoughts((prev) => {
+              const markerPrefix = ':::fact\n';
+              const markerSuffix = '\n:::';
+              return prev.map((thought) => {
+                if (thought.id !== enrichTileIdRef.current) return thought;
+
+                try {
+                  const data = JSON.parse(
+                    thought.content.slice(markerPrefix.length, -markerSuffix.length)
+                  );
+                  const updatedData = {
+                    ...data,
+                    enrichment: (data.enrichment || '') + content,
+                  };
+                  return {
+                    ...thought,
+                    content: `${markerPrefix}${JSON.stringify(updatedData)}${markerSuffix}`,
+                  };
+                } catch {
+                  return thought;
+                }
+              });
             });
           } else {
             // No tile enrichment active: show tokens in real-time
@@ -6022,9 +6032,8 @@ export default function AppleFloatBar({
       })();
     }
 
-    // Clear chat transcript and tiles immediately (don't wait for summary)
+    // Clear chat transcript immediately (don't wait for summary)
     setThoughts([]);
-    setFactTiles([]);
     enrichTileIdRef.current = null;
     clearMessages();
 
@@ -6308,7 +6317,6 @@ export default function AppleFloatBar({
       // Get all heights from the DOM
       const dragStrip = containerEl?.querySelector?.('.apple-drag-strip')?.offsetHeight || 6;
       const th = toolbarRef.current?.offsetHeight || 0;
-      const fh = tilesRef.current?.offsetHeight || 0;
       const mhEl = messagesRef.current;
       // Cap messages height at 360px (the CSS max-height) so window isn't sized
       // for content that will be scrolled anyway
@@ -6343,7 +6351,6 @@ export default function AppleFloatBar({
         padTop +
         dragStrip +
         th +
-        fh +
         mh +
         ah +
         ih +
@@ -6367,13 +6374,12 @@ export default function AppleFloatBar({
       const hasAttachments = ah > 0;
 
       // If this is the true empty state (no messages, no thinking, no
-      // attachments, no fact tiles), keep the expanded window at the
+      // attachments), keep the expanded window at the
       // compact base height so the composer isn't pushed far down.
       const isEmptySurface =
         thoughts.length === 0 &&
         !isThinking &&
-        !hasAttachments &&
-        (!factTiles || factTiles.length === 0);
+        !hasAttachments;
 
       if (isEmptySurface) {
         // Fixed height for empty state - keep at 180px
@@ -6394,7 +6400,6 @@ export default function AppleFloatBar({
       console.log('[FloatBar Height]', {
         dragStrip,
         toolbar: th,
-        factTiles: fh,
         messages: mh,
         attachments: ah,
         input: ih,
@@ -6465,7 +6470,7 @@ export default function AppleFloatBar({
       // Update baseline after any attempted resize
       naturalHeightRef.current = bufferedHeight;
     }, HEIGHT_DEBOUNCE_MS);
-  }, [isMini, approvalOpen, thoughts, isThinking, factTiles]);
+  }, [isMini, approvalOpen, thoughts, isThinking]);
 
   useEffect(() => {
     isMiniRef.current = isMini;
@@ -6487,10 +6492,10 @@ export default function AppleFloatBar({
     })();
   }, [approvalOpen, isMini, handleExpand]);
 
-  // Update height when content changes (messages, thinking, tiles)
+  // Update height when content changes (messages, thinking)
   useEffect(() => {
     updateWindowHeight();
-  }, [thoughts, isThinking, factTiles, updateWindowHeight]);
+  }, [thoughts, isThinking, updateWindowHeight]);
 
   // Recalculate height when execution panel toggles or updates
   useEffect(() => {
@@ -7513,13 +7518,6 @@ export default function AppleFloatBar({
                   )}
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Fact Tiles (Phase 2: Deterministic Tools) */}
-          {factTiles.length > 0 && (
-            <div style={{ marginBottom: '8px' }} ref={tilesRef}>
-              <FactTileList tiles={factTiles} />
             </div>
           )}
 

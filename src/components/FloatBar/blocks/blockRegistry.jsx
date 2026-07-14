@@ -3,6 +3,7 @@ import NewsWidget from '../widgets/NewsWidget';
 import ListWidget from '../widgets/ListWidget';
 import ChartBlock, { parseChartBlockData } from './ChartBlock';
 import TableBlock, { parseTableBlockData } from './TableBlock';
+import FactBlock from './FactBlock';
 import '../widgets/widgets.css';
 import './blocks.css';
 
@@ -46,6 +47,11 @@ registerBlock('news', {
 registerBlock('list', {
   component: ListWidget,
   skeletonLabel: 'Loading list...',
+});
+
+registerBlock('fact', {
+  component: FactBlock,
+  skeletonLabel: 'Loading fact...',
 });
 
 registerBlock('table', {

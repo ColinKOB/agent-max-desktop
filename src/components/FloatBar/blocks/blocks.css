@@ -25,6 +25,39 @@
   line-height: 1.35;
 }
 
+.display-block-fact {
+  padding: 14px 16px;
+}
+
+.display-block-fact-title {
+  color: var(--display-block-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.display-block-fact-primary {
+  margin-top: 4px;
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.display-block-fact-enrichment {
+  margin-top: 10px;
+  color: var(--display-block-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.display-block-fact-enrichment > :first-child {
+  margin-top: 0;
+}
+
+.display-block-fact-enrichment > :last-child {
+  margin-bottom: 0;
+}
+
 .display-block-table-scroll {
   max-height: 260px;
   overflow: auto;
