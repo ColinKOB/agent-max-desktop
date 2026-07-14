@@ -1611,17 +1611,17 @@ class PullExecutor {
 
     /**
      * Execute ui.comparison_table tool - displays a formatted comparison table
-     * Opens a dedicated window with a nicely formatted table.
+     * Displays the table inline in the chat UI.
      *
      * @param {Object} args - { title: string, columns: string[], rows: [{label, values: []}], highlight_best: boolean }
      */
     async executeComparisonTable(args) {
         const { BrowserWindow } = require('electron');
-        const path = require('path');
 
         const title = args.title || 'Comparison';
         const columns = args.columns || [];
         const rows = args.rows || [];
+        const highlightBest = args.highlight_best || false;
 
         console.log(`[PullExecutor] comparison_table: "${title}" with ${rows.length} rows`);
 
@@ -1648,161 +1648,33 @@ class PullExecutor {
             processedRows.push(rowData.map(item => String(item ?? '')));
         }
 
-        // Calculate window size based on content
-        const numColumns = columns.length;
-        const numRows = processedRows.length;
-        const windowWidth = Math.min(900, Math.max(400, numColumns * 180));
-        const windowHeight = Math.min(700, Math.max(300, (numRows + 2) * 45 + 80));
+        const mainWindow = BrowserWindow.getAllWindows().find(w => !w.isDestroyed());
+        if (!mainWindow) {
+            return {
+                success: false,
+                error: 'No window available to display comparison table',
+                exit_code: 1
+            };
+        }
 
-        // Create a new window for the table
-        const tableWindow = new BrowserWindow({
-            width: windowWidth,
-            height: windowHeight,
-            title: title,
-            resizable: true,
-            minimizable: true,
-            maximizable: true,
-            alwaysOnTop: true,
-            backgroundColor: '#F7F9FB',
-            webPreferences: {
-                nodeIntegration: false,
-                contextIsolation: true
+        mainWindow.webContents.send('ai-stream-event', {
+            type: 'display_block',
+            data: {
+                block_type: 'table',
+                data: {
+                    title,
+                    columns,
+                    rows: processedRows,
+                    highlight_best: highlightBest
+                }
             }
         });
 
-        // Generate HTML for the table
-        const tableHTML = this.generateTableHTML(title, columns, processedRows);
-
-        // Load the HTML directly
-        tableWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(tableHTML)}`);
-
         return {
             success: true,
-            stdout: `Opened comparison table "${title}" in a new window (${columns.length} columns, ${processedRows.length} rows)`,
+            stdout: `Displayed comparison table "${title}" inline (${processedRows.length} rows)`,
             exit_code: 0
         };
-    }
-
-    /**
-     * Generate HTML for the comparison table window
-     * Styled to match Agent Max design system
-     */
-    generateTableHTML(title, columns, rows) {
-        const rowsHTML = rows.map((row, idx) => {
-            const cells = row.map(cell => `<td>${this.escapeHTML(cell)}</td>`).join('');
-            const rowClass = idx % 2 === 0 ? 'even' : 'odd';
-            return `<tr class="${rowClass}">${cells}</tr>`;
-        }).join('');
-
-        const headerCells = columns.map(col => `<th>${this.escapeHTML(col)}</th>`).join('');
-
-        return `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>${this.escapeHTML(title)}</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
-            background: #F7F9FB;
-            color: #0B1220;
-            padding: 16px;
-            min-height: 100vh;
-        }
-        .table-container {
-            overflow-x: auto;
-            border-radius: 12px;
-            background: #FFFFFF;
-            border: 1px solid #E5EAF0;
-            box-shadow: 0 4px 24px rgba(10, 20, 40, 0.08);
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-        }
-        th {
-            background: #F1F4F8;
-            color: #0B1220;
-            font-weight: 600;
-            text-align: left;
-            padding: 12px 16px;
-            border-bottom: 1px solid #E5EAF0;
-            white-space: nowrap;
-        }
-        td {
-            padding: 10px 16px;
-            border-bottom: 1px solid #E5EAF0;
-            vertical-align: top;
-            line-height: 1.5;
-            color: #0B1220;
-        }
-        tr.even {
-            background: #FFFFFF;
-        }
-        tr.odd {
-            background: #F9FAFB;
-        }
-        tr:hover {
-            background: #EFF6FF;
-        }
-        tr:last-child td {
-            border-bottom: none;
-        }
-        /* First column styling (usually labels) */
-        td:first-child {
-            font-weight: 500;
-            color: #0FB5AE;
-            white-space: nowrap;
-        }
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            height: 8px;
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #F1F4F8;
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #D1D5DB;
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #9CA3AF;
-        }
-    </style>
-</head>
-<body>
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>${headerCells}</tr>
-            </thead>
-            <tbody>
-                ${rowsHTML}
-            </tbody>
-        </table>
-    </div>
-</body>
-</html>`;
-    }
-
-    /**
-     * Escape HTML special characters
-     */
-    escapeHTML(str) {
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
     }
 
     /**

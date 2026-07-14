@@ -4080,6 +4080,20 @@ export default function AppleFloatBar({
             options: optionsData.options || [],
             runId: optionsData.run_id || planIdRef.current
           });
+        } else if (event.type === 'display_block') {
+          // Autonomous tools can append any registered display block without an active stream.
+          const blockData = event.data || {};
+          const blockType = blockData.block_type;
+          const marker = `:::${blockType}\n${JSON.stringify(blockData.data)}\n:::`;
+          console.log('[Chat] Display block received:', blockType, blockData.data);
+          setThoughts((prev) => [
+            ...prev,
+            {
+              role: 'assistant',
+              content: marker,
+              timestamp: Date.now(),
+            },
+          ]);
         } else if (event.type === 'widget') {
           // Rich widget data from function tool call
           // event shape: { type: "widget", widget_type: "weather", data: {...} }
