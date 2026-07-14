@@ -1,53 +1,46 @@
 /**
- * RichBlockRenderer - Detects :::type blocks in message content and renders
- * them as polished widgets. Plain text passes through to TypewriterMessage
- * (animated) or EmailRenderer (static). Handles partial/streaming blocks
- * with skeleton placeholders.
+ * Detects registered :::type blocks in message content and renders them inline.
+ * Plain text keeps the existing TypewriterMessage and EmailRenderer behavior.
  */
 import React, { useMemo } from 'react';
 import TypewriterMessage from '../TypewriterMessage/TypewriterMessage';
 import EmailRenderer from './EmailRenderer';
-import WeatherWidget from './widgets/WeatherWidget';
-import NewsWidget from './widgets/NewsWidget';
-import ListWidget from './widgets/ListWidget';
-import './widgets/widgets.css';
+import { getBlock } from './blocks/blockRegistry';
 
-// Regex to match complete :::type blocks (primary format)
-const RICH_BLOCK_PATTERN = /:::(weather|news|list)\n([\s\S]*?)\n:::/g;
+const COMPLETE_BLOCK_PATTERN = /:::([a-z_]+)\r?\n([\s\S]*?)\r?\n:::/g;
+const PARTIAL_BLOCK_PATTERN = /:::([a-z_]+)\r?\n[\s\S]*$/;
 
-// Regex to detect an opening :::type that hasn't been closed yet
-const PARTIAL_BLOCK_PATTERN = /:::(weather|news|list)\n[\s\S]*$/;
+function parseBlock(definition, rawJson) {
+  const parsedData = JSON.parse(rawJson.trim());
+  return {
+    definition,
+    data: definition.parse ? definition.parse(parsedData) : parsedData,
+  };
+}
 
-const SKELETON_LABELS = {
-  weather: { icon: '🌤️', text: 'Loading weather...' },
-  news: { icon: '📰', text: 'Loading headlines...' },
-  list: { icon: '📋', text: 'Loading list...' },
-};
-
-/**
- * Split content into segments: plain text and rich blocks.
- * Returns an array of { type: 'text'|'weather'|'news'|'list', content: string, data?: object }
- */
-function splitWithPattern(text, pattern) {
+function splitCompleteBlocks(text) {
   const segments = [];
   let lastIndex = 0;
-  pattern.lastIndex = 0;
+  COMPLETE_BLOCK_PATTERN.lastIndex = 0;
 
   let match;
-  while ((match = pattern.exec(text)) !== null) {
-    // Text before this block
+  while ((match = COMPLETE_BLOCK_PATTERN.exec(text)) !== null) {
+    const definition = getBlock(match[1]);
+    if (!definition) continue;
+
     if (match.index > lastIndex) {
       segments.push({ type: 'text', content: text.slice(lastIndex, match.index) });
     }
 
-    // Parse the JSON data — the type is in group 1, JSON in group 2
-    const blockType = match[1];
-    const jsonStr = match[2].trim();
     try {
-      const data = JSON.parse(jsonStr);
-      segments.push({ type: blockType, content: match[0], data });
-    } catch (e) {
-      // If JSON is invalid, treat as plain text
+      const block = parseBlock(definition, match[2]);
+      segments.push({
+        type: 'block',
+        blockType: match[1],
+        content: match[0],
+        ...block,
+      });
+    } catch {
       segments.push({ type: 'text', content: match[0] });
     }
 
@@ -60,19 +53,20 @@ function splitWithPattern(text, pattern) {
 function splitRichBlocks(text) {
   if (!text) return [{ type: 'text', content: '' }];
 
-  // Split on ::: delimited blocks
-  let { segments, lastIndex } = splitWithPattern(text, RICH_BLOCK_PATTERN);
-
-  // Check for a partial (unclosed) ::: block at the end
+  const { segments, lastIndex } = splitCompleteBlocks(text);
   const remaining = text.slice(lastIndex);
   const partialMatch = remaining.match(PARTIAL_BLOCK_PATTERN);
+  const partialDefinition = partialMatch ? getBlock(partialMatch[1]) : null;
 
-  if (partialMatch) {
+  if (partialMatch && partialDefinition) {
     const textBefore = remaining.slice(0, partialMatch.index);
-    if (textBefore) {
-      segments.push({ type: 'text', content: textBefore });
-    }
-    segments.push({ type: 'skeleton', blockType: partialMatch[1], content: partialMatch[0] });
+    if (textBefore) segments.push({ type: 'text', content: textBefore });
+    segments.push({
+      type: 'skeleton',
+      blockType: partialMatch[1],
+      definition: partialDefinition,
+      content: partialMatch[0],
+    });
   } else if (remaining) {
     segments.push({ type: 'text', content: remaining });
   }
@@ -85,73 +79,49 @@ function splitRichBlocks(text) {
 }
 
 /**
- * Render a widget based on block type
- */
-function renderWidget(type, data, key) {
-  switch (type) {
-    case 'weather':
-      return <WeatherWidget key={key} data={data} />;
-    case 'news':
-      return <NewsWidget key={key} data={data} />;
-    case 'list':
-      return <ListWidget key={key} data={data} />;
-    default:
-      return null;
-  }
-}
-
-/**
- * RichBlockRenderer component
- * @param {string} content - The full message content (may contain :::type blocks)
- * @param {boolean} animate - Whether to use TypewriterMessage for text segments
+ * @param {string} content Full message content, which may contain display blocks.
+ * @param {boolean} animate Whether plain text uses TypewriterMessage.
  */
 const RichBlockRenderer = React.memo(function RichBlockRenderer({ content, animate = false }) {
   const segments = useMemo(() => splitRichBlocks(content), [content]);
+  const hasDisplayBlocks = segments.some((segment) => segment.type !== 'text');
 
-  // Fast path: if there's only plain text (no rich blocks), use existing renderers
-  const hasRichBlocks = segments.some(s => s.type !== 'text');
-
-  if (!hasRichBlocks && segments.length === 1) {
+  if (!hasDisplayBlocks && segments.length === 1) {
     if (animate) {
       return <TypewriterMessage content={content} speed={120} enabled={true} />;
     }
     return <EmailRenderer content={content} />;
   }
 
-  // Reorder: text segments first (above), then widgets, then skeletons
-  // This ensures the brief follow-up text appears above the widget card
   const reordered = [
-    ...segments.filter(s => s.type === 'text'),
-    ...segments.filter(s => s.type !== 'text' && s.type !== 'skeleton'),
-    ...segments.filter(s => s.type === 'skeleton'),
+    ...segments.filter((segment) => segment.type === 'text'),
+    ...segments.filter((segment) => segment.type === 'block'),
+    ...segments.filter((segment) => segment.type === 'skeleton'),
   ];
 
   return (
     <div className="rich-block-renderer">
-      {reordered.map((segment, i) => {
+      {reordered.map((segment, index) => {
         if (segment.type === 'text') {
           const trimmed = segment.content.trim();
           if (!trimmed) return null;
-          // For text segments, use EmailRenderer (handles both email detection and markdown)
           return (
-            <div key={i} className="rich-block-text-segment">
+            <div key={index} className="rich-block-text-segment">
               <EmailRenderer content={trimmed} />
             </div>
           );
         }
 
         if (segment.type === 'skeleton') {
-          const info = SKELETON_LABELS[segment.blockType] || SKELETON_LABELS.list;
           return (
-            <div key={i} className="rich-widget-skeleton">
-              <span className="rich-widget-skeleton-icon">{info.icon}</span>
-              <span className="rich-widget-skeleton-text">{info.text}</span>
+            <div key={index} className="rich-widget-skeleton" role="status">
+              <span className="rich-widget-skeleton-text">{segment.definition.skeletonLabel}</span>
             </div>
           );
         }
 
-        // Rich block widget
-        return renderWidget(segment.type, segment.data, i);
+        const BlockComponent = segment.definition.component;
+        return <BlockComponent key={index} data={segment.data} />;
       })}
     </div>
   );
