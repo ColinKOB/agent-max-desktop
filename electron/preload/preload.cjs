@@ -221,6 +221,11 @@ contextBridge.exposeInMainWorld('electron', {
 contextBridge.exposeInMainWorld('electronAPI', {
   openExternal: (url) => ipcRenderer.invoke('open-external', { url }),
   openSettings: (opts) => ipcRenderer.invoke('open-settings', opts || {}),
+  onExecutorUIEvent: (callback) => {
+    const listener = (_event, data) => callback(data);
+    ipcRenderer.on('executor:ui-event', listener);
+    return () => ipcRenderer.removeListener('executor:ui-event', listener);
+  },
   
   // ===========================================
   // ENTERPRISE UPDATE MANAGEMENT

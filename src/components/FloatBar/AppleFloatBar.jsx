@@ -2665,6 +2665,43 @@ export default function AppleFloatBar({
     }
   }, []);
 
+  const handleExecutorUIEvent = useCallback((event) => {
+    if (event.type === 'show_options') {
+      // AI wants to show option buttons for user selection
+      const optionsData = event.data || event;
+      console.log('[Chat] Show options received:', optionsData);
+      setAiOptions({
+        prompt: optionsData.prompt || 'Choose an option:',
+        options: optionsData.options || [],
+        runId: optionsData.run_id || planIdRef.current,
+      });
+    } else if (event.type === 'display_block') {
+      // Autonomous tools can append any registered display block without an active stream.
+      const blockData = event.data || {};
+      const blockType = blockData.block_type;
+      const marker = `:::${blockType}\n${JSON.stringify(blockData.data)}\n:::`;
+      console.log('[Chat] Display block received:', blockType, blockData.data);
+      setThoughts((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: marker,
+          timestamp: Date.now(),
+        },
+      ]);
+    }
+  }, []);
+
+  useEffect(() => {
+    const subscribe = window.electronAPI?.onExecutorUIEvent;
+    if (typeof subscribe !== 'function') return undefined;
+
+    const unsubscribe = subscribe(handleExecutorUIEvent);
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, [handleExecutorUIEvent]);
+
   // Main streaming chat logic (extracted for reuse)
   const sendChat = useCallback((text, userContext, screenshotData) => {
     // Defensive reset: ensure refs are clean for new stream even if ack event is missed
@@ -4078,28 +4115,9 @@ export default function AppleFloatBar({
           // Collapse the Thought bubble if it exists
           collapseCurrentThought();
         } else if (event.type === 'show_options') {
-          // AI wants to show option buttons for user selection
-          const optionsData = event.data || event;
-          console.log('[Chat] Show options received:', optionsData);
-          setAiOptions({
-            prompt: optionsData.prompt || 'Choose an option:',
-            options: optionsData.options || [],
-            runId: optionsData.run_id || planIdRef.current
-          });
+          handleExecutorUIEvent(event);
         } else if (event.type === 'display_block') {
-          // Autonomous tools can append any registered display block without an active stream.
-          const blockData = event.data || {};
-          const blockType = blockData.block_type;
-          const marker = `:::${blockType}\n${JSON.stringify(blockData.data)}\n:::`;
-          console.log('[Chat] Display block received:', blockType, blockData.data);
-          setThoughts((prev) => [
-            ...prev,
-            {
-              role: 'assistant',
-              content: marker,
-              timestamp: Date.now(),
-            },
-          ]);
+          handleExecutorUIEvent(event);
         } else if (event.type === 'widget') {
           // Rich widget data from function tool call
           // event shape: { type: "widget", widget_type: "weather", data: {...} }
@@ -4186,7 +4204,7 @@ export default function AppleFloatBar({
         setIsThinking(false);
         setThinkingStatus('');
       });
-  }, []);
+  }, [handleExecutorUIEvent]);
 
   // Helper to run the full send flow (screenshots, streaming, memory)
   const continueSend = useCallback(

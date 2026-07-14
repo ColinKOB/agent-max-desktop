@@ -1591,7 +1591,7 @@ class PullExecutor {
 
         // Send show_options event to renderer - frontend handles display
         // User clicks option -> sends as chat message -> AI receives as new message
-        mainWindow.webContents.send('ai-stream-event', {
+        mainWindow.webContents.send('executor:ui-event', {
             type: 'show_options',
             data: {
                 prompt,
@@ -1657,7 +1657,7 @@ class PullExecutor {
             };
         }
 
-        mainWindow.webContents.send('ai-stream-event', {
+        mainWindow.webContents.send('executor:ui-event', {
             type: 'display_block',
             data: {
                 block_type: 'table',
