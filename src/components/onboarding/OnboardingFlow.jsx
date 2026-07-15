@@ -68,7 +68,9 @@ import {
   Feather,
   Type,
   BookOpen,
-  Settings
+  Settings,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 // App capabilities data for personalized onboarding
@@ -1702,12 +1704,15 @@ function AccountStep({ onNext, onBack, userData }) {
   const [saving, setSaving] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const [resetEmailSent, setResetEmailSent] = useState(false);
 
   const validEmail = (v) => /.+@.+\..+/.test(v);
   const strongPw = (v) => v.length >= 8;
-  const canSubmit = validEmail(email) && strongPw(password) && !saving;
+  const passwordsMismatch = password.length > 0 && confirmPassword.length > 0 && password !== confirmPassword;
+  const showSignupPasswordMismatch = mode === 'signup' && passwordsMismatch;
+  const canSubmit = validEmail(email) && strongPw(password) && (mode !== 'signup' || (confirmPassword.length > 0 && !passwordsMismatch)) && !saving;
   const canSubmitReset = validEmail(email) && !saving;
   const canUpdatePassword = strongPw(password) && password === confirmPassword && !saving;
 
@@ -1794,6 +1799,11 @@ function AccountStep({ onNext, onBack, userData }) {
       }
 
       console.log('[Onboarding] Account created for:', trimmedEmail);
+      try {
+        localStorage.setItem('legal_agreement_accepted', 'true');
+        localStorage.setItem('legal_agreement_date', new Date().toISOString());
+        localStorage.setItem('legal_agreement_version', '2026-07-10');
+      } catch {}
       trackSignInSucceeded(trimmedEmail, 'email_signup');
       trackOnboardingStepCompleted('account', { method: 'signup', isNewUser: true });
       onNext?.({
@@ -1848,6 +1858,11 @@ function AccountStep({ onNext, onBack, userData }) {
       if (data?.user) {
         console.log('[Onboarding] User signed in:', trimmedEmail);
         try { localStorage.setItem('user_email', trimmedEmail); } catch {}
+        try {
+          localStorage.setItem('legal_agreement_accepted', 'true');
+          localStorage.setItem('legal_agreement_date', new Date().toISOString());
+          localStorage.setItem('legal_agreement_version', '2026-07-10');
+        } catch {}
 
         // Check if email is verified
         const isVerified = data.user.email_confirmed_at != null;
@@ -2067,7 +2082,7 @@ function AccountStep({ onNext, onBack, userData }) {
           border: '1px solid rgba(255, 255, 255, 0.08)',
         }}>
           <button
-            onClick={() => { setMode('signin'); setError(null); }}
+            onClick={() => { setMode('signin'); setConfirmPassword(''); setError(null); }}
             style={{
               padding: '8px 16px',
               borderRadius: 6,
@@ -2083,7 +2098,7 @@ function AccountStep({ onNext, onBack, userData }) {
             Sign In
           </button>
           <button
-            onClick={() => { setMode('signup'); setError(null); }}
+            onClick={() => { setMode('signup'); setConfirmPassword(''); setError(null); }}
             style={{
               padding: '8px 16px',
               borderRadius: 6,
@@ -2125,37 +2140,93 @@ function AccountStep({ onNext, onBack, userData }) {
 
         {/* Password input - hidden only while requesting a reset email */}
         {mode !== 'forgot-password' && (
-          <input
-            value={password}
-            onChange={(e) => { setPassword(e.target.value); setError(null); }}
-            onFocus={() => setPasswordFocused(true)}
-            onBlur={() => setPasswordFocused(false)}
-            onKeyDown={(e) => e.key === 'Enter' && (mode === 'update-password' ? canUpdatePassword : canSubmit) && handleSubmit()}
-            placeholder={mode === 'signin' ? 'Password' : mode === 'update-password' ? 'New password (8+ characters)' : 'Create password (8+ characters)'}
-            type="password"
-            style={{
-              ...styles.input,
-              borderColor: passwordFocused ? BRAND_ORANGE_GLOW : 'rgba(255, 255, 255, 0.12)',
-              boxShadow: passwordFocused ? `0 0 0 3px ${BRAND_ORANGE_LIGHT}` : 'none',
-            }}
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(null); }}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => setPasswordFocused(false)}
+              onKeyDown={(e) => e.key === 'Enter' && (mode === 'update-password' ? canUpdatePassword : canSubmit) && handleSubmit()}
+              placeholder={mode === 'signin' ? 'Password' : mode === 'update-password' ? 'New password (8+ characters)' : 'Create password (8+ characters)'}
+              type={showPassword ? 'text' : 'password'}
+              style={{
+                ...styles.input,
+                width: '100%',
+                paddingRight: 42,
+                borderColor: showSignupPasswordMismatch ? '#ef4444' : passwordFocused ? BRAND_ORANGE_GLOW : 'rgba(255, 255, 255, 0.12)',
+                boxShadow: passwordFocused ? `0 0 0 3px ${BRAND_ORANGE_LIGHT}` : 'none',
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((visible) => !visible)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              style={{
+                position: 'absolute',
+                right: 12,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                display: 'flex',
+                padding: 0,
+                background: 'none',
+                border: 'none',
+                color: 'rgba(255, 255, 255, 0.45)',
+                cursor: 'pointer',
+              }}
+            >
+              {showPassword ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
+            </button>
+          </div>
         )}
 
-        {mode === 'update-password' && (
-          <input
-            value={confirmPassword}
-            onChange={(e) => { setConfirmPassword(e.target.value); setError(null); }}
-            onKeyDown={(e) => e.key === 'Enter' && canUpdatePassword && handleUpdatePassword()}
-            placeholder="Confirm new password"
-            type="password"
-            style={styles.input}
-          />
+        {(mode === 'signup' || mode === 'update-password') && (
+          <div>
+            <div style={{ position: 'relative' }}>
+              <input
+                value={confirmPassword}
+                onChange={(e) => { setConfirmPassword(e.target.value); setError(null); }}
+                onKeyDown={(e) => e.key === 'Enter' && (mode === 'update-password' ? canUpdatePassword && handleUpdatePassword() : canSubmit && handleSignUp())}
+                placeholder={mode === 'update-password' ? 'Confirm new password' : 'Confirm password'}
+                type={showPassword ? 'text' : 'password'}
+                style={{
+                  ...styles.input,
+                  width: '100%',
+                  paddingRight: 42,
+                  borderColor: showSignupPasswordMismatch ? '#ef4444' : 'rgba(255, 255, 255, 0.12)',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={showPassword ? 'Hide password confirmation' : 'Show password confirmation'}
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  display: 'flex',
+                  padding: 0,
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255, 255, 255, 0.45)',
+                  cursor: 'pointer',
+                }}
+              >
+                {showPassword ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
+              </button>
+            </div>
+            {showSignupPasswordMismatch && (
+              <div style={{ color: '#ef4444', fontSize: 11, textAlign: 'left', marginTop: 5 }}>
+                Passwords do not match.
+              </div>
+            )}
+          </div>
         )}
 
         {/* Forgot Password link - only show in signin mode */}
         {mode === 'signin' && (
           <button
-            onClick={() => { setMode('forgot-password'); setError(null); setResetEmailSent(false); }}
+            onClick={() => { setMode('forgot-password'); setConfirmPassword(''); setError(null); setResetEmailSent(false); }}
             style={{
               background: 'none',
               border: 'none',
@@ -2234,7 +2305,7 @@ function AccountStep({ onNext, onBack, userData }) {
               {saving ? 'Sending...' : resetEmailSent ? 'Email Sent!' : 'Send Reset Link'}
             </button>
             <button
-              onClick={() => { setMode('signin'); setError(null); setResetEmailSent(false); }}
+              onClick={() => { setMode('signin'); setConfirmPassword(''); setError(null); setResetEmailSent(false); }}
               style={{
                 ...styles.secondaryButton,
                 width: '100%',
@@ -2259,24 +2330,31 @@ function AccountStep({ onNext, onBack, userData }) {
             </button>
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-            <button onClick={onBack} style={styles.secondaryButton}>
-              Back
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={!canSubmit}
-              style={{
-                ...styles.primaryButton,
-                flex: 1,
-                opacity: !canSubmit ? 0.5 : 1,
-                cursor: !canSubmit ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {saving
-                ? (mode === 'signin' ? 'Signing in...' : 'Creating...')
-                : (mode === 'signin' ? 'Sign In' : 'Create Account')}
-            </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={onBack} style={styles.secondaryButton}>
+                Back
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={!canSubmit}
+                style={{
+                  ...styles.primaryButton,
+                  flex: 1,
+                  opacity: !canSubmit ? 0.5 : 1,
+                  cursor: !canSubmit ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {saving
+                  ? (mode === 'signin' ? 'Signing in...' : 'Creating...')
+                  : (mode === 'signin' ? 'Sign In' : 'Create Account')}
+              </button>
+            </div>
+            {mode === 'signup' && (
+              <div style={{ color: 'rgba(255, 255, 255, 0.45)', fontSize: 11, lineHeight: 1.4 }}>
+                By creating an account you accept that Agent Max is early software — use at your own risk.
+              </div>
+            )}
           </div>
         )}
       </motion.div>
@@ -4205,7 +4283,6 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
     { id: 'demo', component: DemoStep },            // Show what Max can do first
     { id: 'account', component: AccountStep },      // Sign in/up - before name so we can personalize
     { id: 'name', component: NameStep },            // Collect name for personalization
-    { id: 'legal', component: LegalStep },          // Legal consent
     { id: 'permissions', component: PermissionsStep },
     { id: 'usecase', component: UseCaseStep },
     { id: 'verify-email', component: EmailVerificationStep },
@@ -4295,7 +4372,7 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
         user_name: profile.name,
         help_category: profile.help_category,
         selected_plan: profile.selected_plan,
-        legal_agreement_accepted: completedData.legalAccepted ? 'true' : 'false',
+        legal_agreement_accepted: 'true',
         legal_agreement_version: '2026-07-10',
       });
 
@@ -4305,6 +4382,9 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
       localStorage.setItem('user_email', completedData.email || '');
       localStorage.setItem('help_category', completedData.helpCategory || '');
       localStorage.setItem('selected_plan', completedData.selectedPlan || 'free_trial');
+      localStorage.setItem('legal_agreement_accepted', 'true');
+      localStorage.setItem('legal_agreement_date', localStorage.getItem('legal_agreement_date') || new Date().toISOString());
+      localStorage.setItem('legal_agreement_version', '2026-07-10');
     } catch (e) {
       console.error('[Onboarding] Failed to persist setup:', e);
       setCompletionError('Setup could not be saved. Check your connection and try again.');
