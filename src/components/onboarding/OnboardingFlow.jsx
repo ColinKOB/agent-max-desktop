@@ -1527,7 +1527,7 @@ function UseCaseStep({ userData, onNext, onBack }) {
 // ============================================================================
 // STEP 3: EMAIL/ACCOUNT (Sign Up or Sign In)
 // ============================================================================
-function AccountStep({ onNext, onBack, userData }) {
+function AccountStep({ onNext, onBack, userData, authNotice }) {
   const [mode, setMode] = useState('signin'); // 'signin', 'signup', 'forgot-password', or 'update-password'
   const [email, setEmail] = useState(userData?.email || '');
   const [password, setPassword] = useState('');
@@ -2099,6 +2099,29 @@ function AccountStep({ onNext, onBack, userData }) {
         )}
 
         {/* Error Message */}
+        {authNotice && (
+          <motion.div
+            role="alert"
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+              padding: 12,
+              background: 'rgba(245, 158, 11, 0.1)',
+              borderRadius: 8,
+              border: '1px solid rgba(245, 158, 11, 0.25)',
+              color: '#fbbf24',
+              fontSize: 13,
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 8,
+            }}
+          >
+            <AlertCircle style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} />
+            {authNotice}
+          </motion.div>
+        )}
+
         {error && (
           <motion.div
             initial={{ opacity: 0, y: -5 }}
@@ -3942,6 +3965,7 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
   const [checkingServer, setCheckingServer] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
   const [completionError, setCompletionError] = useState(null);
+  const [authNotice, setAuthNotice] = useState(null);
 
   useEffect(() => {
     try {
@@ -4003,6 +4027,7 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
 
     // Track step completion (unless it's already tracked in the step component)
     const currentStepId = steps[currentStep]?.id;
+    if (currentStepId === 'account') setAuthNotice(null);
     if (currentStepId && !['account'].includes(currentStepId)) {
       // account step tracks its own completion with auth details
       trackOnboardingStepCompleted(currentStepId, data);
@@ -4089,9 +4114,28 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
       localStorage.setItem('legal_agreement_accepted', 'true');
       localStorage.setItem('legal_agreement_date', localStorage.getItem('legal_agreement_date') || new Date().toISOString());
       localStorage.setItem('legal_agreement_version', '2026-07-10');
-    } catch (e) {
-      console.error('[Onboarding] Failed to persist setup:', e);
-      setCompletionError('Setup could not be saved. Check your connection and try again.');
+    } catch (err) {
+      console.error('[Onboarding] Failed to persist setup:', err);
+      const errorMessage = err?.message?.trim() || 'Setup could not be saved. Check your connection and try again.';
+      setCompletionError(errorMessage);
+
+      const normalizedMessage = errorMessage.toLowerCase();
+      if (errorMessage.includes('AUTH_SESSION_EXPIRED') || normalizedMessage.includes('signed in')) {
+        try {
+          await supabase.auth.signOut();
+        } catch (signOutError) {
+          console.warn('[Onboarding] Failed to sign out expired session:', signOutError);
+        }
+        try {
+          await window.electronAPI?.authSession?.remove?.('amx-supabase-auth');
+          localStorage.removeItem('amx-supabase-auth');
+        } catch (clearError) {
+          console.warn('[Onboarding] Failed to clear expired auth session:', clearError);
+        }
+        setAuthNotice('Your session expired — please sign in again.');
+        const accountStepIndex = steps.findIndex((step) => step.id === 'account');
+        if (accountStepIndex !== -1) setCurrentStep(accountStepIndex);
+      }
       setIsCompleting(false);
       return;
     }
@@ -4165,6 +4209,7 @@ export function OnboardingFlow({ onComplete, onSkip, startStep = 0 }) {
                     checkingServer={checkingServer}
                     completionError={completionError}
                     isCompleting={isCompleting}
+                    authNotice={authNotice}
                   />
                 </motion.div>
               </AnimatePresence>

@@ -4,6 +4,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import apiConfigManager from '../config/apiConfig.js';
 import { createLogger } from './logger.js';
 import { AUTH_CALLBACK_URL } from './onboardingAuth.js';
 
@@ -85,6 +86,41 @@ const authSessionStorage = {
   },
 };
 
+const AUTH_SESSION_EXPIRED_MESSAGE = 'AUTH_SESSION_EXPIRED: Please sign in again.';
+
+async function persistOnboardingViaBackend(profile = {}, preferences = {}) {
+  const { data: { session } = {}, error: sessionError } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+  if (sessionError || !accessToken) {
+    throw new Error(AUTH_SESSION_EXPIRED_MESSAGE);
+  }
+
+  const backendBaseURL = apiConfigManager.getConfig()?.baseURL || apiConfigManager.getBaseURL();
+  const apiKey = apiConfigManager.getApiKey();
+  if (!backendBaseURL) throw new Error('Backend service unavailable.');
+
+  const response = await fetch(`${backendBaseURL.replace(/\/$/, '')}/api/v2/profile/onboarding`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(apiKey ? { 'X-API-Key': apiKey } : {}),
+      'X-Supabase-Auth': accessToken,
+    },
+    body: JSON.stringify({ profile, preferences }),
+  });
+
+  if (response.status === 401) {
+    throw new Error(AUTH_SESSION_EXPIRED_MESSAGE);
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(errorBody?.detail || `Setup could not be saved (${response.status}).`);
+  }
+
+  return { userId: session.user?.id };
+}
+
 /**
  * Send password reset email via Supabase Auth.
  * User will receive an email with a link to reset their password.
@@ -127,6 +163,7 @@ export async function ensureUsersRow(email) {
   const user = sess?.data?.user;
   if (!user) {
     logger.warn('ensureUsersRow: No authenticated user');
+    if (sess?.error) throw new Error(AUTH_SESSION_EXPIRED_MESSAGE);
     return false;
   }
   
@@ -152,50 +189,59 @@ export async function ensureUsersRow(email) {
   
   if (existingUser) {
     // User exists, just update
-    const { error: updateError } = await supabase
+    const { data: updatedRows, error: updateError } = await supabase
       .from('users')
       .update({ 
         email, 
         updated_at: new Date().toISOString() 
       })
-      .eq('id', user.id);
+      .eq('id', user.id)
+      .select('id');
     
-    if (updateError) {
-      logger.error('ensureUsersRow update failed', updateError);
-      return false;
+    if (updateError || !updatedRows?.length) {
+      logger.error('ensureUsersRow update failed or was filtered by RLS', updateError);
+      await persistOnboardingViaBackend({}, {});
+      logger.info('ensureUsersRow: User row updated through backend fallback', { id: user.id });
+      return true;
     }
     logger.info('ensureUsersRow: User row updated', { id: user.id });
     return true;
   }
   
   // User doesn't exist, insert new row
-  const { error: insertError } = await supabase
+  const { data: insertedRows, error: insertError } = await supabase
     .from('users')
     .insert({ 
       id: user.id, 
       device_id: deviceId, 
       email, 
       updated_at: new Date().toISOString() 
-    });
+    })
+    .select('id');
   
-  if (insertError) {
+  if (insertError || !insertedRows?.length) {
     // If device_id conflict, try without device_id
-    if (insertError.code === '23505' && insertError.message?.includes('device_id')) {
+    if (insertError?.code === '23505' && insertError.message?.includes('device_id')) {
       logger.warn('Device ID conflict, retrying without device_id');
-      const { error: retryError } = await supabase
+      const { data: retriedRows, error: retryError } = await supabase
         .from('users')
         .insert({ 
           id: user.id, 
           email, 
           updated_at: new Date().toISOString() 
-        });
-      if (retryError) {
-        logger.error('ensureUsersRow insert retry failed', retryError);
-        return false;
+        })
+        .select('id');
+      if (retryError || !retriedRows?.length) {
+        logger.error('ensureUsersRow insert retry failed or was filtered by RLS', retryError);
+        await persistOnboardingViaBackend({}, {});
+        logger.info('ensureUsersRow: User row created through backend fallback', { id: user.id });
+        return true;
       }
     } else {
-      logger.error('ensureUsersRow insert failed', insertError);
-      return false;
+      logger.error('ensureUsersRow insert failed or was filtered by RLS', insertError);
+      await persistOnboardingViaBackend({}, {});
+      logger.info('ensureUsersRow: User row created through backend fallback', { id: user.id });
+      return true;
     }
   }
   
@@ -206,7 +252,8 @@ export async function ensureUsersRow(email) {
 export async function persistOnboardingProfile(profile, preferences = {}) {
   if (!SUPABASE_ENABLED || !supabase) throw new Error('Authentication service unavailable');
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) throw authError || new Error('You must be signed in to finish setup.');
+  if (authError) throw new Error(AUTH_SESSION_EXPIRED_MESSAGE);
+  if (!user) throw new Error('You must be signed in to finish setup.');
 
   const rowReady = await ensureUsersRow(user.email);
   if (!rowReady) throw new Error('Could not create your account profile.');
@@ -218,7 +265,7 @@ export async function persistOnboardingProfile(profile, preferences = {}) {
     .single();
   if (readError) throw readError;
 
-  const { error: profileError } = await supabase
+  const { data: updatedRows, error: profileError } = await supabase
     .from('users')
     .update({
       metadata: {
@@ -226,8 +273,12 @@ export async function persistOnboardingProfile(profile, preferences = {}) {
         profile: { ...(current?.metadata?.profile || {}), ...profile },
       },
     })
-    .eq('id', user.id);
-  if (profileError) throw profileError;
+    .eq('id', user.id)
+    .select('id');
+  if (profileError || !updatedRows?.length) {
+    logger.error('persistOnboardingProfile update failed or was filtered by RLS', profileError);
+    return persistOnboardingViaBackend(profile, preferences);
+  }
 
   const preferenceRows = Object.entries(preferences).map(([key, value]) => ({
     user_id: user.id,
