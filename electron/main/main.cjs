@@ -22,6 +22,7 @@ const {
   clipboard,
   desktopCapturer,
   systemPreferences,
+  safeStorage,
 } = require('electron');
 const fs = require('fs');
 const { spawn, execFile } = require('child_process');
@@ -91,6 +92,9 @@ const notesApiServer = require('../notes/notesApiServer.cjs');
 const testingApiServer = require('../testing/testingApiServer.cjs');
 const { configureReviewNotifications } = require('./reviewNotifications.cjs');
 const { getProfileCache } = require('../storage/userProfileCache.cjs');
+const { registerAuthSessionStore } = require('./authSessionStore.cjs');
+
+registerAuthSessionStore({ app, ipcMain, safeStorage });
 
 // App Discovery Service for personalized onboarding
 const appDiscovery = require('./services/appDiscovery.cjs');

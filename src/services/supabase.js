@@ -24,6 +24,67 @@ if (!import.meta.env.VITE_SUPABASE_URL) {
   logger.info('Using production Supabase defaults (env vars not set)');
 }
 
+function getAuthSessionBridge() {
+  if (typeof window === 'undefined') return null;
+  const bridge = window.electronAPI?.authSession;
+  if (!bridge || typeof bridge.get !== 'function' || typeof bridge.set !== 'function' || typeof bridge.remove !== 'function') {
+    return null;
+  }
+  return bridge;
+}
+
+function getLocalStorageItem(key) {
+  try {
+    return globalThis.localStorage?.getItem(key) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function setLocalStorageItem(key, value) {
+  try {
+    globalThis.localStorage?.setItem(key, value);
+  } catch {}
+}
+
+function removeLocalStorageItem(key) {
+  try {
+    globalThis.localStorage?.removeItem(key);
+  } catch {}
+}
+
+const authSessionStorage = {
+  async getItem(key) {
+    const bridge = getAuthSessionBridge();
+    if (!bridge) return getLocalStorageItem(key);
+
+    const storedValue = await bridge.get(key);
+    if (storedValue !== null) return storedValue;
+
+    const legacyValue = getLocalStorageItem(key);
+    if (legacyValue === null) return null;
+
+    await bridge.set(key, legacyValue);
+    removeLocalStorageItem(key);
+    return legacyValue;
+  },
+
+  async setItem(key, value) {
+    const bridge = getAuthSessionBridge();
+    if (bridge) {
+      await bridge.set(key, value);
+      return;
+    }
+    setLocalStorageItem(key, value);
+  },
+
+  async removeItem(key) {
+    const bridge = getAuthSessionBridge();
+    if (bridge) await bridge.remove(key);
+    removeLocalStorageItem(key);
+  },
+};
+
 /**
  * Send password reset email via Supabase Auth.
  * User will receive an email with a link to reset their password.
@@ -190,6 +251,7 @@ export const supabase = SUPABASE_ENABLED
       auth: {
         persistSession: true,
         storageKey: 'amx-supabase-auth',
+        storage: authSessionStorage,
         autoRefreshToken: true,
         detectSessionInUrl: false, // Electron doesn't use URL for session
       },

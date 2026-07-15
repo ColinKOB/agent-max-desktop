@@ -221,6 +221,11 @@ contextBridge.exposeInMainWorld('electron', {
 contextBridge.exposeInMainWorld('electronAPI', {
   openExternal: (url) => ipcRenderer.invoke('open-external', { url }),
   openSettings: (opts) => ipcRenderer.invoke('open-settings', opts || {}),
+  authSession: {
+    get: (key) => ipcRenderer.invoke('auth-session:get', key),
+    set: (key, value) => ipcRenderer.invoke('auth-session:set', key, value),
+    remove: (key) => ipcRenderer.invoke('auth-session:remove', key),
+  },
   onExecutorUIEvent: (callback) => {
     const listener = (_event, data) => callback(data);
     ipcRenderer.on('executor:ui-event', listener);
