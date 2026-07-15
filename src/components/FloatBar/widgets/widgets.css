@@ -6,7 +6,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 12px 14px 9px;
+  padding: 14px 16px 10px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
@@ -36,10 +36,11 @@
   margin-top: 2px;
 }
 
+/* Icon colors are set per weather condition inline; keep them at full strength */
 .weather-condition svg,
 .weather-row-icon svg {
-  color: var(--display-block-accent);
-  opacity: 0.72;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 4px rgba(255,255,255,0.08));
 }
 
 .weather-hero-right {
@@ -57,7 +58,7 @@
 
 /* Forecast rows */
 .weather-forecast {
-  padding: 7px 10px 9px;
+  padding: 8px 12px 10px;
 }
 
 .weather-forecast-row {

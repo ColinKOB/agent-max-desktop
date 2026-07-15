@@ -14,16 +14,16 @@ import {
   Wind,
 } from 'lucide-react';
 
-function getConditionIcon(condition) {
+function getConditionVisual(condition) {
   const normalized = condition?.toLowerCase() || '';
-  if (normalized.includes('partly')) return CloudSun;
-  if (normalized.includes('sunny') || normalized.includes('clear')) return Sun;
-  if (normalized.includes('storm') || normalized.includes('thunder')) return CloudLightning;
-  if (normalized.includes('snow') || normalized.includes('sleet')) return CloudSnow;
-  if (normalized.includes('rain') || normalized.includes('shower') || normalized.includes('drizzle')) return CloudRain;
-  if (normalized.includes('fog') || normalized.includes('mist') || normalized.includes('haze')) return CloudFog;
-  if (normalized.includes('wind')) return Wind;
-  return Cloud;
+  if (normalized.includes('partly')) return { Icon: CloudSun, color: '#fbbf24' };
+  if (normalized.includes('sunny') || normalized.includes('clear')) return { Icon: Sun, color: '#fbbf24' };
+  if (normalized.includes('storm') || normalized.includes('thunder')) return { Icon: CloudLightning, color: '#a78bfa' };
+  if (normalized.includes('snow') || normalized.includes('sleet')) return { Icon: CloudSnow, color: '#bae6fd' };
+  if (normalized.includes('rain') || normalized.includes('shower') || normalized.includes('drizzle')) return { Icon: CloudRain, color: '#60a5fa' };
+  if (normalized.includes('fog') || normalized.includes('mist') || normalized.includes('haze')) return { Icon: CloudFog, color: '#9ca3af' };
+  if (normalized.includes('wind')) return { Icon: Wind, color: '#7dd3fc' };
+  return { Icon: Cloud, color: '#94a3b8' };
 }
 
 const WeatherWidget = React.memo(function WeatherWidget({ data }) {
@@ -41,7 +41,7 @@ const WeatherWidget = React.memo(function WeatherWidget({ data }) {
     });
   }
   const tempRange = overallMax - overallMin || 1;
-  const CurrentConditionIcon = getConditionIcon(current?.condition);
+  const { Icon: CurrentConditionIcon, color: currentIconColor } = getConditionVisual(current?.condition);
 
   return (
     <div className="display-card rich-widget-weather">
@@ -52,7 +52,7 @@ const WeatherWidget = React.memo(function WeatherWidget({ data }) {
             <div className="weather-location">{location || 'Weather'}</div>
             <div className="weather-current-temp">{current.temp}°</div>
             <div className="weather-condition">
-              <CurrentConditionIcon size={15} strokeWidth={1.75} aria-hidden="true" />
+              <CurrentConditionIcon size={16} strokeWidth={2} color={currentIconColor} aria-hidden="true" />
               <span>{current.condition}</span>
             </div>
           </div>
@@ -68,12 +68,12 @@ const WeatherWidget = React.memo(function WeatherWidget({ data }) {
           {forecast.map((day, i) => {
             const barLeft = ((day.low - overallMin) / tempRange) * 100;
             const barWidth = ((day.high - day.low) / tempRange) * 100;
-            const ForecastConditionIcon = getConditionIcon(day.condition);
+            const { Icon: ForecastConditionIcon, color: forecastIconColor } = getConditionVisual(day.condition);
             return (
               <div key={i} className="weather-forecast-row">
                 <span className="weather-day">{day.day}</span>
                 <span className="weather-row-icon" title={day.condition}>
-                  <ForecastConditionIcon size={14} strokeWidth={1.75} aria-hidden="true" />
+                  <ForecastConditionIcon size={15} strokeWidth={2} color={forecastIconColor} aria-hidden="true" />
                 </span>
                 <span className="weather-row-low">{day.low}°</span>
                 <div className="weather-temp-bar-track">
