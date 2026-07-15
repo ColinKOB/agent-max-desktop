@@ -3368,6 +3368,55 @@ class PullExecutor {
      * 2. Direct URL fetch - fetches and extracts text content from a URL
      * 3. Search + fetch - searches then fetches top results for full content
      */
+    /**
+     * web.delegate fallback: the dedicated browser-agent was removed, so run the
+     * goal through web search and return the findings. Keeps runs completing
+     * instead of crashing on a missing method.
+     */
+    async executeDelegateWebAgent(args) {
+        const goal = args.goal || args.task || args.query || '';
+        if (!goal) {
+            return { success: false, error: 'web.delegate requires a goal', exit_code: 1 };
+        }
+        console.log(`[PullExecutor] web.delegate fallback via search: "${goal}"`);
+        const result = await this.executeBrowserSearch({ query: goal, max_results: 5 });
+        if (result && result.success) {
+            result.stdout = `Web research for goal: ${goal}\n${result.stdout || ''}`;
+        }
+        return result;
+    }
+
+    /**
+     * web.delegate_parallel fallback: run each task's goal through web search
+     * and combine labeled results.
+     */
+    async executeDelegateWebAgents(args) {
+        const tasks = Array.isArray(args.tasks) ? args.tasks : [];
+        if (!tasks.length) {
+            return { success: false, error: 'web.delegate_parallel requires a tasks array', exit_code: 1 };
+        }
+        console.log(`[PullExecutor] web.delegate_parallel fallback: ${tasks.length} searches`);
+        const results = await Promise.all(tasks.map(async (task) => {
+            const id = task.id || task.goal || 'task';
+            try {
+                const result = await this.executeBrowserSearch({ query: task.goal || task.query || String(id), max_results: 3 });
+                return { id, ok: !!(result && result.success), text: (result && (result.stdout || result.error)) || '' };
+            } catch (error) {
+                return { id, ok: false, text: error.message };
+            }
+        }));
+        const combined = results
+            .map((r) => `### ${r.id}${r.ok ? '' : ' (failed)'}\n${r.text}`)
+            .join('\n\n');
+        const anySuccess = results.some((r) => r.ok);
+        return {
+            success: anySuccess,
+            stdout: combined,
+            stderr: anySuccess ? '' : 'All parallel web searches failed',
+            exit_code: anySuccess ? 0 : 1
+        };
+    }
+
     async executeBrowserSearch(args) {
         try {
             const query = args.query || args.search || args.q;
