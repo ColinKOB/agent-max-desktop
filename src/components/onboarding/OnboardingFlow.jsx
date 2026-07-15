@@ -98,6 +98,10 @@ import {
   getFeatureFlag
 } from '../../services/analytics';
 
+const APP_ICON_ALLOWLIST = Object.entries(appCapabilitiesData.apps)
+  .filter(([, capability]) => (capability.prompts || []).length > 0)
+  .map(([appName]) => appName);
+
 // Brand orange color from logo (no gradients)
 const BRAND_ORANGE = '#f59e0b';
 const BRAND_ORANGE_LIGHT = 'rgba(245, 158, 11, 0.15)';
@@ -672,9 +676,6 @@ function DemoStep({ onNext, onBack }) {
   const [personalizedExamples, setPersonalizedExamples] = useState([]);
   const [detectedAppsCount, setDetectedAppsCount] = useState(0);
   const [isPersonalized, setIsPersonalized] = useState(false);
-  const [debugMode, setDebugMode] = useState(false);
-  const [allApps, setAllApps] = useState([]);
-  const [selectedDebugApp, setSelectedDebugApp] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -686,7 +687,7 @@ function DemoStep({ onNext, onBack }) {
 
         if (electronAPI?.getUserContext) {
           console.log('[DemoStep] Fetching user apps via IPC...');
-          const context = await electronAPI.getUserContext();
+          const context = await electronAPI.getUserContext({ iconAllowlist: APP_ICON_ALLOWLIST });
 
           if (!isMounted) return;
 
@@ -699,8 +700,6 @@ function DemoStep({ onNext, onBack }) {
               console.log(`[DemoStep] First app with icon:`, appsWithIcons[0].name, appsWithIcons[0].iconDataUrl?.substring(0, 50));
             }
             setDetectedAppsCount(context.installedApps.length);
-            // Store all apps for debug mode
-            setAllApps(context.installedApps);
 
             // Generate personalized examples
             const examples = generatePersonalizedExamples(context.installedApps);
@@ -756,168 +755,6 @@ function DemoStep({ onNext, onBack }) {
 
   const displayExamples = personalizedExamples.length > 0 ? personalizedExamples : DEMO_EXAMPLES;
 
-  // Get prompts for an app from capabilities
-  const getAppPrompts = (appName) => {
-    const { apps: capabilityApps } = appCapabilitiesData;
-    // Try exact match first
-    if (capabilityApps[appName]) {
-      return capabilityApps[appName].prompts || [];
-    }
-    // Try case-insensitive match
-    const matchedKey = Object.keys(capabilityApps).find(
-      key => key.toLowerCase() === appName.toLowerCase()
-    );
-    if (matchedKey) {
-      return capabilityApps[matchedKey].prompts || [];
-    }
-    return [];
-  };
-
-  if (debugMode) {
-    const prompts = selectedDebugApp ? getAppPrompts(selectedDebugApp.name) : [];
-
-    return (
-      <div style={{
-        maxWidth: 400,
-        margin: '0 auto',
-        padding: '16px',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h3 style={{ color: '#fff', margin: 0, fontSize: 14 }}>
-            {selectedDebugApp ? `${selectedDebugApp.name} Prompts` : `All Apps (${allApps.length})`}
-          </h3>
-          <button
-            onClick={() => selectedDebugApp ? setSelectedDebugApp(null) : setDebugMode(false)}
-            style={{
-              background: 'rgba(255,255,255,0.1)',
-              border: 'none',
-              color: '#fff',
-              padding: '6px 12px',
-              borderRadius: 6,
-              cursor: 'pointer',
-              fontSize: 12,
-            }}
-          >
-            {selectedDebugApp ? '← Back to Apps' : 'Close'}
-          </button>
-        </div>
-
-        {selectedDebugApp ? (
-          // Show prompts for selected app
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, padding: 12, background: 'rgba(255,255,255,0.05)', borderRadius: 8 }}>
-              {selectedDebugApp.iconDataUrl ? (
-                <img src={selectedDebugApp.iconDataUrl} alt={selectedDebugApp.name} style={{ width: 48, height: 48, borderRadius: 10 }} />
-              ) : (
-                <div style={{ width: 48, height: 48, borderRadius: 10, background: 'rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>❌</div>
-              )}
-              <div>
-                <div style={{ color: '#fff', fontWeight: 600 }}>{selectedDebugApp.name}</div>
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>
-                  {selectedDebugApp.iconDataUrl ? '✓ Has icon' : '✗ No icon'} • {prompts.length} prompts
-                </div>
-              </div>
-            </div>
-            {prompts.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {prompts.map((prompt, i) => (
-                  <div key={i} style={{
-                    padding: '10px 12px',
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 8,
-                    color: 'rgba(255,255,255,0.8)',
-                    fontSize: 13,
-                  }}>
-                    "{prompt}"
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: 20 }}>
-                No prompts available for this app
-              </div>
-            )}
-          </div>
-        ) : (
-          // Show all apps grid
-          <div style={{
-            flex: 1,
-            overflowY: 'auto',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: 8,
-            padding: 4,
-          }}>
-            {allApps.map((app, index) => {
-              const hasPrompts = getAppPrompts(app.name).length > 0;
-              return (
-                <div
-                  key={`${app.name}-${index}`}
-                  onClick={() => setSelectedDebugApp(app)}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    padding: 8,
-                    background: hasPrompts ? 'rgba(34, 197, 94, 0.1)' : 'rgba(100, 100, 100, 0.1)',
-                    border: `1px solid ${hasPrompts ? 'rgba(34, 197, 94, 0.3)' : 'rgba(100, 100, 100, 0.2)'}`,
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    transition: 'transform 0.1s',
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  <div style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 8,
-                    background: 'rgba(255,255,255,0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: 4,
-                    overflow: 'hidden',
-                  }}>
-                    {app.iconDataUrl ? (
-                      <img
-                        src={app.iconDataUrl}
-                        alt={app.name}
-                        style={{ width: 36, height: 36, objectFit: 'contain' }}
-                      />
-                    ) : (
-                      <span style={{ fontSize: 16, opacity: 0.5 }}>?</span>
-                    )}
-                  </div>
-                  <span style={{
-                    color: hasPrompts ? '#fff' : 'rgba(255,255,255,0.4)',
-                    fontSize: 9,
-                    textAlign: 'center',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    width: '100%',
-                  }}>
-                    {app.name}
-                  </span>
-                  {hasPrompts && (
-                    <span style={{ fontSize: 8, color: 'rgba(34, 197, 94, 0.8)', marginTop: 2 }}>
-                      {getAppPrompts(app.name).length} prompts
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div style={{
       maxWidth: 380,
@@ -946,23 +783,6 @@ function DemoStep({ onNext, onBack }) {
               : 'Max is your AI assistant that can help with everyday tasks'
           }
         </p>
-        {!isLoading && (
-          <button
-            onClick={() => setDebugMode(true)}
-            style={{
-              marginTop: 8,
-              background: 'rgba(255, 165, 0, 0.2)',
-              border: '1px solid rgba(255, 165, 0, 0.5)',
-              color: '#ffa500',
-              padding: '4px 10px',
-              borderRadius: 4,
-              cursor: 'pointer',
-              fontSize: 11,
-            }}
-          >
-            🔍 Debug: View All App Icons
-          </button>
-        )}
       </motion.div>
 
       {/* Demo Animation Placeholder */}
@@ -3807,7 +3627,7 @@ function CompleteStep({ userData, onNext, completionError, isCompleting }) {
       try {
         const electronAPI = window.electron?.appDiscovery || window.electronAPI?.appDiscovery;
         if (electronAPI?.getUserContext) {
-          const context = await electronAPI.getUserContext();
+          const context = await electronAPI.getUserContext({ iconAllowlist: APP_ICON_ALLOWLIST });
           if (context?.success !== false && context?.installedApps?.length > 0) {
             const examples = generatePersonalizedExamples(context.installedApps);
             if (examples.length >= 2) {

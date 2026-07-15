@@ -190,7 +190,7 @@ contextBridge.exposeInMainWorld('electron', {
   // App Discovery for personalized onboarding
   appDiscovery: {
     // Get full user context (installed apps + desktop files + platform info)
-    getUserContext: () => ipcRenderer.invoke('get-user-apps'),
+    getUserContext: (options) => ipcRenderer.invoke('get-user-apps', options),
     // Get just installed applications
     getInstalledApps: () => ipcRenderer.invoke('get-installed-apps'),
     // Get just desktop file context (file counts by category)

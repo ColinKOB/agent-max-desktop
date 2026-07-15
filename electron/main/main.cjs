@@ -2293,21 +2293,87 @@ ipcMain.handle('notes-detailed-status', () => {
 // For personalized onboarding
 // ===========================================
 
-// Icon cache persists across calls so the second IPC call is instant
-const _iconCache = new Map();
+const APP_ICON_CACHE_FILENAME = 'app-icon-cache.json';
+let _iconCache = null;
+
+function getAppIconCachePath() {
+  return path.join(app.getPath('userData'), APP_ICON_CACHE_FILENAME);
+}
+
+function loadAppIconCache() {
+  if (_iconCache) return _iconCache;
+
+  _iconCache = new Map();
+  const cachePath = getAppIconCachePath();
+  if (!fs.existsSync(cachePath)) return _iconCache;
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('cache root must be an object');
+    }
+
+    for (const [appPath, entry] of Object.entries(parsed)) {
+      if (
+        entry &&
+        typeof entry === 'object' &&
+        Number.isFinite(entry.mtimeMs) &&
+        (typeof entry.iconDataUrl === 'string' || entry.iconDataUrl === null)
+      ) {
+        _iconCache.set(appPath, {
+          mtimeMs: entry.mtimeMs,
+          iconDataUrl: entry.iconDataUrl,
+        });
+      }
+    }
+  } catch (error) {
+    console.warn('[AppDiscovery] Could not load app icon cache:', error.message);
+  }
+
+  return _iconCache;
+}
+
+function saveAppIconCache(iconCache) {
+  const cachePath = getAppIconCachePath();
+  const tempPath = `${cachePath}.${process.pid}.${Date.now()}.tmp`;
+  const serializedCache = Object.fromEntries(iconCache);
+  let fileDescriptor;
+
+  fs.mkdirSync(path.dirname(cachePath), { recursive: true });
+
+  try {
+    fileDescriptor = fs.openSync(tempPath, 'wx', 0o600);
+    fs.writeFileSync(fileDescriptor, JSON.stringify(serializedCache));
+    fs.fsyncSync(fileDescriptor);
+    fs.closeSync(fileDescriptor);
+    fileDescriptor = undefined;
+    fs.renameSync(tempPath, cachePath);
+  } catch (error) {
+    if (fileDescriptor !== undefined) {
+      try { fs.closeSync(fileDescriptor); } catch {}
+    }
+    try { fs.unlinkSync(tempPath); } catch {}
+    throw error;
+  }
+}
 
 // Get full user context (installed apps + desktop files)
 // Enhanced to include app icons for personalized onboarding
-ipcMain.handle('get-user-apps', async () => {
+ipcMain.handle('get-user-apps', async (_event, options = {}) => {
   console.log('[AppDiscovery] IPC: get-user-apps called');
   try {
     const context = await appDiscovery.getUserContext();
+    const iconAllowlist = Array.isArray(options?.iconAllowlist)
+      ? new Set(options.iconAllowlist.filter(name => typeof name === 'string').map(name => name.toLowerCase()))
+      : null;
 
     // Extract icons for installed apps (for onboarding personalization)
     if (context.installedApps && context.installedApps.length > 0) {
       console.log('[AppDiscovery] Extracting app icons...');
       const iconExtractionStart = Date.now();
       let cacheHits = 0;
+      let cacheUpdated = false;
+      const iconCache = loadAppIconCache();
 
       // Use app.getFileIcon first (fast, no shell spawn), fall back to sips only if needed
       const BATCH_SIZE = 20;
@@ -2318,10 +2384,17 @@ ipcMain.handle('get-user-apps', async () => {
         const batchResults = await Promise.all(
           batch.map(async (appInfo) => {
             try {
-              // Return cached icon if available
-              if (_iconCache.has(appInfo.path)) {
+              if (iconAllowlist && !iconAllowlist.has(appInfo.name.toLowerCase())) {
+                return { ...appInfo, iconDataUrl: null };
+              }
+
+              const mtimeMs = fs.statSync(appInfo.path).mtimeMs;
+              const cachedEntry = iconCache.get(appInfo.path);
+
+              // Return cached icon if the app bundle has not changed
+              if (cachedEntry?.mtimeMs === mtimeMs) {
                 cacheHits++;
-                return { ...appInfo, iconDataUrl: _iconCache.get(appInfo.path) };
+                return { ...appInfo, iconDataUrl: cachedEntry.iconDataUrl };
               }
 
               let iconDataUrl = null;
@@ -2371,38 +2444,25 @@ ipcMain.handle('get-user-apps', async () => {
                 } catch {}
               }
 
-              // Final fallback: Use Python/PyObjC for system apps with Assets.car icons
-              // (e.g. Calendar, Maps, etc.) Only runs for apps where above methods failed
-              if (!iconDataUrl) {
-                try {
-                  const { execSync } = require('child_process');
-                  const scriptPath = path.join(__dirname, 'scripts', 'extract-icon.py');
-                  const tempPngPath = path.join(os.tmpdir(), `app-icon-pyobjc-${Date.now()}-${Math.random().toString(36).slice(2)}.png`);
-                  execSync(`python3 "${scriptPath}" "${appInfo.path}" "${tempPngPath}" 64`, {
-                    stdio: 'pipe',
-                    timeout: 3000
-                  });
-                  if (fs.existsSync(tempPngPath)) {
-                    const pngBuffer = fs.readFileSync(tempPngPath);
-                    if (pngBuffer && pngBuffer.length > 0) {
-                      iconDataUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`;
-                    }
-                    fs.unlinkSync(tempPngPath);
-                  }
-                } catch {}
-              }
-
               // Cache the result (even null) to avoid re-extraction
-              _iconCache.set(appInfo.path, iconDataUrl);
+              iconCache.set(appInfo.path, { mtimeMs, iconDataUrl });
+              cacheUpdated = true;
 
               return { ...appInfo, iconDataUrl };
             } catch (iconError) {
-              _iconCache.set(appInfo.path, null);
               return { ...appInfo, iconDataUrl: null };
             }
           })
         );
         appsWithIcons.push(...batchResults);
+      }
+
+      if (cacheUpdated) {
+        try {
+          saveAppIconCache(iconCache);
+        } catch (error) {
+          console.warn('[AppDiscovery] Could not save app icon cache:', error.message);
+        }
       }
 
       const iconExtractionTime = Date.now() - iconExtractionStart;
