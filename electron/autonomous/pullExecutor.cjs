@@ -1580,7 +1580,8 @@ class PullExecutor {
         }
 
         // Find the main window
-        const mainWindow = BrowserWindow.getAllWindows().find(w => !w.isDestroyed());
+        const liveWindows = BrowserWindow.getAllWindows().filter(w => !w.isDestroyed());
+        const mainWindow = liveWindows.find(w => w.getTitle?.() === 'Agent Max') || liveWindows[0];
         if (!mainWindow) {
             return {
                 success: false,
@@ -1648,7 +1649,8 @@ class PullExecutor {
             processedRows.push(rowData.map(item => String(item ?? '')));
         }
 
-        const mainWindow = BrowserWindow.getAllWindows().find(w => !w.isDestroyed());
+        const liveWindows = BrowserWindow.getAllWindows().filter(w => !w.isDestroyed());
+        const mainWindow = liveWindows.find(w => w.getTitle?.() === 'Agent Max') || liveWindows[0];
         if (!mainWindow) {
             return {
                 success: false,

@@ -139,9 +139,7 @@
   transition: border-color 0.15s ease;
 }
 
-.news-story-row:hover {
-  border-left-color: #e8853b;
-}
+/* Row hover removed: only the source pill is clickable, so only it signals interactivity */
 
 .news-story-row + .news-story-row {
   border-top: 1px solid rgba(255,255,255,0.05);
@@ -177,10 +175,12 @@
   font-family: system-ui, sans-serif;
 }
 
-.news-source-pill:hover {
+.news-source-pill:hover,
+.news-source-pill:focus-visible {
   background: rgba(232,133,59,0.15);
   color: #e8853b;
   border-color: rgba(232,133,59,0.3);
+  outline: none;
 }
 
 /* =============================================================================

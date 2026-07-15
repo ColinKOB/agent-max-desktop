@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useState } from 'react';
-import { Check, ChevronDown, ChevronRight, Loader2, X } from 'lucide-react';
+import { Check, ChevronRight, Loader2, X } from 'lucide-react';
 import './LiveActivityFeed.css';
 
 const STATUS_TRANSITION_MS = 220;
@@ -118,6 +118,11 @@ export default function LiveActivityFeed({ activitySteps = [], initialMessage })
           </>
         ) : (
           <span className="activity-status__summary">
+            {hasFailed ? (
+              <X size={12} className="activity-status__summary-icon" aria-hidden="true" />
+            ) : (
+              <Check size={12} className="activity-status__summary-icon" aria-hidden="true" />
+            )}
             {hasFailed
               ? `Stopped — problem on step ${failedStepIndex + 1}`
               : `Done — ${activitySteps.length} steps`}
@@ -134,11 +139,11 @@ export default function LiveActivityFeed({ activitySteps = [], initialMessage })
             aria-label={isHistoryExpanded ? 'Hide activity history' : 'Show activity history'}
           >
             {isRunning && <span>{historySteps.length}</span>}
-            {isHistoryExpanded ? (
-              <ChevronDown size={12} aria-hidden="true" />
-            ) : (
-              <ChevronRight size={12} aria-hidden="true" />
-            )}
+            <ChevronRight
+              size={12}
+              aria-hidden="true"
+              className={`activity-chevron${isHistoryExpanded ? ' activity-chevron--open' : ''}`}
+            />
           </button>
         )}
       </div>
@@ -182,11 +187,11 @@ export default function LiveActivityFeed({ activitySteps = [], initialMessage })
                             aria-expanded={areDetailsExpanded}
                           >
                             <span>details</span>
-                            {areDetailsExpanded ? (
-                              <ChevronDown size={10} aria-hidden="true" />
-                            ) : (
-                              <ChevronRight size={10} aria-hidden="true" />
-                            )}
+                            <ChevronRight
+                              size={10}
+                              aria-hidden="true"
+                              className={`activity-chevron${areDetailsExpanded ? ' activity-chevron--open' : ''}`}
+                            />
                           </button>
                         )}
                       </div>

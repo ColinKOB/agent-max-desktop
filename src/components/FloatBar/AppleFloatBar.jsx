@@ -123,6 +123,7 @@ import TypewriterMessage from '../TypewriterMessage/TypewriterMessage';
 import ActivityFeed from '../ActivityFeed/ActivityFeed';
 import EmailRenderer from './EmailRenderer';
 import RichBlockRenderer from './RichBlockRenderer';
+import { knownBlockTypes } from './blocks/blockRegistry';
 import ComposerBar from './ComposerBar';
 import AppTutorial from '../tutorial/AppTutorial';
 import { processImageFile } from '../../utils/imageCompression';
@@ -3637,7 +3638,7 @@ export default function AppleFloatBar({
           const buffered = streamBufferRef.current || '';
           // Prefer buffered content when it contains widget markers (:::weather etc.)
           // because finalResponse only contains text tokens, not the injected widget blocks
-          const hasWidgetMarkers = buffered.includes(':::weather') || buffered.includes(':::news') || buffered.includes(':::list');
+          const hasWidgetMarkers = knownBlockTypes().some((type) => buffered.includes(':::' + type));
           let responseText =
             hasWidgetMarkers ? buffered :
             (typeof finalResponse === 'string' && finalResponse.trim() ? finalResponse : buffered);

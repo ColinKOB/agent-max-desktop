@@ -7,6 +7,7 @@ export function parseTableBlockData(data) {
     data.columns.length > 0 &&
     data.columns.every((column) => typeof column === 'string');
   const hasValidRows =
+    hasValidColumns &&
     Array.isArray(data?.rows) &&
     data.rows.every(
       (row) =>
@@ -22,12 +23,21 @@ export function parseTableBlockData(data) {
   return data;
 }
 
+// Backend render tools can only send string cells (strict schemas forbid unions),
+// so numeric-looking strings like "42", "$1,299", or "87%" count as numeric too.
+function toNumeric(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value !== 'string') return NaN;
+  const cleaned = value.trim().replace(/^[$€£]/, '').replace(/%$/, '').replace(/,/g, '');
+  return cleaned === '' ? NaN : Number(cleaned);
+}
+
 const TableBlock = React.memo(function TableBlock({ data }) {
   const numericColumns = useMemo(
     () =>
       data.columns.map(
         (_, columnIndex) =>
-          data.rows.length > 0 && data.rows.every((row) => typeof row[columnIndex] === 'number')
+          data.rows.length > 0 && data.rows.every((row) => !Number.isNaN(toNumeric(row[columnIndex])))
       ),
     [data.columns, data.rows]
   );
@@ -37,7 +47,7 @@ const TableBlock = React.memo(function TableBlock({ data }) {
 
     return numericColumns.map((isNumeric, columnIndex) => {
       if (!isNumeric) return undefined;
-      return Math.max(...data.rows.map((row) => row[columnIndex]));
+      return Math.max(...data.rows.map((row) => toNumeric(row[columnIndex])));
     });
   }, [data.highlight_best, data.rows, numericColumns]);
 
@@ -76,7 +86,7 @@ const TableBlock = React.memo(function TableBlock({ data }) {
                   const isBest =
                     data.highlight_best &&
                     numericColumns[columnIndex] &&
-                    value === bestValues[columnIndex];
+                    toNumeric(value) === bestValues[columnIndex];
 
                   return (
                     <td

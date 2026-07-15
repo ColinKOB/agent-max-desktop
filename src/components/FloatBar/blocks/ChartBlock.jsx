@@ -17,6 +17,13 @@ import {
 } from 'recharts';
 
 const CHART_KINDS = new Set(['bar', 'line', 'area', 'pie']);
+const prefersReducedMotion =
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const seriesAnimationProps = prefersReducedMotion
+  ? { isAnimationActive: false }
+  : { animationDuration: 250, animationEasing: 'ease-out' };
 const CHART_COLORS = [
   'var(--display-block-accent, #6f91c9)',
   'var(--display-block-series-2, #91a6c2)',
@@ -156,6 +163,7 @@ const ChartBlock = React.memo(function ChartBlock({ data }) {
             dot={false}
             activeDot={{ r: 3, strokeWidth: 0 }}
             connectNulls
+            {...seriesAnimationProps}
           />
         ))}
       </LineChart>
@@ -203,6 +211,7 @@ const ChartBlock = React.memo(function ChartBlock({ data }) {
             dot={false}
             activeDot={{ r: 3, strokeWidth: 0 }}
             connectNulls
+            {...seriesAnimationProps}
           />
         ))}
       </AreaChart>
@@ -222,6 +231,7 @@ const ChartBlock = React.memo(function ChartBlock({ data }) {
           outerRadius="76%"
           paddingAngle={2}
           stroke="none"
+          {...seriesAnimationProps}
         >
           {pieData.map((entry, index) => (
             <Cell key={`${entry.name}-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
@@ -245,6 +255,7 @@ const ChartBlock = React.memo(function ChartBlock({ data }) {
             fill={CHART_COLORS[index % CHART_COLORS.length]}
             radius={[4, 4, 1, 1]}
             maxBarSize={28}
+            {...seriesAnimationProps}
           />
         ))}
       </BarChart>
@@ -258,6 +269,19 @@ const ChartBlock = React.memo(function ChartBlock({ data }) {
           <BarChart3 size={15} strokeWidth={1.75} aria-hidden="true" />
           <span>{data.title}</span>
         </h3>
+      )}
+      {normalized.kind !== 'pie' && normalized.series.length > 1 && (
+        <div className="display-block-chart-legend">
+          {normalized.series.map((series, index) => (
+            <span key={series.key} className="display-block-chart-legend-item">
+              <span
+                className="display-block-chart-legend-dot"
+                style={{ background: CHART_COLORS[index % CHART_COLORS.length] }}
+              />
+              {series.name}
+            </span>
+          ))}
+        </div>
       )}
       <div
         className="display-block-chart-canvas"
