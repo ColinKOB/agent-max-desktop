@@ -108,8 +108,20 @@ export default function LiveActivityFeed({ activitySteps = [], initialMessage })
     <div className="live-activity-feed">
       {initialMessage && <div className="live-activity-feed__intro">{initialMessage}</div>}
 
-      <div
-        className={`activity-status${hasFailed && !isRunning ? ' activity-status--failed' : ''}`}
+      <button
+        type="button"
+        className={`activity-status${hasFailed && !isRunning ? ' activity-status--failed' : ''}${canExpandHistory ? ' activity-status--clickable' : ''}`}
+        onClick={toggleHistory}
+        disabled={!canExpandHistory}
+        aria-expanded={canExpandHistory ? isHistoryExpanded : undefined}
+        aria-controls={canExpandHistory ? historyId : undefined}
+        aria-label={
+          canExpandHistory
+            ? isHistoryExpanded
+              ? 'Hide activity history'
+              : 'Show activity history'
+            : undefined
+        }
       >
         {isRunning ? (
           <>
@@ -130,23 +142,15 @@ export default function LiveActivityFeed({ activitySteps = [], initialMessage })
         )}
 
         {canExpandHistory && (
-          <button
-            type="button"
-            className="activity-status__history-toggle"
-            onClick={toggleHistory}
-            aria-expanded={isHistoryExpanded}
-            aria-controls={historyId}
-            aria-label={isHistoryExpanded ? 'Hide activity history' : 'Show activity history'}
-          >
+          <span className="activity-status__history-toggle" aria-hidden="true">
             {isRunning && <span>{historySteps.length}</span>}
             <ChevronRight
               size={12}
-              aria-hidden="true"
               className={`activity-chevron${isHistoryExpanded ? ' activity-chevron--open' : ''}`}
             />
-          </button>
+          </span>
         )}
-      </div>
+      </button>
 
       {canExpandHistory && (
         <div
