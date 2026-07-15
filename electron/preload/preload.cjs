@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('electron', {
   },
   permissions: {
     getStatus: () => ipcRenderer.invoke('permissions:get-status'),
+    request: (permission) => ipcRenderer.invoke('permissions:request', permission),
     openSettings: (permission) => ipcRenderer.invoke('permissions:open-settings', permission),
   },
 

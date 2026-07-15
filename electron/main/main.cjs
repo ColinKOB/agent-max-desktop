@@ -631,6 +631,18 @@ ipcMain.handle('permissions:get-status', () => {
   };
 });
 
+ipcMain.handle('permissions:request', async (_event, permission) => {
+  if (process.platform !== 'darwin') return { prompted: false };
+  if (!['microphone', 'camera'].includes(permission)) return { prompted: false };
+
+  if (systemPreferences.getMediaAccessStatus(permission) === 'denied') {
+    return { prompted: false, granted: false, denied: true };
+  }
+
+  const granted = await systemPreferences.askForMediaAccess(permission);
+  return { prompted: true, granted };
+});
+
 ipcMain.handle('permissions:open-settings', (_event, permission) => {
   const panes = {
     screen: 'Privacy_ScreenCapture',

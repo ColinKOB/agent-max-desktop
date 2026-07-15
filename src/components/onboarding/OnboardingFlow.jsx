@@ -30,8 +30,6 @@ import {
   AlertCircle,
   FileWarning,
   Scale,
-  Gift,
-  Heart,
   Plane,
   FolderOpen,
   Play,
@@ -1360,6 +1358,19 @@ function PermissionsStep({ onNext, onBack }) {
     ['microphone', 'Microphone', 'Needed only when you use voice input.'],
   ];
 
+  const handlePermissionRequest = async (permission) => {
+    if (permission === 'microphone') {
+      const result = await window.electron.permissions.request(permission);
+      if (result?.denied) {
+        await window.electron.permissions.openSettings(permission);
+      }
+    } else {
+      await window.electron.permissions.openSettings(permission);
+    }
+
+    setTimeout(refresh, 1000);
+  };
+
   return (
     <div style={{ maxWidth: 360, margin: '0 auto', padding: '16px', height: '100%', display: 'flex', flexDirection: 'column' }}>
       <h2 style={styles.heading}>Desktop Permissions</h2>
@@ -1367,6 +1378,7 @@ function PermissionsStep({ onNext, onBack }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12, overflowY: 'auto' }}>
         {permissions.map(([id, label, description]) => {
           const granted = ['granted', 'authorized'].includes(statuses?.[id]);
+          const canPrompt = id === 'microphone' && statuses?.[id] === 'not-determined';
           return (
             <div key={id} style={{ padding: 12, border: '1px solid rgba(255,255,255,.1)', borderRadius: 8, textAlign: 'left' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
@@ -1375,10 +1387,9 @@ function PermissionsStep({ onNext, onBack }) {
               </div>
               <p style={{ color: 'rgba(255,255,255,.6)', fontSize: 11, margin: '5px 0 9px' }}>{description}</p>
               {!granted && statuses?.platform === 'darwin' && (
-                <button style={styles.secondaryButton} onClick={async () => {
-                  await window.electron.permissions.openSettings(id);
-                  setTimeout(refresh, 1000);
-                }}>Open System Settings</button>
+                <button style={styles.secondaryButton} onClick={() => handlePermissionRequest(id)}>
+                  {canPrompt ? 'Allow Microphone' : 'Open System Settings'}
+                </button>
               )}
             </div>
           );
@@ -3166,229 +3177,102 @@ function SubscriptionStep({ userData, onNext, onBack }) {
   // Show beta tester thank you card
   if (isBetaTester) {
     return (
-      <div style={{
-        maxWidth: 380,
-        margin: '0 auto',
-        padding: '24px 20px',
-        textAlign: 'center',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-      }}>
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-        >
-          {/* Gift icon with glow */}
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
-            style={{
-              width: 80,
-              height: 80,
-              margin: '0 auto 24px',
-              borderRadius: 20,
-              background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.2) 100%)',
-              border: '1px solid rgba(34, 197, 94, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 8px 32px rgba(34, 197, 94, 0.25)',
-            }}
-          >
-            {creditsGranted ? (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 400 }}
-              >
-                <Check style={{ width: 40, height: 40, color: '#22c55e' }} />
-              </motion.div>
-            ) : (
-              <Gift style={{ width: 40, height: 40, color: '#22c55e' }} />
-            )}
-          </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        style={{
+          maxWidth: 360,
+          margin: '0 auto',
+          padding: 16,
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          textAlign: 'left',
+        }}
+      >
+        <span style={{
+          color: 'rgba(255, 255, 255, 0.45)',
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.14em',
+          marginBottom: 10,
+        }}>
+          BETA
+        </span>
 
-          <motion.h2
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            style={{
-              ...styles.heading,
-              fontSize: 24,
-              marginBottom: 12,
-            }}
-          >
-            {creditsGranted ? 'You\'re All Set!' : 'Thank You, Beta Tester!'}
-          </motion.h2>
+        <h2 style={styles.heading}>
+          {creditsGranted ? 'You\'re All Set!' : 'You\'re in.'}
+        </h2>
 
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            style={{
-              ...styles.subheading,
-              marginBottom: 24,
-              fontSize: 14,
-            }}
-          >
-            {creditsGranted
-              ? `${BETA_CREDITS_AMOUNT} credits have been added to your account.`
-              : 'Your feedback helps shape the future of Agent Max. As a thank you, here are some free credits on us!'}
-          </motion.p>
+        <p style={{ ...styles.subheading, marginBottom: 20 }}>
+          {creditsGranted
+            ? `${BETA_CREDITS_AMOUNT} credits have been added to your account.`
+            : 'Thanks for helping us shape Agent Max. Your beta access includes a credit balance to get started.'}
+        </p>
 
-          {/* Credits box */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            style={{
-              padding: 20,
-              background: 'rgba(34, 197, 94, 0.1)',
-              borderRadius: 16,
-              border: '1px solid rgba(34, 197, 94, 0.2)',
-              marginBottom: 24,
-            }}
-          >
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 10,
+          color: '#fff',
+          fontSize: 17,
+          fontWeight: 500,
+        }}>
+          <Sparkles style={{ width: 15, height: 15, color: BRAND_ORANGE }} />
+          <span>{BETA_CREDITS_AMOUNT} credits</span>
+        </div>
+
+        <p style={{
+          color: 'rgba(255, 255, 255, 0.48)',
+          fontSize: 12,
+          lineHeight: 1.5,
+          margin: 0,
+        }}>
+          Full access, autonomous execution, early features included.
+        </p>
+
+        <div style={{ marginTop: 'auto', paddingTop: 16 }}>
+          {creditsGranted ? (
             <div style={{
+              height: 48,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
-              marginBottom: 8,
-            }}>
-              <Sparkles style={{ width: 20, height: 20, color: '#22c55e' }} />
-              <span style={{
-                fontSize: 32,
-                fontWeight: 700,
-                color: '#22c55e',
-              }}>
-                {BETA_CREDITS_AMOUNT}
-              </span>
-              <span style={{
-                fontSize: 16,
-                fontWeight: 600,
-                color: 'rgba(255, 255, 255, 0.7)',
-              }}>
-                credits
-              </span>
-            </div>
-            <p style={{
-              fontSize: 12,
-              color: 'rgba(255, 255, 255, 0.5)',
-              margin: 0,
-            }}>
-              Free credits for beta testers
-            </p>
-          </motion.div>
-
-          {/* What you get section */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            style={{
-              textAlign: 'left',
-              padding: 16,
-              background: 'rgba(255, 255, 255, 0.03)',
-              borderRadius: 12,
-              marginBottom: 24,
-            }}
-          >
-            <p style={{
-              fontSize: 12,
-              fontWeight: 600,
               color: 'rgba(255, 255, 255, 0.7)',
-              marginBottom: 10,
-              marginTop: 0,
+              fontSize: 14,
+              fontWeight: 600,
             }}>
-              What you get:
-            </p>
-            {[
-              'Full access to all features',
-              'Autonomous task execution',
-              'Early access to new features',
-            ].map((item, i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  marginBottom: 6,
-                  fontSize: 13,
-                  color: 'rgba(255, 255, 255, 0.6)',
-                }}
-              >
-                <Check style={{ width: 14, height: 14, color: '#22c55e', flexShrink: 0 }} />
-                {item}
-              </div>
-            ))}
-          </motion.div>
-
-          {/* Claim button */}
-          {!creditsGranted && (
-            <motion.button
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
+              <Check style={{ width: 16, height: 16, color: BRAND_ORANGE }} />
+              Credits added
+            </div>
+          ) : (
+            <button
               onClick={handleBetaClaim}
               disabled={grantingCredits}
-              whileHover={{ scale: grantingCredits ? 1 : 1.02 }}
-              whileTap={{ scale: grantingCredits ? 1 : 0.98 }}
               style={{
                 ...styles.primaryButton,
-                background: grantingCredits
-                  ? 'rgba(34, 197, 94, 0.5)'
-                  : 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-                boxShadow: '0 4px 14px rgba(34, 197, 94, 0.35)',
+                opacity: grantingCredits ? 0.65 : 1,
                 cursor: grantingCredits ? 'wait' : 'pointer',
               }}
             >
               {grantingCredits ? (
                 <>
-                  <div style={{
-                    width: 18,
-                    height: 18,
-                    border: '2px solid rgba(255, 255, 255, 0.3)',
-                    borderTopColor: '#fff',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite',
-                  }} />
-                  Claiming Credits...
+                  <Loader2 style={{ width: 17, height: 17, animation: 'spin 1s linear infinite' }} />
+                  Claiming credits...
                 </>
               ) : (
                 <>
-                  <Gift style={{ width: 18, height: 18 }} />
-                  Claim My Free Credits
+                  <Sparkles style={{ width: 16, height: 16 }} />
+                  Claim {BETA_CREDITS_AMOUNT} credits
                 </>
               )}
-            </motion.button>
+            </button>
           )}
-
-          {/* Small note */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-            style={{
-              fontSize: 11,
-              color: 'rgba(255, 255, 255, 0.4)',
-              marginTop: 16,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4,
-            }}
-          >
-            <Heart style={{ width: 12, height: 12, color: '#ef4444' }} />
-            We appreciate your help making Agent Max better
-          </motion.p>
-        </motion.div>
-      </div>
+        </div>
+      </motion.div>
     );
   }
 
