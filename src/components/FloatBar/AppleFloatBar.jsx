@@ -1884,12 +1884,21 @@ export default function AppleFloatBar({
     };
   }, [setApiConnected]);
 
-  // Keep pill in mini state by default; onboarding no longer forces auto-expand
+  // Keep pill in mini state by default; onboarding no longer forces auto-expand.
+  // But if the window is already expanded when onboarding activates (or was
+  // expanded before showWelcome was set), the expand-time resize used the chat
+  // height — correct it here so the onboarding card is never clipped.
   useEffect(() => {
-    if (showWelcome !== true) return;
-    // If we ever want to auto-expand for onboarding, handle via explicit user action
-    // leaving mini state intact ensures the pill is always present
-  }, [showWelcome]);
+    if (showWelcome !== true || isMini) return;
+    (async () => {
+      try {
+        if (window.electron?.resizeWindow && lastHeightRef.current < 520) {
+          await window.electron.resizeWindow(360, 520);
+          lastHeightRef.current = 520;
+        }
+      } catch {}
+    })();
+  }, [showWelcome, isMini]);
 
   // Flash a subtle success pill when we transition offline -> online
   const prevOnlineRef = useRef(true);
@@ -7304,7 +7313,14 @@ export default function AppleFloatBar({
                 borderRadius: 'inherit',
               }}
             >
-              <OnboardingFlow onComplete={onWelcomeComplete} />
+              <OnboardingFlow
+                onComplete={onWelcomeComplete}
+                startStep={
+                  import.meta.env.DEV
+                    ? Number(localStorage.getItem('dev_onboarding_step') || 0)
+                    : 0
+                }
+              />
             </div>
           )}
 

@@ -96,7 +96,8 @@ function App({ windowMode = 'single' }) {
     // CRITICAL: Check onboarding completion FIRST, before any user init
     // This ensures fresh installs show onboarding even if device_id gets created
     // Use VITE_FORCE_ONBOARDING=true to force onboarding for testing
-    const forceOnboarding = import.meta.env.VITE_FORCE_ONBOARDING === 'true';
+    const forceOnboarding = import.meta.env.VITE_FORCE_ONBOARDING === 'true'
+      || (import.meta.env.DEV && localStorage.getItem('dev_show_onboarding') === 'true');
     const onboardingCompleted = forceOnboarding ? false : localStorage.getItem('onboarding_completed') === 'true';
     const tutorialCompleted = forceOnboarding ? false : localStorage.getItem('tutorial_completed') === 'true';
 
