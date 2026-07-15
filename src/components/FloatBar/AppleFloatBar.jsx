@@ -238,7 +238,7 @@ const MAX_EXPANDED_HEIGHT = 600;
 const LINE_GROWTH = 18; // grow window roughly one line per new chunk
 const HEIGHT_DEBOUNCE_MS = 50; // debounce for height updates (reduced to minimize layout shift)
 const HEIGHT_SHRINK_DELAY_MS = 400; // extra delay before shrinking (prevents jumping)
-const HEIGHT_CHANGE_THRESHOLD = 20; // minimum px change to trigger resize
+const HEIGHT_CHANGE_THRESHOLD = 2; // ignore subpixel churn, but keep the native window tightly synced
 
 /**
  * Pre-flight check for Google service queries.
@@ -1890,14 +1890,14 @@ export default function AppleFloatBar({
   // height — correct it here so the onboarding card is never clipped.
   useEffect(() => {
     if (showWelcome !== true || isMini) return;
-    (async () => {
-      try {
-        if (window.electron?.resizeWindow && lastHeightRef.current < 520) {
-          await window.electron.resizeWindow(360, 520);
-          lastHeightRef.current = 520;
-        }
-      } catch {}
-    })();
+    if (resizeDebounceRef.current) clearTimeout(resizeDebounceRef.current);
+    if (shrinkTimeoutRef.current) clearTimeout(shrinkTimeoutRef.current);
+
+    // Do not trust lastHeightRef here. A previous resize can leave the ref at
+    // 520 while the native window was subsequently restored to chat height.
+    lastWidthRef.current = 360;
+    lastHeightRef.current = 520;
+    window.electron?.resizeWindow?.(360, 520).catch?.(() => {});
   }, [showWelcome, isMini]);
 
   // Flash a subtle success pill when we transition offline -> online
@@ -2371,14 +2371,14 @@ export default function AppleFloatBar({
           const target = Math.min(limit, Math.max(base, saved, MIN_EXPANDED_HEIGHT));
           if (window.electron?.resizeWindow) {
             lastWidthRef.current = 360;
-            await window.electron.resizeWindow(360, target);
-            lastHeightRef.current = target;
+            const result = await window.electron.resizeWindow(360, target);
+            lastHeightRef.current = result?.bounds?.height || target;
           }
         } else {
           if (window.electron?.resizeWindow) {
             lastWidthRef.current = 360;
-            await window.electron.resizeWindow(360, base);
-            lastHeightRef.current = base;
+            const result = await window.electron.resizeWindow(360, base);
+            lastHeightRef.current = result?.bounds?.height || base;
           }
         }
       } catch {}
@@ -2389,7 +2389,7 @@ export default function AppleFloatBar({
       inputRef.current?.focus();
       setIsTransitioning(false);
     }, 300);
-  }, [thoughts.length]);
+  }, [thoughts.length, showWelcome]);
 
   useEffect(() => {
     if (!window.electron?.onReviewNotificationOpen) return undefined;
@@ -2465,6 +2465,7 @@ export default function AppleFloatBar({
 
   const handleCollapse = useCallback(async () => {
     setIsTransitioning(true);
+    isMiniRef.current = true;
 
     // Track window minimization
     trackWindowMinimized('mini');
@@ -2473,15 +2474,20 @@ export default function AppleFloatBar({
       clearTimeout(resizeDebounceRef.current);
       resizeDebounceRef.current = null;
     }
+    if (shrinkTimeoutRef.current) {
+      clearTimeout(shrinkTimeoutRef.current);
+      shrinkTimeoutRef.current = null;
+    }
     try {
       try {
         const b = await window.electron?.getBounds?.();
         if (b?.height) localStorage.setItem('amx:floatbar:lastHeight', String(b.height));
       } catch {}
-      await window.electron?.resizeWindow?.(80, 80);
+      const result = await window.electron?.resizeWindow?.(80, 80);
+      lastWidthRef.current = result?.bounds?.width || 80;
+      lastHeightRef.current = result?.bounds?.height || 80;
     } catch {}
     setIsMini(true);
-    isMiniRef.current = true;
     naturalHeightRef.current = 0;
     setTimeout(() => {
       setIsTransitioning(false);
@@ -6332,6 +6338,20 @@ export default function AppleFloatBar({
     resizeDebounceRef.current = setTimeout(async () => {
       if (isMiniRef.current) return;
 
+      // Onboarding is an absolute overlay, so its height is not represented by
+      // the chat surface measurements below. It owns the expanded height while
+      // visible and must not fall through to the 180px empty-chat branch.
+      if (showWelcome === true) {
+        if (shrinkTimeoutRef.current) clearTimeout(shrinkTimeoutRef.current);
+        lastWidthRef.current = 360;
+        lastHeightRef.current = 520;
+        try {
+          const result = await window.electron?.resizeWindow?.(360, 520);
+          lastHeightRef.current = result?.bounds?.height || 520;
+        } catch {}
+        return;
+      }
+
       // Measure actual content height from the glass element's children
       const containerEl = barRef.current;
       const glassEl = containerEl?.querySelector?.('.apple-bar-glass');
@@ -6409,10 +6429,19 @@ export default function AppleFloatBar({
         // The input area will scroll internally if user types a lot of text
         const targetEmptyHeight = 180;
 
-        if (window.electron?.resizeWindow && lastHeightRef.current !== targetEmptyHeight) {
+        let currentHeight = lastHeightRef.current;
+        try {
+          const bounds = await window.electron?.getBounds?.();
+          if (bounds?.height) currentHeight = bounds.height;
+          if (bounds?.width) lastWidthRef.current = bounds.width;
+        } catch {}
+        lastHeightRef.current = currentHeight;
+
+        if (window.electron?.resizeWindow && currentHeight !== targetEmptyHeight) {
           try {
-            await window.electron.resizeWindow(360, targetEmptyHeight);
-            lastHeightRef.current = targetEmptyHeight;
+            if (isMiniRef.current) return;
+            const result = await window.electron.resizeWindow(360, targetEmptyHeight);
+            lastHeightRef.current = result?.bounds?.height || targetEmptyHeight;
           } catch {}
         }
         naturalHeightRef.current = naturalHeight;
@@ -6456,23 +6485,34 @@ export default function AppleFloatBar({
         Math.min(screenLimit, bufferedHeight, MAX_EXPANDED_HEIGHT)
       );
 
-      console.log('[FloatBar Height] Target:', targetHeight, 'Last:', lastHeightRef.current);
+      let currentHeight = lastHeightRef.current || 0;
+      try {
+        const bounds = await window.electron?.getBounds?.();
+        if (bounds?.height) currentHeight = bounds.height;
+        if (bounds?.width) lastWidthRef.current = bounds.width;
+      } catch {}
+      lastHeightRef.current = currentHeight;
 
-      // Only resize if height changed meaningfully
-      const heightDelta = targetHeight - (lastHeightRef.current || 0);
+      console.log('[FloatBar Height] Target:', targetHeight, 'Current:', currentHeight);
+
+      // Compare against the native window, not only the cached ref. Async
+      // resizes and focus restoration can make the ref stale by a full row.
+      const heightDelta = targetHeight - currentHeight;
       const shouldGrow = heightDelta > HEIGHT_CHANGE_THRESHOLD;
       const shouldShrink = heightDelta < -HEIGHT_CHANGE_THRESHOLD;
 
       if (shouldGrow || shouldShrink) {
         // Growing happens immediately, shrinking is delayed to prevent jumping
         const doResize = async () => {
-          lastHeightRef.current = targetHeight;
+          if (isMiniRef.current || showWelcome === true) return;
           if (window.electron?.resizeWindow) {
             try {
               const bounds = await window.electron.getBounds?.();
+              if (isMiniRef.current || showWelcome === true) return;
               const width = bounds?.width || lastWidthRef.current || 360;
               if (bounds?.width) lastWidthRef.current = bounds.width;
-              await window.electron.resizeWindow(width, targetHeight);
+              const result = await window.electron.resizeWindow(width, targetHeight);
+              lastHeightRef.current = result?.bounds?.height || targetHeight;
               try {
                 localStorage.setItem('amx:floatbar:lastHeight', String(targetHeight));
               } catch {}
@@ -6493,10 +6533,15 @@ export default function AppleFloatBar({
       // Update baseline after any attempted resize
       naturalHeightRef.current = bufferedHeight;
     }, HEIGHT_DEBOUNCE_MS);
-  }, [isMini, approvalOpen, thoughts, isThinking]);
+  }, [isMini, approvalOpen, thoughts, isThinking, showWelcome]);
 
   useEffect(() => {
     isMiniRef.current = isMini;
+    if (!isMini) return;
+    if (resizeDebounceRef.current) clearTimeout(resizeDebounceRef.current);
+    if (shrinkTimeoutRef.current) clearTimeout(shrinkTimeoutRef.current);
+    lastWidthRef.current = 80;
+    lastHeightRef.current = 80;
   }, [isMini]);
 
   useEffect(() => {
@@ -6539,6 +6584,36 @@ export default function AppleFloatBar({
     observer.observe(el);
     return () => observer.disconnect();
   }, [updateWindowHeight]);
+
+  // Observe the complete floatbar surface, including top-level async UI that
+  // is outside the composer/messages observers. Observing the direct glass
+  // children is necessary because the root itself fills the native viewport.
+  useEffect(() => {
+    const root = barRef.current;
+    if (!root || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => updateWindowHeight());
+    observer.observe(root);
+    const glass = root.querySelector?.('.apple-bar-glass');
+    let mutationObserver;
+    if (glass) {
+      observer.observe(glass);
+      const observeChildren = () => {
+        Array.from(glass.children).forEach((child) => observer.observe(child));
+      };
+      observeChildren();
+      if (typeof MutationObserver !== 'undefined') {
+        mutationObserver = new MutationObserver(() => {
+          observeChildren();
+          updateWindowHeight();
+        });
+        mutationObserver.observe(glass, { childList: true });
+      }
+    }
+    return () => {
+      mutationObserver?.disconnect();
+      observer.disconnect();
+    };
+  }, [isMini, updateWindowHeight]);
 
   // Recalculate when messages mutate (streaming, images load) even if state isn't replaced
   useEffect(() => {

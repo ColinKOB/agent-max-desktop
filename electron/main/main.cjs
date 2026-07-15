@@ -927,7 +927,13 @@ ipcMain.handle(
             } catch {}
           }, 50);
         }
+
+        // Return the native result so renderer-side height bookkeeping can be
+        // based on the BrowserWindow rather than an optimistic cached value.
+        return { success: true, bounds: mainWindow.getBounds() };
       }
+
+      return { success: false, bounds: null };
     },
     {
       width: { type: 'number', required: true, min: 50, max: 2000, integer: true },
